@@ -2,7 +2,7 @@
 phase: 0
 slug: foundation
 status: draft
-nyquist_compliant: false
+nyquist_compliant: true
 wave_0_complete: false
 created: 2026-05-21
 ---
@@ -135,4 +135,4 @@ Greenfield repo — Wave 0 must create all test infrastructure from scratch:
 - [ ] Feedback latency < 30s for per-task; < 5min for per-wave
 - [ ] `nyquist_compliant: true` set in frontmatter after all checkboxes pass
 
-**Approval:** pending
+**Approval:** approved 2026-05-21
