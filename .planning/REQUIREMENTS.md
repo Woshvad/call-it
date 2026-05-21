@@ -413,9 +413,9 @@ Requirements for the v1 mainnet release. Each line is an atomic, testable behavi
 - [ ] **SHARE-06**: Outcome word color mapping on cards matches §15.7 — CALLED IT green, LOUD AND WRONG red, CONTRARIAN HIT accent, COLD CALL muted, FADED CORRECTLY accent (§16.3)
 - [ ] **SHARE-07**: Duel Settled Card (variant 3) — two-column hero with winner avatar (~180px) + winner handle + WINS in Syne next to winner's column; loser avatar dimmed to 40%; pot ("Pot: $X,XXX · winner takes all"); rep deltas paired; market + target small text; Call It + Arbitrum branding bottom corners (§16.4)
 - [ ] **SHARE-08**: Caller Exited Card (variant 4) — "CALLER EXITED" massive amber `#FB923C` hero + caller avatar dimmed + original call statement + stats row (time before exit / stake slashed / reputation impact) + note "Call continues for followers and faders. Settles at [expiry]." + corner brackets; auto-generates on `CallerExited` event (§16.5)
-- [ ] **SHARE-09**: Fallback Card (variant 5) "A CALL WAS MADE" — 3px accent border + 4px accent corner brackets all 4 corners + `#09090E` bg + CALL IT wordmark Syne 48px + asymmetric hero "A CALL WAS MADE" Syne 64px + "by @[handle]" + "The receipt is being prepared. Tap to view live." + footer (§16.6)
-- [ ] **SHARE-10**: Fallback Card serves when real receipt URL returns 404 (cache not warm) OR settled image hasn't regenerated OR OG service is fully down; CDN cache 60 seconds (§16.6)
-- [ ] **SHARE-11**: Fallback Card renders in <100ms using stripped template that pulls only `[handle]` from URL (§16.6)
+- [x] **SHARE-09**: Fallback Card (variant 5) "A CALL WAS MADE" — 3px accent border + 4px accent corner brackets all 4 corners + `#09090E` bg + CALL IT wordmark Syne 48px + asymmetric hero "A CALL WAS MADE" Syne 64px + "by @[handle]" + "The receipt is being prepared. Tap to view live." + footer (§16.6)
+- [x] **SHARE-10**: Fallback Card serves when real receipt URL returns 404 (cache not warm) OR settled image hasn't regenerated OR OG service is fully down; CDN cache 60 seconds (§16.6)
+- [x] **SHARE-11**: Fallback Card renders in <100ms using stripped template that pulls only `[handle]` from URL (§16.6)
 - [ ] **SHARE-12**: 200px-viewport thumbnail readability QA gate runs on every outcome word variant before mainnet announce (§15.7, §16.3, §19.11)
 - [ ] **SHARE-13**: Receipt OG cards must pass the Twitter Card Validator (`cards-dev.twitter.com/validator`) smoke test before mainnet announcement (§19.11)
 - [ ] **SHARE-14**: Receipt page server-renders OpenGraph meta tags referencing the OG card URL (§18.2, §19 Phase 7)
@@ -429,9 +429,9 @@ Requirements for the v1 mainnet release. Each line is an atomic, testable behavi
 
 ### Operations & Observability (OPS)
 
-- [ ] **OPS-01**: The Graph subgraph is the primary indexed event source from day 1 on the Decentralized Network (§19, App.A.1)
-- [ ] **OPS-02**: Polled-events fallback runs during subgraph deploy gaps (hackathon backup) (§19, App.A.1)
-- [ ] **OPS-03**: Subgraph indexes `CallCreated`, `CallSettled`, `CallQuoted`, `ConvictionCapped`, `CallerExited`, `Followed`, `Faded`, `PayoutClaimed`, `PositionExited`, `ChallengeProposed`, `ChallengeAccepted`, `ChallengeRejected`, `ChallengeRefunded`, `ChallengeSettled`, `DisputeRaised`, `DisputeResolved`, `CallForceSettled`, `RepCalculated`, `RepCalculatedFallback`, `SettlementDelayed`, `ProfileUpdated`, `SocialLinked`, `SocialUnlinked` events (§12.1–12.5)
+- [x] **OPS-01**: The Graph subgraph is the primary indexed event source from day 1 on the Decentralized Network (§19, App.A.1)
+- [x] **OPS-02**: Polled-events fallback runs during subgraph deploy gaps (hackathon backup) (§19, App.A.1)
+- [x] **OPS-03**: Subgraph indexes `CallCreated`, `CallSettled`, `CallQuoted`, `ConvictionCapped`, `CallerExited`, `Followed`, `Faded`, `PayoutClaimed`, `PositionExited`, `ChallengeProposed`, `ChallengeAccepted`, `ChallengeRejected`, `ChallengeRefunded`, `ChallengeSettled`, `DisputeRaised`, `DisputeResolved`, `CallForceSettled`, `RepCalculated`, `RepCalculatedFallback`, `SettlementDelayed`, `ProfileUpdated`, `SocialLinked`, `SocialUnlinked` events (§12.1–12.5)
 - [ ] **OPS-04**: Subgraph indexes CallCreated within ~30s of emission (§19 Phase 6 share-loop dependency)
 - [x] **OPS-05**: Structured relayer logging (Pino or equivalent) emits one line per oracle query, settlement submission, and dispute (§19.10, App.A.1)
 - [ ] **OPS-06**: Metrics dashboard exposes Total TVL, calls/hour, settlement latency, dispute rate, failed-tx rate at minimum (App.A.1)
@@ -935,9 +935,9 @@ Which phases cover which requirements. Updated during roadmap creation by the ro
 | SHARE-06 | Phase 4 | Pending |
 | SHARE-07 | Phase 3 | Pending |
 | SHARE-08 | Phase 4 | Pending |
-| SHARE-09 | Phase 0 | Pending |
-| SHARE-10 | Phase 0 | Pending |
-| SHARE-11 | Phase 0 | Pending |
+| SHARE-09 | Phase 0 | Complete |
+| SHARE-10 | Phase 0 | Complete |
+| SHARE-11 | Phase 0 | Complete |
 | SHARE-12 | Phase 4 | Pending |
 | SHARE-13 | Phase 7 | Pending |
 | SHARE-14 | Phase 7 | Pending |
@@ -948,9 +948,9 @@ Which phases cover which requirements. Updated during roadmap creation by the ro
 | SHARE-19 | Phase 8 | Pending |
 | SHARE-20 | Phase 7 | Pending |
 | SHARE-21 | Phase 7 | Pending |
-| OPS-01 | Phase 0 | Pending |
-| OPS-02 | Phase 0 | Pending |
-| OPS-03 | Phase 0 | Pending |
+| OPS-01 | Phase 0 | Complete |
+| OPS-02 | Phase 0 | Complete |
+| OPS-03 | Phase 0 | Complete |
 | OPS-04 | Phase 7 | Pending |
 | OPS-05 | Phase 0 | Complete |
 | OPS-06 | Phase 0 | Pending |
