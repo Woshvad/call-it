@@ -296,8 +296,8 @@ Requirements for the v1 mainnet release. Each line is an atomic, testable behavi
 - [ ] **SAFETY-09**: All contracts use Checks-Effects-Interactions pattern (§10.5)
 - [ ] **SAFETY-10**: All external calls happen at the end of functions (§10.5)
 - [ ] **SAFETY-11**: No `delegatecall` to user-controlled addresses anywhere (§10.5)
-- [ ] **SAFETY-12**: Solidity version is pinned to `^0.8.24` exactly (not `0.8+`) — locks checked arithmetic, transient storage, stable ABI (§10.5, App.A.1)
-- [ ] **SAFETY-13**: USDC address is hardcoded at deploy — every transfer path enforces `require(token == USDC_ARB)`; blocks fee-on-transfer, rebasing, and callback tokens (§10.5, App.A.1)
+- [x] **SAFETY-12**: Solidity version is pinned to `^0.8.24` exactly (not `0.8+`) — locks checked arithmetic, transient storage, stable ABI (§10.5, App.A.1)
+- [x] **SAFETY-13**: USDC address is hardcoded at deploy — every transfer path enforces `require(token == USDC_ARB)`; blocks fee-on-transfer, rebasing, and callback tokens (§10.5, App.A.1)
 - [ ] **SAFETY-14**: ReentrancyGuard wraps all functions that handle USDC transfers (§10.5)
 - [ ] **SAFETY-15**: Paymaster global daily cap is $50/day at hackathon launch; auto-disables for the rest of the UTC day when reached and routes users to "fund your wallet to continue" flow (§10.7)
 - [ ] **SAFETY-16**: Daily cap is owner-tunable via `setPaymasterDailyCap(uint256)` on the off-chain relayer config (operational, not a contract function) (§10.7)
@@ -449,9 +449,9 @@ Requirements for the v1 mainnet release. Each line is an atomic, testable behavi
 - [ ] **OPS-18**: NFT TWAP operator runbook includes a sanity-check script that re-computes TWAP from on-chain transfer logs and flags mismatches (§13.2)
 - [ ] **OPS-19**: Relayer signing keys are held in a KMS / secret manager (App.A.1, §13.2)
 - [ ] **OPS-20**: Demo seed plan funds 10-15 calls across both Privy and external wallets for realism (App.A.1, §18.4)
-- [ ] **OPS-21**: Network is Arbitrum Mainnet hardcoded; not multi-chain in v1 (§10.5)
-- [ ] **OPS-22**: Currency is USDC on Arbitrum — hardcoded address in every transfer path (§10.5)
-- [ ] **OPS-23**: Frontend stack: Next.js (App Router) + React + Privy + wagmi/viem + Tailwind (project constraint, §9.2)
+- [x] **OPS-21**: Network is Arbitrum Mainnet hardcoded; not multi-chain in v1 (§10.5)
+- [x] **OPS-22**: Currency is USDC on Arbitrum — hardcoded address in every transfer path (§10.5)
+- [x] **OPS-23**: Frontend stack: Next.js (App Router) + React + Privy + wagmi/viem + Tailwind (project constraint, §9.2)
 - [ ] **OPS-24**: Backend stack: Node.js + Fastify on Railway or Fly.io; hosts the relayer (oracle queries, signed submissions, CEX scrapers, OG image generation) (project constraint)
 - [ ] **OPS-25**: Owner is informed of `RepCalculatedFallback` and can manually compensate the user offline if Stylus revert caused calculation distortion (§11.6)
 - [ ] **OPS-26**: Sponsored campaigns (protocol-sponsored seasons) — owner-controlled allowlist additions; sponsor wallets are subject to all anti-spam gates (§18.4, §4.4)
@@ -824,8 +824,8 @@ Which phases cover which requirements. Updated during roadmap creation by the ro
 | SAFETY-09 | Phase 1 | Pending |
 | SAFETY-10 | Phase 1 | Pending |
 | SAFETY-11 | Phase 1 | Pending |
-| SAFETY-12 | Phase 0 | Pending |
-| SAFETY-13 | Phase 0 | Pending |
+| SAFETY-12 | Phase 0 | Complete |
+| SAFETY-13 | Phase 0 | Complete |
 | SAFETY-14 | Phase 1 | Pending |
 | SAFETY-15 | Phase 0 | Pending |
 | SAFETY-16 | Phase 0 | Pending |
@@ -968,9 +968,9 @@ Which phases cover which requirements. Updated during roadmap creation by the ro
 | OPS-18 | Phase 0 | Pending |
 | OPS-19 | Phase 0 | Pending |
 | OPS-20 | Phase 0 | Pending |
-| OPS-21 | Phase 0 | Pending |
-| OPS-22 | Phase 0 | Pending |
-| OPS-23 | Phase 0 | Pending |
+| OPS-21 | Phase 0 | Complete |
+| OPS-22 | Phase 0 | Complete |
+| OPS-23 | Phase 0 | Complete |
 | OPS-24 | Phase 0 | Pending |
 | OPS-25 | Phase 0 | Pending |
 | OPS-26 | Phase 0 | Pending |

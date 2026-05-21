@@ -4,14 +4,14 @@ milestone: v1.1
 milestone_name: milestone
 status: executing
 stopped_at: Phase 0 context gathered
-last_updated: "2026-05-21T17:51:44.647Z"
-last_activity: 2026-05-21 -- Phase 0 planning complete
+last_updated: "2026-05-21T22:05:17.742Z"
+last_activity: 2026-05-21
 progress:
   total_phases: 12
   completed_phases: 0
   total_plans: 5
-  completed_plans: 0
-  percent: 0
+  completed_plans: 1
+  percent: 20
 ---
 
 # Project State
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-21)
 
 **Core value:** Every call is permanent, public, and tied to identity. The receipt — created, settled, and shared — must be unfakeable, undeletable, and visually unmistakable.
-**Current focus:** Phase 0 (Foundation) — monorepo, multisig prep, IPFS, CDN, subgraph schema, relayer skeleton, monitoring stack, env-var matrix, USDC single source-of-truth, OG fallback variant.
+**Current focus:** Phase 00 — foundation
 
 ## Current Position
 
-Phase: 0 of 12 (Foundation)
-Plan: 0 of TBD in current phase
+Phase: 00 (foundation) — EXECUTING
+Plan: 2 of 5
 Status: Ready to execute
-Last activity: 2026-05-21 -- Phase 0 planning complete
+Last activity: 2026-05-21
 
-Progress: [░░░░░░░░░░] 0%
+Progress: [██░░░░░░░░] 20%
 
 ## Performance Metrics
 
@@ -52,6 +52,7 @@ Progress: [░░░░░░░░░░] 0%
 - Trend: — (no data yet)
 
 *Updated after each plan completion*
+| Phase 00-foundation P01 | 90 | 5 tasks | 48 files |
 
 ## Accumulated Context
 
@@ -65,6 +66,7 @@ Recent decisions affecting current work:
 - Solidity pinned to exact `=0.8.30` (NOT `^0.8.24`) to avoid 0.8.28–0.8.33 IR storage-clearing bug; CI grep guard enforces
 - USDC hardcoded to canonical `0xaf88d065e77c8cC2239327C5EDb3A432268e5831` (NOT bridged USDC.e); CI grep guard enforces single source-of-truth
 - Stylus 48h-before-demo cutoff is mechanical `proxy.upgradeTo(soliditySolidityBaselineAddress)` (one cast call), not a panicked rewrite — baseline ships in-contract from Phase 4
+- [Phase ?]: 00-01 deviation: @privy-io/wagmi pinned to 4.0.8 (v1.32.5 specified in CLAUDE.md does not exist on npm)
 
 ### Pending Todos
 
@@ -89,6 +91,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-05-21T16:46:35.349Z
+Last session: 2026-05-21T22:05:12.802Z
 Stopped at: Phase 0 context gathered
-Resume file: .planning/phases/00-foundation/00-CONTEXT.md
+Resume file: None
