@@ -8,7 +8,10 @@
     "build": "next build",
     "start": "next start",
     "lint": "echo 'No lint configured for web yet — Phase 1+ adds ESLint'",
-    "test": "echo 'No tests in web yet — Phase 1+ adds UI tests'"
+    "test": "vitest run tests/og-unit.test.ts",
+    "test:og-fallback": "playwright test tests/og-fallback.spec.ts",
+    "test:og-routing": "playwright test tests/og-fallback-routing.spec.ts",
+    "test:og-bench": "playwright test tests/og-fallback-bench.spec.ts"
   },
   "dependencies": {
     "@call-it/shared": "workspace:*",
@@ -28,9 +31,11 @@
   },
   "devDependencies": {
     "@call-it/config": "workspace:*",
+    "@playwright/test": "^1.48.0",
     "@types/node": "^22.0.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
-    "typescript": "^5.6.0"
+    "typescript": "^5.6.0",
+    "vitest": "^3.0.0"
   }
 }
