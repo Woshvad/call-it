@@ -1,0 +1,29 @@
+{
+  "name": "@call-it/scripts",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Operational scripts for Call It — deploy-safe, seed-calendar, synthetic alerts, etc.",
+  "type": "module",
+  "scripts": {
+    "test": "vitest run",
+    "lint": "echo 'No separate lint for scripts — covered by root eslint'",
+    "build": "echo 'Scripts are tsx-run, no build needed'"
+  },
+  "dependencies": {
+    "@call-it/shared": "workspace:*",
+    "@googleapis/calendar": "^9.0.0",
+    "@ledgerhq/hw-app-eth": "^6.40.0",
+    "@ledgerhq/hw-transport-node-hid": "^6.30.0",
+    "@safe-global/api-kit": "^4.0.0",
+    "@safe-global/protocol-kit": "^7.0.0",
+    "googleapis": "^144.0.0",
+    "viem": "2.50.4"
+  },
+  "devDependencies": {
+    "@call-it/config": "workspace:*",
+    "@types/node": "^22.0.0",
+    "tsx": "^4.0.0",
+    "typescript": "^5.6.0",
+    "vitest": "^3.0.0"
+  }
+}

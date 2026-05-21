@@ -11,7 +11,10 @@
     "build": "turbo run build",
     "test": "turbo run test",
     "lint": "turbo run lint",
-    "verify-versions": "tsx scripts/verify-versions.ts"
+    "verify-versions": "tsx scripts/verify-versions.ts",
+    "deploy:safe:sepolia:dry-run": "tsx scripts/deploy-safe.ts --network sepolia --dry-run --signer-source env",
+    "deploy:safe:sepolia": "tsx scripts/deploy-safe.ts --network sepolia --execute --signer-source ledger",
+    "deploy:safe:mainnet": "tsx scripts/deploy-safe.ts --network arbitrum-one --execute --signer-source ledger"
   },
   "devDependencies": {
     "@typescript-eslint/eslint-plugin": "^8.0.0",

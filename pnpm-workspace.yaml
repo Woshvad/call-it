@@ -1,12 +1,15 @@
 packages:
   - 'apps/*'
   - 'packages/*'
+  - 'scripts'
 allowBuilds:
   '@reown/appkit': true
   bufferutil: true
   esbuild: true
   keccak: true
   msgpackr-extract: true
+  node-hid: true
   protobufjs: true
   sharp: true
+  usb: true
   utf-8-validate: true
