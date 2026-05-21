@@ -37,7 +37,12 @@ Call It ships as a person-first onchain social prediction product on Arbitrum ma
   4. Subgraph schema (`subgraph.yaml` + AssemblyScript mappings stubbed per contract) deploys to Subgraph Studio for Arbitrum Sepolia and exposes empty entities; polled-events fallback via `viem.getLogs` at 5s interval is wired and tested against a local anvil.
   5. OG Fallback variant card ("A CALL WAS MADE") renders at `/og/fallback?handle=...` in <100ms with no on-chain dependency, served via CDN with 60s cache; Telegram alert bot fires on synthetic `pause()`, dispute-raised, paymaster-80%, settlement-stuck-25m, `RepCalculatedFallback`, `CallForceSettled`, and TVL-cap-approach events (OPS-07..14).
   6. Safe 2-of-3 multisig deployment script is written and dry-run-tested on Sepolia with the three signers identified (operator + co-founder + advisor); deployer key lives on hardware wallet; Stylus reactivation calendar reminders are scheduled at T-30d/T-15d/T-7d/T-1d for the eventual deployment date (Risk #2 prep, Pitfall 17 prep).
-**Plans**: TBD
+**Plans**: 5 plans across 4 waves
+  - [ ] 00-01-PLAN.md — Wave 0: pnpm + Turborepo monorepo bootstrap; USDC + networks + Pyth feeds single source-of-truth; Solidity =0.8.30 pin; 3 CI grep guards (USDC paste, pragma, env-network)
+  - [ ] 00-02-PLAN.md — Wave 1: Fastify relayer skeleton on Fly.io iad; 5-key GCP KMS signer wrapper; Pino + Better Stack logging with redaction; Upstash Redis + paymaster counter; 9-event Telegram alert dispatcher (P0/P1) + admin endpoints
+  - [ ] 00-03-PLAN.md — Wave 2: 23-entity subgraph schema deployed to Studio for Sepolia; polled-events fallback worker (viem.getLogs); SHARE-09 OG Fallback route on Vercel Node runtime with <100ms p95 warm render
+  - [ ] 00-04-PLAN.md — Wave 3: Safe 2-of-3 deploy script + Sepolia dry-run with Ledger; Google Calendar Stylus reactivation seeding + Phase 5 repoint hook + relayer deactivation-watcher (second belt); daily synthetic-alert CI cron with Telegram getUpdates verification; 5 Better Stack dashboards + 5 operator runbooks + demo seed plan
+  - [ ] 00-05-PLAN.md — Wave 4: Vercel + Fly.io + Subgraph Studio deploy workflows with GCP OIDC federation; phase-0-gate.yml on tag phase-0-complete; 6-step smoke test against deployed artifacts; operator pre-tag checklist (8 hosted-resource verification items including Pinata D-20 + default-domain D-05)
 **Pitfalls mitigated**: 1 (USDC single source + CI grep), 3 (TVL cap surfaces will read from canonical aggregator), 5 (env discipline + diff ritual), 6 (multisig prep this phase, promotion in Phase 6), 7 (KMS storage from day one), 8 (subgraph + OG service from day one — no cache-desync window opens), 10 (CEX scraper synthetic-monitoring scaffolding), 17 (calendar reminder for Stylus reactivation)
 
 ### Phase 1: Core contracts + auth + frontend skeleton
@@ -205,7 +210,7 @@ Phases execute in numeric order: 0 → 1 → 1.5 (parallel with 2) → 2 → 3 �
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 0. Foundation | 0/TBD | Not started | - |
+| 0. Foundation | 0/5 | Not started | - |
 | 1. Core contracts + auth + frontend skeleton | 0/TBD | Not started | - |
 | 1.5. Social linking | 0/TBD | Not started | - |
 | 2. FollowFadeMarket | 0/TBD | Not started | - |
