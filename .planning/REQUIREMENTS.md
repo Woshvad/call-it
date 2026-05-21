@@ -342,7 +342,7 @@ Requirements for the v1 mainnet release. Each line is an atomic, testable behavi
 - [ ] **SAFETY-55**: Smoke test confirms `forceSettle` is NOT callable within cooldown window (reverts `ForceSettleCooldownActive`) (§19.11)
 - [ ] **SAFETY-56**: If any smoke test item fails, contracts are paused immediately and no public announcement is made (§19.11)
 - [ ] **SAFETY-57**: Per-auth-method permission scoping — OAuth methods can view/sign but require 2nd factor for withdrawals over a threshold is a documented v1 limitation (App.A.1)
-- [ ] **SAFETY-58**: Single owner key controls pause / setTvlCap / forceSettle / proxy admin / resolveDispute in v1; documented promotion to multisig before v1.1 or before TVL exceeds $5K (§10.4, §10.8)
+- [x] **SAFETY-58**: Single owner key controls pause / setTvlCap / forceSettle / proxy admin / resolveDispute in v1; documented promotion to multisig before v1.1 or before TVL exceeds $5K (§10.4, §10.8)
 
 ### UI Pages & Shared Components (UI)
 
@@ -434,7 +434,7 @@ Requirements for the v1 mainnet release. Each line is an atomic, testable behavi
 - [x] **OPS-03**: Subgraph indexes `CallCreated`, `CallSettled`, `CallQuoted`, `ConvictionCapped`, `CallerExited`, `Followed`, `Faded`, `PayoutClaimed`, `PositionExited`, `ChallengeProposed`, `ChallengeAccepted`, `ChallengeRejected`, `ChallengeRefunded`, `ChallengeSettled`, `DisputeRaised`, `DisputeResolved`, `CallForceSettled`, `RepCalculated`, `RepCalculatedFallback`, `SettlementDelayed`, `ProfileUpdated`, `SocialLinked`, `SocialUnlinked` events (§12.1–12.5)
 - [ ] **OPS-04**: Subgraph indexes CallCreated within ~30s of emission (§19 Phase 6 share-loop dependency)
 - [x] **OPS-05**: Structured relayer logging (Pino or equivalent) emits one line per oracle query, settlement submission, and dispute (§19.10, App.A.1)
-- [ ] **OPS-06**: Metrics dashboard exposes Total TVL, calls/hour, settlement latency, dispute rate, failed-tx rate at minimum (App.A.1)
+- [x] **OPS-06**: Metrics dashboard exposes Total TVL, calls/hour, settlement latency, dispute rate, failed-tx rate at minimum (App.A.1)
 - [x] **OPS-07**: Telegram bot alerts on failed `settle()` invocation (App.A.1)
 - [x] **OPS-08**: Telegram bot alerts on `pause()` invocation (App.A.1)
 - [x] **OPS-09**: Telegram bot alerts on dispute raised (App.A.1)
@@ -446,9 +446,9 @@ Requirements for the v1 mainnet release. Each line is an atomic, testable behavi
 - [ ] **OPS-15**: Settlement-stuck runbook documents `forceSettle` invocation criteria after 7-day cooldown from expiry (§10.7, §12.4)
 - [ ] **OPS-16**: Stylus reactivation runbook documents the 365-day cycle (Stylus contracts require periodic reactivation) (§10.8 implicit, §11.6)
 - [x] **OPS-17**: Per-exchange CEX scraper resilience — each of 8 scrapers (Binance, Coinbase, OKX, Bybit, Kraken, Bitget, KuCoin, Upbit) operates independently and reports its own health (§13.6)
-- [ ] **OPS-18**: NFT TWAP operator runbook includes a sanity-check script that re-computes TWAP from on-chain transfer logs and flags mismatches (§13.2)
+- [x] **OPS-18**: NFT TWAP operator runbook includes a sanity-check script that re-computes TWAP from on-chain transfer logs and flags mismatches (§13.2)
 - [x] **OPS-19**: Relayer signing keys are held in a KMS / secret manager (App.A.1, §13.2)
-- [ ] **OPS-20**: Demo seed plan funds 10-15 calls across both Privy and external wallets for realism (App.A.1, §18.4)
+- [x] **OPS-20**: Demo seed plan funds 10-15 calls across both Privy and external wallets for realism (App.A.1, §18.4)
 - [x] **OPS-21**: Network is Arbitrum Mainnet hardcoded; not multi-chain in v1 (§10.5)
 - [x] **OPS-22**: Currency is USDC on Arbitrum — hardcoded address in every transfer path (§10.5)
 - [x] **OPS-23**: Frontend stack: Next.js (App Router) + React + Privy + wagmi/viem + Tailwind (project constraint, §9.2)
@@ -870,7 +870,7 @@ Which phases cover which requirements. Updated during roadmap creation by the ro
 | SAFETY-55 | Phase 7.5 | Pending |
 | SAFETY-56 | Phase 7.5 | Pending |
 | SAFETY-57 | Phase 4 | Pending |
-| SAFETY-58 | Phase 0 | Pending |
+| SAFETY-58 | Phase 0 | Complete |
 | UI-01 | Phase 1 | Pending |
 | UI-02 | Phase 1 | Pending |
 | UI-03 | Phase 1 | Pending |
@@ -953,7 +953,7 @@ Which phases cover which requirements. Updated during roadmap creation by the ro
 | OPS-03 | Phase 0 | Complete |
 | OPS-04 | Phase 7 | Pending |
 | OPS-05 | Phase 0 | Complete |
-| OPS-06 | Phase 0 | Pending |
+| OPS-06 | Phase 0 | Complete |
 | OPS-07 | Phase 0 | Complete |
 | OPS-08 | Phase 0 | Complete |
 | OPS-09 | Phase 0 | Complete |
@@ -965,9 +965,9 @@ Which phases cover which requirements. Updated during roadmap creation by the ro
 | OPS-15 | Phase 4 | Pending |
 | OPS-16 | Phase 4 | Pending |
 | OPS-17 | Phase 0 | Complete |
-| OPS-18 | Phase 0 | Pending |
+| OPS-18 | Phase 0 | Complete |
 | OPS-19 | Phase 0 | Complete |
-| OPS-20 | Phase 0 | Pending |
+| OPS-20 | Phase 0 | Complete |
 | OPS-21 | Phase 0 | Complete |
 | OPS-22 | Phase 0 | Complete |
 | OPS-23 | Phase 0 | Complete |
