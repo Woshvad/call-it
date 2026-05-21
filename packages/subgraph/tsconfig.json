@@ -4,6 +4,6 @@
     "outDir": "dist",
     "composite": true
   },
-  "include": ["src/**/*.ts"],
+  "include": ["src/**/*.ts", "tests/**/*.ts"],
   "exclude": ["node_modules", "dist"]
 }

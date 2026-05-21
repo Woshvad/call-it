@@ -1,16 +1,156 @@
 specVersion: 1.2.0
-description: Call It subgraph — indexes all 23 event types from CallRegistry, FollowFadeMarket, ChallengeEscrow, SettlementManager, ProfileRegistry on Arbitrum Sepolia (Phase 0 scaffold; contract addresses populated in Phase 1+)
-repository: https://github.com/call-it/call-it
+description: "Call It subgraph — indexes all 23 event types from CallRegistry, FollowFadeMarket, ChallengeEscrow, SettlementManager, ProfileRegistry on Arbitrum Sepolia (Phase 0 scaffold; contract addresses populated in Phase 1+)"
+repository: "https://github.com/call-it/call-it"
 schema:
   file: ./schema.graphql
-dataSources: []
-# Phase 0 scaffold: dataSources are empty because contract addresses are not yet deployed.
-# Phase 1+ will add:
-#   - kind: ethereum/contract
-#     name: CallRegistry
-#     network: arbitrum-sepolia
-#     source:
-#       address: "DEPLOYED_ADDRESS"
-#       abi: CallRegistry
-#       startBlock: DEPLOY_BLOCK
-#     mapping: ...
+dataSources:
+  - kind: ethereum/contract
+    name: CallRegistry
+    network: arbitrum-sepolia
+    source:
+      # Phase 0 placeholder: using Sepolia USDC address so Studio deploy pipeline validates.
+      # Phase 1+ updates this to the deployed CallRegistry address.
+      address: "0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d"
+      abi: CallRegistry
+      startBlock: 1
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.9
+      language: wasm/assemblyscript
+      file: ./src/call-registry.ts
+      entities:
+        - Call
+        - Position
+        - Challenge
+        - Settlement
+        - Profile
+        - RepEvent
+        - Dispute
+        - QuoteCall
+        - ConvictionCap
+        - CallerExit
+        - SocialLink
+        - PayoutClaim
+        - PositionExit
+        - ChallengePayout
+        - DisputeResolution
+        - ForceSettlement
+        - SettlementDelayed
+        - RepCalculatedFallback
+        - UnclaimedOverage
+        - PaymasterEvent
+        - TvlSnapshot
+        - CategoryRep
+        - LeaderboardEntry
+      abis:
+        - name: CallRegistry
+          file: ./abis/CallRegistry.json
+      # Phase 0 stub: block handler so graph-cli validates the mapping file.
+      # Phase 1+ replaces with real eventHandlers as contract events are added.
+      blockHandlers:
+        - handler: handleBlock
+  - kind: ethereum/contract
+    name: FollowFadeMarket
+    network: arbitrum-sepolia
+    source:
+      # Phase 0 placeholder: using Sepolia USDC address so Studio deploy pipeline validates.
+      # Phase 1+ updates this to the deployed FollowFadeMarket address.
+      address: "0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d"
+      abi: FollowFadeMarket
+      startBlock: 1
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.9
+      language: wasm/assemblyscript
+      file: ./src/follow-fade-market.ts
+      entities:
+        - Call
+        - Position
+        - PositionExit
+        - TvlSnapshot
+      abis:
+        - name: FollowFadeMarket
+          file: ./abis/FollowFadeMarket.json
+      blockHandlers:
+        - handler: handleBlock
+  - kind: ethereum/contract
+    name: ChallengeEscrow
+    network: arbitrum-sepolia
+    source:
+      # Phase 0 placeholder: using Sepolia USDC address so Studio deploy pipeline validates.
+      # Phase 1+ updates this to the deployed ChallengeEscrow address.
+      address: "0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d"
+      abi: ChallengeEscrow
+      startBlock: 1
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.9
+      language: wasm/assemblyscript
+      file: ./src/challenge-escrow.ts
+      entities:
+        - Challenge
+        - ChallengePayout
+        - UnclaimedOverage
+        - TvlSnapshot
+      abis:
+        - name: ChallengeEscrow
+          file: ./abis/ChallengeEscrow.json
+      blockHandlers:
+        - handler: handleBlock
+  - kind: ethereum/contract
+    name: SettlementManager
+    network: arbitrum-sepolia
+    source:
+      # Phase 0 placeholder: using Sepolia USDC address so Studio deploy pipeline validates.
+      # Phase 1+ updates this to the deployed SettlementManager address.
+      address: "0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d"
+      abi: SettlementManager
+      startBlock: 1
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.9
+      language: wasm/assemblyscript
+      file: ./src/settlement-manager.ts
+      entities:
+        - Settlement
+        - Dispute
+        - DisputeResolution
+        - ForceSettlement
+        - SettlementDelayed
+        - RepCalculatedFallback
+        - RepEvent
+        - CategoryRep
+        - LeaderboardEntry
+      abis:
+        - name: SettlementManager
+          file: ./abis/SettlementManager.json
+      blockHandlers:
+        - handler: handleBlock
+  - kind: ethereum/contract
+    name: ProfileRegistry
+    network: arbitrum-sepolia
+    source:
+      # Phase 0 placeholder: using Sepolia USDC address so Studio deploy pipeline validates.
+      # Phase 1+ updates this to the deployed ProfileRegistry address.
+      address: "0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d"
+      abi: ProfileRegistry
+      startBlock: 1
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.9
+      language: wasm/assemblyscript
+      file: ./src/profile-registry.ts
+      entities:
+        - Profile
+        - SocialLink
+        - CategoryRep
+        - ConvictionCap
+        - PaymasterEvent
+        - QuoteCall
+        - CallerExit
+        - PayoutClaim
+      abis:
+        - name: ProfileRegistry
+          file: ./abis/ProfileRegistry.json
+      blockHandlers:
+        - handler: handleBlock

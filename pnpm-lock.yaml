@@ -219,6 +219,12 @@ importers:
       '@graphprotocol/graph-cli':
         specifier: 0.98.1
         version: 0.98.1(@types/node@22.19.19)(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@5.0.10)(zod@3.25.76)
+      graphql:
+        specifier: ^16.0.0
+        version: 16.11.0
+      vitest:
+        specifier: ^3.0.0
+        version: 3.2.4(@types/debug@4.1.13)(@types/node@22.19.19)(jiti@1.21.7)(tsx@4.22.3)(yaml@2.8.1)
 
 packages:
 

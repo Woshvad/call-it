@@ -3,17 +3,21 @@
   "version": "0.0.1",
   "private": true,
   "description": "The Graph subgraph schema + stub mappings for Call It (Arbitrum Sepolia → Decentralized Network)",
+  "type": "module",
   "scripts": {
-    "build": "echo 'Subgraph scaffold ready — graph build runs after Phase 1 contract deploy'",
+    "build": "graph build",
     "codegen": "graph codegen",
-    "deploy": "graph deploy call-it-sepolia",
+    "deploy:sepolia": "graph deploy --node https://api.studio.thegraph.com/deploy/ call-it-sepolia",
+    "deploy:sepolia:dry-run": "graph build && echo 'Dry-run: studio deploy not executed without SUBGRAPH_STUDIO_DEPLOY_KEY'",
     "lint": "echo 'No lint configured for subgraph yet'",
-    "test": "echo 'No subgraph tests in Phase 0 — mapping tests land in Phase 1+'"
+    "test": "vitest run tests/"
   },
   "dependencies": {
     "@graphprotocol/graph-ts": "0.38.2"
   },
   "devDependencies": {
-    "@graphprotocol/graph-cli": "0.98.1"
+    "@graphprotocol/graph-cli": "0.98.1",
+    "graphql": "^16.0.0",
+    "vitest": "^3.0.0"
   }
 }

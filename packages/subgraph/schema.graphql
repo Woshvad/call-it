@@ -1,104 +1,234 @@
 # Call It subgraph schema
-# Phase 0 scaffold: entity stubs for all 23 event types from spec §12.1–12.5
-# Mapping implementations land in Phase 1+ when contracts are deployed.
+# 23 entities covering all indexed events from spec §12.1–12.5
+# Requirements: OPS-01, OPS-03
+# Phase 0 scaffold — mapping implementations land in Phase 1+ when contracts deploy.
 #
-# Source: CALL_IT_SPEC1.md §12.1–12.5
-# Requirement: OPS-01, OPS-03
+# graph-cli@0.98.1 requires explicit immutable argument on all @entity directives.
+# Mutable (updated by events): @entity(immutable: false)
+# Immutable (event-record only, append-only): @entity(immutable: true)
 
-type Call @entity {
+# ── Core entities (mutable — updated across multiple events) ─────────────────
+
+type Call @entity(immutable: false) {
   id: ID!
-  callId: BigInt!
   caller: Bytes!
   marketType: Int!
-  assetA: String!
-  assetB: String
-  targetValue: BigInt!
-  deadline: BigInt!
+  eventSubtype: Int
+  asset: String!
   stake: BigInt!
-  createdAt: BigInt!
+  expiry: BigInt!
+  conviction: Int!
   status: String!
-  duplicateHash: Bytes
-  criteriaHash: Bytes
+  outcome: String
+  reasoning: String
+  createdAt: BigInt!
+  settledAt: BigInt
   positions: [Position!]! @derivedFrom(field: "call")
   challenges: [Challenge!]! @derivedFrom(field: "call")
-  settlement: Settlement
+  quotes: [QuoteCall!]! @derivedFrom(field: "parentCall")
+  disputes: [Dispute!]! @derivedFrom(field: "call")
 }
 
-type Position @entity {
+type Position @entity(immutable: false) {
   id: ID!
-  positionId: BigInt!
   call: Call!
-  holder: Bytes!
+  user: Bytes!
   side: String!
-  amount: BigInt!
-  createdAt: BigInt!
+  stake: BigInt!
+  shares: BigInt!
+  entryTime: BigInt!
+  claimed: Boolean!
   exitedAt: BigInt
 }
 
-type Challenge @entity {
+type Challenge @entity(immutable: false) {
   id: ID!
-  challengeId: BigInt!
   call: Call!
   challenger: Bytes!
   stake: BigInt!
-  createdAt: BigInt!
   status: String!
-  outcome: String
+  winner: Bytes
+  proposedAt: BigInt!
+  acceptedAt: BigInt
   settledAt: BigInt
 }
 
-type Settlement @entity {
+type Settlement @entity(immutable: false) {
   id: ID!
   call: Call!
   outcome: String!
+  priceDelta: BigInt
   settledAt: BigInt!
-  oracleType: String!
-  oraclePrice: BigInt
-  protocolFee: BigInt!
-  creatorFee: BigInt!
-  lpFee: BigInt!
-  disputed: Boolean!
+  finalPrice: BigInt
 }
 
-type Profile @entity {
+type Profile @entity(immutable: false) {
   id: ID!
-  address: Bytes!
-  handle: String
+  globalRep: Int!
+  categoryReps: [CategoryRep!]! @derivedFrom(field: "profile")
+  settledCalls: Int!
+  wins: Int!
+  losses: Int!
   twitterHandle: String
   farcasterHandle: String
-  repGlobal: BigInt!
-  repCaller: BigInt!
-  repChallenger: BigInt!
-  repContrarian: BigInt!
-  createdAt: BigInt!
-  repEvents: [RepEvent!]! @derivedFrom(field: "profile")
+  handle: String
+  tagline: String
 }
 
-type RepEvent @entity {
+type Dispute @entity(immutable: false) {
+  id: ID!
+  call: Call!
+  disputer: Bytes!
+  evidenceHash: Bytes!
+  bondAmount: BigInt!
+  status: String!
+  raisedAt: BigInt!
+  resolvedAt: BigInt
+}
+
+type SocialLink @entity(immutable: false) {
+  id: ID!
+  user: Bytes!
+  platform: String!
+  handle: String!
+  proofHash: Bytes!
+  linkedAt: BigInt!
+  unlinkedAt: BigInt
+}
+
+type UnclaimedOverage @entity(immutable: false) {
+  id: ID!
+  challenge: Challenge!
+  beneficiary: Bytes!
+  amount: BigInt!
+  claimed: Boolean!
+  createdAt: BigInt!
+}
+
+type CategoryRep @entity(immutable: false) {
   id: ID!
   profile: Profile!
-  delta: BigInt!
   category: String!
-  callId: BigInt
+  rep: Int!
+  updatedAt: BigInt!
+}
+
+type LeaderboardEntry @entity(immutable: false) {
+  id: ID!
+  profile: Profile!
+  window: String!
+  rank: Int!
+  score: BigInt!
+  snapshotAt: BigInt!
+}
+
+# ── Immutable event-record entities (append-only) ───────────────────────────
+
+type RepEvent @entity(immutable: true) {
+  id: ID!
+  user: Bytes!
+  delta: Int!
+  reason: String!
+  callId: String!
+  fallback: Boolean!
   timestamp: BigInt!
 }
 
-type Dispute @entity {
+type QuoteCall @entity(immutable: true) {
   id: ID!
-  call: Call!
-  raiser: Bytes!
-  raisedAt: BigInt!
-  resolvedAt: BigInt
-  resolution: String
-  owner: Bytes
+  parentCall: Call!
+  quoter: Bytes!
+  stance: String!
+  quotedAt: BigInt!
 }
 
-type ProtocolStats @entity {
+type ConvictionCap @entity(immutable: true) {
   id: ID!
+  user: Bytes!
+  attempted: Int!
+  capped: Int!
+  timestamp: BigInt!
+}
+
+type CallerExit @entity(immutable: true) {
+  id: ID!
+  call: Call!
+  exitedAt: BigInt!
+  penaltyApplied: BigInt!
+  callerVolumeAtExit: BigInt!
+}
+
+type PayoutClaim @entity(immutable: true) {
+  id: ID!
+  call: Call!
+  claimer: Bytes!
+  amount: BigInt!
+  claimedAt: BigInt!
+}
+
+type PositionExit @entity(immutable: true) {
+  id: ID!
+  position: Position!
+  exitedAt: BigInt!
+  slashAmount: BigInt!
+  returnedAmount: BigInt!
+}
+
+type ChallengePayout @entity(immutable: true) {
+  id: ID!
+  challenge: Challenge!
+  winner: Bytes!
+  amount: BigInt!
+  paidAt: BigInt!
+}
+
+type DisputeResolution @entity(immutable: true) {
+  id: ID!
+  dispute: Dispute!
+  finalOutcome: String!
+  resolverNote: String
+  resolvedAt: BigInt!
+}
+
+type ForceSettlement @entity(immutable: true) {
+  id: ID!
+  call: Call!
+  forcedBy: Bytes!
+  forcedAt: BigInt!
+  finalOutcome: String!
+}
+
+type SettlementDelayed @entity(immutable: true) {
+  id: ID!
+  call: Call!
+  attempts: Int!
+  lastError: String
+  lastAttemptAt: BigInt!
+}
+
+type RepCalculatedFallback @entity(immutable: true) {
+  id: ID!
+  call: Call!
+  user: Bytes!
+  baselineDelta: Int!
+  lowLevelError: String
+  timestamp: BigInt!
+}
+
+type PaymasterEvent @entity(immutable: true) {
+  id: ID!
+  user: Bytes!
+  txCount: Int!
+  daySpendUsdc: BigInt!
+  timestamp: BigInt!
+}
+
+type TvlSnapshot @entity(immutable: true) {
+  id: ID!
+  blockNumber: BigInt!
+  callRegistryTvl: BigInt!
+  followFadeMarketTvl: BigInt!
+  challengeEscrowTvl: BigInt!
   totalTvl: BigInt!
-  totalCalls: BigInt!
-  totalSettlements: BigInt!
-  totalDisputes: BigInt!
-  totalVolume: BigInt!
-  lastUpdated: BigInt!
+  timestamp: BigInt!
 }

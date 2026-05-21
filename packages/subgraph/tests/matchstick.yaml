@@ -1,0 +1,11 @@
+# Matchstick test configuration for Call It subgraph
+# Phase 0: placeholder — mapping-handler tests land in Phase 1+ when event handlers exist.
+#
+# Matchstick framework: https://thegraph.com/docs/en/developing/unit-testing-framework/
+# Install: graph test (downloads matchstick binary on first run)
+#
+# Phase 1+ test files will import from '../generated/' (graph codegen output).
+# Test runner: graph test --coverage
+
+# testMatch patterns for Phase 1+ mapping handler tests
+# (no tests in Phase 0 because there are no event handlers yet)

@@ -1,0 +1,46 @@
+{
+  "arbitrum-sepolia": {
+    "CallRegistry": {
+      "address": "0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d",
+      "startBlock": 1
+    },
+    "FollowFadeMarket": {
+      "address": "0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d",
+      "startBlock": 1
+    },
+    "ChallengeEscrow": {
+      "address": "0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d",
+      "startBlock": 1
+    },
+    "SettlementManager": {
+      "address": "0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d",
+      "startBlock": 1
+    },
+    "ProfileRegistry": {
+      "address": "0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d",
+      "startBlock": 1
+    }
+  },
+  "arbitrum-one": {
+    "CallRegistry": {
+      "address": "0x0000000000000000000000000000000000000000",
+      "startBlock": 0
+    },
+    "FollowFadeMarket": {
+      "address": "0x0000000000000000000000000000000000000000",
+      "startBlock": 0
+    },
+    "ChallengeEscrow": {
+      "address": "0x0000000000000000000000000000000000000000",
+      "startBlock": 0
+    },
+    "SettlementManager": {
+      "address": "0x0000000000000000000000000000000000000000",
+      "startBlock": 0
+    },
+    "ProfileRegistry": {
+      "address": "0x0000000000000000000000000000000000000000",
+      "startBlock": 0
+    }
+  }
+}
