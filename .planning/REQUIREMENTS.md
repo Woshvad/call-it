@@ -299,9 +299,9 @@ Requirements for the v1 mainnet release. Each line is an atomic, testable behavi
 - [x] **SAFETY-12**: Solidity version is pinned to `^0.8.24` exactly (not `0.8+`) — locks checked arithmetic, transient storage, stable ABI (§10.5, App.A.1)
 - [x] **SAFETY-13**: USDC address is hardcoded at deploy — every transfer path enforces `require(token == USDC_ARB)`; blocks fee-on-transfer, rebasing, and callback tokens (§10.5, App.A.1)
 - [ ] **SAFETY-14**: ReentrancyGuard wraps all functions that handle USDC transfers (§10.5)
-- [ ] **SAFETY-15**: Paymaster global daily cap is $50/day at hackathon launch; auto-disables for the rest of the UTC day when reached and routes users to "fund your wallet to continue" flow (§10.7)
-- [ ] **SAFETY-16**: Daily cap is owner-tunable via `setPaymasterDailyCap(uint256)` on the off-chain relayer config (operational, not a contract function) (§10.7)
-- [ ] **SAFETY-17**: Telegram alert fires when daily paymaster spend hits 80% of cap (§10.7, App.A.1)
+- [x] **SAFETY-15**: Paymaster global daily cap is $50/day at hackathon launch; auto-disables for the rest of the UTC day when reached and routes users to "fund your wallet to continue" flow (§10.7)
+- [x] **SAFETY-16**: Daily cap is owner-tunable via `setPaymasterDailyCap(uint256)` on the off-chain relayer config (operational, not a contract function) (§10.7)
+- [x] **SAFETY-17**: Telegram alert fires when daily paymaster spend hits 80% of cap (§10.7, App.A.1)
 - [ ] **SAFETY-18**: CallRegistry, FollowFadeMarket, ChallengeEscrow, SettlementManager, ProfileRegistry are NOT upgradable in v1 — pause + redeploy is the rollback policy (§10.8, App.A.1)
 - [ ] **SAFETY-19**: StylusScoreEngine is the ONLY upgradable contract via minimal transparent proxy; upgrade sequence is pause → upgrade → unpause (no silent mid-call rule changes) (§10.8)
 - [ ] **SAFETY-20**: Proxy admin key rotates to a multisig before any v1.1 promotion or before TVL exceeds $5K (§10.8)
@@ -433,28 +433,28 @@ Requirements for the v1 mainnet release. Each line is an atomic, testable behavi
 - [ ] **OPS-02**: Polled-events fallback runs during subgraph deploy gaps (hackathon backup) (§19, App.A.1)
 - [ ] **OPS-03**: Subgraph indexes `CallCreated`, `CallSettled`, `CallQuoted`, `ConvictionCapped`, `CallerExited`, `Followed`, `Faded`, `PayoutClaimed`, `PositionExited`, `ChallengeProposed`, `ChallengeAccepted`, `ChallengeRejected`, `ChallengeRefunded`, `ChallengeSettled`, `DisputeRaised`, `DisputeResolved`, `CallForceSettled`, `RepCalculated`, `RepCalculatedFallback`, `SettlementDelayed`, `ProfileUpdated`, `SocialLinked`, `SocialUnlinked` events (§12.1–12.5)
 - [ ] **OPS-04**: Subgraph indexes CallCreated within ~30s of emission (§19 Phase 6 share-loop dependency)
-- [ ] **OPS-05**: Structured relayer logging (Pino or equivalent) emits one line per oracle query, settlement submission, and dispute (§19.10, App.A.1)
+- [x] **OPS-05**: Structured relayer logging (Pino or equivalent) emits one line per oracle query, settlement submission, and dispute (§19.10, App.A.1)
 - [ ] **OPS-06**: Metrics dashboard exposes Total TVL, calls/hour, settlement latency, dispute rate, failed-tx rate at minimum (App.A.1)
-- [ ] **OPS-07**: Telegram bot alerts on failed `settle()` invocation (App.A.1)
-- [ ] **OPS-08**: Telegram bot alerts on `pause()` invocation (App.A.1)
-- [ ] **OPS-09**: Telegram bot alerts on dispute raised (App.A.1)
-- [ ] **OPS-10**: Telegram bot alerts when paymaster daily spend hits 80% of cap (§10.7)
-- [ ] **OPS-11**: Telegram bot alerts when TVL approaches the cap (App.A.1)
-- [ ] **OPS-12**: Telegram bot alerts on `RepCalculatedFallback` firing (Stylus revert investigation trigger) (§11.6)
-- [ ] **OPS-13**: Telegram bot alerts on `CallForceSettled` invocation (loud manual override) (§12.4)
-- [ ] **OPS-14**: Telegram bot alerts when settlement is stuck >25 min (approaching SLA breach) (§13.7)
+- [x] **OPS-07**: Telegram bot alerts on failed `settle()` invocation (App.A.1)
+- [x] **OPS-08**: Telegram bot alerts on `pause()` invocation (App.A.1)
+- [x] **OPS-09**: Telegram bot alerts on dispute raised (App.A.1)
+- [x] **OPS-10**: Telegram bot alerts when paymaster daily spend hits 80% of cap (§10.7)
+- [x] **OPS-11**: Telegram bot alerts when TVL approaches the cap (App.A.1)
+- [x] **OPS-12**: Telegram bot alerts on `RepCalculatedFallback` firing (Stylus revert investigation trigger) (§11.6)
+- [x] **OPS-13**: Telegram bot alerts on `CallForceSettled` invocation (loud manual override) (§12.4)
+- [x] **OPS-14**: Telegram bot alerts when settlement is stuck >25 min (approaching SLA breach) (§13.7)
 - [ ] **OPS-15**: Settlement-stuck runbook documents `forceSettle` invocation criteria after 7-day cooldown from expiry (§10.7, §12.4)
 - [ ] **OPS-16**: Stylus reactivation runbook documents the 365-day cycle (Stylus contracts require periodic reactivation) (§10.8 implicit, §11.6)
-- [ ] **OPS-17**: Per-exchange CEX scraper resilience — each of 8 scrapers (Binance, Coinbase, OKX, Bybit, Kraken, Bitget, KuCoin, Upbit) operates independently and reports its own health (§13.6)
+- [x] **OPS-17**: Per-exchange CEX scraper resilience — each of 8 scrapers (Binance, Coinbase, OKX, Bybit, Kraken, Bitget, KuCoin, Upbit) operates independently and reports its own health (§13.6)
 - [ ] **OPS-18**: NFT TWAP operator runbook includes a sanity-check script that re-computes TWAP from on-chain transfer logs and flags mismatches (§13.2)
-- [ ] **OPS-19**: Relayer signing keys are held in a KMS / secret manager (App.A.1, §13.2)
+- [x] **OPS-19**: Relayer signing keys are held in a KMS / secret manager (App.A.1, §13.2)
 - [ ] **OPS-20**: Demo seed plan funds 10-15 calls across both Privy and external wallets for realism (App.A.1, §18.4)
 - [x] **OPS-21**: Network is Arbitrum Mainnet hardcoded; not multi-chain in v1 (§10.5)
 - [x] **OPS-22**: Currency is USDC on Arbitrum — hardcoded address in every transfer path (§10.5)
 - [x] **OPS-23**: Frontend stack: Next.js (App Router) + React + Privy + wagmi/viem + Tailwind (project constraint, §9.2)
-- [ ] **OPS-24**: Backend stack: Node.js + Fastify on Railway or Fly.io; hosts the relayer (oracle queries, signed submissions, CEX scrapers, OG image generation) (project constraint)
-- [ ] **OPS-25**: Owner is informed of `RepCalculatedFallback` and can manually compensate the user offline if Stylus revert caused calculation distortion (§11.6)
-- [ ] **OPS-26**: Sponsored campaigns (protocol-sponsored seasons) — owner-controlled allowlist additions; sponsor wallets are subject to all anti-spam gates (§18.4, §4.4)
+- [x] **OPS-24**: Backend stack: Node.js + Fastify on Railway or Fly.io; hosts the relayer (oracle queries, signed submissions, CEX scrapers, OG image generation) (project constraint)
+- [x] **OPS-25**: Owner is informed of `RepCalculatedFallback` and can manually compensate the user offline if Stylus revert caused calculation distortion (§11.6)
+- [x] **OPS-26**: Sponsored campaigns (protocol-sponsored seasons) — owner-controlled allowlist additions; sponsor wallets are subject to all anti-spam gates (§18.4, §4.4)
 
 ---
 
@@ -827,9 +827,9 @@ Which phases cover which requirements. Updated during roadmap creation by the ro
 | SAFETY-12 | Phase 0 | Complete |
 | SAFETY-13 | Phase 0 | Complete |
 | SAFETY-14 | Phase 1 | Pending |
-| SAFETY-15 | Phase 0 | Pending |
-| SAFETY-16 | Phase 0 | Pending |
-| SAFETY-17 | Phase 0 | Pending |
+| SAFETY-15 | Phase 0 | Complete |
+| SAFETY-16 | Phase 0 | Complete |
+| SAFETY-17 | Phase 0 | Complete |
 | SAFETY-18 | Phase 1 | Pending |
 | SAFETY-19 | Phase 6 | Pending |
 | SAFETY-20 | Phase 6 | Pending |
@@ -952,28 +952,28 @@ Which phases cover which requirements. Updated during roadmap creation by the ro
 | OPS-02 | Phase 0 | Pending |
 | OPS-03 | Phase 0 | Pending |
 | OPS-04 | Phase 7 | Pending |
-| OPS-05 | Phase 0 | Pending |
+| OPS-05 | Phase 0 | Complete |
 | OPS-06 | Phase 0 | Pending |
-| OPS-07 | Phase 0 | Pending |
-| OPS-08 | Phase 0 | Pending |
-| OPS-09 | Phase 0 | Pending |
-| OPS-10 | Phase 0 | Pending |
-| OPS-11 | Phase 0 | Pending |
-| OPS-12 | Phase 0 | Pending |
-| OPS-13 | Phase 0 | Pending |
-| OPS-14 | Phase 0 | Pending |
+| OPS-07 | Phase 0 | Complete |
+| OPS-08 | Phase 0 | Complete |
+| OPS-09 | Phase 0 | Complete |
+| OPS-10 | Phase 0 | Complete |
+| OPS-11 | Phase 0 | Complete |
+| OPS-12 | Phase 0 | Complete |
+| OPS-13 | Phase 0 | Complete |
+| OPS-14 | Phase 0 | Complete |
 | OPS-15 | Phase 4 | Pending |
 | OPS-16 | Phase 4 | Pending |
-| OPS-17 | Phase 0 | Pending |
+| OPS-17 | Phase 0 | Complete |
 | OPS-18 | Phase 0 | Pending |
-| OPS-19 | Phase 0 | Pending |
+| OPS-19 | Phase 0 | Complete |
 | OPS-20 | Phase 0 | Pending |
 | OPS-21 | Phase 0 | Complete |
 | OPS-22 | Phase 0 | Complete |
 | OPS-23 | Phase 0 | Complete |
-| OPS-24 | Phase 0 | Pending |
-| OPS-25 | Phase 0 | Pending |
-| OPS-26 | Phase 0 | Pending |
+| OPS-24 | Phase 0 | Complete |
+| OPS-25 | Phase 0 | Complete |
+| OPS-26 | Phase 0 | Complete |
 
 
 **Coverage:**
