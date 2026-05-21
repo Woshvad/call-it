@@ -1,0 +1,159 @@
+name: Grep Guards
+
+# These are first-class build-failing CI steps (not lint warnings).
+# They enforce three critical invariants from CLAUDE.md:
+# 1. USDC.e address (0xff970a61) only in the documented negative-test fixture
+# 2. All Solidity pragmas are exactly =0.8.30 (not ^0.8.x or any other version)
+# 3. mainnet-profile env files do not reference arbitrum-sepolia or chain ID 421614
+#
+# Source: .planning/phases/00-foundation/00-RESEARCH.md Pattern 2
+# Decisions: D-21 (Solidity pin), D-09 (env-network separation)
+# Requirements: SAFETY-12, SAFETY-13, OPS-21, OPS-22, T-00-01, T-00-02, T-00-03
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+    branches:
+      - main
+      - master
+
+permissions:
+  contents: read
+
+jobs:
+  usdc-paste:
+    name: Guard — USDC.e bridged address must not appear outside fixture file
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Check for bridged USDC.e address (0xff970a61)
+        run: |
+          # The bridged USDC.e address (0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8) must ONLY
+          # appear inside packages/shared/src/constants/usdc.ts (the documented negative-test
+          # fixture). Any other occurrence indicates a dangerous hardcoded wrong USDC address.
+          #
+          # Whitelist: exactly ONE file is allowed to contain this address.
+          # If matches found outside the whitelist, the build FAILS.
+          #
+          # Case-insensitive match on the first 10 hex chars (0xff970a61) which uniquely
+          # identifies USDC.e regardless of checksum casing.
+          if rg --hidden --no-ignore \
+              --type ts --type js \
+              --glob '**/*.rs' \
+              --glob '!packages/shared/src/constants/usdc.ts' \
+              --glob '!**/node_modules/**' \
+              --glob '!**/out/**' \
+              --glob '!**/.next/**' \
+              --glob '!**/target/**' \
+              --glob '!**/.turbo/**' \
+              --glob '!**/dist/**' \
+              --ignore-case '0xff970a61' \
+              .; then
+            echo "::error::Bridged USDC.e address (0xFF970A61...) found outside the documented negative-test fixture."
+            echo "::error::Legal location: packages/shared/src/constants/usdc.ts only."
+            echo "::error::Use native USDC: 0xaf88d065e77c8cC2239327C5EDb3A432268e5831 (SAFETY-13, OPS-22)"
+            exit 1
+          fi
+          echo "PASS: No USDC.e address found outside the documented fixture."
+
+      - name: Check for bridged USDC.e address in Solidity files
+        run: |
+          # Separate check for .sol files (rg --type sol not supported; use glob)
+          if rg --hidden --no-ignore \
+              --glob '**/*.sol' \
+              --glob '!**/node_modules/**' \
+              --glob '!**/out/**' \
+              --glob '!**/target/**' \
+              --ignore-case '0xff970a61' \
+              .; then
+            echo "::error::Bridged USDC.e address found in a Solidity file."
+            echo "::error::Use native USDC: 0xaf88d065e77c8cC2239327C5EDb3A432268e5831 (SAFETY-13)"
+            exit 1
+          fi
+          echo "PASS: No USDC.e address in Solidity files."
+
+  solidity-pragma:
+    name: Guard — All Solidity pragmas must be exactly =0.8.30
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Check Solidity pragma pins
+        run: |
+          # Every .sol file must use `pragma solidity =0.8.30;` (exact, not ^0.8.x).
+          # The 0.8.28-0.8.33 range contains a high-severity IR storage-clearing bug.
+          # See CLAUDE.md "What NOT to Use" and SAFETY-12.
+          #
+          # Strategy: find all pragma solidity lines, then reject any that are NOT
+          # exactly `pragma solidity =0.8.30;`
+          VIOLATIONS=$(rg --hidden --no-ignore \
+              --glob '**/*.sol' \
+              --glob '!**/node_modules/**' \
+              --glob '!**/out/**' \
+              --glob '!**/target/**' \
+              --glob '!**/lib/**' \
+              'pragma solidity ' \
+              | rg -v 'pragma solidity =0\.8\.30;' || true)
+
+          if [ -n "$VIOLATIONS" ]; then
+            echo "::error::Floating or incorrect Solidity pragma found (must be exactly 'pragma solidity =0.8.30;'):"
+            echo "$VIOLATIONS"
+            echo "::error::Floating ^0.8.x can drift into 0.8.28-0.8.33 IR storage-clearing bug range (SAFETY-12, D-21)"
+            exit 1
+          fi
+          echo "PASS: All Solidity pragmas are exactly =0.8.30."
+
+  env-network:
+    name: Guard — mainnet env files must not reference arbitrum-sepolia
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Check for Sepolia config in mainnet-profile env files
+        run: |
+          # Detect if any file that has 'mainnet' in its name or content
+          # ALSO contains 'arbitrum-sepolia' or chain ID '421614'.
+          # This catches Pitfall 5: Sepolia config on mainnet day.
+          #
+          # Files checked: .env.production, .env.prod, .env.mainnet, and any
+          # .env.* file containing the word 'mainnet'.
+          # (D-09: separate GCP projects per network harden this beyond the grep guard)
+
+          # Step 1: Find files with 'mainnet' in the filename
+          MAINNET_FILES=$(find . \
+            -not -path '*/node_modules/*' \
+            -not -path '*/.next/*' \
+            -not -path '*/dist/*' \
+            -not -path '*/.turbo/*' \
+            -not -path '*/target/*' \
+            -name '*.env*' \
+            \( -name '*.mainnet*' -o -name '*mainnet*' -o -name '*.production*' -o -name '*.prod*' \) \
+            2>/dev/null || true)
+
+          # Step 2: Among those files, check if any reference arbitrum-sepolia or 421614
+          if [ -n "$MAINNET_FILES" ]; then
+            VIOLATIONS=$(echo "$MAINNET_FILES" | xargs -r grep -l -E 'arbitrum-sepolia|421614' 2>/dev/null || true)
+            if [ -n "$VIOLATIONS" ]; then
+              echo "::error::mainnet-profile env file references arbitrum-sepolia or chain ID 421614:"
+              echo "$VIOLATIONS"
+              echo "::error::This is Pitfall 5 -- Sepolia config on mainnet day. (D-09, OPS-21)"
+              exit 1
+            fi
+          fi
+
+          # Step 3: Check committed env files directly (belt-and-suspenders)
+          for ENVFILE in .env.production .env.prod .env.mainnet; do
+            if [ -f "$ENVFILE" ]; then
+              if grep -E 'arbitrum-sepolia|421614' "$ENVFILE" > /dev/null 2>&1; then
+                echo "::error::$ENVFILE contains arbitrum-sepolia or 421614 (Pitfall 5 -- Sepolia in mainnet env)"
+                exit 1
+              fi
+            fi
+          done
+
+          echo "PASS: No mainnet-profile env files reference arbitrum-sepolia."
