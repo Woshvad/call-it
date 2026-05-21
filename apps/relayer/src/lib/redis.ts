@@ -11,7 +11,7 @@
  * Security (T-00-12): Redis operations use atomic INCRBY for counter integrity.
  */
 
-import Redis from 'ioredis';
+import { Redis } from 'ioredis';
 import { getLogger } from './logger.js';
 
 let _redis: Redis | undefined;
@@ -70,8 +70,8 @@ export async function _resetRedisForTesting(): Promise<void> {
  * Inject a pre-built Redis instance (for testing with ioredis-mock).
  * @internal
  */
-export function _setRedisForTesting(r: Redis): void {
-  _redis = r;
+export function _setRedisForTesting(r: unknown): void {
+  _redis = r as Redis;
 }
 
 /**
@@ -112,8 +112,8 @@ export async function pingWithBullMQCompat(): Promise<{ ok: boolean; failures: s
   // Note: In test environments with ioredis-mock, pub/sub may not be fully supported.
   // We treat pub/sub failures as warnings, not hard errors, for local dev compatibility.
   try {
-    const sub = redis.duplicate();
-    const pub = redis.duplicate();
+    const sub: Redis = redis.duplicate();
+    const pub: Redis = redis.duplicate();
 
     await new Promise<void>((resolve, reject) => {
       const timeout = setTimeout(() => {

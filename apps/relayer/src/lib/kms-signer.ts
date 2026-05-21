@@ -24,12 +24,10 @@ import {
   hashMessage,
   hashTypedData,
   hexToBytes,
+  keccak256,
   type Hex,
-  type TypedDataDefinition,
   type Address,
 } from 'viem';
-import { secp256k1 } from '@noble/curves/secp256k1';
-import { keccak256 } from 'viem';
 import { derToViemHex, KmsSignerError } from './der-to-viem-hex.js';
 import { getLogger } from './logger.js';
 
@@ -112,9 +110,10 @@ export function gcpKmsAccount(opts: KmsAccountOptions): ReturnType<typeof toAcco
         throw new KmsSignerError('GCP KMS returned empty signature');
       }
 
-      const signature = resp.signature instanceof Uint8Array
-        ? resp.signature
-        : new Uint8Array(resp.signature as Buffer);
+      const sigData = resp.signature;
+      const signature = sigData instanceof Uint8Array
+        ? sigData
+        : new Uint8Array(Buffer.from(sigData as unknown as string, 'binary'));
 
       const viemHex = derToViemHex(signature, digest, opts.expectedAddress);
 
@@ -148,8 +147,9 @@ export function gcpKmsAccount(opts: KmsAccountOptions): ReturnType<typeof toAcco
       return signDigest(digest);
     },
 
-    async signTypedData(td: TypedDataDefinition) {
-      const digest = hashTypedData(td);
+    async signTypedData(td) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const digest = hashTypedData(td as any);
       return signDigest(digest);
     },
 
