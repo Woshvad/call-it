@@ -567,418 +567,420 @@ Which phases cover which requirements. Updated during roadmap creation by the ro
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| AUTH-01 | TBD | Pending |
-| AUTH-02 | TBD | Pending |
-| AUTH-03 | TBD | Pending |
-| AUTH-04 | TBD | Pending |
-| AUTH-05 | TBD | Pending |
-| AUTH-06 | TBD | Pending |
-| AUTH-07 | TBD | Pending |
-| AUTH-08 | TBD | Pending |
-| AUTH-09 | TBD | Pending |
-| AUTH-10 | TBD | Pending |
-| AUTH-11 | TBD | Pending |
-| AUTH-12 | TBD | Pending |
-| AUTH-13 | TBD | Pending |
-| AUTH-14 | TBD | Pending |
-| AUTH-15 | TBD | Pending |
-| AUTH-16 | TBD | Pending |
-| AUTH-17 | TBD | Pending |
-| AUTH-18 | TBD | Pending |
-| AUTH-19 | TBD | Pending |
-| AUTH-20 | TBD | Pending |
-| AUTH-21 | TBD | Pending |
-| AUTH-22 | TBD | Pending |
-| AUTH-23 | TBD | Pending |
-| AUTH-24 | TBD | Pending |
-| AUTH-25 | TBD | Pending |
-| AUTH-26 | TBD | Pending |
-| AUTH-27 | TBD | Pending |
-| AUTH-28 | TBD | Pending |
-| AUTH-29 | TBD | Pending |
-| AUTH-30 | TBD | Pending |
-| AUTH-31 | TBD | Pending |
-| AUTH-32 | TBD | Pending |
-| AUTH-33 | TBD | Pending |
-| AUTH-34 | TBD | Pending |
-| AUTH-35 | TBD | Pending |
-| AUTH-36 | TBD | Pending |
-| AUTH-37 | TBD | Pending |
-| AUTH-38 | TBD | Pending |
-| AUTH-39 | TBD | Pending |
-| AUTH-40 | TBD | Pending |
-| AUTH-41 | TBD | Pending |
-| AUTH-42 | TBD | Pending |
-| AUTH-43 | TBD | Pending |
-| AUTH-44 | TBD | Pending |
-| CALL-01 | TBD | Pending |
-| CALL-02 | TBD | Pending |
-| CALL-03 | TBD | Pending |
-| CALL-04 | TBD | Pending |
-| CALL-05 | TBD | Pending |
-| CALL-06 | TBD | Pending |
-| CALL-07 | TBD | Pending |
-| CALL-08 | TBD | Pending |
-| CALL-09 | TBD | Pending |
-| CALL-10 | TBD | Pending |
-| CALL-11 | TBD | Pending |
-| CALL-12 | TBD | Pending |
-| CALL-13 | TBD | Pending |
-| CALL-14 | TBD | Pending |
-| CALL-15 | TBD | Pending |
-| CALL-16 | TBD | Pending |
-| CALL-17 | TBD | Pending |
-| CALL-18 | TBD | Pending |
-| CALL-19 | TBD | Pending |
-| CALL-20 | TBD | Pending |
-| CALL-21 | TBD | Pending |
-| CALL-22 | TBD | Pending |
-| CALL-23 | TBD | Pending |
-| CALL-24 | TBD | Pending |
-| CALL-25 | TBD | Pending |
-| CALL-26 | TBD | Pending |
-| CALL-27 | TBD | Pending |
-| CALL-28 | TBD | Pending |
-| CALL-29 | TBD | Pending |
-| CALL-30 | TBD | Pending |
-| CALL-31 | TBD | Pending |
-| CALL-32 | TBD | Pending |
-| CALL-33 | TBD | Pending |
-| CALL-34 | TBD | Pending |
-| CALL-35 | TBD | Pending |
-| CALL-36 | TBD | Pending |
-| CALL-37 | TBD | Pending |
-| CALL-38 | TBD | Pending |
-| CALL-39 | TBD | Pending |
-| CALL-40 | TBD | Pending |
-| CALL-41 | TBD | Pending |
-| CALL-42 | TBD | Pending |
-| CALL-43 | TBD | Pending |
-| CALL-44 | TBD | Pending |
-| CALL-45 | TBD | Pending |
-| CALL-46 | TBD | Pending |
-| CALL-47 | TBD | Pending |
-| CALL-48 | TBD | Pending |
-| CALL-49 | TBD | Pending |
-| CALL-50 | TBD | Pending |
-| CALL-51 | TBD | Pending |
-| CALL-52 | TBD | Pending |
-| CALL-53 | TBD | Pending |
-| CALL-54 | TBD | Pending |
-| CALL-55 | TBD | Pending |
-| CALL-56 | TBD | Pending |
-| CALL-57 | TBD | Pending |
-| CALL-58 | TBD | Pending |
-| CALL-59 | TBD | Pending |
-| CALL-60 | TBD | Pending |
-| CALL-61 | TBD | Pending |
-| CALL-62 | TBD | Pending |
-| CALL-63 | TBD | Pending |
-| CALL-64 | TBD | Pending |
-| CALL-65 | TBD | Pending |
-| CALL-66 | TBD | Pending |
-| CALL-67 | TBD | Pending |
-| CALL-68 | TBD | Pending |
-| CALL-69 | TBD | Pending |
-| CALL-70 | TBD | Pending |
-| SOCIAL-01 | TBD | Pending |
-| SOCIAL-02 | TBD | Pending |
-| SOCIAL-03 | TBD | Pending |
-| SOCIAL-04 | TBD | Pending |
-| SOCIAL-05 | TBD | Pending |
-| SOCIAL-06 | TBD | Pending |
-| SOCIAL-07 | TBD | Pending |
-| SOCIAL-08 | TBD | Pending |
-| SOCIAL-09 | TBD | Pending |
-| SOCIAL-10 | TBD | Pending |
-| SOCIAL-11 | TBD | Pending |
-| SOCIAL-12 | TBD | Pending |
-| SOCIAL-13 | TBD | Pending |
-| SOCIAL-14 | TBD | Pending |
-| SOCIAL-15 | TBD | Pending |
-| SOCIAL-16 | TBD | Pending |
-| SOCIAL-17 | TBD | Pending |
-| SOCIAL-18 | TBD | Pending |
-| SOCIAL-19 | TBD | Pending |
-| SOCIAL-20 | TBD | Pending |
-| SOCIAL-21 | TBD | Pending |
-| SOCIAL-22 | TBD | Pending |
-| SOCIAL-23 | TBD | Pending |
-| SOCIAL-24 | TBD | Pending |
-| SOCIAL-25 | TBD | Pending |
-| SOCIAL-26 | TBD | Pending |
-| SOCIAL-27 | TBD | Pending |
-| SOCIAL-28 | TBD | Pending |
-| SOCIAL-29 | TBD | Pending |
-| SOCIAL-30 | TBD | Pending |
-| SOCIAL-31 | TBD | Pending |
-| SOCIAL-32 | TBD | Pending |
-| SOCIAL-33 | TBD | Pending |
-| SOCIAL-34 | TBD | Pending |
-| SOCIAL-35 | TBD | Pending |
-| SOCIAL-36 | TBD | Pending |
-| SOCIAL-37 | TBD | Pending |
-| SOCIAL-38 | TBD | Pending |
-| SOCIAL-39 | TBD | Pending |
-| SOCIAL-40 | TBD | Pending |
-| SOCIAL-41 | TBD | Pending |
-| SOCIAL-42 | TBD | Pending |
-| SOCIAL-43 | TBD | Pending |
-| SOCIAL-44 | TBD | Pending |
-| SOCIAL-45 | TBD | Pending |
-| SOCIAL-46 | TBD | Pending |
-| SOCIAL-47 | TBD | Pending |
-| SOCIAL-48 | TBD | Pending |
-| SOCIAL-49 | TBD | Pending |
-| SOCIAL-50 | TBD | Pending |
-| SOCIAL-51 | TBD | Pending |
-| REP-01 | TBD | Pending |
-| REP-02 | TBD | Pending |
-| REP-03 | TBD | Pending |
-| REP-04 | TBD | Pending |
-| REP-05 | TBD | Pending |
-| REP-06 | TBD | Pending |
-| REP-07 | TBD | Pending |
-| REP-08 | TBD | Pending |
-| REP-09 | TBD | Pending |
-| REP-10 | TBD | Pending |
-| REP-11 | TBD | Pending |
-| REP-12 | TBD | Pending |
-| REP-13 | TBD | Pending |
-| REP-14 | TBD | Pending |
-| REP-15 | TBD | Pending |
-| REP-16 | TBD | Pending |
-| REP-17 | TBD | Pending |
-| REP-18 | TBD | Pending |
-| REP-19 | TBD | Pending |
-| REP-20 | TBD | Pending |
-| REP-21 | TBD | Pending |
-| REP-22 | TBD | Pending |
-| REP-23 | TBD | Pending |
-| REP-24 | TBD | Pending |
-| REP-25 | TBD | Pending |
-| REP-26 | TBD | Pending |
-| REP-27 | TBD | Pending |
-| REP-28 | TBD | Pending |
-| REP-29 | TBD | Pending |
-| SETTLE-01 | TBD | Pending |
-| SETTLE-02 | TBD | Pending |
-| SETTLE-03 | TBD | Pending |
-| SETTLE-04 | TBD | Pending |
-| SETTLE-05 | TBD | Pending |
-| SETTLE-06 | TBD | Pending |
-| SETTLE-07 | TBD | Pending |
-| SETTLE-08 | TBD | Pending |
-| SETTLE-09 | TBD | Pending |
-| SETTLE-10 | TBD | Pending |
-| SETTLE-11 | TBD | Pending |
-| SETTLE-12 | TBD | Pending |
-| SETTLE-13 | TBD | Pending |
-| SETTLE-14 | TBD | Pending |
-| SETTLE-15 | TBD | Pending |
-| SETTLE-16 | TBD | Pending |
-| SETTLE-17 | TBD | Pending |
-| SETTLE-18 | TBD | Pending |
-| SETTLE-19 | TBD | Pending |
-| SETTLE-20 | TBD | Pending |
-| SETTLE-21 | TBD | Pending |
-| SETTLE-22 | TBD | Pending |
-| SETTLE-23 | TBD | Pending |
-| SETTLE-24 | TBD | Pending |
-| SETTLE-25 | TBD | Pending |
-| SETTLE-26 | TBD | Pending |
-| SETTLE-27 | TBD | Pending |
-| SETTLE-28 | TBD | Pending |
-| SETTLE-29 | TBD | Pending |
-| SETTLE-30 | TBD | Pending |
-| SETTLE-31 | TBD | Pending |
-| SETTLE-32 | TBD | Pending |
-| SETTLE-33 | TBD | Pending |
-| SETTLE-34 | TBD | Pending |
-| SETTLE-35 | TBD | Pending |
-| SETTLE-36 | TBD | Pending |
-| SETTLE-37 | TBD | Pending |
-| SETTLE-38 | TBD | Pending |
-| SETTLE-39 | TBD | Pending |
-| SETTLE-40 | TBD | Pending |
-| SETTLE-41 | TBD | Pending |
-| SETTLE-42 | TBD | Pending |
-| SETTLE-43 | TBD | Pending |
-| SETTLE-44 | TBD | Pending |
-| SETTLE-45 | TBD | Pending |
-| SETTLE-46 | TBD | Pending |
-| SETTLE-47 | TBD | Pending |
-| SETTLE-48 | TBD | Pending |
-| SETTLE-49 | TBD | Pending |
-| SETTLE-50 | TBD | Pending |
-| SETTLE-51 | TBD | Pending |
-| SETTLE-52 | TBD | Pending |
-| SAFETY-01 | TBD | Pending |
-| SAFETY-02 | TBD | Pending |
-| SAFETY-03 | TBD | Pending |
-| SAFETY-04 | TBD | Pending |
-| SAFETY-05 | TBD | Pending |
-| SAFETY-06 | TBD | Pending |
-| SAFETY-07 | TBD | Pending |
-| SAFETY-08 | TBD | Pending |
-| SAFETY-09 | TBD | Pending |
-| SAFETY-10 | TBD | Pending |
-| SAFETY-11 | TBD | Pending |
-| SAFETY-12 | TBD | Pending |
-| SAFETY-13 | TBD | Pending |
-| SAFETY-14 | TBD | Pending |
-| SAFETY-15 | TBD | Pending |
-| SAFETY-16 | TBD | Pending |
-| SAFETY-17 | TBD | Pending |
-| SAFETY-18 | TBD | Pending |
-| SAFETY-19 | TBD | Pending |
-| SAFETY-20 | TBD | Pending |
-| SAFETY-21 | TBD | Pending |
-| SAFETY-22 | TBD | Pending |
-| SAFETY-23 | TBD | Pending |
-| SAFETY-24 | TBD | Pending |
-| SAFETY-25 | TBD | Pending |
-| SAFETY-26 | TBD | Pending |
-| SAFETY-27 | TBD | Pending |
-| SAFETY-28 | TBD | Pending |
-| SAFETY-29 | TBD | Pending |
-| SAFETY-30 | TBD | Pending |
-| SAFETY-31 | TBD | Pending |
-| SAFETY-32 | TBD | Pending |
-| SAFETY-33 | TBD | Pending |
-| SAFETY-34 | TBD | Pending |
-| SAFETY-35 | TBD | Pending |
-| SAFETY-36 | TBD | Pending |
-| SAFETY-37 | TBD | Pending |
-| SAFETY-38 | TBD | Pending |
-| SAFETY-39 | TBD | Pending |
-| SAFETY-40 | TBD | Pending |
-| SAFETY-41 | TBD | Pending |
-| SAFETY-42 | TBD | Pending |
-| SAFETY-43 | TBD | Pending |
-| SAFETY-44 | TBD | Pending |
-| SAFETY-45 | TBD | Pending |
-| SAFETY-46 | TBD | Pending |
-| SAFETY-47 | TBD | Pending |
-| SAFETY-48 | TBD | Pending |
-| SAFETY-49 | TBD | Pending |
-| SAFETY-50 | TBD | Pending |
-| SAFETY-51 | TBD | Pending |
-| SAFETY-52 | TBD | Pending |
-| SAFETY-53 | TBD | Pending |
-| SAFETY-54 | TBD | Pending |
-| SAFETY-55 | TBD | Pending |
-| SAFETY-56 | TBD | Pending |
-| SAFETY-57 | TBD | Pending |
-| SAFETY-58 | TBD | Pending |
-| UI-01 | TBD | Pending |
-| UI-02 | TBD | Pending |
-| UI-03 | TBD | Pending |
-| UI-04 | TBD | Pending |
-| UI-05 | TBD | Pending |
-| UI-06 | TBD | Pending |
-| UI-07 | TBD | Pending |
-| UI-08 | TBD | Pending |
-| UI-09 | TBD | Pending |
-| UI-10 | TBD | Pending |
-| UI-11 | TBD | Pending |
-| UI-12 | TBD | Pending |
-| UI-13 | TBD | Pending |
-| UI-14 | TBD | Pending |
-| UI-15 | TBD | Pending |
-| UI-16 | TBD | Pending |
-| UI-17 | TBD | Pending |
-| UI-18 | TBD | Pending |
-| UI-19 | TBD | Pending |
-| UI-20 | TBD | Pending |
-| UI-21 | TBD | Pending |
-| UI-22 | TBD | Pending |
-| UI-23 | TBD | Pending |
-| UI-24 | TBD | Pending |
-| UI-25 | TBD | Pending |
-| UI-26 | TBD | Pending |
-| UI-27 | TBD | Pending |
-| UI-28 | TBD | Pending |
-| UI-29 | TBD | Pending |
-| UI-30 | TBD | Pending |
-| UI-31 | TBD | Pending |
-| UI-32 | TBD | Pending |
-| UI-33 | TBD | Pending |
-| UI-34 | TBD | Pending |
-| UI-35 | TBD | Pending |
-| UI-36 | TBD | Pending |
-| UI-37 | TBD | Pending |
-| UI-38 | TBD | Pending |
-| UI-39 | TBD | Pending |
-| UI-40 | TBD | Pending |
-| UI-41 | TBD | Pending |
-| UI-42 | TBD | Pending |
-| UI-43 | TBD | Pending |
-| UI-44 | TBD | Pending |
-| UI-45 | TBD | Pending |
-| UI-46 | TBD | Pending |
-| UI-47 | TBD | Pending |
-| UI-48 | TBD | Pending |
-| UI-49 | TBD | Pending |
-| UI-50 | TBD | Pending |
-| UI-51 | TBD | Pending |
-| UI-52 | TBD | Pending |
-| UI-53 | TBD | Pending |
-| UI-54 | TBD | Pending |
-| UI-55 | TBD | Pending |
-| UI-56 | TBD | Pending |
-| SHARE-01 | TBD | Pending |
-| SHARE-02 | TBD | Pending |
-| SHARE-03 | TBD | Pending |
-| SHARE-04 | TBD | Pending |
-| SHARE-05 | TBD | Pending |
-| SHARE-06 | TBD | Pending |
-| SHARE-07 | TBD | Pending |
-| SHARE-08 | TBD | Pending |
-| SHARE-09 | TBD | Pending |
-| SHARE-10 | TBD | Pending |
-| SHARE-11 | TBD | Pending |
-| SHARE-12 | TBD | Pending |
-| SHARE-13 | TBD | Pending |
-| SHARE-14 | TBD | Pending |
-| SHARE-15 | TBD | Pending |
-| SHARE-16 | TBD | Pending |
-| SHARE-17 | TBD | Pending |
-| SHARE-18 | TBD | Pending |
-| SHARE-19 | TBD | Pending |
-| SHARE-20 | TBD | Pending |
-| SHARE-21 | TBD | Pending |
-| OPS-01 | TBD | Pending |
-| OPS-02 | TBD | Pending |
-| OPS-03 | TBD | Pending |
-| OPS-04 | TBD | Pending |
-| OPS-05 | TBD | Pending |
-| OPS-06 | TBD | Pending |
-| OPS-07 | TBD | Pending |
-| OPS-08 | TBD | Pending |
-| OPS-09 | TBD | Pending |
-| OPS-10 | TBD | Pending |
-| OPS-11 | TBD | Pending |
-| OPS-12 | TBD | Pending |
-| OPS-13 | TBD | Pending |
-| OPS-14 | TBD | Pending |
-| OPS-15 | TBD | Pending |
-| OPS-16 | TBD | Pending |
-| OPS-17 | TBD | Pending |
-| OPS-18 | TBD | Pending |
-| OPS-19 | TBD | Pending |
-| OPS-20 | TBD | Pending |
-| OPS-21 | TBD | Pending |
-| OPS-22 | TBD | Pending |
-| OPS-23 | TBD | Pending |
-| OPS-24 | TBD | Pending |
-| OPS-25 | TBD | Pending |
-| OPS-26 | TBD | Pending |
+| AUTH-01 | Phase 1 | Pending |
+| AUTH-02 | Phase 1 | Pending |
+| AUTH-03 | Phase 1 | Pending |
+| AUTH-04 | Phase 1 | Pending |
+| AUTH-05 | Phase 1 | Pending |
+| AUTH-06 | Phase 1.5 | Pending |
+| AUTH-07 | Phase 1.5 | Pending |
+| AUTH-08 | Phase 1 | Pending |
+| AUTH-09 | Phase 1.5 | Pending |
+| AUTH-10 | Phase 1.5 | Pending |
+| AUTH-11 | Phase 1 | Pending |
+| AUTH-12 | Phase 1.5 | Pending |
+| AUTH-13 | Phase 1.5 | Pending |
+| AUTH-14 | Phase 1.5 | Pending |
+| AUTH-15 | Phase 1.5 | Pending |
+| AUTH-16 | Phase 1.5 | Pending |
+| AUTH-17 | Phase 1.5 | Pending |
+| AUTH-18 | Phase 1.5 | Pending |
+| AUTH-19 | Phase 1 | Pending |
+| AUTH-20 | Phase 1 | Pending |
+| AUTH-21 | Phase 1 | Pending |
+| AUTH-22 | Phase 1 | Pending |
+| AUTH-23 | Phase 1 | Pending |
+| AUTH-24 | Phase 1 | Pending |
+| AUTH-25 | Phase 1 | Pending |
+| AUTH-26 | Phase 1 | Pending |
+| AUTH-27 | Phase 1 | Pending |
+| AUTH-28 | Phase 1 | Pending |
+| AUTH-29 | Phase 1 | Pending |
+| AUTH-30 | Phase 1 | Pending |
+| AUTH-31 | Phase 1 | Pending |
+| AUTH-32 | Phase 1 | Pending |
+| AUTH-33 | Phase 1 | Pending |
+| AUTH-34 | Phase 1 | Pending |
+| AUTH-35 | Phase 1 | Pending |
+| AUTH-36 | Phase 1 | Pending |
+| AUTH-37 | Phase 1 | Pending |
+| AUTH-38 | Phase 1 | Pending |
+| AUTH-39 | Phase 1 | Pending |
+| AUTH-40 | Phase 1 | Pending |
+| AUTH-41 | Phase 1 | Pending |
+| AUTH-42 | Phase 1 | Pending |
+| AUTH-43 | Phase 1 | Pending |
+| AUTH-44 | Phase 1 | Pending |
+| CALL-01 | Phase 1 | Pending |
+| CALL-02 | Phase 1 | Pending |
+| CALL-03 | Phase 1 | Pending |
+| CALL-04 | Phase 1 | Pending |
+| CALL-05 | Phase 1 | Pending |
+| CALL-06 | Phase 1 | Pending |
+| CALL-07 | Phase 1 | Pending |
+| CALL-08 | Phase 1 | Pending |
+| CALL-09 | Phase 1 | Pending |
+| CALL-10 | Phase 1 | Pending |
+| CALL-11 | Phase 1 | Pending |
+| CALL-12 | Phase 1 | Pending |
+| CALL-13 | Phase 1 | Pending |
+| CALL-14 | Phase 1 | Pending |
+| CALL-15 | Phase 1 | Pending |
+| CALL-16 | Phase 1 | Pending |
+| CALL-17 | Phase 1 | Pending |
+| CALL-18 | Phase 1 | Pending |
+| CALL-19 | Phase 1 | Pending |
+| CALL-20 | Phase 1 | Pending |
+| CALL-21 | Phase 1 | Pending |
+| CALL-22 | Phase 1 | Pending |
+| CALL-23 | Phase 1 | Pending |
+| CALL-24 | Phase 1 | Pending |
+| CALL-25 | Phase 1 | Pending |
+| CALL-26 | Phase 1 | Pending |
+| CALL-27 | Phase 1 | Pending |
+| CALL-28 | Phase 1 | Pending |
+| CALL-29 | Phase 1 | Pending |
+| CALL-30 | Phase 1 | Pending |
+| CALL-31 | Phase 1 | Pending |
+| CALL-32 | Phase 1 | Pending |
+| CALL-33 | Phase 1 | Pending |
+| CALL-34 | Phase 1 | Pending |
+| CALL-35 | Phase 1 | Pending |
+| CALL-36 | Phase 1 | Pending |
+| CALL-37 | Phase 1 | Pending |
+| CALL-38 | Phase 1 | Pending |
+| CALL-39 | Phase 1 | Pending |
+| CALL-40 | Phase 1 | Pending |
+| CALL-41 | Phase 1 | Pending |
+| CALL-42 | Phase 1 | Pending |
+| CALL-43 | Phase 1 | Pending |
+| CALL-44 | Phase 1 | Pending |
+| CALL-45 | Phase 1 | Pending |
+| CALL-46 | Phase 1 | Pending |
+| CALL-47 | Phase 1 | Pending |
+| CALL-48 | Phase 1 | Pending |
+| CALL-49 | Phase 1 | Pending |
+| CALL-50 | Phase 1 | Pending |
+| CALL-51 | Phase 1 | Pending |
+| CALL-52 | Phase 1 | Pending |
+| CALL-53 | Phase 1 | Pending |
+| CALL-54 | Phase 1 | Pending |
+| CALL-55 | Phase 1 | Pending |
+| CALL-56 | Phase 1 | Pending |
+| CALL-57 | Phase 1 | Pending |
+| CALL-58 | Phase 1 | Pending |
+| CALL-59 | Phase 1 | Pending |
+| CALL-60 | Phase 1 | Pending |
+| CALL-61 | Phase 1 | Pending |
+| CALL-62 | Phase 1 | Pending |
+| CALL-63 | Phase 1 | Pending |
+| CALL-64 | Phase 1 | Pending |
+| CALL-65 | Phase 1 | Pending |
+| CALL-66 | Phase 1 | Pending |
+| CALL-67 | Phase 1 | Pending |
+| CALL-68 | Phase 1 | Pending |
+| CALL-69 | Phase 1 | Pending |
+| CALL-70 | Phase 1 | Pending |
+| SOCIAL-01 | Phase 2 | Pending |
+| SOCIAL-02 | Phase 2 | Pending |
+| SOCIAL-03 | Phase 2 | Pending |
+| SOCIAL-04 | Phase 2 | Pending |
+| SOCIAL-05 | Phase 2 | Pending |
+| SOCIAL-06 | Phase 2 | Pending |
+| SOCIAL-07 | Phase 2 | Pending |
+| SOCIAL-08 | Phase 2 | Pending |
+| SOCIAL-09 | Phase 2 | Pending |
+| SOCIAL-10 | Phase 2 | Pending |
+| SOCIAL-11 | Phase 2 | Pending |
+| SOCIAL-12 | Phase 2 | Pending |
+| SOCIAL-13 | Phase 2 | Pending |
+| SOCIAL-14 | Phase 2 | Pending |
+| SOCIAL-15 | Phase 2 | Pending |
+| SOCIAL-16 | Phase 2 | Pending |
+| SOCIAL-17 | Phase 2 | Pending |
+| SOCIAL-18 | Phase 2 | Pending |
+| SOCIAL-19 | Phase 2 | Pending |
+| SOCIAL-20 | Phase 2 | Pending |
+| SOCIAL-21 | Phase 2 | Pending |
+| SOCIAL-22 | Phase 2 | Pending |
+| SOCIAL-23 | Phase 2 | Pending |
+| SOCIAL-24 | Phase 2 | Pending |
+| SOCIAL-25 | Phase 2 | Pending |
+| SOCIAL-26 | Phase 2 | Pending |
+| SOCIAL-27 | Phase 2 | Pending |
+| SOCIAL-28 | Phase 2 | Pending |
+| SOCIAL-29 | Phase 3 | Pending |
+| SOCIAL-30 | Phase 3 | Pending |
+| SOCIAL-31 | Phase 3 | Pending |
+| SOCIAL-32 | Phase 3 | Pending |
+| SOCIAL-33 | Phase 3 | Pending |
+| SOCIAL-34 | Phase 3 | Pending |
+| SOCIAL-35 | Phase 3 | Pending |
+| SOCIAL-36 | Phase 3 | Pending |
+| SOCIAL-37 | Phase 3 | Pending |
+| SOCIAL-38 | Phase 3 | Pending |
+| SOCIAL-39 | Phase 3 | Pending |
+| SOCIAL-40 | Phase 3 | Pending |
+| SOCIAL-41 | Phase 3 | Pending |
+| SOCIAL-42 | Phase 3 | Pending |
+| SOCIAL-43 | Phase 2 | Pending |
+| SOCIAL-44 | Phase 2 | Pending |
+| SOCIAL-45 | Phase 2 | Pending |
+| SOCIAL-46 | Phase 3 | Pending |
+| SOCIAL-47 | Phase 3 | Pending |
+| SOCIAL-48 | Phase 3 | Pending |
+| SOCIAL-49 | Phase 3 | Pending |
+| SOCIAL-50 | Phase 3 | Pending |
+| SOCIAL-51 | Phase 3 | Pending |
+| REP-01 | Phase 1 | Pending |
+| REP-02 | Phase 1 | Pending |
+| REP-03 | Phase 4 | Pending |
+| REP-04 | Phase 4 | Pending |
+| REP-05 | Phase 4 | Pending |
+| REP-06 | Phase 4 | Pending |
+| REP-07 | Phase 4 | Pending |
+| REP-08 | Phase 4 | Pending |
+| REP-09 | Phase 4 | Pending |
+| REP-10 | Phase 4 | Pending |
+| REP-11 | Phase 4 | Pending |
+| REP-12 | Phase 4 | Pending |
+| REP-13 | Phase 4 | Pending |
+| REP-14 | Phase 4 | Pending |
+| REP-15 | Phase 4 | Pending |
+| REP-16 | Phase 4 | Pending |
+| REP-17 | Phase 1 | Pending |
+| REP-18 | Phase 1 | Pending |
+| REP-19 | Phase 5 | Pending |
+| REP-20 | Phase 5 | Pending |
+| REP-21 | Phase 5 | Pending |
+| REP-22 | Phase 4 | Pending |
+| REP-23 | Phase 4 | Pending |
+| REP-24 | Phase 5 | Pending |
+| REP-25 | Phase 4 | Pending |
+| REP-26 | Phase 4 | Pending |
+| REP-27 | Phase 4 | Pending |
+| REP-28 | Phase 1 | Pending |
+| REP-29 | Phase 1 | Pending |
+| SETTLE-01 | Phase 4 | Pending |
+| SETTLE-02 | Phase 4 | Pending |
+| SETTLE-03 | Phase 4 | Pending |
+| SETTLE-04 | Phase 4 | Pending |
+| SETTLE-05 | Phase 4 | Pending |
+| SETTLE-06 | Phase 4 | Pending |
+| SETTLE-07 | Phase 4 | Pending |
+| SETTLE-08 | Phase 4 | Pending |
+| SETTLE-09 | Phase 4 | Pending |
+| SETTLE-10 | Phase 4 | Pending |
+| SETTLE-11 | Phase 4 | Pending |
+| SETTLE-12 | Phase 4 | Pending |
+| SETTLE-13 | Phase 4 | Pending |
+| SETTLE-14 | Phase 4 | Pending |
+| SETTLE-15 | Phase 4 | Pending |
+| SETTLE-16 | Phase 4 | Pending |
+| SETTLE-17 | Phase 4 | Pending |
+| SETTLE-18 | Phase 4 | Pending |
+| SETTLE-19 | Phase 4 | Pending |
+| SETTLE-20 | Phase 4 | Pending |
+| SETTLE-21 | Phase 4 | Pending |
+| SETTLE-22 | Phase 4 | Pending |
+| SETTLE-23 | Phase 4 | Pending |
+| SETTLE-24 | Phase 4 | Pending |
+| SETTLE-25 | Phase 4 | Pending |
+| SETTLE-26 | Phase 4 | Pending |
+| SETTLE-27 | Phase 4 | Pending |
+| SETTLE-28 | Phase 4 | Pending |
+| SETTLE-29 | Phase 4 | Pending |
+| SETTLE-30 | Phase 4 | Pending |
+| SETTLE-31 | Phase 4 | Pending |
+| SETTLE-32 | Phase 4 | Pending |
+| SETTLE-33 | Phase 4 | Pending |
+| SETTLE-34 | Phase 4 | Pending |
+| SETTLE-35 | Phase 4 | Pending |
+| SETTLE-36 | Phase 4 | Pending |
+| SETTLE-37 | Phase 4 | Pending |
+| SETTLE-38 | Phase 4 | Pending |
+| SETTLE-39 | Phase 4 | Pending |
+| SETTLE-40 | Phase 4 | Pending |
+| SETTLE-41 | Phase 4 | Pending |
+| SETTLE-42 | Phase 4 | Pending |
+| SETTLE-43 | Phase 4 | Pending |
+| SETTLE-44 | Phase 4 | Pending |
+| SETTLE-45 | Phase 4 | Pending |
+| SETTLE-46 | Phase 4 | Pending |
+| SETTLE-47 | Phase 4 | Pending |
+| SETTLE-48 | Phase 4 | Pending |
+| SETTLE-49 | Phase 4 | Pending |
+| SETTLE-50 | Phase 4 | Pending |
+| SETTLE-51 | Phase 4 | Pending |
+| SETTLE-52 | Phase 4 | Pending |
+| SAFETY-01 | Phase 1 | Pending |
+| SAFETY-02 | Phase 6 | Pending |
+| SAFETY-03 | Phase 6 | Pending |
+| SAFETY-04 | Phase 1 | Pending |
+| SAFETY-05 | Phase 1 | Pending |
+| SAFETY-06 | Phase 1 | Pending |
+| SAFETY-07 | Phase 1 | Pending |
+| SAFETY-08 | Phase 1 | Pending |
+| SAFETY-09 | Phase 1 | Pending |
+| SAFETY-10 | Phase 1 | Pending |
+| SAFETY-11 | Phase 1 | Pending |
+| SAFETY-12 | Phase 0 | Pending |
+| SAFETY-13 | Phase 0 | Pending |
+| SAFETY-14 | Phase 1 | Pending |
+| SAFETY-15 | Phase 0 | Pending |
+| SAFETY-16 | Phase 0 | Pending |
+| SAFETY-17 | Phase 0 | Pending |
+| SAFETY-18 | Phase 1 | Pending |
+| SAFETY-19 | Phase 6 | Pending |
+| SAFETY-20 | Phase 6 | Pending |
+| SAFETY-21 | Phase 6 | Pending |
+| SAFETY-22 | Phase 6 | Pending |
+| SAFETY-23 | Phase 6 | Pending |
+| SAFETY-24 | Phase 6 | Pending |
+| SAFETY-25 | Phase 6 | Pending |
+| SAFETY-26 | Phase 6 | Pending |
+| SAFETY-27 | Phase 6 | Pending |
+| SAFETY-28 | Phase 6 | Pending |
+| SAFETY-29 | Phase 6 | Pending |
+| SAFETY-30 | Phase 6 | Pending |
+| SAFETY-31 | Phase 6 | Pending |
+| SAFETY-32 | Phase 6 | Pending |
+| SAFETY-33 | Phase 6 | Pending |
+| SAFETY-34 | Phase 6 | Pending |
+| SAFETY-35 | Phase 6 | Pending |
+| SAFETY-36 | Phase 6 | Pending |
+| SAFETY-37 | Phase 6 | Pending |
+| SAFETY-38 | Phase 6 | Pending |
+| SAFETY-39 | Phase 6 | Pending |
+| SAFETY-40 | Phase 6 | Pending |
+| SAFETY-41 | Phase 6 | Pending |
+| SAFETY-42 | Phase 6 | Pending |
+| SAFETY-43 | Phase 6 | Pending |
+| SAFETY-44 | Phase 7.5 | Pending |
+| SAFETY-45 | Phase 7.5 | Pending |
+| SAFETY-46 | Phase 7.5 | Pending |
+| SAFETY-47 | Phase 7.5 | Pending |
+| SAFETY-48 | Phase 7.5 | Pending |
+| SAFETY-49 | Phase 7.5 | Pending |
+| SAFETY-50 | Phase 7.5 | Pending |
+| SAFETY-51 | Phase 7.5 | Pending |
+| SAFETY-52 | Phase 7.5 | Pending |
+| SAFETY-53 | Phase 7.5 | Pending |
+| SAFETY-54 | Phase 7.5 | Pending |
+| SAFETY-55 | Phase 7.5 | Pending |
+| SAFETY-56 | Phase 7.5 | Pending |
+| SAFETY-57 | Phase 4 | Pending |
+| SAFETY-58 | Phase 0 | Pending |
+| UI-01 | Phase 1 | Pending |
+| UI-02 | Phase 1 | Pending |
+| UI-03 | Phase 1 | Pending |
+| UI-04 | Phase 1 | Pending |
+| UI-05 | Phase 1 | Pending |
+| UI-06 | Phase 2 | Pending |
+| UI-07 | Phase 2 | Pending |
+| UI-08 | Phase 1 | Pending |
+| UI-09 | Phase 7 | Pending |
+| UI-10 | Phase 1 | Pending |
+| UI-11 | Phase 3 | Pending |
+| UI-12 | Phase 7 | Pending |
+| UI-13 | Phase 7 | Pending |
+| UI-14 | Phase 4 | Pending |
+| UI-15 | Phase 4 | Pending |
+| UI-16 | Phase 4 | Pending |
+| UI-17 | Phase 4 | Pending |
+| UI-18 | Phase 4 | Pending |
+| UI-19 | Phase 4 | Pending |
+| UI-20 | Phase 4 | Pending |
+| UI-21 | Phase 4 | Pending |
+| UI-22 | Phase 4 | Pending |
+| UI-23 | Phase 4 | Pending |
+| UI-24 | Phase 1 | Pending |
+| UI-25 | Phase 1 | Pending |
+| UI-26 | Phase 7 | Pending |
+| UI-27 | Phase 7 | Pending |
+| UI-28 | Phase 7 | Pending |
+| UI-29 | Phase 1 | Pending |
+| UI-30 | Phase 1 | Pending |
+| UI-31 | Phase 1 | Pending |
+| UI-32 | Phase 1 | Pending |
+| UI-33 | Phase 1 | Pending |
+| UI-34 | Phase 1 | Pending |
+| UI-35 | Phase 1 | Pending |
+| UI-36 | Phase 1 | Pending |
+| UI-37 | Phase 1 | Pending |
+| UI-38 | Phase 1 | Pending |
+| UI-39 | Phase 1 | Pending |
+| UI-40 | Phase 1 | Pending |
+| UI-41 | Phase 1 | Pending |
+| UI-42 | Phase 1 | Pending |
+| UI-43 | Phase 1 | Pending |
+| UI-44 | Phase 4 | Pending |
+| UI-45 | Phase 4 | Pending |
+| UI-46 | Phase 1 | Pending |
+| UI-47 | Phase 1 | Pending |
+| UI-48 | Phase 9 | Pending |
+| UI-49 | Phase 9 | Pending |
+| UI-50 | Phase 9 | Pending |
+| UI-51 | Phase 1 | Pending |
+| UI-52 | Phase 4 | Pending |
+| UI-53 | Phase 1 | Pending |
+| UI-54 | Phase 4 | Pending |
+| UI-55 | Phase 1 | Pending |
+| UI-56 | Phase 1 | Pending |
+| SHARE-01 | Phase 7 | Pending |
+| SHARE-02 | Phase 7 | Pending |
+| SHARE-03 | Phase 7 | Pending |
+| SHARE-04 | Phase 2 | Pending |
+| SHARE-05 | Phase 4 | Pending |
+| SHARE-06 | Phase 4 | Pending |
+| SHARE-07 | Phase 3 | Pending |
+| SHARE-08 | Phase 4 | Pending |
+| SHARE-09 | Phase 0 | Pending |
+| SHARE-10 | Phase 0 | Pending |
+| SHARE-11 | Phase 0 | Pending |
+| SHARE-12 | Phase 4 | Pending |
+| SHARE-13 | Phase 7 | Pending |
+| SHARE-14 | Phase 7 | Pending |
+| SHARE-15 | Phase 7 | Pending |
+| SHARE-16 | Phase 7 | Pending |
+| SHARE-17 | Phase 7 | Pending |
+| SHARE-18 | Phase 7 | Pending |
+| SHARE-19 | Phase 8 | Pending |
+| SHARE-20 | Phase 7 | Pending |
+| SHARE-21 | Phase 7 | Pending |
+| OPS-01 | Phase 0 | Pending |
+| OPS-02 | Phase 0 | Pending |
+| OPS-03 | Phase 0 | Pending |
+| OPS-04 | Phase 7 | Pending |
+| OPS-05 | Phase 0 | Pending |
+| OPS-06 | Phase 0 | Pending |
+| OPS-07 | Phase 0 | Pending |
+| OPS-08 | Phase 0 | Pending |
+| OPS-09 | Phase 0 | Pending |
+| OPS-10 | Phase 0 | Pending |
+| OPS-11 | Phase 0 | Pending |
+| OPS-12 | Phase 0 | Pending |
+| OPS-13 | Phase 0 | Pending |
+| OPS-14 | Phase 0 | Pending |
+| OPS-15 | Phase 4 | Pending |
+| OPS-16 | Phase 4 | Pending |
+| OPS-17 | Phase 0 | Pending |
+| OPS-18 | Phase 0 | Pending |
+| OPS-19 | Phase 0 | Pending |
+| OPS-20 | Phase 0 | Pending |
+| OPS-21 | Phase 0 | Pending |
+| OPS-22 | Phase 0 | Pending |
+| OPS-23 | Phase 0 | Pending |
+| OPS-24 | Phase 0 | Pending |
+| OPS-25 | Phase 0 | Pending |
+| OPS-26 | Phase 0 | Pending |
+
 
 **Coverage:**
 - v1 requirements: 407 total — AUTH 44 · CALL 70 · SOCIAL 51 · REP 29 · SETTLE 52 · SAFETY 58 · UI 56 · SHARE 21 · OPS 26
-- Mapped to phases: 0 (pending roadmapper)
-- Unmapped: 407 (pending roadmapper)
+- Mapped to phases: 407 / 407 (100%)
+- Unmapped: 0
+- Per-phase distribution: Phase 0 = 32 · Phase 1 = 150 · Phase 1.5 = 11 · Phase 2 = 34 · Phase 3 = 22 · Phase 4 = 92 · Phase 5 = 4 · Phase 6 = 27 · Phase 7 = 18 · Phase 7.5 = 13 · Phase 8 = 1 · Phase 9 = 3
 - v2 deferred: 17
 - Out of Scope: 35 entries
 

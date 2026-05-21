@@ -1,0 +1,76 @@
+# Project State
+
+## Project Reference
+
+See: .planning/PROJECT.md (updated 2026-05-21)
+
+**Core value:** Every call is permanent, public, and tied to identity. The receipt — created, settled, and shared — must be unfakeable, undeletable, and visually unmistakable.
+**Current focus:** Phase 0 (Foundation) — monorepo, multisig prep, IPFS, CDN, subgraph schema, relayer skeleton, monitoring stack, env-var matrix, USDC single source-of-truth, OG fallback variant.
+
+## Current Position
+
+Phase: 0 of 12 (Foundation)
+Plan: 0 of TBD in current phase
+Status: Ready to plan
+Last activity: 2026-05-21 — Roadmap created (12 phases, 407 / 407 v1 requirements mapped, all 22 PITFALLS pinned)
+
+Progress: [░░░░░░░░░░] 0%
+
+## Performance Metrics
+
+**Velocity:**
+- Total plans completed: 0
+- Average duration: —
+- Total execution time: 0 hours
+
+**By Phase:**
+
+| Phase | Plans | Total | Avg/Plan |
+|-------|-------|-------|----------|
+| - | - | - | - |
+
+**Recent Trend:**
+- Last 5 plans: —
+- Trend: — (no data yet)
+
+*Updated after each plan completion*
+
+## Accumulated Context
+
+### Decisions
+
+Decisions are logged in PROJECT.md Key Decisions table.
+Recent decisions affecting current work:
+
+- Spec source-of-truth: `CALL_IT_SPEC1.md` v1.0 locked at 3,088 lines; REQ-IDs in REQUIREMENTS.md are translation, not redesign
+- Roadmap derived from spec §19 plus 5 research deltas: Phase 0 added (always-live foundation); Phase 1.5 runs parallel to Phase 2 (social linking); Solidity baseline rep delta ships in Phase 4 not Phase 5; multisig promotion pulled into Phase 6 as hard gate; subgraph + OG service skeletons in Phase 0 with finalization in Phase 7
+- Solidity pinned to exact `=0.8.30` (NOT `^0.8.24`) to avoid 0.8.28–0.8.33 IR storage-clearing bug; CI grep guard enforces
+- USDC hardcoded to canonical `0xaf88d065e77c8cC2239327C5EDb3A432268e5831` (NOT bridged USDC.e); CI grep guard enforces single source-of-truth
+- Stylus 48h-before-demo cutoff is mechanical `proxy.upgradeTo(soliditySolidityBaselineAddress)` (one cast call), not a panicked rewrite — baseline ships in-contract from Phase 4
+
+### Pending Todos
+
+[From .planning/todos/pending/ — ideas captured during sessions]
+
+None yet.
+
+### Blockers/Concerns
+
+[Issues that affect future work]
+
+- Operational budget items the spec is silent on (~$175/mo recurring + ~$150-300 upfront): X API Basic tier ($100-200/mo), The Graph publishing GRT (~$100-300 upfront), Pinata ($20/mo), Redis ($5/mo), Better Stack ($25/mo), Pyth update VAA ETH (~$10/day at 1000 settles). Pre-deploy budget approval needed before Phase 6 mainnet promotion.
+- Top 3 inherited risks: Stylus alpha-line crate stability (`openzeppelin-stylus@0.3.0`), X API Basic tier ongoing cost volatility, owner-resolved disputes as governance attack surface (mitigated in v1 via Phase 6 multisig + public dispute log + owner self-exclusion).
+
+## Deferred Items
+
+Items acknowledged and carried forward from previous milestone close:
+
+| Category | Item | Status | Deferred At |
+|----------|------|--------|-------------|
+| *(none — first milestone)* | | | |
+
+## Session Continuity
+
+Last session: 2026-05-21
+Stopped at: ROADMAP.md + STATE.md + REQUIREMENTS.md traceability written. Ready for `/gsd-plan-phase 0`.
+Resume file: None
