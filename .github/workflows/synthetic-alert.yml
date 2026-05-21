@@ -1,0 +1,74 @@
+# synthetic-alert.yml — Daily CI cron that fires + verifies a Telegram alert end-to-end (D-16, Pitfall D)
+#
+# Schedule: 12:00 UTC daily
+# Manual trigger: workflow_dispatch (for operator testing)
+#
+# The job fires a synthetic `rep_fallback` event through the full alert pipeline:
+#   1. POSTs HMAC-signed request to relayer /internal/test-alert
+#   2. Polls Telegram getUpdates every 5s for up to 60s
+#   3. Expects to find the UUID nonce in the P0 channel message
+#
+# If the nonce is not seen within 60s → build FAILS (Pitfall D mitigation).
+# This means the alert pipeline is broken and the operator is notified via CI failure.
+#
+# Required GitHub Secrets (operator configures via `gh secret set`):
+#   RELAYER_URL                  - Deployed relayer URL (e.g., https://call-it-relayer-sepolia.fly.dev)
+#   RELAYER_INTERNAL_HMAC        - HMAC secret matching RELAYER_INTERNAL_HMAC_SECRET in relayer env
+#   TELEGRAM_BOT_TOKEN           - Telegram bot token (bot must be admin of P0 channel)
+#   TELEGRAM_CHAT_ID_P0          - P0 Telegram channel chat ID (negative, e.g., -1001234567890)
+#
+# Open Question 5 (resolution):
+#   The Telegram bot MUST be added as a channel administrator with "Post Messages" and
+#   "Read Messages" rights. Without admin rights, getUpdates does not return channel posts.
+#
+# Security:
+#   All secrets are injected via GitHub Secrets → only available to repository admins.
+#   The HMAC secret provides a 5-minute replay window on the relayer side.
+#   A fresh UUID nonce is generated per run — old nonces in Telegram history are ignored.
+
+name: Synthetic Alert Verification
+
+on:
+  schedule:
+    - cron: '0 12 * * *'  # Daily at 12:00 UTC
+  workflow_dispatch:        # Manual trigger for operator testing
+
+permissions:
+  contents: read
+
+jobs:
+  fire-and-verify:
+    name: Fire synthetic alert + verify Telegram round-trip
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Fire synthetic alert + verify Telegram nonce (60s timeout)
+        env:
+          RELAYER_URL: ${{ secrets.RELAYER_URL }}
+          RELAYER_INTERNAL_HMAC_SECRET: ${{ secrets.RELAYER_INTERNAL_HMAC }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID_P0: ${{ secrets.TELEGRAM_CHAT_ID_P0 }}
+        run: |
+          pnpm tsx scripts/fire-synthetic-alert.ts \
+            --event rep_fallback \
+            --wait-seconds 60 \
+            --expect-chat-id "$TELEGRAM_CHAT_ID_P0"
+        # Exit 1 from the script = build FAILS = CI fails = operator notified via GitHub notification
+        # This is intentional per D-16: the CI build failing IS the alert.
