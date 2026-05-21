@@ -1,0 +1,10 @@
+{
+  "event_t30": null,
+  "event_t15": null,
+  "event_t7": null,
+  "event_t1": null,
+  "placeholder_deploy_date": null,
+  "created_at": null,
+  "last_updated_via": null,
+  "_note": "Populated by scripts/seed-calendar.ts; updated by scripts/repoint-calendar.ts in Phase 5. Event IDs are Google Calendar event IDs for the 4 Stylus reactivation reminder events at T-30d/T-15d/T-7d/T-1d."
+}
