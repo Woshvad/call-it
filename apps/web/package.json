@@ -7,7 +7,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint",
+    "lint": "echo 'No lint configured for web yet — Phase 1+ adds ESLint'",
     "test": "echo 'No tests in web yet — Phase 1+ adds UI tests'"
   },
   "dependencies": {
