@@ -1,0 +1,16 @@
+specVersion: 1.2.0
+description: Call It subgraph — indexes all 23 event types from CallRegistry, FollowFadeMarket, ChallengeEscrow, SettlementManager, ProfileRegistry on Arbitrum Sepolia (Phase 0 scaffold; contract addresses populated in Phase 1+)
+repository: https://github.com/call-it/call-it
+schema:
+  file: ./schema.graphql
+dataSources: []
+# Phase 0 scaffold: dataSources are empty because contract addresses are not yet deployed.
+# Phase 1+ will add:
+#   - kind: ethereum/contract
+#     name: CallRegistry
+#     network: arbitrum-sepolia
+#     source:
+#       address: "DEPLOYED_ADDRESS"
+#       abi: CallRegistry
+#       startBlock: DEPLOY_BLOCK
+#     mapping: ...

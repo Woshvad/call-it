@@ -1,0 +1,19 @@
+{
+  "name": "@call-it/subgraph",
+  "version": "0.0.1",
+  "private": true,
+  "description": "The Graph subgraph schema + stub mappings for Call It (Arbitrum Sepolia → Decentralized Network)",
+  "scripts": {
+    "build": "echo 'Subgraph scaffold ready — graph build runs after Phase 1 contract deploy'",
+    "codegen": "graph codegen",
+    "deploy": "graph deploy call-it-sepolia",
+    "lint": "echo 'No lint configured for subgraph yet'",
+    "test": "echo 'No subgraph tests in Phase 0 — mapping tests land in Phase 1+'"
+  },
+  "dependencies": {
+    "@graphprotocol/graph-ts": "0.38.2"
+  },
+  "devDependencies": {
+    "@graphprotocol/graph-cli": "0.98.1"
+  }
+}

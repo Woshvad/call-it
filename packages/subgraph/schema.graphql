@@ -1,0 +1,104 @@
+# Call It subgraph schema
+# Phase 0 scaffold: entity stubs for all 23 event types from spec §12.1–12.5
+# Mapping implementations land in Phase 1+ when contracts are deployed.
+#
+# Source: CALL_IT_SPEC1.md §12.1–12.5
+# Requirement: OPS-01, OPS-03
+
+type Call @entity {
+  id: ID!
+  callId: BigInt!
+  caller: Bytes!
+  marketType: Int!
+  assetA: String!
+  assetB: String
+  targetValue: BigInt!
+  deadline: BigInt!
+  stake: BigInt!
+  createdAt: BigInt!
+  status: String!
+  duplicateHash: Bytes
+  criteriaHash: Bytes
+  positions: [Position!]! @derivedFrom(field: "call")
+  challenges: [Challenge!]! @derivedFrom(field: "call")
+  settlement: Settlement
+}
+
+type Position @entity {
+  id: ID!
+  positionId: BigInt!
+  call: Call!
+  holder: Bytes!
+  side: String!
+  amount: BigInt!
+  createdAt: BigInt!
+  exitedAt: BigInt
+}
+
+type Challenge @entity {
+  id: ID!
+  challengeId: BigInt!
+  call: Call!
+  challenger: Bytes!
+  stake: BigInt!
+  createdAt: BigInt!
+  status: String!
+  outcome: String
+  settledAt: BigInt
+}
+
+type Settlement @entity {
+  id: ID!
+  call: Call!
+  outcome: String!
+  settledAt: BigInt!
+  oracleType: String!
+  oraclePrice: BigInt
+  protocolFee: BigInt!
+  creatorFee: BigInt!
+  lpFee: BigInt!
+  disputed: Boolean!
+}
+
+type Profile @entity {
+  id: ID!
+  address: Bytes!
+  handle: String
+  twitterHandle: String
+  farcasterHandle: String
+  repGlobal: BigInt!
+  repCaller: BigInt!
+  repChallenger: BigInt!
+  repContrarian: BigInt!
+  createdAt: BigInt!
+  repEvents: [RepEvent!]! @derivedFrom(field: "profile")
+}
+
+type RepEvent @entity {
+  id: ID!
+  profile: Profile!
+  delta: BigInt!
+  category: String!
+  callId: BigInt
+  timestamp: BigInt!
+}
+
+type Dispute @entity {
+  id: ID!
+  call: Call!
+  raiser: Bytes!
+  raisedAt: BigInt!
+  resolvedAt: BigInt
+  resolution: String
+  owner: Bytes
+}
+
+type ProtocolStats @entity {
+  id: ID!
+  totalTvl: BigInt!
+  totalCalls: BigInt!
+  totalSettlements: BigInt!
+  totalDisputes: BigInt!
+  totalVolume: BigInt!
+  lastUpdated: BigInt!
+}

@@ -1,0 +1,52 @@
+# Dependencies
+node_modules
+.pnpm-store
+
+# Build outputs
+dist
+out
+.next
+build
+
+# Turborepo cache
+.turbo
+
+# Environment files — NEVER commit real env files
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.env.production
+.env.prod
+
+# Foundry build artifacts
+forge-cache
+cache
+out
+
+# Rust / Cargo / Stylus build artifacts
+target
+Cargo.lock
+
+# TypeScript incremental build info
+*.tsbuildinfo
+
+# Editor / OS
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+.vscode/settings.json
+.idea
+
+# Logs
+*.log
+logs
+
+# Test coverage
+coverage
+.nyc_output
+
+# Vercel
+.vercel

@@ -1,0 +1,16 @@
+{
+  "name": "@call-it/contracts",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Solidity contracts (=0.8.30) + Rust/Stylus reputation engine for Call It",
+  "scripts": {
+    "build": "forge build",
+    "test": "forge test -vv",
+    "lint": "solhint 'src/**/*.sol' || echo 'solhint not installed, skipping'"
+  },
+  "devDependencies": {
+    "prettier": "^3.0.0",
+    "prettier-plugin-solidity": "^1.4.0",
+    "solhint": "^5.0.0"
+  }
+}

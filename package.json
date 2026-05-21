@@ -1,0 +1,26 @@
+{
+  "name": "call-it",
+  "private": true,
+  "version": "0.0.1",
+  "description": "Call It — onchain social prediction product for crypto-native users",
+  "engines": {
+    "node": ">=22",
+    "pnpm": ">=9"
+  },
+  "scripts": {
+    "build": "turbo run build",
+    "test": "turbo run test",
+    "lint": "turbo run lint",
+    "verify-versions": "tsx scripts/verify-versions.ts"
+  },
+  "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^8.0.0",
+    "@typescript-eslint/parser": "^8.0.0",
+    "eslint": "^9.0.0",
+    "prettier": "^3.0.0",
+    "turbo": "^2.5.0",
+    "tsx": "^4.0.0",
+    "typescript": "^5.6.0"
+  },
+  "packageManager": "pnpm@11.0.8"
+}

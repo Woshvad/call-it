@@ -1,0 +1,38 @@
+{
+  "name": "@call-it/relayer",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Call It relayer — Fastify backend on Fly.io (BullMQ + Pino + viem + GCP KMS)",
+  "type": "module",
+  "main": "src/index.ts",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc --build",
+    "start": "node dist/index.js",
+    "test": "echo 'No tests in relayer yet — Plan 00-02 adds KMS + alert tests'",
+    "lint": "echo 'No lint configured for relayer yet'"
+  },
+  "dependencies": {
+    "@call-it/shared": "workspace:*",
+    "@google-cloud/kms": "^5.0.0",
+    "@google-cloud/secret-manager": "^5.0.0",
+    "@logtail/node": "^0.5.0",
+    "@logtail/pino": "^0.5.0",
+    "@safe-global/api-kit": "^4.0.0",
+    "@safe-global/protocol-kit": "^7.0.0",
+    "bullmq": "^5.0.0",
+    "fastify": "5.6.1",
+    "node-telegram-bot-api": "^0.66.0",
+    "pino": "^9.0.0",
+    "viem": "2.50.4",
+    "zod": "^3.24.0"
+  },
+  "devDependencies": {
+    "@call-it/config": "workspace:*",
+    "@types/node": "^22.0.0",
+    "@types/node-telegram-bot-api": "^0.64.0",
+    "tsx": "^4.0.0",
+    "typescript": "^5.6.0",
+    "vitest": "^3.0.0"
+  }
+}
