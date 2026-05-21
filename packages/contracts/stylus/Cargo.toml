@@ -1,0 +1,46 @@
+[package]
+name = "stylus-score-engine"
+version = "0.0.1"
+edition = "2021"
+description = "Call It StylusScoreEngine — Rust/Stylus reputation scoring engine (Phase 5 implementation)"
+
+# Phase 0 stub: Cargo.toml pins the Stylus SDK and OpenZeppelin Stylus versions.
+# Real implementation lands in Phase 5. This file is the toolchain pin verification
+# so `cargo build --target wasm32-unknown-unknown` passes once Rust is installed.
+#
+# Source: CLAUDE.md "Smart Contracts (Rust / Stylus)" table
+# stylus-sdk = "=0.10.7" (May 19, 2026) -- exact pin per CLAUDE.md
+# openzeppelin-stylus = "=0.3.0" (Sep 10, 2025) -- alpha line, exact pin required
+#
+# Deployment pattern: Solidity TransparentUpgradeableProxy -> Stylus implementation
+# (See CLAUDE.md "Alternatives Considered" re: transparent proxy in front of Stylus)
+#
+# 48h cutoff: If Stylus path not working, swap to Solidity baseline in same proxy slot.
+# Pitch: "Stylus in production roadmap" (§11.6 build-time fallback).
+
+[lib]
+crate-type = ["cdylib", "lib"]
+
+[dependencies]
+# stylus-sdk pinned to exact version per CLAUDE.md
+# Source: https://github.com/OffchainLabs/stylus-sdk-rs/releases (v0.10.7 / May 19, 2026)
+stylus-sdk = { version = "=0.10.7", default-features = false }
+
+# openzeppelin-stylus pinned to exact version per CLAUDE.md (alpha line -- pin with =)
+# Source: https://github.com/OpenZeppelin/rust-contracts-stylus (v0.3.0 / Sep 10, 2025)
+# Note: UUPS is the only proxy pattern OZ has shipped natively in Stylus form.
+# Phase 0 uses Solidity TransparentUpgradeableProxy in front of Stylus impl per CLAUDE.md.
+# openzeppelin-stylus = { version = "=0.3.0" }
+# Commented out until Phase 5 implementation -- uncomment when the real engine ships
+
+[dev-dependencies]
+# Motsu: OZ Stylus testing framework for unit testing without a fork
+# motsu = { git = "https://github.com/OpenZeppelin/motsu" }
+# Uncomment in Phase 5 when real scoring logic is tested
+
+[profile.release]
+codegen-units = 1
+strip = true
+lto = true
+panic = "abort"
+opt-level = "z"

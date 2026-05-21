@@ -1,0 +1,31 @@
+[profile.default]
+src = "src"
+out = "out"
+libs = ["lib"]
+test = "test"
+script = "script"
+
+# Solidity compiler pinned to =0.8.30 (exact, NOT ^0.8.24).
+# CRITICAL: Do NOT change this to ^0.8 or any version in 0.8.28–0.8.33.
+# The 0.8.28–0.8.33 range contains a high-severity IR pipeline bug that
+# silently clears wrong storage/transient slots. See CLAUDE.md "What NOT to Use".
+# Source: https://soliditylang.org/blog/2026/02/18/solidity-0.8.34-release-announcement/
+solc_version = "0.8.30"
+
+# via_ir = false — explicit. 0.8.30 IR pipeline is pre-bug, but we set false
+# to make any future flip visible in code review. Change to true only if
+# compiler pin is moved to 0.8.34+ (where the IR bug is fixed).
+# See Pattern 1 in .planning/phases/00-foundation/00-RESEARCH.md
+via_ir = false
+
+optimizer = true
+optimizer_runs = 200
+
+# EVM version default for 0.8.30 is sufficient for Arbitrum One (Nitro EVM-compatible)
+# evm_version = "paris"  # Uncomment if Prague-specific opcodes cause issues on Arbitrum
+
+[profile.default.fuzz]
+runs = 256
+
+[profile.ci]
+fuzz = { runs = 1000 }
