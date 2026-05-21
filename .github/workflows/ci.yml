@@ -1,0 +1,48 @@
+name: CI
+
+# Turborepo lint + test + build pipeline for all 6 packages.
+# This workflow runs on every push and PR.
+# Contracts tests live in contracts-test.yml (separate trigger on contracts/* changes).
+#
+# Requirements: D-18 (Turborepo), D-19 (GitHub Actions), OPS-23
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+    branches:
+      - main
+      - master
+
+permissions:
+  contents: read
+
+jobs:
+  turbo-pipeline:
+    name: Turborepo lint + test + build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+
+      - name: Install dependencies (frozen lockfile — V10 supply-chain control)
+        run: pnpm install --frozen-lockfile
+
+      - name: Run Turborepo pipeline (lint + test + build)
+        run: pnpm turbo run lint test build
+        env:
+          # Turbo remote cache (Vercel free tier — D-18)
+          TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+          TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
