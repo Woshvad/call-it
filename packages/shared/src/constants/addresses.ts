@@ -12,6 +12,34 @@
 import { ARBITRUM_MAINNET_CHAIN_ID, ARBITRUM_SEPOLIA_CHAIN_ID } from './networks.js';
 
 // ---------------------------------------------------------------------------
+// Circle USDC Paymaster (D-04 — post-cap USDC gas, Phase 1)
+// ---------------------------------------------------------------------------
+
+/**
+ * Circle USDC Paymaster address on Arbitrum One (mainnet).
+ *
+ * IMPORTANT: This value is MEDIUM confidence from RESEARCH (2026-05-22).
+ * Wave 0 Task 3 requires operator to verify against current Arbitrum docs:
+ * https://docs.arbitrum.io/for-devs/third-party-docs/Circle/usdc-paymaster-quickstart
+ *
+ * If the verified address differs from this value, update here AND in
+ * WAVE-0-VERIFICATION.md AND the env schema default.
+ *
+ * Source: Arbitrum third-party docs + Circle blog (MEDIUM confidence — may have been redeployed)
+ * Threat: T-01-01 — wrong address strands tx 6+ Circle USDC permit signatures
+ */
+export const CIRCLE_PAYMASTER_ARBITRUM_ONE =
+  '0x6C973eBe80dCD8660841D4356bf15c32460271C9' as const;
+
+/**
+ * Circle USDC Paymaster on Arbitrum Sepolia (testnet).
+ * Wave 0 Task 3 checks whether a Sepolia paymaster exists.
+ * If none documented: Sepolia staging uses Alchemy sponsorship for all tx.
+ * Set to null until Wave 0 verification confirms a Sepolia address.
+ */
+export const CIRCLE_PAYMASTER_ARBITRUM_SEPOLIA: string | null = null;
+
+// ---------------------------------------------------------------------------
 // Pyth oracle addresses
 // ---------------------------------------------------------------------------
 

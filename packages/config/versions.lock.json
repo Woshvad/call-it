@@ -1,0 +1,18 @@
+{
+  "@privy-io/wagmi": "4.0.8",
+  "@privy-io/react-auth": "3.27.0",
+  "wagmi": "2.18.0",
+  "viem": "2.50.4",
+  "@tanstack/react-query": "5.100.11",
+  "@account-kit/infra": "NOT_YET_INSTALLED — installs in Plan 05 (paymaster wiring)",
+  "react-hook-form": "NOT_YET_INSTALLED — installs in Plan 06 (new-call form)",
+  "@hookform/resolvers": "NOT_YET_INSTALLED — installs in Plan 06 (new-call form)",
+  "zod": "3.25.76",
+  "drizzle-orm": "0.45.2",
+  "drizzle-kit": "0.31.10",
+  "postgres": "3.4.9",
+  "class-variance-authority": "0.7.1",
+  "framer-motion": "11.18.2",
+  "ts-morph": "NOT_YET_INSTALLED — installs in Plan 05 (Privy provider-order AST test)",
+  "_note": "Versions locked 2026-05-22 at Wave 0 verification. @account-kit/infra, react-hook-form, @hookform/resolvers, ts-morph are not yet installed — they will be added by Plans 05/06 and this file updated then. WAVE-0-VERIFICATION.md documents the Wave 0 check."
+}
