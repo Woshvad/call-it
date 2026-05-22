@@ -9,6 +9,8 @@
     "start": "next start",
     "lint": "echo 'No lint configured for web yet — Phase 1+ adds ESLint'",
     "test": "vitest run tests/og-unit.test.ts",
+    "test:ast": "vitest run tests/privy-provider-order.ast.test.ts",
+    "test:e2e:signin": "playwright test tests/signin.spec.ts",
     "test:og-fallback": "playwright test tests/og-fallback.spec.ts",
     "test:og-routing": "playwright test tests/og-fallback-routing.spec.ts",
     "test:og-bench": "playwright test tests/og-fallback-bench.spec.ts"
@@ -19,6 +21,10 @@
     "@farcaster/auth-kit": "0.8.2",
     "@privy-io/react-auth": "3.27.0",
     "@privy-io/wagmi": "4.0.8",
+    "@solana-program/memo": "^0.11.0",
+    "@solana-program/system": "^0.12.0",
+    "@solana-program/token": "^0.9.0",
+    "@solana/kit": "^5.5.1",
     "@tanstack/react-query": "5.100.11",
     "@vercel/og": "0.11.1",
     "next": "16.2.6",
@@ -36,6 +42,7 @@
     "@types/node": "^22.0.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
+    "ts-morph": "^28.0.0",
     "typescript": "^5.6.0",
     "vitest": "^3.0.0"
   }
