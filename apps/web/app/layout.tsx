@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { Providers } from './Providers';
 
 export const metadata: Metadata = {
   title: 'Call It — Be right in public',
@@ -24,7 +25,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           minHeight: '100vh',
         }}
       >
-        {children}
+        <Providers>{children}</Providers>
       </body>
     </html>
   );
