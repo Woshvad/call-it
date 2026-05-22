@@ -1,0 +1,50 @@
+/**
+ * Call It — Global styles
+ *
+ * Minimal resets + stagger animation for feed cards (UI-53).
+ * Brand color tokens live in packages/ui/tailwind.preset.ts.
+ * This file handles only the keyframe + helper classes needed for
+ * feed card stagger animation that Tailwind cannot express directly.
+ */
+
+/* ── Feed card stagger enter animation (UI-53) ──────────────────────────────
+ *
+ * Usage in FeedList.tsx:
+ *   <div className="card-enter" style={{ '--index': i } as React.CSSProperties}>
+ *
+ * Each card animates in with opacity 0→1 + translateY 8px→0,
+ * delayed by `60ms × --index` to create a stagger effect.
+ *
+ * Phase 7: this animation is NOT used in Satori OG cards (server-side, no CSS animations).
+ */
+
+@keyframes cardEnter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.card-enter {
+  animation: cardEnter 200ms ease-out forwards;
+  /* Stagger delay: 60ms × --index (CSS custom property set inline) */
+  animation-delay: calc(60ms * var(--index, 0));
+  /* Start invisible — animation reveals the card */
+  opacity: 0;
+}
+
+/* ── prefers-reduced-motion fallback ────────────────────────────────────────
+ *
+ * If the user has requested reduced motion, skip the stagger and just show cards.
+ * This matches Plan 04's Stamp component a11y pattern.
+ */
+@media (prefers-reduced-motion: reduce) {
+  .card-enter {
+    animation: none;
+    opacity: 1;
+  }
+}

@@ -71,12 +71,14 @@ export interface FeedItem {
   id: string;
   caller: string;
   marketType: number;
+  asset?: string;
   stake: string;
   conviction: number;
-  expiry: number;
-  createdAt: number;
+  expiry: number | string;
+  createdAt: number | string;
   status: string;
   displayHandle?: string;
+  handle?: string; // resolved handle from profile (may be set by relayer)
 }
 
 export interface FeedResponse {
@@ -97,13 +99,20 @@ export async function getFeed(cursor?: string): Promise<FeedResponse> {
 
 export interface ProfileResponse {
   address: string;
+  handle: string;
+  source: 'display_handle' | 'ens' | 'twitter' | 'farcaster' | 'truncated';
   displayHandle: string;
   globalRep: number;
   totalCalls: number;
   settledCalls: number;
   wins: number;
   losses: number;
+  streak: number;
   ensName: string | null;
+  twitterHandle: string | null;
+  farcasterHandle: string | null;
+  verifiedX: boolean;
+  verifiedFc: boolean;
 }
 
 /**
