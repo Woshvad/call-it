@@ -1,13 +1,15 @@
 name: Phase 1 Gates
 
-# D-29 anti-drift gates for Phase 1: parity-diff, solc pin guard, USDC paste guard,
-# ESLint display-grid guard, and relayer tests. Every PR touching contracts or shared
-# MUST pass all jobs here before merge.
+# Phase 1 quality gates — each plan's critical invariants run here.
 #
-# Separate from contracts-test.yml (which covers Foundry build + fuzz) — this file
-# covers the cross-language invariant guards and TypeScript-side tests.
+# Plans that contribute jobs to this workflow:
+#   01-03 (parity-diff, solc-pin-guard, usdc-paste-guard, no-display-grid-eslint, relayer-tests)
+#   01-05 (provider-order-ast, signin-smoke)
 #
-# Requirements: D-29, SAFETY-01, SAFETY-12, CALL-13..16, CALL-22..36
+# Requirements: D-29, T-01-27, SAFETY-01, SAFETY-12, AUTH-01..04, AUTH-36..38, CALL-13..16, CALL-22..36
+#
+# Triggers on changes to contracts, shared, relayer, or web — the four
+# packages whose invariants this workflow gates.
 
 on:
   push:
@@ -24,6 +26,7 @@ on:
       - 'apps/relayer/src/**'
       - 'apps/web/**'
       - '.github/workflows/phase-1-gates.yml'
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -204,11 +207,96 @@ jobs:
       - name: Run relayer tests
         run: pnpm --filter @call-it/relayer test || echo "::notice::@call-it/relayer test script not yet populated (Plan 07). Will enforce when available."
 
+  # ─── 01-05: Privy provider order AST regression gate (Pitfall 13) ────────────
+  #
+  # Parses apps/web/app/Providers.tsx with ts-morph and asserts the EXACT provider
+  # nesting order. Fails if WagmiProvider source drifts from @privy-io/wagmi.
+  #
+  # Requirements: T-01-27, AUTH-05
+  provider-order-ast:
+    name: "01-05: Privy provider order AST (Pitfall 13)"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run provider order AST test
+        run: pnpm --filter @call-it/web exec vitest run tests/privy-provider-order.ast.test.ts
+
+  # ─── 01-05: Sign-in smoke test (all 3 Privy auth paths) ──────────────────────
+  #
+  # Runs the Playwright smoke test for the /signin page.
+  # All 3 paths (Connect Wallet, Google, Twitter) are tested with Privy route mocks
+  # — no real Privy service required; deterministic in CI.
+  #
+  # Requirements: AUTH-01, AUTH-02, AUTH-03, AUTH-04, AUTH-36, AUTH-37, AUTH-38
+  signin-smoke:
+    name: "01-05: Sign-in smoke (3 Privy auth paths)"
+    runs-on: ubuntu-latest
+    env:
+      # Mock env vars — the Playwright tests mock the actual Privy API calls,
+      # so these values only need to be non-empty strings to satisfy env schema validation.
+      NEXT_PUBLIC_PRIVY_APP_ID: mock-app-id-for-ci-tests
+      NEXT_PUBLIC_RELAYER_BASE_URL: http://localhost:3001
+      NEXT_PUBLIC_ARBITRUM_RPC_URL: https://arb1.arbitrum.io/rpc
+      NEXT_PUBLIC_ARBITRUM_SEPOLIA_RPC_URL: https://sepolia-rollup.arbitrum.io/rpc
+      NEXT_PUBLIC_ALCHEMY_AA_POLICY_ID: mock-policy-id-for-ci
+      NEXT_PUBLIC_NETWORK: testnet
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build Next.js app (webpack, bakes NEXT_PUBLIC_* vars into bundle)
+        run: pnpm --filter @call-it/web build
+        # Note: build uses `next build --webpack` (see package.json scripts)
+
+      - name: Install Playwright Chromium
+        run: pnpm --filter @call-it/web exec playwright install --with-deps chromium
+
+      - name: Run sign-in smoke tests
+        # webServer config uses `pnpm start` which serves the production build
+        run: pnpm --filter @call-it/web exec playwright test tests/signin.spec.ts
+
   # ─── Phase 1 complete gate (tag-gated) ───────────────────────────────────────
   phase-1-gate:
     name: Phase 1 complete gate (tag-gated)
     runs-on: ubuntu-latest
-    needs: [parity-diff, solc-pin-guard, usdc-paste-guard, no-display-grid-eslint, relayer-tests]
+    needs:
+      - parity-diff
+      - solc-pin-guard
+      - usdc-paste-guard
+      - no-display-grid-eslint
+      - relayer-tests
+      - provider-order-ast
+      - signin-smoke
     # Only runs when tagged with 'phase-1-complete'.
     # Adds full suite (Playwright e2e) on top of the per-PR checks.
     # Playwright is populated by Plan 10 — the command is wired but tolerates missing tests.

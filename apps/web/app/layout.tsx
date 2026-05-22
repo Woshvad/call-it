@@ -1,5 +1,8 @@
 import type { Metadata } from 'next';
-import { Providers } from './Providers';
+import { ClientProviders } from './ClientProviders';
+
+// Force dynamic rendering — Providers are client-only (no SSR), so SSG is not compatible.
+export const dynamic = 'force-dynamic';
 
 export const metadata: Metadata = {
   title: 'Call It — Be right in public',
@@ -25,7 +28,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           minHeight: '100vh',
         }}
       >
-        <Providers>{children}</Providers>
+        <ClientProviders>{children}</ClientProviders>
       </body>
     </html>
   );

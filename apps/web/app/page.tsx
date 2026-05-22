@@ -2,7 +2,11 @@
  * Call It — Home page
  *
  * Phase 0 placeholder. Real feed UI lands in Phase 1 (call creation + feed).
- * Auth UI (Privy, wallet connect) lands in Phase 1.
+ * Auth UI (Privy, wallet connect) lands in Phase 1 (Plan 05 sign-in page).
+ *
+ * Plan 05 adds a hidden `data-testid="signed-in"` element so the Playwright
+ * signin.spec.ts can assert post-auth redirect without requiring the full
+ * Plan 09 feed UI. This element will be replaced by Plan 09.
  *
  * D-12: Domain literals are never hardcoded; this page uses no domain references.
  */
@@ -50,6 +54,8 @@ export default function HomePage() {
       >
         Phase 0 — Foundation in progress
       </p>
+      {/* Plan 05: Playwright signin.spec.ts hook — hidden until Plan 09 replaces with real feed */}
+      <div data-testid="signed-in" style={{ display: 'none' }} aria-hidden="true" />
     </main>
   );
 }
