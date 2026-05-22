@@ -27,6 +27,7 @@ import { healthRoute } from './routes/health.js';
 import { internalTestAlertRoute } from './routes/internal-test-alert.js';
 import { paymasterAdminRoute } from './routes/admin-paymaster.js';
 import { allowlistAdminRoute } from './routes/admin-allowlist.js';
+import { onboardingRoute } from './routes/onboarding.js';
 import { sendAlert } from './workers/alerts.js';
 
 /**
@@ -68,11 +69,13 @@ export async function buildApp(): Promise<FastifyInstance> {
     bodyLimit: 1_048_576, // 1MB max body
   });
 
-  // 4. Register all 4 routes
+  // 4. Register routes (Phase 0 + Phase 1)
   await app.register(healthRoute);
   await app.register(internalTestAlertRoute);
   await app.register(paymasterAdminRoute);
   await app.register(allowlistAdminRoute);
+  // Phase 1 — Plan 06: onboarding state persistence (privy-session-gated)
+  await app.register(onboardingRoute);
 
   // 5. Boot-time BullMQ compatibility smoke (Pitfall A mitigation)
   // Run after app is ready so we have logging; don't block app start.
