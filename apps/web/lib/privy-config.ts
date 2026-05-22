@@ -6,10 +6,16 @@
  * AUTH-01: 3 login paths must all produce an authenticated session
  * AUTH-03/04: OAuth paths (Google/Twitter) auto-create an embedded Privy wallet via createOnLogin
  *
- * @privy-io/wagmi@4.0.8 API surface verified in Wave-0 (Plan 01-01 SUMMARY):
+ * @privy-io/react-auth@3.27.0 API surface (verified against installed types):
  *   - PrivyClientConfig type is exported from '@privy-io/react-auth'
- *   - loginMethods, embeddedWallets.createOnLogin, supportedChains fields all exist
+ *   - loginMethods, supportedChains fields all exist
+ *   - embeddedWallets.ethereum.createOnLogin is the v3 structure (NOT top-level createOnLogin)
  *   - 'users-without-wallets' is the correct createOnLogin value for auto-wallet on OAuth
+ *
+ * DEVIATION [Rule 1 - Bug] privy-config.ts embeddedWallets shape:
+ *   The scaffold used `embeddedWallets.createOnLogin` (v2 API) which does not exist in
+ *   @privy-io/react-auth@3.27.0. The v3 type requires `embeddedWallets.ethereum.createOnLogin`.
+ *   Fixed: moved createOnLogin under the `ethereum` sub-object per the v3 PrivyClientConfig type.
  *
  * Requirement: AUTH-01, AUTH-02, AUTH-03, AUTH-04, AUTH-05, T-01-30
  * Source: RESEARCH.md Pattern 2, PATTERNS.md § file 6
@@ -37,10 +43,12 @@ export const privyConfig: PrivyClientConfig = {
     accentColor: '#E8F542',
   },
   embeddedWallets: {
+    // v3 API: createOnLogin is nested under `ethereum` (not top-level)
     // AUTO-CREATE embedded wallet for Google/Twitter users who don't already have one
     // This is AUTH-03/04 — wagmi useAccount() will return the embedded wallet address
-    createOnLogin: 'users-without-wallets',
-    requireUserPasswordOnCreate: false,
+    ethereum: {
+      createOnLogin: 'users-without-wallets',
+    },
   },
   supportedChains: [arbitrum, arbitrumSepolia],
   // D-36: default chain driven by network profile env var

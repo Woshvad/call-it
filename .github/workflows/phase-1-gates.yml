@@ -1,0 +1,114 @@
+name: Phase 1 Gates
+
+# Phase 1 quality gates — each plan's critical invariants run here.
+#
+# Plans that contribute jobs to this workflow:
+#   01-03 (parity-diff): adds a `parity-diff` job  ← APPEND AFTER MARKER BELOW
+#   01-05 (signin-smoke): adds a `signin-smoke` job ← IN THIS COMMIT
+#
+# PARALLEL AGENT NOTE: if a 01-03 resume agent is also editing this file,
+# add the parity-diff job block AFTER the #### 01-03-APPEND-AFTER-THIS-LINE ####
+# marker at the bottom of this file. Do NOT overwrite existing job blocks.
+#
+# Requirements: T-01-27 (Pitfall 13 AST test), AUTH-01..04 (Privy 3-path smoke)
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+    branches:
+      - main
+      - master
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  # ─── 01-05: Privy provider order AST regression gate (Pitfall 13) ────────────
+  #
+  # Parses apps/web/app/Providers.tsx with ts-morph and asserts the EXACT provider
+  # nesting order. Fails if WagmiProvider source drifts from @privy-io/wagmi.
+  #
+  # Requirements: T-01-27, AUTH-05
+  provider-order-ast:
+    name: "01-05: Privy provider order AST (Pitfall 13)"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run provider order AST test
+        run: pnpm --filter @call-it/web exec vitest run tests/privy-provider-order.ast.test.ts
+
+  # ─── 01-05: Sign-in smoke test (all 3 Privy auth paths) ──────────────────────
+  #
+  # Runs the Playwright smoke test for the /signin page.
+  # All 3 paths (Connect Wallet, Google, Twitter) are tested with Privy route mocks
+  # — no real Privy service required; deterministic in CI.
+  #
+  # Requirements: AUTH-01, AUTH-02, AUTH-03, AUTH-04, AUTH-36, AUTH-37, AUTH-38
+  signin-smoke:
+    name: "01-05: Sign-in smoke (3 Privy auth paths)"
+    runs-on: ubuntu-latest
+    env:
+      # Mock env vars — the Playwright tests mock the actual Privy API calls,
+      # so these values only need to be non-empty strings to satisfy env schema validation.
+      NEXT_PUBLIC_PRIVY_APP_ID: mock-app-id-for-ci-tests
+      NEXT_PUBLIC_RELAYER_BASE_URL: http://localhost:3001
+      NEXT_PUBLIC_ARBITRUM_RPC_URL: https://arb1.arbitrum.io/rpc
+      NEXT_PUBLIC_ARBITRUM_SEPOLIA_RPC_URL: https://sepolia-rollup.arbitrum.io/rpc
+      NEXT_PUBLIC_ALCHEMY_AA_POLICY_ID: mock-policy-id-for-ci
+      NEXT_PUBLIC_NETWORK: testnet
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build Next.js app (webpack, bakes NEXT_PUBLIC_* vars into bundle)
+        run: pnpm --filter @call-it/web build
+        # Note: build uses `next build --webpack` (see package.json scripts)
+
+      - name: Install Playwright Chromium
+        run: pnpm --filter @call-it/web exec playwright install --with-deps chromium
+
+      - name: Run sign-in smoke tests
+        # webServer config uses `pnpm start` which serves the production build
+        run: pnpm --filter @call-it/web exec playwright test tests/signin.spec.ts
+
+#### 01-03-APPEND-AFTER-THIS-LINE ####
+# The 01-03 resume agent should append its `parity-diff` job block here.
+# Example job structure:
+#
+#   parity-diff:
+#     name: "01-03: Call-gates parity diff"
+#     runs-on: ubuntu-latest
+#     steps:
+#       ...
