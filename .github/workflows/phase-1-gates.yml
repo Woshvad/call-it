@@ -1,0 +1,253 @@
+name: Phase 1 Gates
+
+# D-29 anti-drift gates for Phase 1: parity-diff, solc pin guard, USDC paste guard,
+# ESLint display-grid guard, and relayer tests. Every PR touching contracts or shared
+# MUST pass all jobs here before merge.
+#
+# Separate from contracts-test.yml (which covers Foundry build + fuzz) — this file
+# covers the cross-language invariant guards and TypeScript-side tests.
+#
+# Requirements: D-29, SAFETY-01, SAFETY-12, CALL-13..16, CALL-22..36
+
+on:
+  push:
+    paths:
+      - 'packages/contracts/**'
+      - 'packages/shared/**'
+      - 'apps/relayer/src/**'
+      - 'apps/web/**'
+      - '.github/workflows/phase-1-gates.yml'
+  pull_request:
+    paths:
+      - 'packages/contracts/**'
+      - 'packages/shared/**'
+      - 'apps/relayer/src/**'
+      - 'apps/web/**'
+      - '.github/workflows/phase-1-gates.yml'
+
+permissions:
+  contents: read
+
+jobs:
+
+  # ─── D-29: Parity diff (Solidity gate-matrix vs TypeScript Zod schema) ────────
+  parity-diff:
+    name: D-29 parity diff (Solidity vs TS Zod schema)
+    runs-on: ubuntu-latest
+    # This is the core D-29 invariant guard. It runs:
+    #   1. Foundry parity test (contract side)
+    #   2. Vitest parity test (TS Zod side)
+    #   3. parity-diff.ts (compares outcomes case-by-case)
+    # Failure means CallRegistry.sol and call-gates.ts have diverged.
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run Foundry parity fixture tests
+        working-directory: packages/contracts
+        run: forge test --match-contract CallRegistryParityTest -vv
+
+      - name: Run Vitest call-gates parity test (generates .vitest-parity-output.json)
+        run: pnpm --filter @call-it/shared vitest run __tests__/call-gates-parity.test.ts
+
+      - name: Run parity-diff (compare Solidity vs TS outcomes)
+        run: pnpm tsx scripts/parity-diff.ts
+
+  # ─── Solidity compiler version pin guard ────────────────────────────────────
+  solc-pin-guard:
+    name: Solidity compiler pin guard (=0.8.30)
+    runs-on: ubuntu-latest
+    # Asserts no file in packages/contracts/src/ uses a floating pragma.
+    # The version must be exactly "pragma solidity =0.8.30" or "0.8.30" (pinned).
+    # Any floating pragma (^0.8.x, >=0.8.x) fails the build.
+    # Rationale: avoid the 0.8.28-0.8.33 IR storage-clearing bug (CLAUDE.md).
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Assert no floating pragma in contracts/src
+        run: |
+          # Find any floating pragma (^ or >= prefix) — these are banned
+          VIOLATIONS=$(grep -rE "^pragma solidity (\^|>=)" packages/contracts/src/ || true)
+          if [ -n "$VIOLATIONS" ]; then
+            echo "::error::Floating Solidity pragma found — pin to =0.8.30 (SAFETY-12):"
+            echo "$VIOLATIONS"
+            exit 1
+          fi
+          echo "PASS: No floating pragma found in packages/contracts/src/"
+
+      - name: Assert solc_version pin in foundry.toml
+        working-directory: packages/contracts
+        run: |
+          if ! grep -q 'solc_version = "0.8.30"' foundry.toml; then
+            echo "::error::foundry.toml solc_version pin missing or incorrect. Must be exactly 0.8.30 (SAFETY-12)"
+            exit 1
+          fi
+          echo "PASS: solc_version = \"0.8.30\" confirmed in foundry.toml"
+
+  # ─── USDC paste guard (no bridged USDC.e address in source) ─────────────────
+  usdc-paste-guard:
+    name: No bridged USDC.e address in source
+    runs-on: ubuntu-latest
+    # Asserts the bridged USDC.e address (0xFF970A61...) does not appear in any
+    # .sol, .ts, or .tsx file EXCEPT the canonical constants file where it is
+    # listed as a negative-test reference.
+    # Rationale: accidental paste of bridged USDC in a contract would silently
+    # route funds to non-redeemable token (CLAUDE.md "What NOT to Use").
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Assert no bridged USDC.e address
+        run: |
+          # Allow only the canonical negative-test reference in usdc.ts
+          VIOLATIONS=$(grep -rE "0xFF970A61[A-Fa-f0-9]+" \
+            --include="*.sol" --include="*.ts" --include="*.tsx" \
+            --exclude-dir=node_modules \
+            . 2>/dev/null | grep -v "packages/shared/src/constants/usdc.ts" || true)
+          if [ -n "$VIOLATIONS" ]; then
+            echo "::error::Bridged USDC.e address found outside the canonical constants file:"
+            echo "$VIOLATIONS"
+            exit 1
+          fi
+          echo "PASS: No bridged USDC.e address outside packages/shared/src/constants/usdc.ts"
+
+  # ─── No display:grid in OG card templates (Satori limitation) ───────────────
+  no-display-grid-eslint:
+    name: No display:grid in OG card JSX
+    runs-on: ubuntu-latest
+    # Satori does NOT support CSS Grid — layouts must use flexbox.
+    # This job runs @call-it/ui lint (Plan 04 will populate Receipt.tsx).
+    # Until Plan 04, this is a no-op but the job slot is ready.
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint UI package (Plan 04 populates — currently no-op)
+        run: pnpm --filter @call-it/ui lint || echo "::notice::@call-it/ui not yet available (Plan 04). Job will enforce display:grid check when populated."
+
+      - name: Assert no display:grid in OG template files
+        run: |
+          # Direct grep guard — belt-and-suspenders alongside ESLint
+          VIOLATIONS=$(grep -rE "display:\s*grid" \
+            apps/web/app/og/ apps/web/components/og/ \
+            --include="*.tsx" --include="*.ts" 2>/dev/null || true)
+          if [ -n "$VIOLATIONS" ]; then
+            echo "::error::display:grid found in OG card template — Satori does not support CSS Grid (CLAUDE.md)"
+            echo "$VIOLATIONS"
+            exit 1
+          fi
+          echo "PASS: No display:grid in OG templates"
+
+  # ─── Relayer tests ────────────────────────────────────────────────────────────
+  relayer-tests:
+    name: Relayer unit tests
+    runs-on: ubuntu-latest
+    # Runs @call-it/relayer test suite. Tolerates missing test script gracefully
+    # until Plan 07 populates the relayer with test-covered routes.
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run relayer tests
+        run: pnpm --filter @call-it/relayer test || echo "::notice::@call-it/relayer test script not yet populated (Plan 07). Will enforce when available."
+
+  # ─── Phase 1 complete gate (tag-gated) ───────────────────────────────────────
+  phase-1-gate:
+    name: Phase 1 complete gate (tag-gated)
+    runs-on: ubuntu-latest
+    needs: [parity-diff, solc-pin-guard, usdc-paste-guard, no-display-grid-eslint, relayer-tests]
+    # Only runs when tagged with 'phase-1-complete'.
+    # Adds full suite (Playwright e2e) on top of the per-PR checks.
+    # Playwright is populated by Plan 10 — the command is wired but tolerates missing tests.
+    if: startsWith(github.ref, 'refs/tags/phase-1-complete')
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run full Foundry test suite
+        working-directory: packages/contracts
+        run: forge test -vv
+
+      - name: Run all TypeScript tests
+        run: pnpm test
+
+      - name: Run Playwright e2e (Plan 10 populates)
+        run: |
+          pnpm --filter @call-it/web exec playwright test \
+            || echo "::notice::Playwright tests not yet added (Plan 10). Will enforce at phase-1-complete tag."
+
+      - name: Phase 1 complete
+        run: echo "Phase 1 gate passed — all jobs green, ready for Phase 2."

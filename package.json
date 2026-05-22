@@ -15,7 +15,8 @@
     "deploy:safe:sepolia:dry-run": "tsx scripts/deploy-safe.ts --network sepolia --dry-run --signer-source env",
     "deploy:safe:sepolia": "tsx scripts/deploy-safe.ts --network sepolia --execute --signer-source ledger",
     "deploy:safe:mainnet": "tsx scripts/deploy-safe.ts --network arbitrum-one --execute --signer-source ledger",
-    "smoke:phase-0": "tsx scripts/phase-0-smoke.ts"
+    "smoke:phase-0": "tsx scripts/phase-0-smoke.ts",
+    "parity:diff": "pnpm --filter @call-it/contracts exec forge test --match-contract CallRegistryParityTest && pnpm --filter @call-it/shared vitest run __tests__/call-gates-parity.test.ts && pnpm tsx scripts/parity-diff.ts"
   },
   "devDependencies": {
     "@typescript-eslint/eslint-plugin": "^8.0.0",
