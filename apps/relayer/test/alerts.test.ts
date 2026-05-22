@@ -42,11 +42,17 @@ describe('Telegram alert dispatcher', () => {
     'rep_fallback',
     'settle_failed',
     'stylus_reactivation',
+    'address_book_cooldown_bypass_attempt', // Plan 01-07 addition (T-01-42)
   ];
 
-  const P1_EVENT_LIST: AlertEvent[] = ['paymaster_80', 'tvl_approach', 'settle_stuck_25m'];
+  const P1_EVENT_LIST: AlertEvent[] = [
+    'paymaster_80',
+    'tvl_approach',
+    'settle_stuck_25m',
+    'user_paymaster_cap_reached', // Plan 01-07 addition (D-02)
+  ];
 
-  it('routes all 6 P0 events to TELEGRAM_CHAT_ID_P0 with 🚨 P0 header', async () => {
+  it('routes all P0 events to TELEGRAM_CHAT_ID_P0 with 🚨 P0 header', async () => {
     for (const event of P0_EVENT_LIST) {
       vi.clearAllMocks();
       MockBot.mockImplementation(() => ({ sendMessage: mockSendMessage }));
@@ -60,7 +66,7 @@ describe('Telegram alert dispatcher', () => {
     }
   });
 
-  it('routes all 3 P1 events to TELEGRAM_CHAT_ID_P1 with 📊 P1 header', async () => {
+  it('routes all P1 events to TELEGRAM_CHAT_ID_P1 with 📊 P1 header', async () => {
     for (const event of P1_EVENT_LIST) {
       vi.clearAllMocks();
       MockBot.mockImplementation(() => ({ sendMessage: mockSendMessage }));
@@ -82,13 +88,13 @@ describe('Telegram alert dispatcher', () => {
     expect(text).toContain('runbooks/relayer-key-rotation.md#manual-rep-compensation');
   });
 
-  it('P0_EVENTS set contains exactly the 6 P0 events', () => {
+  it('P0_EVENTS set contains exactly the listed P0 events', () => {
     for (const event of P0_EVENT_LIST) {
       expect(P0_EVENTS.has(event)).toBe(true);
     }
     for (const event of P1_EVENT_LIST) {
       expect(P0_EVENTS.has(event)).toBe(false);
     }
-    expect(P0_EVENTS.size).toBe(6);
+    expect(P0_EVENTS.size).toBe(P0_EVENT_LIST.length);
   });
 });
