@@ -130,6 +130,8 @@ export interface PreflightInput {
   openToChallenges: boolean;
   parentCallId?: string;
   callerAddress: `0x${string}`;
+  /** Number of caller's settled calls — used for Gate 6.3 conviction floor */
+  callerSettledCalls?: number;
 }
 
 export interface PreflightError {
@@ -138,7 +140,23 @@ export interface PreflightError {
   message: string;
 }
 
-export interface PreflightResponse {
+export interface PreflightSuccessResponse {
+  ok: true;
+  hash: string;
+  settledCalls: number;
+  suggestedConviction: number;
+  criteriaHash: string;
+}
+
+export interface PreflightFailResponse {
+  ok: false;
+  errors: PreflightError[];
+}
+
+export type PreflightResponse = PreflightSuccessResponse | PreflightFailResponse;
+
+// Legacy type alias for backward compat
+export interface PreflightResponseLegacy {
   valid: boolean;
   errors: PreflightError[];
   duplicateCallId?: string;
@@ -147,12 +165,15 @@ export interface PreflightResponse {
 
 /**
  * POST /api/calls/preflight — run ALL gate checks before the user signs the userOp.
- * Returns field-level errors if any gate fails (D-28).
+ * Returns 200 { ok: true, hash, settledCalls, suggestedConviction } on pass.
+ * Returns 422 { ok: false, errors: [...] } on gate failure (D-28, D-31).
+ * Requires Authorization: Bearer <privy-token> header.
  */
-export async function postPreflight(input: PreflightInput): Promise<PreflightResponse> {
-  return relayerFetch<PreflightResponse>('/api/calls/preflight', {
+export async function postPreflight(input: PreflightInput, token?: string): Promise<PreflightSuccessResponse> {
+  return relayerFetch<PreflightSuccessResponse>('/api/calls/preflight', {
     method: 'POST',
     body: JSON.stringify(input),
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
   });
 }
 
@@ -165,18 +186,26 @@ export interface DupCheckInput {
 }
 
 export interface DupCheckResponse {
-  isDuplicate: boolean;
-  existingCallId?: string;
+  /** True if a near-identical call already exists */
+  exists: boolean;
+  /** The existing call's ID (present when exists === true) */
+  existingCallId?: number;
+  /** The computed hash (for debugging) */
+  hash?: string;
+  // Legacy field aliases (kept for backward compat)
+  isDuplicate?: boolean;
 }
 
 /**
  * POST /api/calls/dup-check — debounced duplicate hash pre-check (400ms, D-22).
  * Prevents the DuplicateCall(existingCallId) contract revert at the UX layer.
+ * Requires Authorization: Bearer <privy-token> header.
  */
-export async function postDupCheck(input: DupCheckInput): Promise<DupCheckResponse> {
+export async function postDupCheck(input: DupCheckInput, token?: string): Promise<DupCheckResponse> {
   return relayerFetch<DupCheckResponse>('/api/calls/dup-check', {
     method: 'POST',
     body: JSON.stringify(input),
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
   });
 }
 
