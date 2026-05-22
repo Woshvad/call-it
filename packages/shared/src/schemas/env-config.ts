@@ -1,29 +1,98 @@
 /**
  * Environment configuration schema — zod validation for Call It env vars.
  *
- * Enforces:
+ * Phase 0 base:
  * - NEXT_PUBLIC_NETWORK ∈ { 'mainnet', 'sepolia' }
  * - If mainnet: NEXT_PUBLIC_CHAIN_ID must be '42161'
  * - If mainnet: NEXT_PUBLIC_SUBGRAPH_URL must NOT contain 'arbitrum-sepolia'
  *   (in-app cross-check that mirrors the CI grep guard from grep-guards.yml — D-09)
  * - If sepolia: NEXT_PUBLIC_CHAIN_ID must be '421614'
  *
+ * Phase 1 additions (Plan 01-01):
+ * - NEXT_PUBLIC_PRIVY_APP_ID: required — Privy app identifier
+ * - NEXT_PUBLIC_ALCHEMY_AA_POLICY_ID: required — Alchemy gas policy for ERC-4337 sponsorship
+ * - NEXT_PUBLIC_RELAYER_BASE_URL: required — base URL for relayer proxy endpoints
+ * - NEXT_PUBLIC_CALL_REGISTRY_ADDRESS: optional until Phase 1 contract deploy
+ * - NEXT_PUBLIC_PROFILE_REGISTRY_ADDRESS: optional until Phase 1 contract deploy
+ * - NEXT_PUBLIC_CIRCLE_PAYMASTER_ADDRESS: required for post-cap USDC gas (D-04)
+ * - ALCHEMY_PAYMASTER_ADDRESS: optional — relayer-side paymaster address
+ * - PRIVY_APP_SECRET: required — server-side Privy verification (relayer only)
+ * - PRIVY_WEBHOOK_SECRET: required — HMAC verification for Privy webhooks (Plan 07)
+ * - POSTGRES_URL: required — Fly Postgres connection string (D-07)
+ *   NOTE: POSTGRES_URL is a server-side secret; it MUST NOT be in NEXT_PUBLIC_ vars.
+ *   Additional cross-field refine rejects localhost in mainnet profile (T-01-02).
+ * - ENS_MAINNET_RPC_URL: required — Alchemy Ethereum Mainnet RPC for ENS resolution (D-13)
+ *
  * This is a layered defense (D-09): the grep guard catches it in CI,
  * and this schema catches it at runtime before any chain interaction.
  *
- * Requirement: OPS-21 (network hardcoded), Pitfall 5 (Sepolia↔mainnet drift)
+ * Requirement: OPS-21 (network hardcoded), Pitfall 5 (Sepolia↔mainnet drift),
+ *              AUTH-31 (address book), AUTH-32 (auth method cooldown), T-01-02
  */
 
 import { z } from 'zod';
 
 export const EnvConfigSchema = z
   .object({
+    // ── Phase 0 — network / chain ─────────────────────────────────────────────
     NEXT_PUBLIC_NETWORK: z.enum(['mainnet', 'sepolia']),
     NEXT_PUBLIC_CHAIN_ID: z.string(),
     NEXT_PUBLIC_SUBGRAPH_URL: z.string().url().optional(),
     NEXT_PUBLIC_OG_BASE_URL: z.string().url().optional(),
     NEXT_PUBLIC_RELAYER_URL: z.string().url().optional(),
     NEXT_PUBLIC_BRAND_FOOTER: z.string().optional(),
+
+    // ── Phase 1 — Privy + Alchemy AA ──────────────────────────────────────────
+    /** Privy app identifier (NEXT_PUBLIC — safe in frontend bundle) */
+    NEXT_PUBLIC_PRIVY_APP_ID: z.string().min(1),
+    /** Alchemy gas policy ID for ERC-4337 paymaster sponsorship (AUTH-26, D-01) */
+    NEXT_PUBLIC_ALCHEMY_AA_POLICY_ID: z.string().min(1),
+    /** Base URL for relayer API proxy (no trailing slash) */
+    NEXT_PUBLIC_RELAYER_BASE_URL: z.string().url(),
+
+    // ── Phase 1 — Contract addresses (optional until deploy) ─────────────────
+    /** CallRegistry address — null until Phase 1 contracts deployed */
+    NEXT_PUBLIC_CALL_REGISTRY_ADDRESS: z.string().regex(/^0x[0-9a-fA-F]{40}$/).optional(),
+    /** ProfileRegistry address — null until Phase 1 contracts deployed */
+    NEXT_PUBLIC_PROFILE_REGISTRY_ADDRESS: z.string().regex(/^0x[0-9a-fA-F]{40}$/).optional(),
+
+    // ── Phase 1 — Circle USDC Paymaster (D-04/D-05) ───────────────────────────
+    /**
+     * Circle USDC Paymaster address on Arbitrum One (mainnet).
+     * Wave 0 Task 3 verifies this address against current Arbitrum docs.
+     * Source: https://docs.arbitrum.io/for-devs/third-party-docs/Circle/usdc-paymaster-quickstart
+     */
+    NEXT_PUBLIC_CIRCLE_PAYMASTER_ADDRESS: z.string().regex(/^0x[0-9a-fA-F]{40}$/).optional(),
+    /** Alchemy paymaster address (relayer-side, not exposed to frontend) */
+    ALCHEMY_PAYMASTER_ADDRESS: z.string().regex(/^0x[0-9a-fA-F]{40}$/).optional(),
+
+    // ── Phase 1 — Server-side secrets (relayer env, NOT frontend bundle) ──────
+    /** Privy server-side app secret — @privy-io/server-auth verification */
+    PRIVY_APP_SECRET: z.string().min(1).optional(),
+    /** Privy webhook HMAC secret — Plan 07 webhook route uses this for verification */
+    PRIVY_WEBHOOK_SECRET: z.string().min(1).optional(),
+
+    // ── Phase 1 — Database (D-07 — Fly Postgres) ────────────────────────────
+    /**
+     * Fly Postgres connection string.
+     * Accepts both postgres:// and postgresql:// prefixes.
+     * SECURITY (T-01-02): Never in .env file or version control;
+     * injected from Fly secrets (synced from GCP Secret Manager per D-09).
+     */
+    POSTGRES_URL: z
+      .string()
+      .refine(
+        (v) => v.startsWith('postgres://') || v.startsWith('postgresql://'),
+        { message: 'POSTGRES_URL must start with postgres:// or postgresql://' },
+      )
+      .optional(),
+
+    // ── Phase 1 — ENS resolution (D-13) ────────────────────────────────────
+    /**
+     * Alchemy Ethereum Mainnet RPC URL for server-side ENS reverse-record resolution.
+     * Separate from Arbitrum keys — per-network IAM isolation (D-09).
+     */
+    ENS_MAINNET_RPC_URL: z.string().url().optional(),
   })
   .superRefine((data, ctx) => {
     if (data.NEXT_PUBLIC_NETWORK === 'mainnet') {
@@ -51,6 +120,21 @@ export const EnvConfigSchema = z
           message:
             'NEXT_PUBLIC_NETWORK=mainnet but NEXT_PUBLIC_SUBGRAPH_URL references arbitrum-sepolia. ' +
             'This is Pitfall 5 — Sepolia config on mainnet day. Update to the mainnet subgraph URL.',
+        });
+      }
+
+      // Mainnet POSTGRES_URL must not be localhost / 127.0.0.1 (T-01-02)
+      if (
+        data.POSTGRES_URL &&
+        (data.POSTGRES_URL.includes('localhost') ||
+          data.POSTGRES_URL.includes('127.0.0.1'))
+      ) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['POSTGRES_URL'],
+          message:
+            'NEXT_PUBLIC_NETWORK=mainnet but POSTGRES_URL points to localhost. ' +
+            'This is T-01-02 — mainnet must use Fly Postgres, not a local DB.',
         });
       }
     }

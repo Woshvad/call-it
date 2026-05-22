@@ -122,6 +122,23 @@ export async function loadSecrets(): Promise<RelayerEnv> {
     requireSecret('RELAYER_INTERNAL_HMAC'),
   ]);
 
+  // Phase 1 required secrets (D-07, D-13)
+  const [
+    postgresUrl,
+    ensMaintnetRpcUrl,
+    privyAppId,
+    alchemyAaPolicyId,
+    relayerBaseUrl,
+    privyWebhookSecret,
+  ] = await Promise.all([
+    requireSecret('POSTGRES_URL'),
+    requireSecret('ENS_MAINNET_RPC_URL'),
+    requireSecret('NEXT_PUBLIC_PRIVY_APP_ID'),
+    requireSecret('NEXT_PUBLIC_ALCHEMY_AA_POLICY_ID'),
+    requireSecret('NEXT_PUBLIC_RELAYER_BASE_URL'),
+    requireSecret('PRIVY_WEBHOOK_SECRET'),
+  ]);
+
   // Optional secrets
   const [
     rpcUrlSepolia,
@@ -131,6 +148,10 @@ export async function loadSecrets(): Promise<RelayerEnv> {
     ogBaseUrl,
     relayerUrl,
     brandFooter,
+    callRegistryAddress,
+    profileRegistryAddress,
+    circlePaymasterAddress,
+    alchemyPaymasterAddress,
   ] = await Promise.all([
     fetchSecret('RPC_URL_ARBITRUM_SEPOLIA'),
     fetchSecret('RPC_URL_ARBITRUM_MAINNET'),
@@ -139,6 +160,10 @@ export async function loadSecrets(): Promise<RelayerEnv> {
     fetchSecret('NEXT_PUBLIC_OG_BASE_URL'),
     fetchSecret('NEXT_PUBLIC_RELAYER_URL'),
     fetchSecret('NEXT_PUBLIC_BRAND_FOOTER'),
+    fetchSecret('NEXT_PUBLIC_CALL_REGISTRY_ADDRESS'),
+    fetchSecret('NEXT_PUBLIC_PROFILE_REGISTRY_ADDRESS'),
+    fetchSecret('NEXT_PUBLIC_CIRCLE_PAYMASTER_ADDRESS'),
+    fetchSecret('ALCHEMY_PAYMASTER_ADDRESS'),
   ]);
 
   // Build the env object from process.env for non-secret fields + fetched secrets
@@ -189,6 +214,20 @@ export async function loadSecrets(): Promise<RelayerEnv> {
     RPC_URL_ARBITRUM_SEPOLIA: rpcUrlSepolia,
     RPC_URL_ARBITRUM_MAINNET: rpcUrlMainnet,
     PINATA_JWT: pinataJwt,
+
+    // Phase 1 — Postgres + ENS (D-07, D-13)
+    POSTGRES_URL: postgresUrl,
+    ENS_MAINNET_RPC_URL: ensMaintnetRpcUrl,
+
+    // Phase 1 — Privy + Alchemy AA
+    NEXT_PUBLIC_PRIVY_APP_ID: privyAppId,
+    NEXT_PUBLIC_ALCHEMY_AA_POLICY_ID: alchemyAaPolicyId,
+    NEXT_PUBLIC_RELAYER_BASE_URL: relayerBaseUrl,
+    NEXT_PUBLIC_CALL_REGISTRY_ADDRESS: callRegistryAddress,
+    NEXT_PUBLIC_PROFILE_REGISTRY_ADDRESS: profileRegistryAddress,
+    NEXT_PUBLIC_CIRCLE_PAYMASTER_ADDRESS: circlePaymasterAddress,
+    ALCHEMY_PAYMASTER_ADDRESS: alchemyPaymasterAddress,
+    PRIVY_WEBHOOK_SECRET: privyWebhookSecret,
 
     // Internal HMAC (D-16)
     RELAYER_INTERNAL_HMAC: relayerInternalHmac,
