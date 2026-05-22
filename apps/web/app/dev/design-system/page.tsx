@@ -3,7 +3,7 @@
 /**
  * Design-system showcase page — dev-only, not linked in production navigation.
  *
- * Route: /_dev/design-system
+ * Route: /dev/design-system
  *
  * Access is controlled by NEXT_PUBLIC_DEV_ROUTES=1 env var.
  * In production (NEXT_PUBLIC_DEV_ROUTES unset or falsy), the page renders a

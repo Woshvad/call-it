@@ -42,6 +42,10 @@ const PUBLIC_PREFIXES = [
   '/_next',
   '/favicon.ico',
   '/fonts',
+  // Dev-only showcase + visual-snapshot target. Gated by NEXT_PUBLIC_DEV_ROUTES=1
+  // at the page level — in production (DEV_ROUTES unset) the page returns a
+  // disabled-state message, so listing the prefix here doesn't leak anything.
+  '/dev',
 ];
 
 function isPublicRoute(pathname: string): boolean {

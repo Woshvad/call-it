@@ -1,7 +1,7 @@
 /**
  * Design-system snapshot tests — captures @call-it/ui primitives.
  *
- * Navigates to /_dev/design-system (dev-only page) and snapshots all
+ * Navigates to /dev/design-system (dev-only page) and snapshots all
  * primitive variants as regression baselines for Phase 2-9 development.
  *
  * ## Baseline goldens
@@ -47,7 +47,7 @@ test.describe('Design-system snapshot: @call-it/ui primitives', () => {
   test.use({ reducedMotion: 'reduce' });
 
   test('Full design-system page baseline', async ({ page }) => {
-    await page.goto('/_dev/design-system');
+    await page.goto('/dev/design-system');
     await page.waitForLoadState('networkidle');
 
     // Check if the dev route is enabled
@@ -69,7 +69,7 @@ test.describe('Design-system snapshot: @call-it/ui primitives', () => {
   });
 
   test('Design-system with toasts triggered', async ({ page }) => {
-    await page.goto('/_dev/design-system');
+    await page.goto('/dev/design-system');
     await page.waitForLoadState('networkidle');
 
     const pageRoot = page.locator('[data-testid="design-system-page"]');
@@ -97,7 +97,7 @@ test.describe('Design-system snapshot: @call-it/ui primitives', () => {
   });
 
   test('Buttons section snapshot', async ({ page }) => {
-    await page.goto('/_dev/design-system');
+    await page.goto('/dev/design-system');
     await page.waitForLoadState('networkidle');
 
     const isEnabled = await page.locator('[data-testid="design-system-page"]').count() > 0;
@@ -115,7 +115,7 @@ test.describe('Design-system snapshot: @call-it/ui primitives', () => {
   });
 
   test('Stamp section snapshot', async ({ page }) => {
-    await page.goto('/_dev/design-system');
+    await page.goto('/dev/design-system');
     await page.waitForLoadState('networkidle');
 
     const isEnabled = await page.locator('[data-testid="design-system-page"]').count() > 0;
@@ -133,7 +133,7 @@ test.describe('Design-system snapshot: @call-it/ui primitives', () => {
   });
 
   test('ConvictionBar section snapshot', async ({ page }) => {
-    await page.goto('/_dev/design-system');
+    await page.goto('/dev/design-system');
     await page.waitForLoadState('networkidle');
 
     const isEnabled = await page.locator('[data-testid="design-system-page"]').count() > 0;
