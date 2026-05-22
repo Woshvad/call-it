@@ -38,33 +38,31 @@ export { WagmiProvider, createConfig, useEmbeddedSmartAccountConnector, usePrivy
 
 ## Item 2: Circle USDC Paymaster Arbitrum One Address
 
-**Status: REQUIRES OPERATOR VERIFICATION**
+**Status: VERIFIED 2026-05-22 (HIGH confidence)**
 
-RESEARCH recorded MEDIUM-confidence address: `0x6C973eBe80dCD8660841D4356bf15c32460271C9`
+**Verified address:** `0x6C973eBe80dCD8660841D4356bf15c32460271C9` — confirmed verbatim against both:
+- https://docs.arbitrum.io/for-devs/third-party-docs/Circle/usdc-paymaster-quickstart
+- https://www.circle.com/blog/how-to-integrate-circle-paymaster-to-enable-users-to-pay-gas-fees-with-their-usdc-balance
 
-**Operator task:** Open https://docs.arbitrum.io/for-devs/third-party-docs/Circle/usdc-paymaster-quickstart in a browser. Copy the documented Arbitrum One paymaster address verbatim.
+The RESEARCH MEDIUM-confidence value was correct. Confidence raised to HIGH. T-01-01 closed.
 
-- If the address matches `0x6C973eBe80dCD8660841D4356bf15c32460271C9` → update this file with: "Confirmed at YYYY-MM-DD"
-- If the address differs → update `packages/shared/src/constants/addresses.ts` to add `CIRCLE_PAYMASTER_ARBITRUM_ONE = <new_addr>` and update `NEXT_PUBLIC_CIRCLE_PAYMASTER_ADDRESS` default value, then update this file.
-
-**Placeholder in source:** `packages/shared/src/constants/addresses.ts` has `CIRCLE_PAYMASTER_ARBITRUM_ONE` commented with the RESEARCH value — DO NOT treat this as verified until the browser check is done.
+**Source-of-truth:** `packages/shared/src/constants/addresses.ts` `CIRCLE_PAYMASTER_ARBITRUM_ONE` is annotated as HIGH-confidence with both source URLs in the JSDoc.
 
 ---
 
 ## Item 3: Sepolia Circle USDC Paymaster
 
-**Status: REQUIRES OPERATOR VERIFICATION**
+**Status: VERIFIED 2026-05-22 — Sepolia paymaster DOES exist (HIGH confidence)**
 
-RESEARCH noted: "no Sepolia paymaster documented — likely mainnet-only".
+**Verified address:** `0x31BE08D380A21fc740883c0BC434FcFc88740b58` on Arbitrum Sepolia — found in both:
+- https://docs.arbitrum.io/for-devs/third-party-docs/Circle/usdc-paymaster-quickstart
+- https://www.circle.com/blog/how-to-integrate-circle-paymaster-to-enable-users-to-pay-gas-fees-with-their-usdc-balance
 
-**Operator task:** On the same Arbitrum docs page (Item 2), search for "Sepolia" or "testnet paymaster". Also check https://www.circle.com/blog/how-to-integrate-circle-paymaster-to-enable-users-to-pay-gas-fees-with-their-usdc-balance
+Both sources list it under the same "essential for configuring and interacting with Paymaster" section as the mainnet address.
 
-**Current plan (from RESEARCH):** If no Sepolia paymaster exists:
-- Sepolia staging uses Alchemy sponsorship for ALL tx (no Circle paymaster on Sepolia)
-- Circle USDC handoff is verified only on the §19.11 mainnet smoke test
-- Plan 07 implements Circle USDC handoff mainnet-only
+**Plan delta:** RESEARCH assumed no Sepolia paymaster ("Sepolia staging uses Alchemy sponsorship for ALL tx"). This was wrong — Circle DID deploy to Arbitrum Sepolia. Effect: Sepolia staging can now exercise the same Circle USDC handoff path as mainnet. The §19.11 mainnet smoke test no longer needs to be the first place this code runs.
 
-Update this file with the result.
+**Source-of-truth:** `packages/shared/src/constants/addresses.ts` `CIRCLE_PAYMASTER_ARBITRUM_SEPOLIA` was previously `null`; now populated with the Sepolia address (HIGH confidence). Type narrowed from `string | null` to `string` const.
 
 ---
 
