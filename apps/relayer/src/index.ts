@@ -32,6 +32,8 @@ import { paymasterPolicyRoute } from './routes/paymaster-policy.js';
 import { addressBookRoute } from './routes/address-book.js';
 import { withdrawAuthorizeRoute } from './routes/withdraw-authorize.js';
 import { privyWebhookRoute } from './routes/privy-webhook.js';
+import { callsPreflightRoute } from './routes/calls-preflight.js';
+import { callsDupCheckRoute } from './routes/calls-dup-check.js';
 import { sendAlert } from './workers/alerts.js';
 import { startPaymasterConfirmer } from './workers/paymaster-confirmer.js';
 
@@ -93,6 +95,13 @@ export async function buildApp(): Promise<FastifyInstance> {
 
   // Phase 1 — Plan 07: Privy webhook receiver (HMAC-verified — T7, Pitfall 14)
   await app.register(privyWebhookRoute);
+
+  // ── Plan 01-08 routes ─────────────────────────────────────
+  // Phase 1 — Plan 08: calls preflight gate (D-28, D-29 parity)
+  await app.register(callsPreflightRoute);
+  // Phase 1 — Plan 08: duplicate-hash pre-check with Redis cache (D-22, CALL-49)
+  await app.register(callsDupCheckRoute);
+  // ─────────────────────────────────────────────────────────
 
   // 5. Boot-time BullMQ compatibility smoke (Pitfall A mitigation)
   // Run after app is ready so we have logging; don't block app start.
