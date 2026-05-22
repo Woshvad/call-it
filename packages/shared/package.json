@@ -14,6 +14,7 @@
     "lint": "echo 'No lint configured for shared yet'"
   },
   "dependencies": {
+    "viem": "2.50.4",
     "zod": "^3.24.0"
   },
   "devDependencies": {

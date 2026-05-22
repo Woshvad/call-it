@@ -17,3 +17,8 @@ export * from './constants/fees.js';
 
 // Schemas
 export * from './schemas/env-config.js';
+
+// Plan 03: Shared types, validation, and hashing
+export * from './types/call.js';
+export * from './validation/call-gates.js';
+export * from './hashing/duplicate-hash.js';
