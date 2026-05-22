@@ -29,12 +29,19 @@ import TelegramBot from 'node-telegram-bot-api';
 import { getLogger } from '../lib/logger.js';
 
 /**
- * All 9 alert events (9-member union).
+ * All alert events.
  *
  * Adding a new event requires:
  * 1. Add to this union
  * 2. Decide P0 vs P1 routing (update P0_EVENTS if P0)
  * 3. Add to test coverage in test/alerts.test.ts
+ *
+ * Phase 0 (9 events): pause, dispute_raised, force_settle, rep_fallback,
+ *   settle_failed, stylus_reactivation, paymaster_80, tvl_approach, settle_stuck_25m
+ *
+ * Phase 1 Plan 07 additions (2 events):
+ *   address_book_cooldown_bypass_attempt — P0 (security: attempted withdrawal cooldown bypass)
+ *   user_paymaster_cap_reached           — P1 (informational: user hit lifetime 5-tx cap)
  */
 export type AlertEvent =
   | 'pause'               // OPS-08 — registry paused by owner
@@ -45,7 +52,10 @@ export type AlertEvent =
   | 'stylus_reactivation'  // D-13   — Stylus WASM being reactivated (belt-and-suspenders)
   | 'paymaster_80'         // OPS-10 — daily cap 80% threshold crossed
   | 'tvl_approach'         // OPS-11 — TVL approaching $5K initial cap
-  | 'settle_stuck_25m';    // OPS-14 — settlement stuck >25 minutes
+  | 'settle_stuck_25m'     // OPS-14 — settlement stuck >25 minutes
+  // Phase 1 Plan 07 additions
+  | 'address_book_cooldown_bypass_attempt'  // P0 — user attempted withdrawal during 24h cooldown (T-01-42)
+  | 'user_paymaster_cap_reached';           // P1 — user's lifetime 5-tx paymaster cap reached (D-02)
 
 /**
  * P0 events (page immediately to TELEGRAM_CHAT_ID_P0).
@@ -58,6 +68,7 @@ export const P0_EVENTS: ReadonlySet<AlertEvent> = new Set<AlertEvent>([
   'rep_fallback',
   'settle_failed',
   'stylus_reactivation',
+  'address_book_cooldown_bypass_attempt',  // P0: security-relevant bypass attempt
 ]);
 
 // Lazy bot singleton — initialized on first sendAlert call
