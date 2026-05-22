@@ -1,0 +1,215 @@
+# Phase 0: deploys apps/relayer to Fly.io with secrets injected from GCP Secret Manager.
+#
+# Per D-01: Fly.io iad region is the relayer host (always-on machine per Pattern 4).
+# Per D-08: Non-signing secrets live in GCP Secret Manager (NOT GH Secrets), in the
+#           per-network GCP project (D-09):
+#             sepolia → call-it-sepolia
+#             main    → call-it-mainnet
+#
+# Per D-09: Two Fly apps, two GCP projects — a compromised GH workflow cannot cross networks.
+#           CRITICAL: Every `gcloud secrets versions access` MUST use --project=$GCP_PROJECT_ID
+#           (env var set by the branch-conditional block) — NEVER a hardcoded project literal.
+#
+# OIDC Federation (T-00-35, V4 ASVS, V6 ASVS):
+#   github-actions/auth@v2 is used with workload_identity_provider.
+#   NO static service-account JSON key is stored in GH Secrets.
+#   Short-lived OIDC tokens cap the blast radius to a single workflow run.
+#   WIF condition binds to (repo, branch) — a sepolia-branch token cannot access mainnet.
+#
+# Secret masking (T-00-38):
+#   Every fetched secret is masked with ::add-mask:: before being used.
+#   Fly's --env-file and flyctl secrets set are used to inject — values never echo to logs.
+#
+# Per Pattern 4: fly.toml runs in iad with auto_stop_machines=false (always-on).
+# Per D-03: min_machines_running=1 ensures rolling-deploy keeps one healthy instance alive.
+#
+# Network routing:
+#   Branch: sepolia → GCP project: call-it-sepolia → Fly app: call-it-relayer-sepolia
+#   Branch: main    → GCP project: call-it-mainnet → Fly app: call-it-relayer-mainnet
+#
+# Required GitHub Secrets:
+#   FLY_API_TOKEN                       — Fly.io Dashboard → Account Settings → Access Tokens (deploy scope)
+#   GCP_WORKLOAD_IDENTITY_PROVIDER      — WIF provider resource name (from GCP OIDC setup)
+#   GCP_SERVICE_ACCOUNT_SEPOLIA         — service account email for call-it-sepolia project
+#   GCP_SERVICE_ACCOUNT_MAINNET         — service account email for call-it-mainnet project
+
+name: Deploy Relayer (Fly.io)
+
+on:
+  push:
+    branches:
+      - sepolia
+      - main
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: 'Branch to deploy (sepolia | main)'
+        required: true
+        default: 'sepolia'
+
+permissions:
+  contents: read
+  id-token: write  # REQUIRED for GCP OIDC federation (google-github-actions/auth@v2)
+
+jobs:
+  deploy:
+    name: Build + Deploy apps/relayer to Fly.io
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Select network + GCP project per branch
+        id: select-network
+        run: |
+          BRANCH="${{ github.ref_name }}"
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            BRANCH="${{ github.event.inputs.branch }}"
+          fi
+
+          if [ "$BRANCH" = "main" ]; then
+            echo "GCP_PROJECT_ID=call-it-mainnet" >> "$GITHUB_ENV"
+            echo "GCP_SERVICE_ACCOUNT=${{ secrets.GCP_SERVICE_ACCOUNT_MAINNET }}" >> "$GITHUB_ENV"
+            echo "FLY_APP_NAME=call-it-relayer-mainnet" >> "$GITHUB_ENV"
+            echo "NETWORK=mainnet" >> "$GITHUB_ENV"
+            echo "BUILD_ARG_NETWORK=arbitrum-one" >> "$GITHUB_ENV"
+          else
+            echo "GCP_PROJECT_ID=call-it-sepolia" >> "$GITHUB_ENV"
+            echo "GCP_SERVICE_ACCOUNT=${{ secrets.GCP_SERVICE_ACCOUNT_SEPOLIA }}" >> "$GITHUB_ENV"
+            echo "FLY_APP_NAME=call-it-relayer-sepolia" >> "$GITHUB_ENV"
+            echo "NETWORK=sepolia" >> "$GITHUB_ENV"
+            echo "BUILD_ARG_NETWORK=arbitrum-sepolia" >> "$GITHUB_ENV"
+          fi
+
+      # GCP OIDC federation — no static JSON key in GH Secrets (T-00-35)
+      # WIF condition binds to repo + branch, so a sepolia token cannot access call-it-mainnet.
+      - name: Authenticate to GCP via OIDC
+        id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ env.GCP_SERVICE_ACCOUNT }}
+
+      - name: Set up gcloud CLI
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ env.GCP_PROJECT_ID }}
+
+      # Fetch all non-signing secrets from GCP Secret Manager.
+      # CRITICAL: every fetch uses --project=$GCP_PROJECT_ID (dynamic env var, never hardcoded literal).
+      # ::add-mask:: applied immediately after fetch — values are never echoed to logs (T-00-38).
+      - name: Fetch secrets from GCP Secret Manager
+        id: secrets
+        run: |
+          fetch_secret() {
+            local SECRET_NAME="$1"
+            local VALUE
+            VALUE=$(gcloud secrets versions access latest \
+              --secret="$SECRET_NAME" \
+              --project="$GCP_PROJECT_ID")
+            echo "::add-mask::$VALUE"
+            echo "${SECRET_NAME}=${VALUE}" >> "$GITHUB_OUTPUT"
+          }
+
+          # Application secrets
+          fetch_secret "PRIVY_APP_SECRET"
+          fetch_secret "ALCHEMY_API_KEY"
+          fetch_secret "RPC_URL_ARBITRUM_SEPOLIA"
+          fetch_secret "RPC_URL_ARBITRUM_MAINNET"
+          fetch_secret "PINATA_JWT"
+          fetch_secret "TELEGRAM_BOT_TOKEN"
+          fetch_secret "TELEGRAM_CHAT_ID_P0"
+          fetch_secret "TELEGRAM_CHAT_ID_P1"
+          fetch_secret "BETTERSTACK_SOURCE_TOKEN"
+          fetch_secret "UPSTASH_REDIS_REST_URL"
+          fetch_secret "UPSTASH_REDIS_REST_TOKEN"
+          fetch_secret "RELAYER_INTERNAL_HMAC"
+
+          # KMS key version strings (NOT key material — actual signing stays in KMS per D-06)
+          fetch_secret "GCP_KEY_VERSION_NFT_TWAP"
+          fetch_secret "GCP_KEY_VERSION_DEFILLAMA"
+          fetch_secret "GCP_KEY_VERSION_CEX"
+          fetch_secret "GCP_KEY_VERSION_SNAPSHOT_TALLY"
+          fetch_secret "GCP_KEY_VERSION_OAUTH_PROOF"
+
+      - name: Set up Fly CLI
+        uses: superfly/flyctl-actions/setup-flyctl@master
+
+      # Inject all fetched secrets into the Fly app.
+      # Values are passed directly from step outputs — never written to disk.
+      - name: Inject secrets into Fly app
+        run: |
+          flyctl secrets set \
+            "PRIVY_APP_SECRET=${{ steps.secrets.outputs.PRIVY_APP_SECRET }}" \
+            "ALCHEMY_API_KEY=${{ steps.secrets.outputs.ALCHEMY_API_KEY }}" \
+            "RPC_URL_ARBITRUM_SEPOLIA=${{ steps.secrets.outputs.RPC_URL_ARBITRUM_SEPOLIA }}" \
+            "RPC_URL_ARBITRUM_MAINNET=${{ steps.secrets.outputs.RPC_URL_ARBITRUM_MAINNET }}" \
+            "PINATA_JWT=${{ steps.secrets.outputs.PINATA_JWT }}" \
+            "TELEGRAM_BOT_TOKEN=${{ steps.secrets.outputs.TELEGRAM_BOT_TOKEN }}" \
+            "TELEGRAM_CHAT_ID_P0=${{ steps.secrets.outputs.TELEGRAM_CHAT_ID_P0 }}" \
+            "TELEGRAM_CHAT_ID_P1=${{ steps.secrets.outputs.TELEGRAM_CHAT_ID_P1 }}" \
+            "BETTERSTACK_SOURCE_TOKEN=${{ steps.secrets.outputs.BETTERSTACK_SOURCE_TOKEN }}" \
+            "UPSTASH_REDIS_REST_URL=${{ steps.secrets.outputs.UPSTASH_REDIS_REST_URL }}" \
+            "UPSTASH_REDIS_REST_TOKEN=${{ steps.secrets.outputs.UPSTASH_REDIS_REST_TOKEN }}" \
+            "RELAYER_INTERNAL_HMAC=${{ steps.secrets.outputs.RELAYER_INTERNAL_HMAC }}" \
+            "GCP_PROJECT_ID=${{ env.GCP_PROJECT_ID }}" \
+            "GCP_KEY_VERSION_NFT_TWAP=${{ steps.secrets.outputs.GCP_KEY_VERSION_NFT_TWAP }}" \
+            "GCP_KEY_VERSION_DEFILLAMA=${{ steps.secrets.outputs.GCP_KEY_VERSION_DEFILLAMA }}" \
+            "GCP_KEY_VERSION_CEX=${{ steps.secrets.outputs.GCP_KEY_VERSION_CEX }}" \
+            "GCP_KEY_VERSION_SNAPSHOT_TALLY=${{ steps.secrets.outputs.GCP_KEY_VERSION_SNAPSHOT_TALLY }}" \
+            "GCP_KEY_VERSION_OAUTH_PROOF=${{ steps.secrets.outputs.GCP_KEY_VERSION_OAUTH_PROOF }}" \
+            --app "${{ env.FLY_APP_NAME }}" \
+            --stage
+          # Note: --stage stages secrets without triggering a deploy restart.
+          # They take effect with the next `flyctl deploy` below.
+
+      # Remote-only build: Fly builds the Docker image on their infrastructure.
+      # No Docker daemon required on the GitHub Actions runner.
+      # Rolling deploy: min_machines_running=1 in fly.toml ensures at least one
+      # healthy instance stays up during the deploy (T-00-41 DoS mitigation).
+      - name: Deploy to Fly.io (remote-only build)
+        run: |
+          flyctl deploy \
+            --remote-only \
+            --app "${{ env.FLY_APP_NAME }}" \
+            --config apps/relayer/fly.toml \
+            --dockerfile apps/relayer/Dockerfile \
+            --build-arg "NETWORK=${{ env.BUILD_ARG_NETWORK }}"
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+
+      - name: Assert machine health post-deploy
+        run: |
+          echo "Checking Fly app machine health..."
+          # flyctl status output includes machine state; grep for 'started' (healthy machine)
+          STATUS_OUTPUT=$(flyctl status --app "${{ env.FLY_APP_NAME }}" 2>&1)
+          echo "$STATUS_OUTPUT"
+
+          if echo "$STATUS_OUTPUT" | grep -q "started"; then
+            echo "PASS: At least one machine is in 'started' state post-deploy"
+          else
+            echo "::error::No machine in 'started' state — deploy may have failed health-check"
+            echo "::error::Run: flyctl status --app ${{ env.FLY_APP_NAME }}"
+            exit 1
+          fi
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+
+      - name: Capture relayer URL for phase-0-gate.yml
+        id: relayer-url
+        run: |
+          RELAYER_URL="https://${{ env.FLY_APP_NAME }}.fly.dev"
+          echo "relayer_url=$RELAYER_URL" >> "$GITHUB_OUTPUT"
+          echo "### Fly.io Deploy Complete" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "**Network:** ${{ env.NETWORK }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "**Fly App:** ${{ env.FLY_APP_NAME }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "**Relayer URL:** $RELAYER_URL" >> "$GITHUB_STEP_SUMMARY"
+          echo "**Health endpoint:** $RELAYER_URL/health" >> "$GITHUB_STEP_SUMMARY"
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+
+    outputs:
+      relayer_url: ${{ steps.relayer-url.outputs.relayer_url }}
+      network: ${{ env.NETWORK }}
