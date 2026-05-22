@@ -173,7 +173,8 @@ REFERENCE_VECTORS.forEach(({ label, input }) => {
 });
 
 afterAll(() => {
-  const outPath = join(__dirname, '../../.vitest-duplicate-hash-parity-output.json');
+  // Path: packages/shared/.vitest-duplicate-hash-parity-output.json (read by scripts/parity-diff.ts)
+  const outPath = join(__dirname, '../.vitest-duplicate-hash-parity-output.json');
   try {
     const dir = dirname(outPath);
     mkdirSync(dir, { recursive: true });
