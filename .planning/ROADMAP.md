@@ -58,7 +58,7 @@ Call It ships as a person-first onchain social prediction product on Arbitrum ma
   5. Privy provider tree (`<PrivyProvider><QueryClientProvider><WagmiProvider>{children}</WagmiProvider></QueryClientProvider></PrivyProvider>`) survives a Playwright sign-in smoke test (Pitfall 13) and an AST regression check that the order is preserved across refactors.
   6. Tape feed (`/`), New Call page (`/new`), Profile page shell (`/profile/[address]`), and Sign-in page (`/signin`) render with the locked neobrutalist treatment (color palette, typography stack, 2-3px borders, hard offset shadows, 4px corner brackets, button shadow language); shared loading skeleton (6 variants) and shared error/status toast component (3-status stacking, countdown drain) are reusable from the design-system package.
 **Plans**:  10 plans across 5 waves
-  - [ ] 01-01-PLAN.md — Wave 0: monorepo bootstrap; @call-it/ui workspace + Drizzle schema + env extension + WAVE-0-VERIFICATION (Circle paymaster + Privy wagmi v4 + Alchemy RPC choice)
+  - [x] 01-01-PLAN.md — Wave 0: monorepo bootstrap; @call-it/ui workspace + Drizzle schema + env extension + WAVE-0-VERIFICATION (Circle paymaster + Privy wagmi v4 + Alchemy RPC choice)
   - [ ] 01-02-PLAN.md — Wave 0: CallRegistry + ProfileRegistry contracts + DuplicateHashLib + Foundry tests + gate-matrix.json fixture + Sepolia deploy
   - [ ] 01-03-PLAN.md — Wave 1: Shared Zod schemas + TS duplicate-hash mirror + Vitest parity tests + parity-diff CI gate (D-29 anti-drift)
   - [ ] 01-04-PLAN.md — Wave 1: @call-it/ui primitives (Button/Card/Tag/CornerBrackets/Skeleton×6/Toast/Stamp) + compound components (Receipt/ConvictionBar/CallCard/ProfileHeader) + AUTH-44 no-wallet-address invariant
