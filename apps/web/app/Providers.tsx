@@ -27,6 +27,7 @@ import { ToastProvider } from '@call-it/ui';
 import { wagmiConfig } from '@/lib/wagmi';
 import { privyAppId, privyConfig } from '@/lib/privy-config';
 import { WalletExportPrompt } from '@/components/WalletExportPrompt';
+import { PaymasterCapBanner } from '@/components/PaymasterCapBanner';
 
 /**
  * QueryClient is created outside the component to avoid re-creation on renders.
@@ -52,6 +53,8 @@ export function Providers({ children }: ProvidersProps) {
           <ToastProvider>
             {/* AUTH-24: WalletExportPrompt — watches balance and fires toast at ≥$50 */}
             <WalletExportPrompt />
+            {/* Plan 07: PaymasterCapBanner — shows "USDC gas mode" when 5-tx cap is hit */}
+            <PaymasterCapBanner />
             {children}
           </ToastProvider>
         </WagmiProvider>

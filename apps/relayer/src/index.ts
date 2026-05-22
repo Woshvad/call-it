@@ -28,7 +28,12 @@ import { internalTestAlertRoute } from './routes/internal-test-alert.js';
 import { paymasterAdminRoute } from './routes/admin-paymaster.js';
 import { allowlistAdminRoute } from './routes/admin-allowlist.js';
 import { onboardingRoute } from './routes/onboarding.js';
+import { paymasterPolicyRoute } from './routes/paymaster-policy.js';
+import { addressBookRoute } from './routes/address-book.js';
+import { withdrawAuthorizeRoute } from './routes/withdraw-authorize.js';
+import { privyWebhookRoute } from './routes/privy-webhook.js';
 import { sendAlert } from './workers/alerts.js';
+import { startPaymasterConfirmer } from './workers/paymaster-confirmer.js';
 
 /**
  * Build and configure the Fastify application.
@@ -77,9 +82,23 @@ export async function buildApp(): Promise<FastifyInstance> {
   // Phase 1 — Plan 06: onboarding state persistence (privy-session-gated)
   await app.register(onboardingRoute);
 
+  // Phase 1 — Plan 07: paymaster policy + count endpoints (ERC-7677)
+  await app.register(paymasterPolicyRoute);
+
+  // Phase 1 — Plan 07: address book CRUD (soft-delete only — D-08)
+  await app.register(addressBookRoute);
+
+  // Phase 1 — Plan 07: withdraw-authorize (24h cooldown gate — D-09/10, Pitfall 20/D)
+  await app.register(withdrawAuthorizeRoute);
+
+  // Phase 1 — Plan 07: Privy webhook receiver (HMAC-verified — T7, Pitfall 14)
+  await app.register(privyWebhookRoute);
+
   // 5. Boot-time BullMQ compatibility smoke (Pitfall A mitigation)
   // Run after app is ready so we have logging; don't block app start.
   app.addHook('onReady', async () => {
+    // Start paymaster confirmer worker (Plan 07 — D-02)
+    startPaymasterConfirmer();
     try {
       const result = await pingWithBullMQCompat();
       if (!result.ok) {

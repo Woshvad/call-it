@@ -223,31 +223,74 @@ export interface AddressBookEntry {
 }
 
 /**
- * GET /addressbook — list active address book entries for the authenticated user.
+ * GET /api/addressbook — list active address book entries for the authenticated user.
+ * Requires Authorization: Bearer <privy-token> header.
  */
-export async function getAddressBook(): Promise<AddressBookEntry[]> {
-  return relayerFetch<AddressBookEntry[]>('/addressbook');
-}
-
-/**
- * POST /addressbook — add an address to the book (starts 24h cooldown timer, AUTH-31).
- */
-export async function postAddressBook(
-  address: `0x${string}`,
-  label?: string,
-): Promise<AddressBookEntry> {
-  return relayerFetch<AddressBookEntry>('/addressbook', {
-    method: 'POST',
-    body: JSON.stringify({ address, label }),
+export async function getAddressBook(token?: string): Promise<AddressBookEntry[]> {
+  return relayerFetch<AddressBookEntry[]>('/api/addressbook', {
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
   });
 }
 
 /**
- * DELETE /addressbook/:id — soft-remove an address book entry.
- * (Never deleted from Postgres — removedAt set, D-08)
+ * POST /api/addressbook — add an address to the book (starts 24h cooldown timer, AUTH-31).
+ * Requires Authorization: Bearer <privy-token> header.
  */
-export async function deleteAddressBook(id: string): Promise<void> {
-  return relayerFetch<void>(`/addressbook/${encodeURIComponent(id)}`, {
+export async function postAddressBook(
+  address: `0x${string}`,
+  label?: string,
+  token?: string,
+): Promise<AddressBookEntry> {
+  return relayerFetch<AddressBookEntry>('/api/addressbook', {
+    method: 'POST',
+    body: JSON.stringify({ address, label }),
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+  });
+}
+
+/**
+ * DELETE /api/addressbook/:id — soft-remove an address book entry.
+ * (Never deleted from Postgres — removedAt set, D-08)
+ * Requires Authorization: Bearer <privy-token> header.
+ */
+export async function deleteAddressBook(id: string, token?: string): Promise<void> {
+  return relayerFetch<void>(`/api/addressbook/${encodeURIComponent(id)}`, {
     method: 'DELETE',
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+  });
+}
+
+// ─── Withdraw Authorize ────────────────────────────────────────────────────────
+
+export interface WithdrawAuthorizeResponse {
+  authorized: boolean;
+}
+
+export interface WithdrawCooldownError {
+  error: 'cooldown_active';
+  code: 'cooldown_active';
+  blockedBy: 'auth_method' | 'destination';
+  cooldownEndsAt: string;
+  message: string;
+}
+
+/**
+ * POST /api/withdraw/authorize — server-side 24h cooldown check.
+ * Must be called before every withdrawal-class userOp.
+ *
+ * Throws RelayerError with status 403 and code 'cooldown_active' if blocked.
+ * The error.message contains the cooldown expiry timestamp.
+ *
+ * Requires Authorization: Bearer <privy-token> header.
+ */
+export async function postWithdrawAuthorize(
+  destination: `0x${string}`,
+  userOpHash: string,
+  token?: string,
+): Promise<WithdrawAuthorizeResponse> {
+  return relayerFetch<WithdrawAuthorizeResponse>('/api/withdraw/authorize', {
+    method: 'POST',
+    body: JSON.stringify({ destination, userOpHash }),
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
   });
 }
