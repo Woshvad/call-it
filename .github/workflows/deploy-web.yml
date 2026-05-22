@@ -1,0 +1,145 @@
+# Phase 0: deploys apps/web (OG Fallback route only) to Vercel.
+#
+# Per D-04: Vercel is the frontend host for apps/web; Node runtime is used for the OG endpoint
+# (NOT edge — resvg-wasm bundling pain on edge; Vercel 2026 recommendation is Node runtime).
+#
+# Per D-12: The Vercel default domain (e.g., call-it-web-sepolia.vercel.app) is used until
+# Phase 7's domain cutover to the real production domain. Do NOT register the production
+# domain until Phase 7.
+#
+# Phase 1+ adds: /, /signin, /onboarding, /new, /profile, /call/[id], /duel/[id], /leaderboard
+# routes. Phase 0 scope is the OG Fallback route only.
+#
+# Pitfall E mitigation: per-project env vars set in Vercel Dashboard (not shared env),
+# so call-it-web-sepolia and call-it-web-mainnet have independent NEXT_PUBLIC_* values.
+# The OG Fallback route uses ZERO NEXT_PUBLIC_* values so it is immune to drift.
+#
+# Network routing:
+#   Branch: sepolia  → Vercel project: call-it-web-sepolia  (secret: VERCEL_PROJECT_ID_SEPOLIA)
+#   Branch: main     → Vercel project: call-it-web-mainnet  (secret: VERCEL_PROJECT_ID_MAINNET)
+#
+# Required GitHub Secrets:
+#   VERCEL_TOKEN              — Vercel Dashboard → Settings → Tokens → Create Token (deployment-only scope)
+#   VERCEL_ORG_ID             — Vercel Dashboard → Settings → General → Organization ID
+#   VERCEL_PROJECT_ID_SEPOLIA — Vercel project Settings → General → Project ID (call-it-web-sepolia)
+#   VERCEL_PROJECT_ID_MAINNET — Vercel project Settings → General → Project ID (call-it-web-mainnet)
+
+name: Deploy Web (Vercel)
+
+on:
+  push:
+    branches:
+      - sepolia
+      - main
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: 'Branch to deploy (sepolia | main)'
+        required: true
+        default: 'sepolia'
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: Build + Deploy apps/web to Vercel
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Select Vercel project ID per branch
+        id: select-project
+        run: |
+          BRANCH="${{ github.ref_name }}"
+          # workflow_dispatch override
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            BRANCH="${{ github.event.inputs.branch }}"
+          fi
+
+          if [ "$BRANCH" = "main" ]; then
+            echo "VERCEL_PROJECT_ID=${{ secrets.VERCEL_PROJECT_ID_MAINNET }}" >> "$GITHUB_ENV"
+            echo "NETWORK=mainnet" >> "$GITHUB_ENV"
+          else
+            echo "VERCEL_PROJECT_ID=${{ secrets.VERCEL_PROJECT_ID_SEPOLIA }}" >> "$GITHUB_ENV"
+            echo "NETWORK=sepolia" >> "$GITHUB_ENV"
+          fi
+
+      - name: Build apps/web via Turborepo
+        run: pnpm turbo run build --filter=@call-it/web
+        env:
+          # Phase 0: only OG Fallback route — no NEXT_PUBLIC_* needed for this route.
+          # These are set per-project in Vercel Dashboard (Pitfall E mitigation).
+          # Set them here too for the local Turborepo build:
+          NEXT_PUBLIC_NETWORK: ${{ env.NETWORK }}
+
+      - name: Install Vercel CLI
+        run: pnpm add -g vercel@latest
+
+      - name: Deploy prebuilt artifact to Vercel
+        id: deploy
+        run: |
+          # --prebuilt: skip Vercel's own build since Turborepo already ran it.
+          # Pass apps/web/.next as the prebuilt artifact directory.
+          # --yes: skip interactive prompts.
+          cd apps/web
+          DEPLOY_URL=$(vercel deploy --prebuilt \
+            --token="${{ secrets.VERCEL_TOKEN }}" \
+            --scope="${{ secrets.VERCEL_ORG_ID }}" \
+            --yes \
+            2>&1 | tail -1)
+
+          echo "Deploy URL: $DEPLOY_URL"
+          echo "deploy_url=$DEPLOY_URL" >> "$GITHUB_OUTPUT"
+
+      - name: Verify deployment is live
+        run: |
+          DEPLOY_URL="${{ steps.deploy.outputs.deploy_url }}"
+          if [ -z "$DEPLOY_URL" ]; then
+            echo "::error::Deploy URL was empty — Vercel deploy may have failed"
+            exit 1
+          fi
+
+          echo "Waiting for deployment to be live..."
+          for i in 1 2 3 4 5; do
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$DEPLOY_URL/api/og/fallback?handle=smoketest" || echo "000")
+            if [ "$STATUS" = "200" ]; then
+              echo "PASS: Deployment is live at $DEPLOY_URL (HTTP $STATUS)"
+              break
+            fi
+            echo "Attempt $i: HTTP $STATUS — retrying in 10s..."
+            sleep 10
+          done
+
+          if [ "$STATUS" != "200" ]; then
+            echo "::warning::OG Fallback route returned HTTP $STATUS after 5 attempts — deployment may still be warming up"
+          fi
+
+      - name: Output deploy URL for phase-0-gate.yml
+        run: |
+          echo "### Vercel Deploy Complete" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "**Network:** ${{ env.NETWORK }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "**Deploy URL:** ${{ steps.deploy.outputs.deploy_url }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "OG Fallback: ${{ steps.deploy.outputs.deploy_url }}/api/og/fallback?handle=test" >> "$GITHUB_STEP_SUMMARY"
+
+    outputs:
+      deploy_url: ${{ steps.deploy.outputs.deploy_url }}
+      network: ${{ env.NETWORK }}
