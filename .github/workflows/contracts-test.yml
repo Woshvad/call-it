@@ -40,6 +40,10 @@ jobs:
         working-directory: packages/contracts
         run: forge test -vv
 
+      - name: Run CallRegistry unit tests
+        working-directory: packages/contracts
+        run: forge test --match-contract CallRegistryTest -vv
+
       - name: Verify solc_version pin in foundry.toml
         working-directory: packages/contracts
         run: |
@@ -48,6 +52,47 @@ jobs:
             exit 1
           fi
           echo "PASS: solc_version = \"0.8.30\" confirmed in foundry.toml"
+
+  parity-fixture:
+    name: Parity fixture (contract vs TS anti-drift gate)
+    runs-on: ubuntu-latest
+    # This job is the D-29 anti-drift gate (Phase 1 analog of Phase 0 grep guards).
+    # It asserts that gate-matrix.json cases pass on the Solidity side.
+    # Plan 03 adds the matching Vitest test on the TypeScript side.
+    # If Solidity and TypeScript disagree, the CI parity-diff script fails the build.
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+
+      - name: Run CallRegistry parity fixture tests
+        working-directory: packages/contracts
+        run: forge test --match-contract CallRegistryParityTest -vv
+
+  gate-fuzz:
+    name: Gate fuzz (1000 runs, ci profile)
+    runs-on: ubuntu-latest
+    # 1000-run fuzz over stake bounds, conviction floor, duplicate hash, TVL cap.
+    # Runs on every PR touching contracts/ — may be slow (~2-3min).
+    # Use [skip-fuzz] in commit message to bypass during rapid iteration.
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+
+      - name: Run CallRegistry gate fuzz (1000 runs)
+        working-directory: packages/contracts
+        run: FOUNDRY_PROFILE=ci forge test --match-contract CallRegistryGates -vv
 
   stylus-check:
     name: Stylus WASM compilation (Rust toolchain pin)

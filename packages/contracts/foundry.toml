@@ -29,3 +29,15 @@ runs = 256
 
 [profile.ci]
 fuzz = { runs = 1000 }
+
+# RPC endpoints for deployment scripts (Phase 1 target: Arbitrum Sepolia)
+# Set ARBITRUM_SEPOLIA_RPC_URL in environment before deploying.
+# Phase 7.5 will add arbitrum_one for mainnet deploy.
+[rpc_endpoints]
+arbitrum_sepolia = "${ARBITRUM_SEPOLIA_RPC_URL}"
+arbitrum_one = "${ARBITRUM_ONE_RPC_URL}"
+
+# Etherscan verification keys
+[etherscan]
+arbitrum_sepolia = { key = "${ARBISCAN_SEPOLIA_API_KEY}", url = "https://api-sepolia.arbiscan.io/api" }
+arbitrum_one = { key = "${ARBISCAN_API_KEY}", url = "https://api.arbiscan.io/api" }

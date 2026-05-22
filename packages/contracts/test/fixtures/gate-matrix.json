@@ -1,0 +1,696 @@
+[
+  {
+    "name": "stake-below-minimum",
+    "description": "Gate 6.1: stake=$4 is below MIN_STAKE=$5",
+    "input": {
+      "stake": "4000000",
+      "conviction": 50,
+      "marketType": 0,
+      "eventSubtype": 0,
+      "category": 0,
+      "assetA": "1",
+      "assetB": "0",
+      "targetValue": "100000000",
+      "expiryOffset": 86400,
+      "criteriaHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "openToChallenges": true,
+      "parentCallId": "0",
+      "callerSettled": 0,
+      "allowlisted": true
+    },
+    "expected": {
+      "type": "revert",
+      "selector": "StakeBelowMinimum()"
+    }
+  },
+  {
+    "name": "stake-above-maximum",
+    "description": "Gate 6.1: stake=$101 exceeds MAX_STAKE=$100",
+    "input": {
+      "stake": "101000000",
+      "conviction": 50,
+      "marketType": 0,
+      "eventSubtype": 0,
+      "category": 0,
+      "assetA": "1",
+      "assetB": "0",
+      "targetValue": "100000000",
+      "expiryOffset": 86400,
+      "criteriaHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "openToChallenges": true,
+      "parentCallId": "0",
+      "callerSettled": 0,
+      "allowlisted": true
+    },
+    "expected": {
+      "type": "revert",
+      "selector": "StakeAboveMaximum()"
+    }
+  },
+  {
+    "name": "stake-at-min-passes",
+    "description": "Gate 6.1 boundary: stake=$5 exactly equals MIN_STAKE",
+    "input": {
+      "stake": "5000000",
+      "conviction": 50,
+      "marketType": 0,
+      "eventSubtype": 0,
+      "category": 0,
+      "assetA": "1",
+      "assetB": "0",
+      "targetValue": "100000000",
+      "expiryOffset": 86400,
+      "criteriaHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "openToChallenges": true,
+      "parentCallId": "0",
+      "callerSettled": 0,
+      "allowlisted": true
+    },
+    "expected": {
+      "type": "pass"
+    }
+  },
+  {
+    "name": "stake-at-max-passes",
+    "description": "Gate 6.1 boundary: stake=$100 exactly equals MAX_STAKE",
+    "input": {
+      "stake": "100000000",
+      "conviction": 50,
+      "marketType": 0,
+      "eventSubtype": 0,
+      "category": 0,
+      "assetA": "1",
+      "assetB": "0",
+      "targetValue": "100000000",
+      "expiryOffset": 86400,
+      "criteriaHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "openToChallenges": true,
+      "parentCallId": "0",
+      "callerSettled": 0,
+      "allowlisted": true
+    },
+    "expected": {
+      "type": "pass"
+    }
+  },
+  {
+    "name": "conviction-cap-at-85-with-9-settled",
+    "description": "Gate 6.3: conviction=85 with settledCalls=9 (<10) caps to 84, emits ConvictionCapped",
+    "input": {
+      "stake": "10000000",
+      "conviction": 85,
+      "marketType": 0,
+      "eventSubtype": 0,
+      "category": 0,
+      "assetA": "1",
+      "assetB": "0",
+      "targetValue": "100000000",
+      "expiryOffset": 86400,
+      "criteriaHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "openToChallenges": true,
+      "parentCallId": "0",
+      "callerSettled": 9,
+      "allowlisted": true
+    },
+    "expected": {
+      "type": "event",
+      "name": "ConvictionCapped",
+      "args": { "requested": 85, "applied": 84 }
+    }
+  },
+  {
+    "name": "conviction-pass-at-85-with-10-settled",
+    "description": "Gate 6.3 boundary: conviction=85 with settledCalls=10 (exactly at floor) -- no cap",
+    "input": {
+      "stake": "10000000",
+      "conviction": 85,
+      "marketType": 0,
+      "eventSubtype": 0,
+      "category": 0,
+      "assetA": "1",
+      "assetB": "0",
+      "targetValue": "100000000",
+      "expiryOffset": 86400,
+      "criteriaHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "openToChallenges": true,
+      "parentCallId": "0",
+      "callerSettled": 10,
+      "allowlisted": true
+    },
+    "expected": {
+      "type": "pass"
+    }
+  },
+  {
+    "name": "conviction-cap-at-100-with-0-settled",
+    "description": "Gate 6.3: conviction=100 (max) with 0 settled calls caps to 84",
+    "input": {
+      "stake": "10000000",
+      "conviction": 100,
+      "marketType": 0,
+      "eventSubtype": 0,
+      "category": 0,
+      "assetA": "1",
+      "assetB": "0",
+      "targetValue": "100000000",
+      "expiryOffset": 86400,
+      "criteriaHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "openToChallenges": true,
+      "parentCallId": "0",
+      "callerSettled": 0,
+      "allowlisted": true
+    },
+    "expected": {
+      "type": "event",
+      "name": "ConvictionCapped",
+      "args": { "requested": 100, "applied": 84 }
+    }
+  },
+  {
+    "name": "conviction-84-no-cap",
+    "description": "Gate 6.3: conviction=84 is below HIGH_CONVICTION_THRESHOLD=85, no cap regardless of settled",
+    "input": {
+      "stake": "10000000",
+      "conviction": 84,
+      "marketType": 0,
+      "eventSubtype": 0,
+      "category": 0,
+      "assetA": "1",
+      "assetB": "0",
+      "targetValue": "100000000",
+      "expiryOffset": 86400,
+      "criteriaHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "openToChallenges": true,
+      "parentCallId": "0",
+      "callerSettled": 0,
+      "allowlisted": true
+    },
+    "expected": {
+      "type": "pass"
+    }
+  },
+  {
+    "name": "conviction-85-with-100-settled-no-cap",
+    "description": "Gate 6.3: conviction=85 with 100 settled calls -- well above floor, no cap",
+    "input": {
+      "stake": "10000000",
+      "conviction": 85,
+      "marketType": 0,
+      "eventSubtype": 0,
+      "category": 0,
+      "assetA": "1",
+      "assetB": "0",
+      "targetValue": "100000000",
+      "expiryOffset": 86400,
+      "criteriaHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "openToChallenges": true,
+      "parentCallId": "0",
+      "callerSettled": 100,
+      "allowlisted": true
+    },
+    "expected": {
+      "type": "pass"
+    }
+  },
+  {
+    "name": "conviction-85-with-9-settled-caps-to-84",
+    "description": "Gate 6.3 boundary: conviction=85 with exactly 9 settled calls (one below floor)",
+    "input": {
+      "stake": "10000000",
+      "conviction": 85,
+      "marketType": 0,
+      "eventSubtype": 0,
+      "category": 0,
+      "assetA": "1",
+      "assetB": "0",
+      "targetValue": "100000000",
+      "expiryOffset": 86400,
+      "criteriaHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "openToChallenges": true,
+      "parentCallId": "0",
+      "callerSettled": 9,
+      "allowlisted": true
+    },
+    "expected": {
+      "type": "event",
+      "name": "ConvictionCapped",
+      "args": { "requested": 85, "applied": 84 }
+    }
+  },
+  {
+    "name": "conviction-84-with-0-settled-passes",
+    "description": "Gate 6.3: conviction=84 with 0 settled -- below threshold, floor never applies",
+    "input": {
+      "stake": "10000000",
+      "conviction": 84,
+      "marketType": 0,
+      "eventSubtype": 0,
+      "category": 0,
+      "assetA": "1",
+      "assetB": "0",
+      "targetValue": "100000000",
+      "expiryOffset": 86400,
+      "criteriaHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "openToChallenges": true,
+      "parentCallId": "0",
+      "callerSettled": 0,
+      "allowlisted": true
+    },
+    "expected": {
+      "type": "pass"
+    }
+  },
+  {
+    "name": "expiry-equal-now-reverts",
+    "description": "CALL-32: expiry == block.timestamp is not in the future",
+    "input": {
+      "stake": "10000000",
+      "conviction": 50,
+      "marketType": 0,
+      "eventSubtype": 0,
+      "category": 0,
+      "assetA": "1",
+      "assetB": "0",
+      "targetValue": "100000000",
+      "expiryOffset": 0,
+      "criteriaHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "openToChallenges": true,
+      "parentCallId": "0",
+      "callerSettled": 0,
+      "allowlisted": true
+    },
+    "expected": {
+      "type": "revert",
+      "selector": "ExpiryNotInFuture()"
+    }
+  },
+  {
+    "name": "expiry-equal-now-plus-one-passes",
+    "description": "CALL-32 boundary: expiry == block.timestamp + 1 is in the future",
+    "input": {
+      "stake": "10000000",
+      "conviction": 50,
+      "marketType": 0,
+      "eventSubtype": 0,
+      "category": 0,
+      "assetA": "1",
+      "assetB": "0",
+      "targetValue": "100000000",
+      "expiryOffset": 1,
+      "criteriaHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "openToChallenges": true,
+      "parentCallId": "0",
+      "callerSettled": 0,
+      "allowlisted": true
+    },
+    "expected": {
+      "type": "pass"
+    }
+  },
+  {
+    "name": "category-3-reverts",
+    "description": "CALL-33: category=3 is out of range (valid values: 0=Majors, 1=DeFi, 2=Other)",
+    "input": {
+      "stake": "10000000",
+      "conviction": 50,
+      "marketType": 0,
+      "eventSubtype": 0,
+      "category": 3,
+      "assetA": "1",
+      "assetB": "0",
+      "targetValue": "100000000",
+      "expiryOffset": 86400,
+      "criteriaHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "openToChallenges": true,
+      "parentCallId": "0",
+      "callerSettled": 0,
+      "allowlisted": true
+    },
+    "expected": {
+      "type": "revert",
+      "selector": "CategoryInvalid()"
+    }
+  },
+  {
+    "name": "category-2-passes",
+    "description": "CALL-33: category=2 (Other) is valid",
+    "input": {
+      "stake": "10000000",
+      "conviction": 50,
+      "marketType": 0,
+      "eventSubtype": 0,
+      "category": 2,
+      "assetA": "1",
+      "assetB": "0",
+      "targetValue": "100000000",
+      "expiryOffset": 86400,
+      "criteriaHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "openToChallenges": true,
+      "parentCallId": "0",
+      "callerSettled": 0,
+      "allowlisted": true
+    },
+    "expected": {
+      "type": "pass"
+    }
+  },
+  {
+    "name": "asset-not-allowlisted-reverts",
+    "description": "CALL-13: assetA with no allowlist entry reverts AssetNotAllowlisted",
+    "input": {
+      "stake": "10000000",
+      "conviction": 50,
+      "marketType": 0,
+      "eventSubtype": 0,
+      "category": 0,
+      "assetA": "999999",
+      "assetB": "0",
+      "targetValue": "100000000",
+      "expiryOffset": 86400,
+      "criteriaHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "openToChallenges": true,
+      "parentCallId": "0",
+      "callerSettled": 0,
+      "allowlisted": false
+    },
+    "expected": {
+      "type": "revert",
+      "selector": "AssetNotAllowlisted()"
+    }
+  },
+  {
+    "name": "asset-allowlisted-passes",
+    "description": "CALL-13: assetA with allowlist entry passes",
+    "input": {
+      "stake": "10000000",
+      "conviction": 50,
+      "marketType": 0,
+      "eventSubtype": 0,
+      "category": 0,
+      "assetA": "1",
+      "assetB": "0",
+      "targetValue": "100000000",
+      "expiryOffset": 86400,
+      "criteriaHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "openToChallenges": true,
+      "parentCallId": "0",
+      "callerSettled": 0,
+      "allowlisted": true
+    },
+    "expected": {
+      "type": "pass"
+    }
+  },
+  {
+    "name": "criteria-required-for-cexListing-empty-reverts",
+    "description": "CALL-15/16: EventSubtype=CexListing(4) requires non-zero criteriaHash",
+    "input": {
+      "stake": "10000000",
+      "conviction": 50,
+      "marketType": 2,
+      "eventSubtype": 4,
+      "category": 0,
+      "assetA": "1",
+      "assetB": "0",
+      "targetValue": "0",
+      "expiryOffset": 86400,
+      "criteriaHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "openToChallenges": true,
+      "parentCallId": "0",
+      "callerSettled": 0,
+      "allowlisted": true
+    },
+    "expected": {
+      "type": "revert",
+      "selector": "CriteriaRequired(uint8,uint8)"
+    }
+  },
+  {
+    "name": "criteria-required-for-cexListing-set-passes",
+    "description": "CALL-15/16: EventSubtype=CexListing(4) with non-zero criteriaHash passes",
+    "input": {
+      "stake": "10000000",
+      "conviction": 50,
+      "marketType": 2,
+      "eventSubtype": 4,
+      "category": 0,
+      "assetA": "1",
+      "assetB": "0",
+      "targetValue": "0",
+      "expiryOffset": 86400,
+      "criteriaHash": "0x1234567890123456789012345678901234567890123456789012345678901234",
+      "openToChallenges": true,
+      "parentCallId": "0",
+      "callerSettled": 0,
+      "allowlisted": true
+    },
+    "expected": {
+      "type": "pass"
+    }
+  },
+  {
+    "name": "criteria-not-required-for-priceTarget-empty-passes",
+    "description": "CALL-15/16: MarketType=PriceTarget(0) does not require criteriaHash",
+    "input": {
+      "stake": "10000000",
+      "conviction": 50,
+      "marketType": 0,
+      "eventSubtype": 0,
+      "category": 0,
+      "assetA": "1",
+      "assetB": "0",
+      "targetValue": "100000000",
+      "expiryOffset": 86400,
+      "criteriaHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "openToChallenges": true,
+      "parentCallId": "0",
+      "callerSettled": 0,
+      "allowlisted": true
+    },
+    "expected": {
+      "type": "pass"
+    }
+  },
+  {
+    "name": "duplicate-same-utc-day-reverts",
+    "description": "Gate 6.2: second call with identical params on the same UTC day reverts DuplicateCall",
+    "input": {
+      "stake": "10000000",
+      "conviction": 50,
+      "marketType": 0,
+      "eventSubtype": 0,
+      "category": 0,
+      "assetA": "1",
+      "assetB": "0",
+      "targetValue": "100000000",
+      "expiryOffset": 86400,
+      "criteriaHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "openToChallenges": true,
+      "parentCallId": "0",
+      "callerSettled": 0,
+      "allowlisted": true,
+      "isDuplicate": true
+    },
+    "expected": {
+      "type": "revert",
+      "selector": "DuplicateCall(uint256)"
+    }
+  },
+  {
+    "name": "duplicate-across-utc-midnight-passes",
+    "description": "Gate 6.2 / Pitfall 12: same params but expiry crosses UTC midnight -- different day bucket, NOT a duplicate",
+    "input": {
+      "stake": "10000000",
+      "conviction": 50,
+      "marketType": 0,
+      "eventSubtype": 0,
+      "category": 0,
+      "assetA": "2",
+      "assetB": "0",
+      "targetValue": "200000000",
+      "expiryOffset": 86400,
+      "criteriaHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "openToChallenges": true,
+      "parentCallId": "0",
+      "callerSettled": 0,
+      "allowlisted": true,
+      "crossMidnight": true
+    },
+    "expected": {
+      "type": "pass"
+    }
+  },
+  {
+    "name": "tvl-cap-exact-passes",
+    "description": "CALL-34: stake + fee exactly fills tvlCap (available == incoming)",
+    "input": {
+      "stake": "10000000",
+      "conviction": 50,
+      "marketType": 0,
+      "eventSubtype": 0,
+      "category": 0,
+      "assetA": "1",
+      "assetB": "0",
+      "targetValue": "100000000",
+      "expiryOffset": 86400,
+      "criteriaHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "openToChallenges": true,
+      "parentCallId": "0",
+      "callerSettled": 0,
+      "allowlisted": true,
+      "tvlTest": "exact"
+    },
+    "expected": {
+      "type": "pass"
+    }
+  },
+  {
+    "name": "tvl-cap-plus-one-reverts",
+    "description": "CALL-34: currentTvl + incoming > tvlCap by 1 reverts TvlCapReached",
+    "input": {
+      "stake": "10000000",
+      "conviction": 50,
+      "marketType": 0,
+      "eventSubtype": 0,
+      "category": 0,
+      "assetA": "1",
+      "assetB": "0",
+      "targetValue": "100000000",
+      "expiryOffset": 86400,
+      "criteriaHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "openToChallenges": true,
+      "parentCallId": "0",
+      "callerSettled": 0,
+      "allowlisted": true,
+      "tvlTest": "overflow"
+    },
+    "expected": {
+      "type": "revert",
+      "selector": "TvlCapReached(uint256,uint256)"
+    }
+  },
+  {
+    "name": "usdc-allowance-zero-reverts",
+    "description": "CALL-35: USDC allowance = 0 reverts InsufficientUsdcAllowance",
+    "input": {
+      "stake": "10000000",
+      "conviction": 50,
+      "marketType": 0,
+      "eventSubtype": 0,
+      "category": 0,
+      "assetA": "1",
+      "assetB": "0",
+      "targetValue": "100000000",
+      "expiryOffset": 86400,
+      "criteriaHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "openToChallenges": true,
+      "parentCallId": "0",
+      "callerSettled": 0,
+      "allowlisted": true,
+      "noAllowance": true
+    },
+    "expected": {
+      "type": "revert",
+      "selector": "InsufficientUsdcAllowance(uint256,uint256)"
+    }
+  },
+  {
+    "name": "usdc-balance-zero-reverts",
+    "description": "CALL-36: USDC balance = 0 reverts InsufficientUsdcBalance",
+    "input": {
+      "stake": "10000000",
+      "conviction": 50,
+      "marketType": 0,
+      "eventSubtype": 0,
+      "category": 0,
+      "assetA": "1",
+      "assetB": "0",
+      "targetValue": "100000000",
+      "expiryOffset": 86400,
+      "criteriaHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "openToChallenges": true,
+      "parentCallId": "0",
+      "callerSettled": 0,
+      "allowlisted": true,
+      "noBalance": true
+    },
+    "expected": {
+      "type": "revert",
+      "selector": "InsufficientUsdcBalance(uint256,uint256)"
+    }
+  },
+  {
+    "name": "two-callers-same-hash-second-reverts",
+    "description": "Gate 6.2: two different callers with identical params -- second reverts DuplicateCall",
+    "input": {
+      "stake": "10000000",
+      "conviction": 50,
+      "marketType": 0,
+      "eventSubtype": 0,
+      "category": 0,
+      "assetA": "3",
+      "assetB": "0",
+      "targetValue": "300000000",
+      "expiryOffset": 86400,
+      "criteriaHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "openToChallenges": true,
+      "parentCallId": "0",
+      "callerSettled": 0,
+      "allowlisted": true,
+      "twoCallersDuplicate": true
+    },
+    "expected": {
+      "type": "revert",
+      "selector": "DuplicateCall(uint256)"
+    }
+  },
+  {
+    "name": "parent-call-zero-no-CallQuoted",
+    "description": "CALL-69/70: parentCallId=0 -- CallCreated fires but CallQuoted does NOT",
+    "input": {
+      "stake": "10000000",
+      "conviction": 50,
+      "marketType": 0,
+      "eventSubtype": 0,
+      "category": 0,
+      "assetA": "1",
+      "assetB": "0",
+      "targetValue": "100000000",
+      "expiryOffset": 86400,
+      "criteriaHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "openToChallenges": true,
+      "parentCallId": "0",
+      "callerSettled": 0,
+      "allowlisted": true
+    },
+    "expected": {
+      "type": "event",
+      "name": "CallCreated"
+    }
+  },
+  {
+    "name": "parent-call-nonzero-CallQuoted-fires",
+    "description": "CALL-70 / CALL-57..61: parentCallId != 0 -- both CallCreated and CallQuoted fire",
+    "input": {
+      "stake": "10000000",
+      "conviction": 50,
+      "marketType": 0,
+      "eventSubtype": 0,
+      "category": 0,
+      "assetA": "4",
+      "assetB": "0",
+      "targetValue": "400000000",
+      "expiryOffset": 86400,
+      "criteriaHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "openToChallenges": true,
+      "parentCallId": "1",
+      "callerSettled": 0,
+      "allowlisted": true,
+      "createParentFirst": true
+    },
+    "expected": {
+      "type": "event",
+      "name": "CallQuoted"
+    }
+  }
+]

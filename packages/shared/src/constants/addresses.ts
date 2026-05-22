@@ -69,10 +69,79 @@ const EMPTY_ADDRESSES: AddressRecord = {
   [ARBITRUM_SEPOLIA_CHAIN_ID]: null,
 };
 
+// ---------------------------------------------------------------------------
+// Phase 1 deployed contract addresses
+// Populated after running: packages/contracts/script/DeployPhase1.s.sol
+// ---------------------------------------------------------------------------
+
+/**
+ * CallRegistry on Arbitrum Sepolia (Phase 1 deploy).
+ *
+ * PLACEHOLDER: Sepolia deploy requires a funded deployer key and RPC access.
+ * Run the deploy command documented in packages/contracts/script/DeployPhase1.s.sol
+ * and update this value with the deployed address.
+ *
+ * Command to deploy:
+ *   cd packages/contracts && \
+ *   DEPLOYER_PRIVATE_KEY=<key> forge script script/DeployPhase1.s.sol:DeployPhase1 \
+ *     --rpc-url arbitrum_sepolia --broadcast \
+ *     --verify --etherscan-api-key $ARBISCAN_SEPOLIA_API_KEY
+ *
+ * Post-deploy smoke test (§19.11):
+ *   cast call <addr> "currentTvl()"  -> 0
+ *   cast call <addr> "tvlCap()"      -> 5000000000
+ *
+ * Threat: T-01-16 -- wrong address pinned in frontend silently routes txs to wrong contract.
+ */
+export const CALL_REGISTRY_ARBITRUM_SEPOLIA =
+  '0x0000000000000000000000000000000000000000' as const;
+// PLACEHOLDER: Replace with address from DeployPhase1.s.sol after Sepolia deploy.
+
+/**
+ * ProfileRegistry on Arbitrum Sepolia (Phase 1 deploy).
+ * Deployed alongside CallRegistry via DeployPhase1.s.sol.
+ * See CALL_REGISTRY_ARBITRUM_SEPOLIA comment for deploy instructions.
+ */
+export const PROFILE_REGISTRY_ARBITRUM_SEPOLIA =
+  '0x0000000000000000000000000000000000000000' as const;
+// PLACEHOLDER: Replace with address from DeployPhase1.s.sol after Sepolia deploy.
+
+/**
+ * CallRegistry on Arbitrum One (mainnet).
+ * NOT YET DEPLOYED. Phase 7.5 mainnet deploy after >=48h Sepolia staging gate.
+ * Spec: §19.11 mandatory post-deploy smoke test required before public announcement.
+ */
+export const CALL_REGISTRY_ARBITRUM_ONE =
+  '0x0000000000000000000000000000000000000000' as const;
+
+/**
+ * ProfileRegistry on Arbitrum One (mainnet).
+ * NOT YET DEPLOYED. Phase 7.5 mainnet deploy alongside CallRegistry.
+ */
+export const PROFILE_REGISTRY_ARBITRUM_ONE =
+  '0x0000000000000000000000000000000000000000' as const;
+
+// ---------------------------------------------------------------------------
+// Legacy address record structure (retained for backward compatibility)
+// ---------------------------------------------------------------------------
+
 /**
  * CallRegistry contract addresses — populated in Phase 1.
+ * @deprecated Use CALL_REGISTRY_ARBITRUM_SEPOLIA / CALL_REGISTRY_ARBITRUM_ONE directly.
  */
-export const CALL_REGISTRY_ADDRESSES: AddressRecord = { ...EMPTY_ADDRESSES };
+export const CALL_REGISTRY_ADDRESSES: AddressRecord = {
+  [ARBITRUM_MAINNET_CHAIN_ID]: CALL_REGISTRY_ARBITRUM_ONE,
+  [ARBITRUM_SEPOLIA_CHAIN_ID]: CALL_REGISTRY_ARBITRUM_SEPOLIA,
+};
+
+/**
+ * ProfileRegistry contract addresses — populated in Phase 1.
+ * @deprecated Use PROFILE_REGISTRY_ARBITRUM_SEPOLIA / PROFILE_REGISTRY_ARBITRUM_ONE directly.
+ */
+export const PROFILE_REGISTRY_ADDRESSES: AddressRecord = {
+  [ARBITRUM_MAINNET_CHAIN_ID]: PROFILE_REGISTRY_ARBITRUM_ONE,
+  [ARBITRUM_SEPOLIA_CHAIN_ID]: PROFILE_REGISTRY_ARBITRUM_SEPOLIA,
+};
 
 /**
  * FollowFadeMarket contract addresses — populated in Phase 2.
@@ -88,8 +157,3 @@ export const CHALLENGE_ESCROW_ADDRESSES: AddressRecord = { ...EMPTY_ADDRESSES };
  * SettlementManager contract addresses — populated in Phase 3.
  */
 export const SETTLEMENT_MANAGER_ADDRESSES: AddressRecord = { ...EMPTY_ADDRESSES };
-
-/**
- * ProfileRegistry contract addresses — populated in Phase 1.5.
- */
-export const PROFILE_REGISTRY_ADDRESSES: AddressRecord = { ...EMPTY_ADDRESSES };
