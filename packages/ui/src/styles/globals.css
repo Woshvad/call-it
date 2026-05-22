@@ -1,0 +1,42 @@
+/**
+ * @call-it/ui — global CSS
+ *
+ * Imported by apps/web/app/layout.tsx once at the root.
+ * Contains keyframes needed for Toast countdown drain and Stamp reduced-motion fallback.
+ */
+
+/**
+ * Toast countdown bar animation (D-19)
+ * Used by Toast.tsx: animation: drain {duration}ms linear forwards
+ */
+@keyframes drain {
+  from {
+    width: 100%;
+  }
+  to {
+    width: 0%;
+  }
+}
+
+/**
+ * Stamp reduced-motion fallback (a11y)
+ * Activates when prefers-reduced-motion: reduce
+ */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/**
+ * Respect prefers-reduced-motion for countdown drain
+ * Users who prefer reduced motion get an instant transition instead
+ */
+@media (prefers-reduced-motion: reduce) {
+  [style*="animation: drain"] {
+    animation-duration: 1ms !important;
+  }
+}
