@@ -1,1 +1,134 @@
-[]
+[
+  {
+    "type": "event",
+    "name": "CallCreated",
+    "inputs": [
+      { "type": "uint256", "name": "id", "indexed": true },
+      { "type": "address", "name": "caller", "indexed": true },
+      { "type": "uint8", "name": "marketType", "indexed": false },
+      { "type": "uint96", "name": "stake", "indexed": false }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "CallQuoted",
+    "inputs": [
+      { "type": "uint256", "name": "parentId", "indexed": true },
+      { "type": "uint256", "name": "quoteId", "indexed": true }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "ConvictionCapped",
+    "inputs": [
+      { "type": "address", "name": "caller", "indexed": true },
+      { "type": "uint8", "name": "requested", "indexed": false },
+      { "type": "uint8", "name": "applied", "indexed": false }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "AssetAllowlisted",
+    "inputs": [
+      { "type": "string", "name": "symbol", "indexed": false },
+      { "type": "bytes32", "name": "feedId", "indexed": false }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "NftCollectionAllowlisted",
+    "inputs": [
+      { "type": "address", "name": "collection", "indexed": true }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "TvlCapSet",
+    "inputs": [
+      { "type": "uint256", "name": "newCap", "indexed": false }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "SettlementManagerSet",
+    "inputs": [
+      { "type": "address", "name": "newManager", "indexed": true }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "function",
+    "name": "createCall",
+    "inputs": [
+      { "type": "uint8", "name": "marketType" },
+      { "type": "uint8", "name": "eventSubtype" },
+      { "type": "uint8", "name": "category" },
+      { "type": "uint256", "name": "assetA" },
+      { "type": "uint256", "name": "assetB" },
+      { "type": "uint256", "name": "targetValue" },
+      { "type": "uint64", "name": "expiry" },
+      { "type": "uint96", "name": "stake" },
+      { "type": "uint8", "name": "conviction" },
+      { "type": "bytes32", "name": "criteriaHash" },
+      { "type": "bool", "name": "openToChallenges" },
+      { "type": "uint256", "name": "parentCallId" }
+    ],
+    "outputs": [
+      { "type": "uint256", "name": "callId" }
+    ],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "getCall",
+    "inputs": [
+      { "type": "uint256", "name": "callId" }
+    ],
+    "outputs": [
+      {
+        "type": "tuple",
+        "name": "",
+        "components": [
+          { "type": "address", "name": "caller" },
+          { "type": "uint96", "name": "stake" },
+          { "type": "uint96", "name": "virtualFadeSeed" },
+          { "type": "uint64", "name": "createdAt" },
+          { "type": "uint64", "name": "expiry" },
+          { "type": "uint8", "name": "marketType" },
+          { "type": "uint8", "name": "eventSubtype" },
+          { "type": "uint8", "name": "category" },
+          { "type": "uint8", "name": "status" },
+          { "type": "uint8", "name": "conviction" },
+          { "type": "bool", "name": "openToChallenges" },
+          { "type": "bytes32", "name": "duplicateHash" },
+          { "type": "bytes32", "name": "criteriaHash" },
+          { "type": "uint256", "name": "assetA" },
+          { "type": "uint256", "name": "assetB" },
+          { "type": "uint256", "name": "targetValue" },
+          { "type": "uint256", "name": "parentCallId" }
+        ]
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "currentTvl",
+    "inputs": [],
+    "outputs": [{ "type": "uint256", "name": "" }],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "tvlCap",
+    "inputs": [],
+    "outputs": [{ "type": "uint256", "name": "" }],
+    "stateMutability": "view"
+  }
+]

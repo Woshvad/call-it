@@ -1,5 +1,5 @@
 specVersion: 1.2.0
-description: "Call It subgraph — indexes all 23 event types from CallRegistry, FollowFadeMarket, ChallengeEscrow, SettlementManager, ProfileRegistry on Arbitrum Sepolia (Phase 0 scaffold; contract addresses populated in Phase 1+)"
+description: "Call It subgraph — indexes all events from CallRegistry and ProfileRegistry on Arbitrum Sepolia (Phase 1 real mappings; Phases 2-4 contracts extend this)"
 repository: "https://github.com/call-it/call-it"
 schema:
   file: ./schema.graphql
@@ -8,9 +8,10 @@ dataSources:
     name: CallRegistry
     network: arbitrum-sepolia
     source:
-      # Phase 0 placeholder: using Sepolia USDC address so Studio deploy pipeline validates.
-      # Phase 1+ updates this to the deployed CallRegistry address.
-      address: "0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d"
+      # Phase 1: Deployed CallRegistry address on Arbitrum Sepolia.
+      # Update CALL_REGISTRY_ARBITRUM_SEPOLIA in packages/shared/src/constants/addresses.ts
+      # and re-run deploy:sepolia after Sepolia deploy (see SUMMARY-01-10).
+      address: "0x0000000000000000000000000000000000000000"
       abi: CallRegistry
       startBlock: 1
     mapping:
@@ -45,17 +46,67 @@ dataSources:
       abis:
         - name: CallRegistry
           file: ./abis/CallRegistry.json
-      # Phase 0 stub: block handler so graph-cli validates the mapping file.
-      # Phase 1+ replaces with real eventHandlers as contract events are added.
-      blockHandlers:
-        - handler: handleBlock
+      eventHandlers:
+        - event: CallCreated(indexed uint256,indexed address,uint8,uint96)
+          handler: handleCallCreated
+        - event: CallQuoted(indexed uint256,indexed uint256)
+          handler: handleCallQuoted
+        - event: ConvictionCapped(indexed address,uint8,uint8)
+          handler: handleConvictionCapped
+        - event: AssetAllowlisted(string,bytes32)
+          handler: handleAssetAllowlisted
+        - event: NftCollectionAllowlisted(indexed address)
+          handler: handleNftCollectionAllowlisted
+        - event: TvlCapSet(uint256)
+          handler: handleTvlCapSet
+        - event: SettlementManagerSet(indexed address)
+          handler: handleSettlementManagerSet
+  - kind: ethereum/contract
+    name: ProfileRegistry
+    network: arbitrum-sepolia
+    source:
+      # Phase 1: Deployed ProfileRegistry address on Arbitrum Sepolia.
+      # Update PROFILE_REGISTRY_ARBITRUM_SEPOLIA in packages/shared/src/constants/addresses.ts
+      # and re-run deploy:sepolia after Sepolia deploy (see SUMMARY-01-10).
+      address: "0x0000000000000000000000000000000000000000"
+      abi: ProfileRegistry
+      startBlock: 1
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.9
+      language: wasm/assemblyscript
+      file: ./src/profile-registry.ts
+      entities:
+        - Profile
+        - SocialLink
+        - CategoryRep
+        - ConvictionCap
+        - PaymasterEvent
+        - QuoteCall
+        - CallerExit
+        - PayoutClaim
+      abis:
+        - name: ProfileRegistry
+          file: ./abis/ProfileRegistry.json
+      eventHandlers:
+        - event: ProfileUpdated(indexed address,uint32,uint16)
+          handler: handleProfileUpdated
+        - event: HandleSet(indexed address,string)
+          handler: handleHandleSet
+        - event: SettlementManagerSet(indexed address)
+          handler: handleProfileRegistrySettlementManagerSet
+        - event: RelayerSet(indexed address)
+          handler: handleRelayerSet
+        - event: SocialLinked(indexed address,uint8,string,bytes32)
+          handler: handleSocialLinked
+        - event: SocialUnlinked(indexed address,uint8)
+          handler: handleSocialUnlinked
   - kind: ethereum/contract
     name: FollowFadeMarket
     network: arbitrum-sepolia
     source:
-      # Phase 0 placeholder: using Sepolia USDC address so Studio deploy pipeline validates.
-      # Phase 1+ updates this to the deployed FollowFadeMarket address.
-      address: "0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d"
+      # Phase 2 placeholder — address populated when FollowFadeMarket deploys.
+      address: "0x0000000000000000000000000000000000000000"
       abi: FollowFadeMarket
       startBlock: 1
     mapping:
@@ -77,9 +128,8 @@ dataSources:
     name: ChallengeEscrow
     network: arbitrum-sepolia
     source:
-      # Phase 0 placeholder: using Sepolia USDC address so Studio deploy pipeline validates.
-      # Phase 1+ updates this to the deployed ChallengeEscrow address.
-      address: "0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d"
+      # Phase 3 placeholder — address populated when ChallengeEscrow deploys.
+      address: "0x0000000000000000000000000000000000000000"
       abi: ChallengeEscrow
       startBlock: 1
     mapping:
@@ -101,9 +151,8 @@ dataSources:
     name: SettlementManager
     network: arbitrum-sepolia
     source:
-      # Phase 0 placeholder: using Sepolia USDC address so Studio deploy pipeline validates.
-      # Phase 1+ updates this to the deployed SettlementManager address.
-      address: "0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d"
+      # Phase 4 placeholder — address populated when SettlementManager deploys.
+      address: "0x0000000000000000000000000000000000000000"
       abi: SettlementManager
       startBlock: 1
     mapping:
@@ -124,33 +173,5 @@ dataSources:
       abis:
         - name: SettlementManager
           file: ./abis/SettlementManager.json
-      blockHandlers:
-        - handler: handleBlock
-  - kind: ethereum/contract
-    name: ProfileRegistry
-    network: arbitrum-sepolia
-    source:
-      # Phase 0 placeholder: using Sepolia USDC address so Studio deploy pipeline validates.
-      # Phase 1+ updates this to the deployed ProfileRegistry address.
-      address: "0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d"
-      abi: ProfileRegistry
-      startBlock: 1
-    mapping:
-      kind: ethereum/events
-      apiVersion: 0.0.9
-      language: wasm/assemblyscript
-      file: ./src/profile-registry.ts
-      entities:
-        - Profile
-        - SocialLink
-        - CategoryRep
-        - ConvictionCap
-        - PaymasterEvent
-        - QuoteCall
-        - CallerExit
-        - PayoutClaim
-      abis:
-        - name: ProfileRegistry
-          file: ./abis/ProfileRegistry.json
       blockHandlers:
         - handler: handleBlock

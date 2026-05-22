@@ -1,1 +1,106 @@
-[]
+[
+  {
+    "type": "event",
+    "name": "ProfileUpdated",
+    "inputs": [
+      { "type": "address", "name": "user", "indexed": true },
+      { "type": "uint32", "name": "totalCalls", "indexed": false },
+      { "type": "uint16", "name": "settledCalls", "indexed": false }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "HandleSet",
+    "inputs": [
+      { "type": "address", "name": "user", "indexed": true },
+      { "type": "string", "name": "handle", "indexed": false }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "SettlementManagerSet",
+    "inputs": [
+      { "type": "address", "name": "newManager", "indexed": true }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "RelayerSet",
+    "inputs": [
+      { "type": "address", "name": "newRelayer", "indexed": true }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "SocialLinked",
+    "inputs": [
+      { "type": "address", "name": "user", "indexed": true },
+      { "type": "uint8", "name": "kind", "indexed": false },
+      { "type": "string", "name": "handle", "indexed": false },
+      { "type": "bytes32", "name": "proofHash", "indexed": false }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "SocialUnlinked",
+    "inputs": [
+      { "type": "address", "name": "user", "indexed": true },
+      { "type": "uint8", "name": "kind", "indexed": false }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "function",
+    "name": "settledCalls",
+    "inputs": [
+      { "type": "address", "name": "user" }
+    ],
+    "outputs": [
+      { "type": "uint16", "name": "" }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "setDisplayHandle",
+    "inputs": [
+      { "type": "string", "name": "handle" }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "updateAfterSettlement",
+    "inputs": [
+      { "type": "address", "name": "user" },
+      { "type": "bool", "name": "isWinner" },
+      { "type": "uint8", "name": "category" }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "setSettlementManager",
+    "inputs": [
+      { "type": "address", "name": "newManager" }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "setRelayer",
+    "inputs": [
+      { "type": "address", "name": "newRelayer" }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  }
+]

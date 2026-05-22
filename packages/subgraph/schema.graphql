@@ -12,6 +12,7 @@
 type Call @entity(immutable: false) {
   id: ID!
   caller: Bytes!
+  callerProfile: Profile
   marketType: Int!
   eventSubtype: Int
   asset: String!
@@ -23,6 +24,7 @@ type Call @entity(immutable: false) {
   reasoning: String
   createdAt: BigInt!
   settledAt: BigInt
+  quoteOf: Call
   positions: [Position!]! @derivedFrom(field: "call")
   challenges: [Challenge!]! @derivedFrom(field: "call")
   quotes: [QuoteCall!]! @derivedFrom(field: "parentCall")
@@ -66,13 +68,17 @@ type Profile @entity(immutable: false) {
   id: ID!
   globalRep: Int!
   categoryReps: [CategoryRep!]! @derivedFrom(field: "profile")
+  totalCalls: Int!
   settledCalls: Int!
   wins: Int!
   losses: Int!
   twitterHandle: String
   farcasterHandle: String
   handle: String
+  displayHandle: String
   tagline: String
+  lastActiveAt: BigInt
+  calls: [Call!]! @derivedFrom(field: "callerProfile")
 }
 
 type Dispute @entity(immutable: false) {

@@ -157,3 +157,31 @@ export const CHALLENGE_ESCROW_ADDRESSES: AddressRecord = { ...EMPTY_ADDRESSES };
  * SettlementManager contract addresses — populated in Phase 3.
  */
 export const SETTLEMENT_MANAGER_ADDRESSES: AddressRecord = { ...EMPTY_ADDRESSES };
+
+// ---------------------------------------------------------------------------
+// Subgraph URLs (The Graph — Subgraph Studio)
+// ---------------------------------------------------------------------------
+
+/**
+ * Subgraph Studio URL for the call-it-sepolia deployment (Arbitrum Sepolia).
+ *
+ * Updated after running: pnpm --filter @call-it/subgraph deploy:sepolia
+ * The Studio dashboard shows the query endpoint after a successful deploy.
+ *
+ * Format: https://api.studio.thegraph.com/query/<user-id>/call-it-sepolia/version/latest
+ *
+ * PLACEHOLDER: Replace with the actual Studio URL after first Sepolia deploy.
+ * Also update RELAYER_SUBGRAPH_URL in apps/relayer/.env and .env.production.
+ *
+ * Requirement: D-27 (Studio key held by relayer only — frontend hits /api/feed proxy)
+ * Threat: T-01-67 — schema drift between Phase 0 stubs and Phase 1 real events (closed)
+ */
+export const SUBGRAPH_URL_SEPOLIA =
+  'https://api.studio.thegraph.com/query/PLACEHOLDER/call-it-sepolia/version/latest' as const;
+
+/**
+ * Subgraph Decentralized Network URL (Arbitrum One mainnet).
+ * Published from Studio in Phase 7 (out of scope for Phase 1).
+ * See: 01-CONTEXT.md "Out of scope: Decentralized Network subgraph publish (→ Phase 7)"
+ */
+export const SUBGRAPH_URL_MAINNET: string | null = null;

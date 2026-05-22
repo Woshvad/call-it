@@ -5,7 +5,8 @@
   "description": "The Graph subgraph schema + stub mappings for Call It (Arbitrum Sepolia → Decentralized Network)",
   "type": "module",
   "scripts": {
-    "build": "graph build",
+    "prebuild": "node scripts/copy-abis.cjs",
+    "build": "pnpm run prebuild && graph codegen && graph build",
     "codegen": "graph codegen",
     "deploy:sepolia": "graph deploy --node https://api.studio.thegraph.com/deploy/ call-it-sepolia",
     "deploy:sepolia:dry-run": "graph build && echo 'Dry-run: studio deploy not executed without SUBGRAPH_STUDIO_DEPLOY_KEY'",
