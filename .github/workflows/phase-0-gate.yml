@@ -1,0 +1,242 @@
+# Phase 0 gate — blocking workflow that runs on `git tag phase-0-complete*`.
+#
+# This workflow is the ONLY automated proof that Phase 0 is done.
+# It runs all 6 Phase 0 success criteria as a smoke test against DEPLOYED artifacts.
+# If any step fails, the tag is invalid and Phase 1 does not start.
+#
+# On success:
+#   - Creates a GitHub release for the tag with smoke-results JSON as an asset (T-00-40 audit trail).
+#   - Operators can inspect the release to verify Phase 0 completion criteria were met.
+#
+# Trigger: `git tag phase-0-complete-v0.0.1 && git push --tags`
+# Manual: `gh workflow run phase-0-gate.yml --field web-url=... --field relayer-url=... --field subgraph-url=...`
+#
+# Required GitHub Secrets (same as deploy-relayer.yml — fetched from GCP Secret Manager via OIDC):
+#   GCP_WORKLOAD_IDENTITY_PROVIDER   — WIF provider resource name
+#   GCP_SERVICE_ACCOUNT_SEPOLIA      — service account email for call-it-sepolia project
+#   TELEGRAM_BOT_TOKEN               — Telegram bot token (for step 6 synthetic alert)
+#   TELEGRAM_CHAT_ID_P0              — P0 channel chat ID (for step 6 verification)
+#   RELAYER_INTERNAL_HMAC            — HMAC secret for /internal/test-alert (step 6)
+#
+# Inputs (for workflow_dispatch manual fire):
+#   web-url        — Vercel deploy URL (e.g., https://call-it-web-sepolia.vercel.app)
+#   relayer-url    — Fly relayer URL (e.g., https://call-it-relayer-sepolia.fly.dev)
+#   subgraph-url   — Subgraph Studio query URL
+
+name: Phase 0 Gate
+
+on:
+  push:
+    tags:
+      - 'phase-0-complete*'
+  workflow_dispatch:
+    inputs:
+      web-url:
+        description: 'Vercel deploy URL for apps/web (e.g., https://call-it-web-sepolia.vercel.app)'
+        required: true
+        default: 'https://call-it-web-sepolia.vercel.app'
+      relayer-url:
+        description: 'Fly.io relayer URL (e.g., https://call-it-relayer-sepolia.fly.dev)'
+        required: true
+        default: 'https://call-it-relayer-sepolia.fly.dev'
+      subgraph-url:
+        description: 'Subgraph Studio query URL'
+        required: true
+        default: 'https://api.studio.thegraph.com/query/call-it-sepolia/graphql'
+
+permissions:
+  contents: write  # Required for creating GitHub release (T-00-40 audit trail)
+  id-token: write  # Required for GCP OIDC federation (step 6 secrets)
+
+jobs:
+  gate:
+    name: Phase 0 — 6-step smoke test gate
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Resolve URLs from inputs or defaults
+        id: urls
+        run: |
+          WEB_URL="${{ github.event.inputs.web-url || 'https://call-it-web-sepolia.vercel.app' }}"
+          RELAYER_URL="${{ github.event.inputs.relayer-url || 'https://call-it-relayer-sepolia.fly.dev' }}"
+          SUBGRAPH_URL="${{ github.event.inputs.subgraph-url || 'https://api.studio.thegraph.com/query/call-it-sepolia/graphql' }}"
+
+          echo "web_url=$WEB_URL" >> "$GITHUB_OUTPUT"
+          echo "relayer_url=$RELAYER_URL" >> "$GITHUB_OUTPUT"
+          echo "subgraph_url=$SUBGRAPH_URL" >> "$GITHUB_OUTPUT"
+
+          echo "Web URL:      $WEB_URL"
+          echo "Relayer URL:  $RELAYER_URL"
+          echo "Subgraph URL: $SUBGRAPH_URL"
+
+      # Fetch Telegram + HMAC secrets from GCP Secret Manager via OIDC
+      # (same pattern as deploy-relayer.yml — no long-lived keys in GH Secrets)
+      - name: Authenticate to GCP via OIDC
+        id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT_SEPOLIA }}
+
+      - name: Set up gcloud CLI
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: call-it-sepolia
+
+      - name: Fetch gate secrets from GCP Secret Manager
+        id: gate-secrets
+        run: |
+          fetch_secret() {
+            local SECRET_NAME="$1"
+            local VALUE
+            VALUE=$(gcloud secrets versions access latest \
+              --secret="$SECRET_NAME" \
+              --project="call-it-sepolia")
+            echo "::add-mask::$VALUE"
+            echo "${SECRET_NAME}=${VALUE}" >> "$GITHUB_OUTPUT"
+          }
+
+          fetch_secret "TELEGRAM_BOT_TOKEN"
+          fetch_secret "TELEGRAM_CHAT_ID_P0"
+          fetch_secret "RELAYER_INTERNAL_HMAC"
+
+      # Run the 6-step smoke test.
+      # --require-synthetic-alert: all 6 steps are mandatory for gate approval.
+      # Exit code: 0 = all steps pass; 1 = one or more failed.
+      - name: Run Phase 0 smoke test (all 6 steps)
+        id: smoke
+        run: |
+          pnpm tsx scripts/phase-0-smoke.ts \
+            --network sepolia \
+            --web-url "${{ steps.urls.outputs.web_url }}" \
+            --relayer-url "${{ steps.urls.outputs.relayer_url }}" \
+            --subgraph-url "${{ steps.urls.outputs.subgraph_url }}" \
+            --require-synthetic-alert
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ steps.gate-secrets.outputs.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID_P0: ${{ steps.gate-secrets.outputs.TELEGRAM_CHAT_ID_P0 }}
+          RELAYER_INTERNAL_HMAC: ${{ steps.gate-secrets.outputs.RELAYER_INTERNAL_HMAC }}
+          RELAYER_URL: ${{ steps.urls.outputs.relayer_url }}
+
+      # Find and upload the smoke results JSON artifact
+      - name: Find smoke results JSON
+        id: find-results
+        if: always()
+        run: |
+          RESULTS_FILE=$(ls scripts/phase-0-smoke-results-*.json 2>/dev/null | head -1 || echo "")
+          if [ -n "$RESULTS_FILE" ]; then
+            echo "results_file=$RESULTS_FILE" >> "$GITHUB_OUTPUT"
+            echo "Results file: $RESULTS_FILE"
+            cat "$RESULTS_FILE"
+          else
+            echo "::warning::Smoke results JSON not found"
+            echo "results_file=" >> "$GITHUB_OUTPUT"
+          fi
+
+      # Create a GitHub release with the smoke results as a permanent audit trail.
+      # This provides proof that "Phase 0 is done" with a specific, inspectable JSON artifact.
+      # (T-00-40 repudiation mitigation)
+      - name: Create GitHub release with smoke results
+        if: success() && (github.ref_type == 'tag' || github.event_name == 'workflow_dispatch')
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const path = require('path');
+
+            const tag = context.ref_type === 'tag'
+              ? context.ref.replace('refs/tags/', '')
+              : `phase-0-gate-manual-${Date.now()}`;
+
+            const resultsFile = '${{ steps.find-results.outputs.results_file }}';
+            let body = '## Phase 0 Gate: PASSED\n\n';
+            body += 'All 6 Phase 0 success criteria verified against deployed artifacts.\n\n';
+            body += '### Artifacts Tested\n';
+            body += `- **Web URL:** ${{ steps.urls.outputs.web_url }}\n`;
+            body += `- **Relayer URL:** ${{ steps.urls.outputs.relayer_url }}\n`;
+            body += `- **Subgraph URL:** ${{ steps.urls.outputs.subgraph_url }}\n\n`;
+            body += '### Steps\n';
+            body += '1. Build green — pnpm turbo run lint test build\n';
+            body += '2. Grep guards — 3 CI invariants pass\n';
+            body += '3. Relayer /health — 200 + { status: ok } + <2000ms\n';
+            body += '4. Subgraph deployed — _meta.block.number indexed\n';
+            body += '5. OG Fallback p95 < 100ms warm render\n';
+            body += '6. Synthetic alert — Telegram round-trip ≤60s\n\n';
+            body += `> See smoke-results JSON attachment for timing details.\n`;
+
+            let release;
+            try {
+              release = await github.rest.repos.createRelease({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                tag_name: tag,
+                name: `Phase 0 Complete: ${tag}`,
+                body,
+                draft: false,
+                prerelease: false,
+              });
+            } catch (e) {
+              // Tag may already exist (workflow_dispatch scenario) — get existing release
+              console.log(`Release creation failed (${e.message}), attempting to get existing...`);
+              const existing = await github.rest.repos.getReleaseByTag({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                tag: tag,
+              }).catch(() => null);
+              if (existing) {
+                release = existing;
+              } else {
+                core.warning('Could not create or find release — skipping asset upload');
+                return;
+              }
+            }
+
+            // Upload smoke results JSON as release asset
+            if (resultsFile && fs.existsSync(resultsFile)) {
+              const content = fs.readFileSync(resultsFile);
+              await github.rest.repos.uploadReleaseAsset({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                release_id: release.data.id,
+                name: path.basename(resultsFile),
+                data: content,
+              });
+              console.log(`Uploaded ${path.basename(resultsFile)} to release ${tag}`);
+            }
+
+      # Write step summary
+      - name: Write job summary
+        if: always()
+        run: |
+          SMOKE_EXIT="${{ steps.smoke.outcome }}"
+          echo "### Phase 0 Gate: ${SMOKE_EXIT^^}" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Step | Description | Status |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|------|-------------|--------|" >> "$GITHUB_STEP_SUMMARY"
+          echo "| 1 | Build green (pnpm turbo run lint test build) | see smoke results |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| 2 | Grep guards (3 CI invariants) | see smoke results |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| 3 | Relayer /health → 200 + ok + <2000ms | see smoke results |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| 4 | Subgraph _meta.block.number indexed | see smoke results |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| 5 | OG Fallback p95 < 100ms | see smoke results |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| 6 | Synthetic alert Telegram round-trip | see smoke results |" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "**Web URL:** ${{ steps.urls.outputs.web_url }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "**Relayer URL:** ${{ steps.urls.outputs.relayer_url }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "**Subgraph URL:** ${{ steps.urls.outputs.subgraph_url }}" >> "$GITHUB_STEP_SUMMARY"
