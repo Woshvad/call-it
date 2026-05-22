@@ -13,5 +13,23 @@
 'use strict';
 
 const baseConfig = require('@call-it/config/eslint/base');
+const tsParser = require('@typescript-eslint/parser');
 
-module.exports = [...baseConfig];
+/** @type {import('eslint').Linter.FlatConfig[]} */
+module.exports = [
+  ...baseConfig,
+  {
+    // Add TypeScript parser for .ts/.tsx files
+    files: ['**/*.ts', '**/*.tsx'],
+    languageOptions: {
+      parser: tsParser,
+      parserOptions: {
+        ecmaVersion: 'latest',
+        sourceType: 'module',
+        ecmaFeatures: {
+          jsx: true,
+        },
+      },
+    },
+  },
+];

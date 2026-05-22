@@ -1,0 +1,94 @@
+/**
+ * Toast — 3-status stacking toast with countdown drain animation (D-19)
+ *
+ * Built on Radix Toast primitives for a11y (focus management, screen reader announcements).
+ * Countdown bar drains over `duration` ms via CSS animation (keyframes defined in styles.css).
+ * framer-motion is NOT used here — CSS animation is sufficient (scope restriction: framer-motion
+ * is limited to Stamp + live-pulse only per RESEARCH "Standard Stack").
+ *
+ * Status → styling:
+ *   success → border-outcome-win
+ *   info    → border-brand-accent
+ *   error   → border-outcome-loss
+ */
+import * as ToastPrimitive from '@radix-ui/react-toast';
+import { cva } from 'class-variance-authority';
+import { cn } from '../lib/cn';
+import { CornerBrackets } from './CornerBrackets';
+import type { ToastItem } from '../hooks/useToast';
+
+const toastVariants = cva(
+  [
+    'relative overflow-hidden',
+    'flex flex-col gap-1',
+    'min-w-[280px] max-w-[380px]',
+    'p-4',
+    'border-2',
+    'bg-brand-surface text-brand-text',
+    'shadow-[4px_4px_0_0_#000]',
+    'data-[state=open]:animate-in data-[state=open]:slide-in-from-right-full',
+    'data-[state=closed]:animate-out data-[state=closed]:slide-out-to-right-full',
+  ],
+  {
+    variants: {
+      status: {
+        success: 'border-outcome-win',
+        info: 'border-brand-accent',
+        error: 'border-outcome-loss',
+      },
+    },
+    defaultVariants: {
+      status: 'info',
+    },
+  }
+);
+
+const countdownVariants = cva(
+  ['absolute bottom-0 left-0 h-1'],
+  {
+    variants: {
+      status: {
+        success: 'bg-outcome-win',
+        info: 'bg-brand-accent',
+        error: 'bg-outcome-loss',
+      },
+    },
+    defaultVariants: {
+      status: 'info',
+    },
+  }
+);
+
+export type ToastProps = {
+  toast: ToastItem;
+  onDismiss: (id: string) => void;
+};
+
+export function Toast({ toast, onDismiss }: ToastProps) {
+  return (
+    <ToastPrimitive.Root
+      open
+      onOpenChange={(open) => {
+        if (!open) onDismiss(toast.id);
+      }}
+      duration={toast.duration}
+      data-toast-status={toast.status}
+      className={cn(toastVariants({ status: toast.status }))}
+    >
+      <CornerBrackets />
+      <ToastPrimitive.Title className="font-body font-semibold text-sm pr-4">
+        {toast.message}
+      </ToastPrimitive.Title>
+
+      {/* Countdown drain bar */}
+      <div
+        data-countdown
+        className={cn(countdownVariants({ status: toast.status }))}
+        style={{
+          animation: `drain ${toast.duration}ms linear forwards`,
+          animationPlayState: 'running',
+        }}
+      />
+    </ToastPrimitive.Root>
+  );
+}

@@ -1,13 +1,47 @@
 /**
  * @call-it/ui — design system barrel export
  *
- * Phase 1 P04 will populate this barrel with:
- * - Primitives: Button, Card, Tag, Toast, Skeleton, CornerBrackets, Stamp
- * - Compound: Receipt (multi-mode), ConvictionBar
- * - Radix-backed: Dialog, Popover, Tooltip, Slider (where they earn their place)
+ * All primitives, compounds, and hooks are exported from here.
+ * apps/web imports from '@call-it/ui' directly.
  *
- * For now this is an empty shell so `tsc --build` succeeds and
- * the workspace is recognized by pnpm + apps/web.
+ * Primitives: Button, Card, Tag, Toast, ToastProvider, CornerBrackets, Skeleton, Stamp
+ * Compounds: Receipt, ConvictionBar, CallCard, ProfileHeader
+ * Hooks: useToast
+ * Tokens: colors, typography, spacing
  */
 
-export {};
+// Primitives
+export { Button, type ButtonProps } from './primitives/Button';
+export { Card, type CardProps } from './primitives/Card';
+export { Tag, type TagProps } from './primitives/Tag';
+export { CornerBrackets } from './primitives/CornerBrackets';
+export {
+  Skeleton,
+  SkeletonFeedCard,
+  SkeletonReceipt,
+  SkeletonProfileHeader,
+  SkeletonLeaderboardRow,
+  SkeletonDuelCard,
+  SkeletonListItem,
+  type SkeletonProps,
+} from './primitives/Skeleton';
+export { Stamp, type StampProps, type StampColor } from './primitives/Stamp';
+export { Toast, type ToastProps } from './primitives/Toast';
+export { ToastProvider } from './primitives/ToastProvider';
+
+// Hooks
+export { useToast, ToastContext, type ToastItem, type ToastStatus, type ToastContextValue } from './hooks/useToast';
+
+// Compounds
+export { Receipt, type ReceiptProps, type ReceiptData } from './compound/Receipt';
+export { ConvictionBar, type ConvictionBarProps } from './compound/ConvictionBar';
+export { CallCard, type CallCardProps, type CallCardData } from './compound/CallCard';
+export { ProfileHeader, type ProfileHeaderProps, type ProfileHeaderUser } from './compound/ProfileHeader';
+
+// Utilities
+export { cn } from './lib/cn';
+
+// Tokens
+export * from './tokens/colors';
+export * from './tokens/typography';
+export * from './tokens/spacing';
