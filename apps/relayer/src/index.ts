@@ -32,6 +32,8 @@ import { paymasterPolicyRoute } from './routes/paymaster-policy.js';
 import { addressBookRoute } from './routes/address-book.js';
 import { withdrawAuthorizeRoute } from './routes/withdraw-authorize.js';
 import { privyWebhookRoute } from './routes/privy-webhook.js';
+import { feedRoute } from './routes/feed.js';
+import { profileRoute } from './routes/profile.js';
 import { sendAlert } from './workers/alerts.js';
 import { startPaymasterConfirmer } from './workers/paymaster-confirmer.js';
 
@@ -93,6 +95,13 @@ export async function buildApp(): Promise<FastifyInstance> {
 
   // Phase 1 — Plan 07: Privy webhook receiver (HMAC-verified — T7, Pitfall 14)
   await app.register(privyWebhookRoute);
+
+  // ── Plan 01-09 routes ─────────────────────────────────────
+  // Phase 1 — Plan 09: public feed endpoint (800ms race + 10s cache — D-24/26)
+  await app.register(feedRoute);
+  // Phase 1 — Plan 09: profile resolution (ENS + AUTH-11 priority chain — D-13)
+  await app.register(profileRoute);
+  // ─────────────────────────────────────────────────────────
 
   // 5. Boot-time BullMQ compatibility smoke (Pitfall A mitigation)
   // Run after app is ready so we have logging; don't block app start.
