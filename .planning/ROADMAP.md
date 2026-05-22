@@ -64,7 +64,7 @@ Call It ships as a person-first onchain social prediction product on Arbitrum ma
   - [x] 01-04-PLAN.md — Wave 1: @call-it/ui primitives (Button/Card/Tag/CornerBrackets/Skeleton×6/Toast/Stamp) + compound components (Receipt/ConvictionBar/CallCard/ProfileHeader) + AUTH-44 no-wallet-address invariant
   - [x] 01-05-PLAN.md — Wave 2 (Slice A): Privy 3-path sign-in + provider tree AST test + Alchemy AA + wagmi configs + sign-in page
   - [x] 01-06-PLAN.md — Wave 2 (Slice B): 4-screen onboarding + custody disclosure + 0 export prompt + Coinbase Onramp + relayer onboarding endpoint (privySessionPreHandler shared)
-  - [ ] 01-07-PLAN.md — Wave 3 (Slice E+F): Paymaster policy + Upstash counter + UserOp confirmer + Circle USDC handoff + address book + 24h cooldown + Privy webhook
+  - [x] 01-07-PLAN.md — Wave 3 (Slice E+F): Paymaster policy + Upstash counter + UserOp confirmer + Circle USDC handoff + address book + 24h cooldown + Privy webhook
   - [ ] 01-08-PLAN.md — Wave 4 (Slice D): /new page + RHF + zodResolver + 3 mode sub-forms + dup-check + preflight + Receipt preview + two-step publish modal
   - [ ] 01-09-PLAN.md — Wave 4 (Slice G): Feed shell (800ms race + 10s cache) + Profile shell (ENS server-side + 24h cache) + Settings page
   - [ ] 01-10-PLAN.md — Wave 5 (closure): subgraph extension + REQUIREMENTS amendment for AUTH-27/29 + visual smoke + design-system snap + phase-1-complete-gate workflow + Phase 1 SUMMARY
