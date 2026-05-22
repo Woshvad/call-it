@@ -104,12 +104,9 @@ export default function DesignSystemPage() {
       {/* ── CornerBrackets ────────────────────────────────────────────── */}
       <section data-testid="section-corner-brackets">
         <h2 className="font-display text-xl font-semibold mb-4">CornerBrackets</h2>
-        <div className="relative inline-block">
-          <CornerBrackets size={12} strokeWidth={2} className="text-brand-accent">
-            <div className="px-6 py-4 font-mono text-sm text-brand-fg">
-              Corner-bracketed content block
-            </div>
-          </CornerBrackets>
+        <div className="relative inline-block px-6 py-4 font-mono text-sm text-brand-fg border-2 border-brand-fg">
+          <CornerBrackets />
+          Corner-bracketed content block
         </div>
       </section>
 
@@ -161,15 +158,15 @@ export default function DesignSystemPage() {
         <div className="flex flex-col gap-4 max-w-sm">
           <div>
             <p className="text-xs font-mono text-brand-muted mb-1">conviction=1 (min)</p>
-            <ConvictionBar value={1} />
+            <ConvictionBar value={1} onChange={() => {}} />
           </div>
           <div>
             <p className="text-xs font-mono text-brand-muted mb-1">conviction=50 (mid)</p>
-            <ConvictionBar value={50} />
+            <ConvictionBar value={50} onChange={() => {}} />
           </div>
           <div>
             <p className="text-xs font-mono text-brand-muted mb-1">conviction=100 (max)</p>
-            <ConvictionBar value={100} />
+            <ConvictionBar value={100} onChange={() => {}} />
           </div>
         </div>
       </section>
