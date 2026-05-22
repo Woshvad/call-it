@@ -34,6 +34,8 @@ import { withdrawAuthorizeRoute } from './routes/withdraw-authorize.js';
 import { privyWebhookRoute } from './routes/privy-webhook.js';
 import { callsPreflightRoute } from './routes/calls-preflight.js';
 import { callsDupCheckRoute } from './routes/calls-dup-check.js';
+import { feedRoute } from './routes/feed.js';
+import { profileRoute } from './routes/profile.js';
 import { sendAlert } from './workers/alerts.js';
 import { startPaymasterConfirmer } from './workers/paymaster-confirmer.js';
 
@@ -101,6 +103,11 @@ export async function buildApp(): Promise<FastifyInstance> {
   await app.register(callsPreflightRoute);
   // Phase 1 — Plan 08: duplicate-hash pre-check with Redis cache (D-22, CALL-49)
   await app.register(callsDupCheckRoute);
+  // ── Plan 01-09 routes ─────────────────────────────────────
+  // Phase 1 — Plan 09: public feed endpoint (800ms race + 10s cache — D-24/26)
+  await app.register(feedRoute);
+  // Phase 1 — Plan 09: profile resolution (ENS + AUTH-11 priority chain — D-13)
+  await app.register(profileRoute);
   // ─────────────────────────────────────────────────────────
 
   // 5. Boot-time BullMQ compatibility smoke (Pitfall A mitigation)
