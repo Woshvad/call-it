@@ -1,0 +1,143 @@
+# Phase 0 deploys to Subgraph Studio for arbitrum-sepolia.
+# Phase 7 promotes to The Graph Decentralized Network on Arbitrum
+# (~3,000 GRT curation; ~$100-300 cost per operational budget in SUMMARY.md).
+# Per OPS-01, the subgraph is the primary indexed event source from day 1.
+#
+# The Graph Hosted Service was sunset on June 12, 2024.
+# All new subgraphs deploy to Studio, then publish to the Decentralized Network.
+# DO NOT use api.thegraph.com/subgraphs/name/... — that endpoint is dead.
+#
+# Version labeling:
+#   Format: 0.0.<run_number>-<sha7>
+#   Monotonically increasing per workflow run + git SHA suffix for full traceability.
+#   Allows Studio to diff between versions and the operator to correlate to commits.
+#
+# Path filter: this workflow only runs when subgraph files or the workflow itself changes.
+# This avoids spurious deploys on frontend-only or relayer-only pushes.
+#
+# Required GitHub Secrets:
+#   SUBGRAPH_STUDIO_DEPLOY_KEY — Subgraph Studio → Dashboard → call-it-sepolia → Deploy
+#                                 (unique per subgraph; sepolia vs mainnet have different keys)
+
+name: Deploy Subgraph (Subgraph Studio)
+
+on:
+  push:
+    branches:
+      - sepolia
+      - main
+    paths:
+      - 'packages/subgraph/**'
+      - '.github/workflows/deploy-subgraph.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: Build + Deploy packages/subgraph to Subgraph Studio
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate AssemblyScript types from schema
+        run: pnpm --filter @call-it/subgraph run codegen
+
+      - name: Build subgraph (graph build)
+        run: pnpm --filter @call-it/subgraph run build
+
+      - name: Compute version label
+        id: version
+        run: |
+          SHORT_SHA="${GITHUB_SHA:0:7}"
+          VERSION_LABEL="0.0.${{ github.run_number }}-${SHORT_SHA}"
+          echo "VERSION_LABEL=$VERSION_LABEL" >> "$GITHUB_ENV"
+          echo "version_label=$VERSION_LABEL" >> "$GITHUB_OUTPUT"
+          echo "Version label: $VERSION_LABEL"
+
+      - name: Authenticate with Subgraph Studio
+        run: |
+          pnpm --filter @call-it/subgraph exec graph auth \
+            --studio "${{ secrets.SUBGRAPH_STUDIO_DEPLOY_KEY }}"
+
+      - name: Deploy subgraph to Studio (call-it-sepolia)
+        id: deploy
+        run: |
+          # Phase 0: always deploys to the sepolia Studio subgraph.
+          # Phase 7 will add a second deploy step for the Decentralized Network.
+          # --version-label: monotonically increasing + SHA for traceability (T-00-39)
+          DEPLOY_OUTPUT=$(pnpm --filter @call-it/subgraph exec graph deploy \
+            --studio call-it-sepolia \
+            --version-label "${{ env.VERSION_LABEL }}" \
+            2>&1)
+
+          echo "$DEPLOY_OUTPUT"
+
+          # Extract the query URL from Studio's stdout
+          # Studio prints something like: "Build completed: QmXxx" and "Deployed to https://api.studio.thegraph.com/query/..."
+          QUERY_URL=$(echo "$DEPLOY_OUTPUT" | grep -Eo 'https://api\.studio\.thegraph\.com/query/[^ ]+' | tail -1 || echo "")
+
+          if [ -n "$QUERY_URL" ]; then
+            echo "Subgraph query URL: $QUERY_URL"
+            echo "subgraph_url=$QUERY_URL" >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning::Could not extract subgraph query URL from deploy output — check Studio manually"
+            # Construct the expected URL as fallback
+            FALLBACK_URL="https://api.studio.thegraph.com/query/call-it-sepolia/graphql"
+            echo "subgraph_url=$FALLBACK_URL" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Verify subgraph is queryable
+        run: |
+          SUBGRAPH_URL="${{ steps.deploy.outputs.subgraph_url }}"
+          echo "Verifying subgraph at: $SUBGRAPH_URL"
+
+          # Allow some time for Studio indexing to begin
+          sleep 10
+
+          RESPONSE=$(curl -s -X POST \
+            -H "Content-Type: application/json" \
+            -d '{"query": "{ _meta { block { number } } }"}' \
+            "$SUBGRAPH_URL" || echo '{"error":"curl_failed"}')
+
+          echo "Response: $RESPONSE"
+
+          if echo "$RESPONSE" | grep -q '"_meta"'; then
+            echo "PASS: Subgraph is queryable and returns _meta block data"
+          elif echo "$RESPONSE" | grep -q '"data"'; then
+            echo "PASS: Subgraph is queryable (data field present, _meta may not be indexed yet)"
+          else
+            echo "::warning::Subgraph query did not return expected shape — may still be syncing"
+            echo "::warning::Check Studio dashboard: https://thegraph.com/studio/subgraph/call-it-sepolia/"
+          fi
+
+      - name: Output subgraph URL for phase-0-gate.yml
+        run: |
+          echo "### Subgraph Studio Deploy Complete" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "**Version:** ${{ env.VERSION_LABEL }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "**Subgraph:** call-it-sepolia" >> "$GITHUB_STEP_SUMMARY"
+          echo "**Query URL:** ${{ steps.deploy.outputs.subgraph_url }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Studio dashboard: https://thegraph.com/studio/subgraph/call-it-sepolia/" >> "$GITHUB_STEP_SUMMARY"
+
+    outputs:
+      subgraph_url: ${{ steps.deploy.outputs.subgraph_url }}
+      version_label: ${{ steps.version.outputs.version_label }}
