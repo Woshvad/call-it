@@ -67,7 +67,7 @@ Call It ships as a person-first onchain social prediction product on Arbitrum ma
   - [x] 01-07-PLAN.md — Wave 3 (Slice E+F): Paymaster policy + Upstash counter + UserOp confirmer + Circle USDC handoff + address book + 24h cooldown + Privy webhook
   - [x] 01-08-PLAN.md — Wave 4 (Slice D): /new page + RHF + zodResolver + 3 mode sub-forms + dup-check + preflight + Receipt preview + two-step publish modal
   - [x] 01-09-PLAN.md — Wave 4 (Slice G): Feed shell (800ms race + 10s cache) + Profile shell (ENS server-side + 24h cache) + Settings page
-  - [ ] 01-10-PLAN.md — Wave 5 (closure): subgraph extension + REQUIREMENTS amendment for AUTH-27/29 + visual smoke + design-system snap + phase-1-complete-gate workflow + Phase 1 SUMMARY
+  - [x] 01-10-PLAN.md — Wave 5 (closure): subgraph extension + REQUIREMENTS amendment for AUTH-27/29 + visual smoke + design-system snap + phase-1-complete-gate workflow + Phase 1 SUMMARY
 **UI hint**: yes
 **Pitfalls mitigated**: 1 (USDC hardcoded address gate in every transfer path), 5 (Phase 0 env config consumed end-to-end), 12 (UTC duplicate-hash boundary surfaced inline in New Call form), 13 (Privy provider order locked + AST test), 14 (per-user 5-tx cap as primary defense alongside Phase 0 paymaster $50/day cap), 16 (Connect Wallet fallback UX present from day one), 20 (24h new-auth-link cooldown enforced server-side in relayer)
 
