@@ -26,6 +26,7 @@ import { WagmiProvider } from '@privy-io/wagmi';
 import { ToastProvider } from '@call-it/ui';
 import { wagmiConfig } from '@/lib/wagmi';
 import { privyAppId, privyConfig } from '@/lib/privy-config';
+import { WalletExportPrompt } from '@/components/WalletExportPrompt';
 
 /**
  * QueryClient is created outside the component to avoid re-creation on renders.
@@ -49,6 +50,8 @@ export function Providers({ children }: ProvidersProps) {
       <QueryClientProvider client={queryClient}>
         <WagmiProvider config={wagmiConfig}>
           <ToastProvider>
+            {/* AUTH-24: WalletExportPrompt — watches balance and fires toast at ≥$50 */}
+            <WalletExportPrompt />
             {children}
           </ToastProvider>
         </WagmiProvider>

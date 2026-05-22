@@ -73,6 +73,14 @@ const nextConfig: NextConfig = {
         '@farcaster/mini-app-solana': false,
       };
     }
+    // Allow webpack to resolve .js extension imports as .ts in TypeScript workspace packages.
+    // packages/shared uses ESM .js extension imports (correct for tsc output); webpack
+    // needs to also look for .ts when the .js file is not found (Rule 3 — blocking).
+    config.resolve = config.resolve ?? {};
+    config.resolve.extensionAlias = {
+      ...(config.resolve.extensionAlias ?? {}),
+      '.js': ['.ts', '.tsx', '.js'],
+    };
     return config;
   },
 };

@@ -12,17 +12,24 @@ import { useContext, createContext } from 'react';
 
 export type ToastStatus = 'success' | 'info' | 'error';
 
+export interface ToastAction {
+  label: string;
+  onClick: () => void;
+}
+
 export interface ToastItem {
   id: string;
   status: ToastStatus;
   message: string;
   duration: number;
   createdAt: number;
+  /** Optional action button rendered in the toast (AUTH-24: Export button) */
+  action?: ToastAction;
 }
 
 export interface ToastContextValue {
   toasts: ToastItem[];
-  show: (opts: { status: ToastStatus; message: string; duration?: number }) => string;
+  show: (opts: { status: ToastStatus; message: string; duration?: number; action?: ToastAction }) => string;
   dismiss: (id: string) => void;
 }
 

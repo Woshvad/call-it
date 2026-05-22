@@ -56,6 +56,18 @@ export const EnvConfigSchema = z
     /** ProfileRegistry address — null until Phase 1 contracts deployed */
     NEXT_PUBLIC_PROFILE_REGISTRY_ADDRESS: z.string().regex(/^0x[0-9a-fA-F]{40}$/).optional(),
 
+    // ── Phase 1 — Coinbase Onramp (D-34, AUTH-25) ────────────────────────────
+    /**
+     * Coinbase Onramp application ID for the hosted-flow popup (D-34).
+     * Source: Coinbase Cloud → Onramp → Create App → App ID
+     */
+    NEXT_PUBLIC_COINBASE_APP_ID: z.string().min(1).optional(),
+    /**
+     * Coinbase Onramp public client API key (client key only — safe in frontend bundle).
+     * Source: Coinbase Cloud → Onramp → API Keys
+     */
+    NEXT_PUBLIC_COINBASE_ONRAMP_API_KEY: z.string().min(1).optional(),
+
     // ── Phase 1 — Circle USDC Paymaster (D-04/D-05) ───────────────────────────
     /**
      * Circle USDC Paymaster address on Arbitrum One (mainnet).

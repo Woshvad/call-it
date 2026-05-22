@@ -30,7 +30,7 @@ export { Toast, type ToastProps } from './primitives/Toast';
 export { ToastProvider } from './primitives/ToastProvider';
 
 // Hooks
-export { useToast, ToastContext, type ToastItem, type ToastStatus, type ToastContextValue } from './hooks/useToast';
+export { useToast, ToastContext, type ToastItem, type ToastStatus, type ToastAction, type ToastContextValue } from './hooks/useToast';
 
 // Compounds
 export { Receipt, type ReceiptProps, type ReceiptData } from './compound/Receipt';

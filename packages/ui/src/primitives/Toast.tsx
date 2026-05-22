@@ -80,6 +80,18 @@ export function Toast({ toast, onDismiss }: ToastProps) {
         {toast.message}
       </ToastPrimitive.Title>
 
+      {/* Optional action button (AUTH-24: Export wallet) */}
+      {toast.action && (
+        <ToastPrimitive.Action
+          altText={toast.action.label}
+          onClick={toast.action.onClick}
+          className="self-start mt-1 px-3 py-1 text-xs font-mono font-semibold border border-current bg-transparent cursor-pointer hover:opacity-80"
+          data-toast-action
+        >
+          {toast.action.label}
+        </ToastPrimitive.Action>
+      )}
+
       {/* Countdown drain bar */}
       <div
         data-countdown

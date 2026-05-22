@@ -8,7 +8,7 @@
 
 import * as ToastPrimitive from '@radix-ui/react-toast';
 import { useState, useCallback, type ReactNode } from 'react';
-import { ToastContext, type ToastItem, type ToastStatus } from '../hooks/useToast';
+import { ToastContext, type ToastItem, type ToastStatus, type ToastAction } from '../hooks/useToast';
 import { Toast } from './Toast';
 
 const DEFAULT_DURATION = 5000;
@@ -17,7 +17,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<ToastItem[]>([]);
 
   const show = useCallback(
-    (opts: { status: ToastStatus; message: string; duration?: number }): string => {
+    (opts: { status: ToastStatus; message: string; duration?: number; action?: ToastAction }): string => {
       const id = crypto.randomUUID();
       const item: ToastItem = {
         id,
@@ -25,6 +25,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
         message: opts.message,
         duration: opts.duration ?? DEFAULT_DURATION,
         createdAt: Date.now(),
+        action: opts.action,
       };
       setToasts((prev) => [...prev, item]);
       return id;
