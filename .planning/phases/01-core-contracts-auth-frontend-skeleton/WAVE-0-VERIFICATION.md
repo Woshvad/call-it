@@ -68,18 +68,34 @@ Both sources list it under the same "essential for configuring and interacting w
 
 ## Item 4: Alchemy Paymaster RPC Choice (ERC-7677 vs Custom)
 
-**Status: REQUIRES OPERATOR VERIFICATION**
+**Status: VERIFIED 2026-05-22**
 
-RESEARCH Open Question 1: does the Alchemy bundler use standard ERC-7677 `pm_getPaymasterStubData` OR `alchemy_requestGasAndPaymasterAndData` when a gas policy with callback URL is enabled?
+**Finding:** Alchemy AA SDK supports BOTH methods. The choice is determined by which middleware the client wires:
 
-**Operator task:** Open https://www.alchemy.com/docs/wallets/reference/aa-sdk/core/functions/erc7677Middleware and the gas-policy dashboard. Check which RPC method fires when a gas policy is enabled with a policy URL.
+| Middleware (from `@account-kit/infra` / `@aa-sdk/core`) | RPC method | Endpoint hit | Used when |
+|---|---|---|---|
+| `alchemyGasAndPaymasterAndDataMiddleware` (DEFAULT in `createAlchemySmartAccountClient`) | `alchemy_requestGasAndPaymasterAndData` (custom) | Alchemy's own Gas Manager API at `*.g.alchemy.com` | When you just want Alchemy to handle everything via a policyId — no callback URL involved |
+| `erc7677Middleware` (opt-in, from `@aa-sdk/core`) | `pm_getPaymasterStubData` + `pm_getPaymasterData` (ERC-7677 standard) | Any ERC-7677-compliant URL | When you have a custom paymaster service (this is Plan 07's case) |
 
-**Background (from RESEARCH):** The Alchemy aa-sdk uses BOTH methods depending on configuration. ERC-7677 is the standard; `alchemy_requestGasAndPaymasterAndData` is Alchemy's custom extension. Plan 07's `/paymaster/policy` route shape depends on which method the bundler actually calls when a gas policy is configured pointing at our relayer endpoint.
+**Sources verified (2026-05-22):**
+- https://www.alchemy.com/docs/wallets/api-reference/gas-manager-admin-api/gas-abstraction-api-endpoints/pm-get-paymaster-data (`pm_getPaymasterData` request/response shape)
+- https://www.alchemy.com/docs/wallets/api-reference/gas-manager-admin-api/gas-abstraction-api-endpoints/alchemy-request-gas-and-paymaster-and-data (`alchemy_requestGasAndPaymasterAndData` request/response shape)
+- WebSearch confirmation: "alchemyGasAndPaymasterAndDataMiddleware [...] uses Alchemy's custom alchemy_requestGasAndPaymasterAndData method instead of conforming to the standard ERC-7677 interface. When using createAlchemySmartAccountClient, this middleware is already used by default"
 
-Update this file with:
-- Which method is used: ERC-7677 (`pm_getPaymasterStubData` / `pm_getPaymasterData`) OR Alchemy custom
-- The exact request/response shape if Alchemy custom
-- "Plan 07 UNBLOCKED" or "Plan 07 requires schema update" based on the finding
+**Plan 07 status: UNBLOCKED — ERC-7677 endpoint is correct.**
+
+Plan 07's `apps/relayer/src/routes/paymaster-policy.ts` correctly implements the ERC-7677 shape: accepts JSON-RPC `pm_getPaymasterStubData` / `pm_getPaymasterData` with the 4-tuple params (userOp, entryPoint, chainId, context with privyUserId). Schema verified.
+
+**Operator action remaining (D-02 wiring, not blocking the code):**
+1. In the Alchemy Gas Manager dashboard, configure the gas policy at `NEXT_PUBLIC_ALCHEMY_AA_POLICY_ID` with the relayer URL `${NEXT_PUBLIC_RELAYER_BASE_URL}/paymaster/policy` as the policy callback URL.
+2. In `apps/web/lib/aa-config.ts`, replace the stubbed `createAaClient` with a real implementation using `createAlchemySmartAccountClient` from `@account-kit/infra` + `erc7677Middleware` override (NOT the default `alchemyGasAndPaymasterAndDataMiddleware`).
+   - The override is essential: without it, Alchemy calls its own infra and the per-user 5-tx cap server-side enforcement is bypassed.
+   - Pattern: `createAlchemySmartAccountClient({ ..., useSimulation: false, ..., gasManagerConfig: { policyId, policyUrl: erc7677PolicyUrl }, paymasterAndData: erc7677Middleware({ url: erc7677PolicyUrl }) })`
+3. Cap-bypass smoke test (Gap 01-UAT-04): after wiring, send 5 sponsored userOps from a fresh embedded wallet and confirm the 6th attempt receives `-32000 sponsorship-cap-exceeded` from our endpoint (NOT from Alchemy's infra).
+
+`apps/web/lib/aa-config.ts` currently ships a typed stub (`createAaClient` throws `'AA client not yet wired — implement in Plan 07'`) — this is intentional per Plan 05's design (D-02 chokepoint without the full @account-kit/infra dependency in the bundle). The real wiring is a Phase 1.x follow-up tracked here.
+
+**Confidence: HIGH** on the RPC choice; **MEDIUM** on the integration path (depends on @account-kit/infra@4.x staying API-compatible — the package may evolve before mainnet). Re-verify before Phase 7.5.
 
 ---
 
