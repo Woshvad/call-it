@@ -1,0 +1,11 @@
+# Foundry build artifacts
+out/
+cache/
+
+# Broadcast outputs from deploy scripts (may contain tx hashes + gas estimates)
+# Real deployment runs are tracked manually; dry-run output is ephemeral.
+broadcast/
+
+# Deployment keys (NEVER commit)
+.env
+*.key
