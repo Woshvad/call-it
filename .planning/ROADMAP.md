@@ -57,7 +57,17 @@ Call It ships as a person-first onchain social prediction product on Arbitrum ma
   4. The first 5 transactions per user are sponsored by the paymaster (cap enforced server-side at the paymaster gating layer, not just contract-side); 6th transaction routes the user to "fund your wallet to continue"; new auth methods cannot authorize a withdrawal until 24h after `addedAt` (server-side check in relayer per Pitfall 20).
   5. Privy provider tree (`<PrivyProvider><QueryClientProvider><WagmiProvider>{children}</WagmiProvider></QueryClientProvider></PrivyProvider>`) survives a Playwright sign-in smoke test (Pitfall 13) and an AST regression check that the order is preserved across refactors.
   6. Tape feed (`/`), New Call page (`/new`), Profile page shell (`/profile/[address]`), and Sign-in page (`/signin`) render with the locked neobrutalist treatment (color palette, typography stack, 2-3px borders, hard offset shadows, 4px corner brackets, button shadow language); shared loading skeleton (6 variants) and shared error/status toast component (3-status stacking, countdown drain) are reusable from the design-system package.
-**Plans**: TBD
+**Plans**:  10 plans across 5 waves
+  - [ ] 01-01-PLAN.md — Wave 0: monorepo bootstrap; @call-it/ui workspace + Drizzle schema + env extension + WAVE-0-VERIFICATION (Circle paymaster + Privy wagmi v4 + Alchemy RPC choice)
+  - [ ] 01-02-PLAN.md — Wave 0: CallRegistry + ProfileRegistry contracts + DuplicateHashLib + Foundry tests + gate-matrix.json fixture + Sepolia deploy
+  - [ ] 01-03-PLAN.md — Wave 1: Shared Zod schemas + TS duplicate-hash mirror + Vitest parity tests + parity-diff CI gate (D-29 anti-drift)
+  - [ ] 01-04-PLAN.md — Wave 1: @call-it/ui primitives (Button/Card/Tag/CornerBrackets/Skeleton×6/Toast/Stamp) + compound components (Receipt/ConvictionBar/CallCard/ProfileHeader) + AUTH-44 no-wallet-address invariant
+  - [ ] 01-05-PLAN.md — Wave 2 (Slice A): Privy 3-path sign-in + provider tree AST test + Alchemy AA + wagmi configs + sign-in page
+  - [ ] 01-06-PLAN.md — Wave 2 (Slice B): 4-screen onboarding + custody disclosure + 0 export prompt + Coinbase Onramp + relayer onboarding endpoint (privySessionPreHandler shared)
+  - [ ] 01-07-PLAN.md — Wave 3 (Slice E+F): Paymaster policy + Upstash counter + UserOp confirmer + Circle USDC handoff + address book + 24h cooldown + Privy webhook
+  - [ ] 01-08-PLAN.md — Wave 4 (Slice D): /new page + RHF + zodResolver + 3 mode sub-forms + dup-check + preflight + Receipt preview + two-step publish modal
+  - [ ] 01-09-PLAN.md — Wave 4 (Slice G): Feed shell (800ms race + 10s cache) + Profile shell (ENS server-side + 24h cache) + Settings page
+  - [ ] 01-10-PLAN.md — Wave 5 (closure): subgraph extension + REQUIREMENTS amendment for AUTH-27/29 + visual smoke + design-system snap + phase-1-complete-gate workflow + Phase 1 SUMMARY
 **UI hint**: yes
 **Pitfalls mitigated**: 1 (USDC hardcoded address gate in every transfer path), 5 (Phase 0 env config consumed end-to-end), 12 (UTC duplicate-hash boundary surfaced inline in New Call form), 13 (Privy provider order locked + AST test), 14 (per-user 5-tx cap as primary defense alongside Phase 0 paymaster $50/day cap), 16 (Connect Wallet fallback UX present from day one), 20 (24h new-auth-link cooldown enforced server-side in relayer)
 
@@ -211,7 +221,7 @@ Phases execute in numeric order: 0 → 1 → 1.5 (parallel with 2) → 2 → 3 �
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 0. Foundation | 5/5 | Complete   | 2026-05-22 |
-| 1. Core contracts + auth + frontend skeleton | 0/TBD | Not started | - |
+| 1. Core contracts + auth + frontend skeleton | 0/10 | Planned | - |
 | 1.5. Social linking | 0/TBD | Not started | - |
 | 2. FollowFadeMarket | 0/TBD | Not started | - |
 | 3. ChallengeEscrow | 0/TBD | Not started | - |
