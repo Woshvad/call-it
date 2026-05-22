@@ -10,7 +10,7 @@ Call It ships as a person-first onchain social prediction product on Arbitrum ma
 - Integer phases (0, 1, 2, ...): Planned milestone work
 - Decimal phases (1.5, 7.5): Parallel-stream phase (1.5) and mainnet-deploy gate (7.5)
 
-- [ ] **Phase 0: Foundation** - Always-live infra: monorepo, multisig prep, IPFS, CDN, subgraph schema, relayer skeleton, monitoring stack, env-var matrix, USDC single source-of-truth, OG fallback variant
+- [x] **Phase 0: Foundation** - Always-live infra: monorepo, multisig prep, IPFS, CDN, subgraph schema, relayer skeleton, monitoring stack, env-var matrix, USDC single source-of-truth, OG fallback variant (completed 2026-05-22)
 - [ ] **Phase 1: Core contracts + auth + frontend skeleton** - CallRegistry + ProfileRegistry contracts, Privy 3-path sign-in, onboarding, paymaster (5 free tx), address book + 24h cooldown, New Call flow, design system, loading skeleton + toast
 - [ ] **Phase 1.5: Social linking (parallel to Phase 2)** - Twitter/Farcaster OAuth proof, relayer-signed `linkTwitter`/`linkFarcaster`, VERIFIED badges, "From your X/Farcaster" feed sections
 - [ ] **Phase 2: FollowFadeMarket** - Single-contract AMM with per-callId sub-state, follow/fade with `minSharesOut` slippage, caller exit (24h lock + decay), follower/fader exit (4h cooldown + 10% slash), Live Receipt page
@@ -42,7 +42,7 @@ Call It ships as a person-first onchain social prediction product on Arbitrum ma
   - [x] 00-02-PLAN.md — Wave 1: Fastify relayer skeleton on Fly.io iad; 5-key GCP KMS signer wrapper; Pino + Better Stack logging with redaction; Upstash Redis + paymaster counter; 9-event Telegram alert dispatcher (P0/P1) + admin endpoints
   - [x] 00-03-PLAN.md — Wave 2: 23-entity subgraph schema deployed to Studio for Sepolia; polled-events fallback worker (viem.getLogs); SHARE-09 OG Fallback route on Vercel Node runtime with <100ms p95 warm render
   - [x] 00-04-PLAN.md — Wave 3: Safe 2-of-3 deploy script + Sepolia dry-run with Ledger; Google Calendar Stylus reactivation seeding + Phase 5 repoint hook + relayer deactivation-watcher (second belt); daily synthetic-alert CI cron with Telegram getUpdates verification; 5 Better Stack dashboards + 5 operator runbooks + demo seed plan
-  - [ ] 00-05-PLAN.md — Wave 4: Vercel + Fly.io + Subgraph Studio deploy workflows with GCP OIDC federation; phase-0-gate.yml on tag phase-0-complete; 6-step smoke test against deployed artifacts; operator pre-tag checklist (8 hosted-resource verification items including Pinata D-20 + default-domain D-05)
+  - [x] 00-05-PLAN.md — Wave 4: Vercel + Fly.io + Subgraph Studio deploy workflows with GCP OIDC federation; phase-0-gate.yml on tag phase-0-complete; 6-step smoke test against deployed artifacts; operator pre-tag checklist (8 hosted-resource verification items including Pinata D-20 + default-domain D-05)
 **Pitfalls mitigated**: 1 (USDC single source + CI grep), 3 (TVL cap surfaces will read from canonical aggregator), 5 (env discipline + diff ritual), 6 (multisig prep this phase, promotion in Phase 6), 7 (KMS storage from day one), 8 (subgraph + OG service from day one — no cache-desync window opens), 10 (CEX scraper synthetic-monitoring scaffolding), 17 (calendar reminder for Stylus reactivation)
 
 ### Phase 1: Core contracts + auth + frontend skeleton
@@ -210,7 +210,7 @@ Phases execute in numeric order: 0 → 1 → 1.5 (parallel with 2) → 2 → 3 �
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 0. Foundation | 4/5 | In Progress|  |
+| 0. Foundation | 5/5 | Complete   | 2026-05-22 |
 | 1. Core contracts + auth + frontend skeleton | 0/TBD | Not started | - |
 | 1.5. Social linking | 0/TBD | Not started | - |
 | 2. FollowFadeMarket | 0/TBD | Not started | - |
