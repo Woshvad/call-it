@@ -53,6 +53,25 @@ const baseConfig = [
       'call-it/no-display-grid': 'error',
     },
   },
+  {
+    // Receipt component: enforce no-display-grid pre-emptively (Phase 7 will render
+    // Receipt via Satori for OG cards — Pitfall 15 anti-drift defense)
+    files: [
+      'packages/ui/src/compound/Receipt.tsx',
+      'packages/ui/src/compound/Receipt/**/*.ts',
+      'packages/ui/src/compound/Receipt/**/*.tsx',
+    ],
+    plugins: {
+      'call-it': {
+        rules: {
+          'no-display-grid': noDisplayGrid,
+        },
+      },
+    },
+    rules: {
+      'call-it/no-display-grid': 'error',
+    },
+  },
 ];
 
 module.exports = baseConfig;

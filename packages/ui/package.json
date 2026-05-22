@@ -1,0 +1,39 @@
+{
+  "name": "@call-it/ui",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Call It — shared UI design system (Tailwind + CVA + Radix, neobrutalist)",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "build": "tsc --build",
+    "test": "vitest run",
+    "lint": "eslint src/"
+  },
+  "dependencies": {
+    "@call-it/shared": "workspace:*",
+    "class-variance-authority": "^0.7.0",
+    "clsx": "^2.1.0",
+    "tailwind-merge": "^2.5.0",
+    "@radix-ui/react-dialog": "^1.1.0",
+    "@radix-ui/react-popover": "^1.1.0",
+    "@radix-ui/react-tooltip": "^1.1.0",
+    "@radix-ui/react-slider": "^1.2.0",
+    "framer-motion": "^11.0.0"
+  },
+  "peerDependencies": {
+    "react": "^19",
+    "react-dom": "^19"
+  },
+  "devDependencies": {
+    "@call-it/config": "workspace:*",
+    "typescript": "^5.6.0",
+    "vitest": "^3.0.0",
+    "tailwindcss": "^3.4",
+    "postcss": "^8.4.0",
+    "autoprefixer": "^10.4.0"
+  }
+}

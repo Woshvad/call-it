@@ -15,6 +15,7 @@
   },
   "dependencies": {
     "@call-it/shared": "workspace:*",
+    "@call-it/ui": "workspace:*",
     "@farcaster/auth-kit": "0.8.2",
     "@privy-io/react-auth": "3.27.0",
     "@privy-io/wagmi": "4.0.8",
