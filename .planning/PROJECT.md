@@ -102,6 +102,7 @@ Per spec §4.5 (deferred to v2) and §4.6 (explicitly cut):
 | Owner-resolved disputes in v1 | Locked per §13.7; decentralized resolution (Kleros / token vote) is post-hackathon | — Pending |
 | 3 reputation categories (Majors/DeFi/Other) | Locked per §7.5; reduced from 8 — at hackathon volume eight categories were statistical noise. Append-only enum for v2 expansion | — Pending |
 | Receipts are off-chain OG images, not NFTs | Locked per §18.2; faster to render, easier to iterate, referenced onchain by hash | — Pending |
+| D-06 (Phase 1): 6th-tx-onward gas mechanic | Circle USDC Paymaster on Arbitrum with per-tx EIP-2612 permit replaces user-provided ETH; no ETH ever required. Rationale: eliminates user-friction onboarding step that contradicts the USDC-native value prop. | Locked in Phase 1 — Plans 07/08 implementation. REQUIREMENTS.md AUTH-27 + AUTH-29 amended verbatim. 2026-05-23 |
 
 ## Evolution
 
