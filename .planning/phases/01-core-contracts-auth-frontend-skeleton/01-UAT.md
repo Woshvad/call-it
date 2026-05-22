@@ -1,16 +1,23 @@
 ---
 phase: 01-core-contracts-auth-frontend-skeleton
 created: 2026-05-22
-status: pending
+updated: 2026-05-22
+status: partial
 gaps_total: 6
-gaps_open: 6
-gaps_resolved: 0
+gaps_open: 4
+gaps_resolved: 1
+gaps_partial: 1
 verification_source: .planning/phases/01-core-contracts-auth-frontend-skeleton/01-VERIFICATION.md
 ---
 
 # Phase 01 — UAT (Operator + Human Verification)
 
-Phase 1 execution is complete: 10 plans landed across 7 waves, ~40 commits, 257+ tests pass. Verifier reported `human_needed` because 1 deploy-gate + 5 live-integration tests are operator-bound (not orchestrator-resolvable). Each item below must be checked off before the phase can be marked fully complete in ROADMAP.
+Phase 1 execution is complete: 10 plans landed across 7 waves, ~45 commits, 257+ tests pass. Verifier reported `human_needed` because 1 deploy-gate + 5 live-integration tests were operator-bound. Status as of 2026-05-22:
+
+- **Gap 5 (Circle Paymaster mainnet address) — RESOLVED** via web verification. Bonus: Sepolia paymaster address (`0x31BE08D380A21fc740883c0BC434FcFc88740b58`) also captured — was previously assumed not to exist.
+- **Gap 6 (Visual snapshot baselines) — PARTIAL.** 2 of 9 baselines generated (signin, new-call). Plan 10 introduced three real bugs (route at `_dev/` invisible to Next.js router, middleware redirect intercepting the route, two component prop-shape mismatches in the design-system page) — all three fixed in commits 1dfaaf0 / `fix(01-UAT-06)`. The remaining 7 baselines require either a real Privy App ID at CI build time OR a follow-up refactor to opt /dev/* routes out of the global Providers wrapper.
+- **Operator setup item #2 (Alchemy paymaster RPC choice) — RESOLVED** via web verification. WAVE-0-VERIFICATION Item 4 updated with the full integration plan.
+- **Gaps 1, 2, 3, 4 — still operator-bound** (Sepolia deploy with funded key, live OAuth round-trip, Coinbase Onramp popup, full paymaster 5→6 e2e).
 
 ## Gaps
 
@@ -65,35 +72,48 @@ forge script script/DeployPhase1.s.sol:DeployPhase1 \
 
 ### Gap 01-UAT-05 — Circle USDC Paymaster mainnet address verification (D-04)
 
-**Status:** failed (placeholder address — MEDIUM confidence)
+**Status: RESOLVED 2026-05-22**
 
-**What:** `CIRCLE_PAYMASTER_ARBITRUM_ONE = '0x6C973eBe80dCD8660841D4356bf15c32460271C9'` in `packages/shared/src/constants/addresses.ts` is from MEDIUM-confidence RESEARCH (Plan 01 WAVE-0-VERIFICATION.md Item 2). Cannot ship to mainnet without browser-verifying this against current Arbitrum third-party docs + Circle's public paymaster announcement.
+Verified against both source-of-truth pages:
+- https://docs.arbitrum.io/for-devs/third-party-docs/Circle/usdc-paymaster-quickstart
+- https://www.circle.com/blog/how-to-integrate-circle-paymaster-...
 
-**How to close:**
-1. Open https://docs.arbitrum.io/for-devs/third-party-docs/Circle/usdc-paymaster-quickstart — copy the current mainnet paymaster address verbatim.
-2. Cross-check against https://www.circle.com/blog/how-to-integrate-circle-paymaster-to-enable-users-to-pay-gas-fees-with-their-usdc-balance
-3. If different from `0x6C97...`, update `CIRCLE_PAYMASTER_ARBITRUM_ONE` in `addresses.ts` and re-run the relayer test suite.
-4. Record the verification result in `WAVE-0-VERIFICATION.md` Item 2.
+Mainnet `0x6C973eBe80dCD8660841D4356bf15c32460271C9` matches RESEARCH placeholder. Confidence raised MEDIUM → HIGH. JSDoc in `addresses.ts` updated with both source URLs.
+
+**Bonus discovery:** Sepolia paymaster exists at `0x31BE08D380A21fc740883c0BC434FcFc88740b58` (RESEARCH wrongly assumed there was no Sepolia paymaster). Populated in `addresses.ts`; type narrowed from `string | null` to `string` const. WAVE-0-VERIFICATION Items 2 + 3 closed. T-01-01 closed. Sepolia staging can now exercise the Circle handoff path before mainnet.
+
+Commits: `e8ee76c` (addresses + WAVE-0 update).
 
 ### Gap 01-UAT-06 — Visual snapshot baselines + phase-1-complete tag (T-01-70)
 
-**Status:** failed (baselines not yet committed)
+**Status: PARTIAL — 2 of 9 baselines generated; 3 production bugs found and fixed along the way**
 
-**What:** `apps/web/tests/visual-smoke.spec.ts` and `apps/web/tests/design-system-snap.spec.ts` use Playwright `toHaveScreenshot` but `apps/web/tests/__screenshots__/` is empty. The `phase-1-complete-gate` workflow runs these tests in tag mode but cannot pass without baselines.
+Production bugs found while attempting baseline generation (all fixed):
 
-**How to close:** Locally run:
-```bash
-pnpm --filter @call-it/web exec playwright test tests/visual-smoke.spec.ts --update-snapshots
-pnpm --filter @call-it/web exec playwright test tests/design-system-snap.spec.ts --update-snapshots
-```
-Review each baseline image for design-system correctness; commit them. Then push the `phase-1-complete` tag to trigger the full gate workflow.
+1. **Plan 10 placed the design-system page at `apps/web/app/_dev/design-system/`.** Next.js App Router treats underscore-prefixed folders as private (not routed). The route literally didn't exist in the build — every request to `/_dev/design-system` would 404. Renamed `_dev` → `dev`. The page's own runtime env-var guard (`NEXT_PUBLIC_DEV_ROUTES=1`) still gates production-disable.
+
+2. **Middleware was redirecting `/dev/*` to `/signin`** because it wasn't in PUBLIC_PREFIXES. Added.
+
+3. **Two component prop-shape mismatches** in the design-system page (`<CornerBrackets>` invoked with `size`/`strokeWidth`/`className`/children — the component takes no props; `<ConvictionBar>` missing required `onChange`). Both repaired.
+
+Baselines generated (committed):
+- `visual-smoke/signin-chromium-win32.png`
+- `visual-smoke/new-call-chromium-win32.png`
+
+Skipped (7 tests):
+- `visual-smoke/home-feed`, `visual-smoke/profile` — Privy provider in the global ClientProviders throws on the mock app ID before the page mounts (known Plan 05 limitation, documented in 01-05-SUMMARY).
+- All 5 `design-system-snap` tests — same root cause; the Privy crash in the global layout cascades to /dev/* because there's no opt-out from the global Providers wrapper.
+
+**How to close fully:** Either (a) set a real Privy App ID in the CI env for the visual run, or (b) refactor the root layout to opt /dev/* out of the Providers wrapper (e.g., move /dev under a route group with its own minimal layout). The fully-passing visual gate is a Phase 1.x follow-up; the 2 baselines + bug fixes are net wins now.
+
+Commits: `1dfaaf0` (design-system page prop fixes), `<HEAD>` (route rename + middleware + 2 baselines).
 
 ## Operator Setup Items (carry-forward from plan SUMMARYs)
 
 Tracked separately from the UAT gaps above — these are infrastructure setup the operator needs to do at some point before mainnet, but don't block the code from being correct:
 
 1. **Fly Postgres provisioning** (from 01-01 + 01-06) — `fly postgres create --region iad --name call-it-pg` + GCP Secret Manager `POSTGRES_URL` for both sepolia and mainnet projects.
-2. **Alchemy paymaster RPC choice** (from 01-01 + 01-07) — Plan 07 picked ERC-7677 standard; verify against current Alchemy AA SDK docs that this is the supported method (or switch to `alchemy_requestGasAndPaymasterAndData` if v4-only).
+2. **Alchemy paymaster RPC choice** (from 01-01 + 01-07) — **RESOLVED 2026-05-22.** Alchemy AA SDK ships BOTH `alchemyGasAndPaymasterAndDataMiddleware` (default, calls Alchemy's `alchemy_requestGasAndPaymasterAndData` against Alchemy's own infra — bypasses our endpoint) AND `erc7677Middleware` (opt-in, calls standard `pm_getPaymasterStubData`/`pm_getPaymasterData` against any URL — what Plan 07's `/paymaster/policy` is built for). Plan 07's design is CORRECT. WAVE-0-VERIFICATION Item 4 fully closed with the integration plan: dashboard policy URL + `createAlchemySmartAccountClient` with `erc7677Middleware` override in `aa-config.ts` (currently a typed stub per Plan 05 design).
 3. **Privy webhook secret rotation runbook** (from 01-07) — verify Svix `whsec_`-prefixed format in GCP Secret Manager.
 4. **ENS_MAINNET_RPC_URL** (from 01-01 + 01-09) — separate Alchemy free-tier Ethereum mainnet RPC for ENS reverse-record resolution (per-network IAM isolation from Phase 0 D-09).
 5. **The Graph Studio deploy key** (from 01-10) — for `pnpm --filter @call-it/subgraph deploy:sepolia` to publish the extended mappings.
