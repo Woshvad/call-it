@@ -421,7 +421,7 @@ if (combinedTvl + amountIn > tvlCap) revert TvlCapReached(amountIn, tvlCap - com
 // Per-callId pool state (keyed by callId — single contract per §11.2)
 mapping(uint256 => uint256) public followReserve;      // real USDC (6 dec)
 mapping(uint256 => uint256) public fadeReserve;        // real + virtual USDC (6 dec)
-mapping(uint256 => bool)    public fadeSeedVirtual;    // true while virtual seed is still "in" fade pool
+mapping(uint256 => uint256) public fadeSeedVirtual;    // stores the virtual seed AMOUNT; used in fadeReserve - fadeSeedVirtual subtraction in invariant_usdcBalanceMatchesReserves
 mapping(uint256 => uint256) public followTotalShares;  // 18-dec share units
 mapping(uint256 => uint256) public fadeTotalShares;    // 18-dec share units
 mapping(uint256 => uint256) public callerVolumeAtExit; // snapshot for Model B (SOCIAL-20)
@@ -1086,22 +1086,25 @@ No new infrastructure is needed for Phase 2.
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **`applyRepDelta` signature on redeployed ProfileRegistry**
    - What we know: D-05 says "calls `profileRegistry.applyRepDelta(caller, delta)`" but the current IProfileRegistry has no such method; needs to be added.
    - What's unclear: Does the planner add this to IProfileRegistry.sol in the same PR as the ProfileRegistry redeploy, or is it a separate interface extension?
    - Recommendation: Add `applyRepDelta(address user, int256 delta)` and `setAuthorizedRepWriter(address writer, bool authorized)` to IProfileRegistry in the same wave as the ProfileRegistry redeploy.
+   - RESOLVED: Added to IProfileRegistry.sol in Plan 02-03 Task 2 (ProfileRegistry redeploy diff — authorizedRepWriters + applyRepDelta).
 
 2. **`callerExitedAt` field in CallRegistry**
    - What we know: SOCIAL-21 requires `call.callerExitedAt = now`; the current `Call` struct (ICallRegistry.sol) has no such field.
    - What's unclear: Adding it to the struct means the `Call` struct changes, which changes the ABI, which requires updating any downstream consumer of `getCall()`.
    - Recommendation: Add `uint64 callerExitedAt` to the `Call` struct in the redeployed CallRegistry. This is acceptable since it's a redeploy not an upgrade. Ensure `computeCallerExitPenalty` reads from it.
+   - RESOLVED: Added to the `Call` struct in ICallRegistry.sol in Plan 02-03 Task 1 (CallRegistry redeploy diff — stake-forward + authorization surface).
 
 3. **Quote stance storage location**
    - What we know: D-15 says stored off-chain in "relayer DB / subgraph" keyed to on-chain `CallQuoted` event.
    - What's unclear: Is the stance stored in Fly Postgres (new `quote_stance` table) or as a subgraph entity annotation via a relayer-signed event replay?
    - Recommendation: Simpler = Fly Postgres `quote_stance` table: `(call_id, quote_call_id, stance ENUM('following','fading'))`, indexed by `quote_call_id`. Relayer writes on quote-call creation webhook; frontend reads via `/api/quote-stance?callId=X`.
+   - RESOLVED: `quote_stance` table added to Fly Postgres / Drizzle schema in Plan 02-05 Task 1 (notifications + quote_stance table DDL); stance stored as varchar(10) 'following'|'fading' column, indexed by quoteCallId.
 
 ---
 

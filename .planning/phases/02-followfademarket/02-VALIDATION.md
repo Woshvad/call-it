@@ -1,8 +1,8 @@
 ---
 phase: 2
 slug: followfademarket
-status: draft
-nyquist_compliant: false
+status: approved
+nyquist_compliant: true
 wave_0_complete: false
 created: 2026-05-29
 ---
@@ -56,12 +56,19 @@ created: 2026-05-29
 | SOCIAL-21 | `call.status = CallerExited` after caller exit | unit | `forge test --match-test testCallerExitStatus -v` | ❌ W0 |
 | SOCIAL-24 | Caller-exit notification fan-out writes one row per holder | integration | relayer worker test | ❌ W0 |
 | SOCIAL-26 | Rep slash applied via `applyRepDelta` in same tx | unit | `forge test --match-test testRepSlash -v` | ❌ W0 |
+| SOCIAL-27 | callerExit snapshots callerVolumeAtExit + callerExitedAt (Phase 4 skip signal) | unit | `forge test --match-test testCallerExit_snapshotsCallerVolumeAtExit -v` | ❌ W0 |
 | D-01 | `createCall` forwards stake to FFM, does not hold | integration | `forge test --match-test testCreateCallForwards -v` | ❌ W0 |
 | Pitfall 9 | AMM `k`-invariant holds across multi-call interference | **invariant fuzz** | `forge test --match-contract FollowFadeMarketInterference -v` | ❌ W0 |
 | Pitfall 22 | Empty-pool LP-fee routes to treasury | unit | `forge test --match-test testEmptyPoolLpFee -v` | ❌ W0 |
 | Pitfall 3 | TVL aggregation boundary $4999 / $5001 | unit | `forge test --match-test testTvlBoundary -v` | ❌ W0 |
 | Pitfall 10 | Strict `<` expiry gate (off-by-one) | unit | `forge test --match-test testExpiryGate -v` | ❌ W0 |
-| SHARE-04 / UI-06/07 | Live OG card + Live Receipt render correctly | visual/smoke | Playwright OG smoke test | ❌ W0 |
+| SHARE-04 / UI-06 / UI-07 | Live OG card + Live Receipt render correctly | visual/smoke | `pnpm --filter @call-it/web playwright test tests/og-live-smoke.spec.ts` | ❌ W0 (see Wave 0 Requirements) |
+| Plan 02-04 deploy | callRegistry.followFadeMarket() == ffm; authorizedRepWriters(ffm)==true; tvlCap==5000e6 | deploy assertion | `cast call $CALL_REGISTRY_V2 "followFadeMarket()(address)" --rpc-url $ARBITRUM_SEPOLIA_RPC` returns FFM address (operator-verified in checkpoint) | N/A (checkpoint) |
+| Plan 02-05 DB | notifications + quote_stance tables exist in Fly Postgres | migration | `pnpm --filter @call-it/relayer db:migrate` exits 0; `pnpm --filter @call-it/relayer build` exits 0 (BLOCKING checkpoint) | N/A (checkpoint) |
+| Plan 02-06 subgraph | graph build succeeds; FollowFadeMarket event handlers in subgraph.yaml | codegen+build | `cd packages/subgraph && pnpm graph codegen && pnpm graph build 2>&1 \| grep "Build completed"` | automated |
+| Plan 02-07 relayer | liveStateRoute + quoteStanceRoute + notificationsRoute registered; relayer build exits 0 | build | `pnpm --filter @call-it/relayer build 2>&1 \| grep -c "error" \| xargs -I{} test {} -eq 0` | automated |
+| Plan 02-08 UI | /call/[id] page.tsx has 5s refetchInterval; CALLER EXITED banner; all modal components compile | build | `pnpm --filter @call-it/web build 2>&1 \| grep -E "error\|Route.*call"` exits clean | automated |
+| Plan 02-09 OG | /og/[callId]/route.ts has runtime='nodejs'; no display:grid; NotificationBell/Inbox compile | build + grep | `grep "runtime = 'nodejs'" apps/web/app/og/\[callId\]/route.ts && grep -c "display.*grid" apps/web/app/og/\[callId\]/route.ts \| xargs test 0 -eq` | automated |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 
@@ -69,15 +76,16 @@ created: 2026-05-29
 
 ## Wave 0 Requirements
 
-- [ ] `packages/contracts/test/FollowFadeMarket.t.sol` — SOCIAL-01..28 unit tests
+- [ ] `packages/contracts/test/FollowFadeMarket.t.sol` — SOCIAL-01..28 unit tests (including SOCIAL-27 stubs: `test_callerExit_snapshotsCallerVolumeAtExit` asserts callerVolumeAtExit > 0 and callerExitedAt != 0; `test_callerExited_noSettlementRepDelta` with `vm.skip("Phase 4: SettlementManager must skip rep delta when callerExitedAt != 0")` documents Phase 4 dependency)
 - [ ] `packages/contracts/test/FollowFadeMarketGates.t.sol` — AMM `k`-invariant + penalty-injection invariant fuzz (`invariant_kNeverShrinks`, `invariant_usdcBalanceMatchesReserves`, `invariant_noOverClaim`)
 - [ ] `packages/contracts/test/FollowFadeMarketInterference.t.sol` — multi-call interference fixtures (Pitfall 9)
 - [ ] `packages/contracts/test/TvlAggregation.t.sol` — TVL cap boundary tests (Pitfall 3)
 - [ ] `packages/contracts/test/helpers/FfmTestHelper.sol` — shared bootstrap (deploy FFM + seed 3 calls)
 - [ ] ABI export: `packages/contracts/out/FollowFadeMarket.sol/FollowFadeMarket.json` → `packages/subgraph/abis/`
 - [ ] `packages/shared` Vitest parity stubs for follow/fade/exit gate math (D-29)
+- [ ] `apps/web/tests/og-live-smoke.spec.ts` — Playwright smoke test for SHARE-04/UI-06/UI-07: renders `/og/{testCallId}?v=1` (checks 1200x630 image content-type), loads `/call/{testCallId}` and asserts follow% bar element + CALLER EXITED banner conditional. Command: `pnpm --filter @call-it/web playwright test tests/og-live-smoke.spec.ts`
 
-*No new test framework install needed — Foundry and Vitest already installed (Phase 0/1).*
+*No new test framework install needed — Foundry and Vitest already installed (Phase 0/1). Playwright must be installed if not already present (`pnpm --filter @call-it/web add -D @playwright/test`).*
 
 ---
 
@@ -94,11 +102,15 @@ created: 2026-05-29
 
 ## Validation Sign-Off
 
-- [ ] All tasks have `<automated>` verify or Wave 0 dependencies
-- [ ] Sampling continuity: no 3 consecutive tasks without automated verify
-- [ ] Wave 0 covers all MISSING references (test files above)
-- [ ] No watch-mode flags
-- [ ] Feedback latency < 30s (quick) / 5 min (full)
-- [ ] `nyquist_compliant: true` set in frontmatter
+- [x] All tasks have `<automated>` verify or Wave 0 dependencies
+- [x] Sampling continuity: no 3 consecutive tasks without automated verify (all autonomous tasks use forge/pnpm build commands; checkpoints have operator-verified assertions)
+- [x] Wave 0 covers all MISSING references (test files listed above including `og-live-smoke.spec.ts` for SHARE-04/UI-06/UI-07)
+- [x] No watch-mode flags
+- [x] Feedback latency < 30s (quick) / 5 min (full)
+- [x] `nyquist_compliant: true` set in frontmatter
+- [x] All 34 phase requirement IDs covered across plans 02-01 through 02-09 (SOCIAL-01..28, SOCIAL-43..45, UI-06, UI-07, SHARE-04)
+- [x] Per-Task Verification Map extended to cover plans 02-04 through 02-09 with concrete automated commands
+- [x] SOCIAL-27 has explicit verifiable test (`test_callerExit_snapshotsCallerVolumeAtExit`) plus Phase 4 stub (`test_callerExited_noSettlementRepDelta` with `vm.skip`)
+- [x] SHARE-04/UI-06/UI-07 resolved: `apps/web/tests/og-live-smoke.spec.ts` Playwright smoke test file scheduled in Wave 0 Requirements with owning command
 
-**Approval:** pending
+**Approval:** approved
