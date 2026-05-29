@@ -408,7 +408,7 @@ Requirements for the v1 mainnet release. Each line is an atomic, testable behavi
 - [ ] **SHARE-01**: Off-chain OG image service generates 1200×630px PNG cards via Node.js using Satori or `@vercel/og` (§16.1, §18.2)
 - [ ] **SHARE-02**: OG service is hosted at `api.callitapp.xyz/og/[callId]` (§19 Phase 7)
 - [ ] **SHARE-03**: OG images are cached on CDN and regenerated when call state changes — new follow/fade activity or settlement (§16.1, §19 Phase 7)
-- [ ] **SHARE-04**: Live State Card (variant 1) — Call It wordmark top-left + Arbitrum logo top-right + center call statement + "by [caller] · X% conviction · stake $XXX" + follow%/fade% progress bar + time-left countdown + corner bracket motif (§16.2)
+- [x] **SHARE-04**: Live State Card (variant 1) — Call It wordmark top-left + Arbitrum logo top-right + center call statement + "by [caller] · X% conviction · stake $XXX" + follow%/fade% progress bar + time-left countdown + corner bracket motif (§16.2)
 - [ ] **SHARE-05**: Settled State Card (variant 2) — Call It wordmark + Arbitrum logo + center outcome word as visual hero (Syne display) + original call statement below + P&L / Rep change / Final / Conviction stats row + caller avatar + handle + current global rep + corner brackets (§16.3)
 - [ ] **SHARE-06**: Outcome word color mapping on cards matches §15.7 — CALLED IT green, LOUD AND WRONG red, CONTRARIAN HIT accent, COLD CALL muted, FADED CORRECTLY accent (§16.3)
 - [ ] **SHARE-07**: Duel Settled Card (variant 3) — two-column hero with winner avatar (~180px) + winner handle + WINS in Syne next to winner's column; loser avatar dimmed to 40%; pot ("Pot: $X,XXX · winner takes all"); rep deltas paired; market + target small text; Call It + Arbitrum branding bottom corners (§16.4)
@@ -930,7 +930,7 @@ Which phases cover which requirements. Updated during roadmap creation by the ro
 | SHARE-01 | Phase 7 | Pending |
 | SHARE-02 | Phase 7 | Pending |
 | SHARE-03 | Phase 7 | Pending |
-| SHARE-04 | Phase 2 | Pending |
+| SHARE-04 | Phase 2 | Complete |
 | SHARE-05 | Phase 4 | Pending |
 | SHARE-06 | Phase 4 | Pending |
 | SHARE-07 | Phase 3 | Pending |

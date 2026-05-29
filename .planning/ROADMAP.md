@@ -106,7 +106,7 @@ Call It ships as a person-first onchain social prediction product on Arbitrum ma
   - [ ] 02-06-PLAN.md — Wave 2: Subgraph extension (follow-fade-market.ts + subgraph.yaml update + Sepolia Studio redeploy)
   - [x] 02-07-PLAN.md — Wave 2: Relayer routes (live-state + quote-stance + notifications) + notification-fanout worker + statusVersion bump
   - [x] 02-08-PLAN.md — Wave 3: /call/[id] Live Receipt page + 4 modal components (Follow/Fade/CallerExit/PositionExit)
-  - [ ] 02-09-PLAN.md — Wave 4: OG card variant 1 (/og/[callId]/route.ts Node runtime) + NotificationBell + NotificationInbox
+  - [x] 02-09-PLAN.md — Wave 4: OG card variant 1 (/og/[callId]/route.ts Node runtime) + NotificationBell + NotificationInbox
 **UI hint**: yes
 **Pitfalls mitigated**: 3 (canonical `getTvl()` + TVL aggregation boundary tests staged for Phase 6), 8 (OG cache-busting via `?v={statusVersion}` rolls forward on every state change), 9 (per-callId AMM invariant property-based fuzz), 10 (strict `block.timestamp < call.expiry` gate in `follow`/`fade`), 22 (empty-pool LP-fee math routes to treasury — explicit fixture test)
 
