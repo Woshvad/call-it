@@ -104,7 +104,7 @@ Call It ships as a person-first onchain social prediction product on Arbitrum ma
   - [ ] 02-04-PLAN.md — Wave 1: DeployPhase2.s.sol + addresses.ts + ABI export + [OPERATOR] Sepolia deploy checkpoint
   - [ ] 02-05-PLAN.md — Wave 2: DB schema (notifications + quote_stance tables) + [BLOCKING] Drizzle migration
   - [ ] 02-06-PLAN.md — Wave 2: Subgraph extension (follow-fade-market.ts + subgraph.yaml update + Sepolia Studio redeploy)
-  - [ ] 02-07-PLAN.md — Wave 2: Relayer routes (live-state + quote-stance + notifications) + notification-fanout worker + statusVersion bump
+  - [x] 02-07-PLAN.md — Wave 2: Relayer routes (live-state + quote-stance + notifications) + notification-fanout worker + statusVersion bump
   - [ ] 02-08-PLAN.md — Wave 3: /call/[id] Live Receipt page + 4 modal components (Follow/Fade/CallerExit/PositionExit)
   - [ ] 02-09-PLAN.md — Wave 4: OG card variant 1 (/og/[callId]/route.ts Node runtime) + NotificationBell + NotificationInbox
 **UI hint**: yes

@@ -186,9 +186,9 @@ Requirements for the v1 mainnet release. Each line is an atomic, testable behavi
 - [ ] **SOCIAL-40**: Trending Duel auto-promotion — duels with combined pot ≥ $500 USDC OR ≥50 "Riding" backers are pinned to top of global feed for 4 hours with "TRENDING DUEL" label (§5.3, §15.1)
 - [ ] **SOCIAL-41**: Duel King badge displays on the single user with the highest 7-day duel win streak; refreshed weekly; visible on profile, leaderboard row, feed call cards, receipt cards (§5.3)
 - [ ] **SOCIAL-42**: Duels tab in feed shows Active duels (sorted by pot descending), Trending duels pinned, Recently settled duels (last 7 days); filter chips All / Active / Just settled / High-stakes / Trending (§5.3, §15.1)
-- [ ] **SOCIAL-43**: User can Quote-call any live call via `/new?quote=[parentCallId]`; quote is stored on CallRegistry with `parent_call_id` reference and renders as a threaded reply (§5.4, §15.10)
-- [ ] **SOCIAL-44**: Receipt page Live state shows a live activity feed (left column) with real-time follow/fade entries — avatar, handle, VERIFIED · X badge, amount, relative time, label "updating" with live pulse indicator (§15.3)
-- [ ] **SOCIAL-45**: Receipt page Live state shows quote-calls section (right column) with FADING/FOLLOWING tag per quote based on direction (§15.3, §5.4)
+- [x] **SOCIAL-43**: User can Quote-call any live call via `/new?quote=[parentCallId]`; quote is stored on CallRegistry with `parent_call_id` reference and renders as a threaded reply (§5.4, §15.10)
+- [x] **SOCIAL-44**: Receipt page Live state shows a live activity feed (left column) with real-time follow/fade entries — avatar, handle, VERIFIED · X badge, amount, relative time, label "updating" with live pulse indicator (§15.3)
+- [x] **SOCIAL-45**: Receipt page Live state shows quote-calls section (right column) with FADING/FOLLOWING tag per quote based on direction (§15.3, §5.4)
 - [ ] **SOCIAL-46**: `claimPayout` requires settlement (`CallNotSettled`), enforces idempotency via `claimed[callId][user]` (`AlreadyClaimed`), reverts `NoPayoutAvailable` for users with no winning shares (§12.2)
 - [ ] **SOCIAL-47**: `claimPayout` follows Checks-Effects-Interactions — marks claimed BEFORE transfer (§12.2)
 - [ ] **SOCIAL-48**: `Followed`, `Faded`, `PayoutClaimed`, `PositionExited`, `ChallengeProposed`, `ChallengeAccepted`, `ChallengeRejected`, `ChallengeRefunded`, `ChallengeSettled` events fire on each action (§12.2, §12.3)
@@ -723,9 +723,9 @@ Which phases cover which requirements. Updated during roadmap creation by the ro
 | SOCIAL-40 | Phase 3 | Pending |
 | SOCIAL-41 | Phase 3 | Pending |
 | SOCIAL-42 | Phase 3 | Pending |
-| SOCIAL-43 | Phase 2 | Pending |
-| SOCIAL-44 | Phase 2 | Pending |
-| SOCIAL-45 | Phase 2 | Pending |
+| SOCIAL-43 | Phase 2 | Complete |
+| SOCIAL-44 | Phase 2 | Complete |
+| SOCIAL-45 | Phase 2 | Complete |
 | SOCIAL-46 | Phase 3 | Pending |
 | SOCIAL-47 | Phase 3 | Pending |
 | SOCIAL-48 | Phase 3 | Pending |
