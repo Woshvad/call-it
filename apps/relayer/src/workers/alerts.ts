@@ -55,7 +55,9 @@ export type AlertEvent =
   | 'settle_stuck_25m'     // OPS-14 — settlement stuck >25 minutes
   // Phase 1 Plan 07 additions
   | 'address_book_cooldown_bypass_attempt'  // P0 — user attempted withdrawal during 24h cooldown (T-01-42)
-  | 'user_paymaster_cap_reached';           // P1 — user's lifetime 5-tx paymaster cap reached (D-02)
+  | 'user_paymaster_cap_reached'            // P1 — user's lifetime 5-tx paymaster cap reached (D-02)
+  // Phase 2 Plan 07 additions
+  | 'caller_exited_broadcast';             // P1 — CallerExited event fan-out complete (D-13, SOCIAL-23)
 
 /**
  * P0 events (page immediately to TELEGRAM_CHAT_ID_P0).

@@ -21,9 +21,13 @@
 
 import Fastify, { type FastifyInstance } from 'fastify';
 import cors from '@fastify/cors';
+import { createPublicClient, http } from 'viem';
+import { arbitrumSepolia } from 'viem/chains';
 import { initEnv } from './env.js';
 import { createLogger, setLogger } from './lib/logger.js';
 import { pingWithBullMQCompat } from './lib/redis.js';
+import { getDb } from './db/client.js';
+import { FOLLOW_FADE_MARKET_ARBITRUM_SEPOLIA } from '@call-it/shared';
 import { healthRoute } from './routes/health.js';
 import { internalTestAlertRoute } from './routes/internal-test-alert.js';
 import { paymasterAdminRoute } from './routes/admin-paymaster.js';
@@ -39,8 +43,10 @@ import { feedRoute } from './routes/feed.js';
 import { profileRoute } from './routes/profile.js';
 import { liveStateRoute } from './routes/live-state.js';
 import { quoteStanceRoute } from './routes/quote-stance.js';
+import { notificationsRoute } from './routes/notifications.js';
 import { sendAlert } from './workers/alerts.js';
 import { startPaymasterConfirmer } from './workers/paymaster-confirmer.js';
+import { startNotificationFanout } from './workers/notification-fanout.js';
 
 /**
  * Build and configure the Fastify application.
@@ -142,13 +148,43 @@ export async function buildApp(): Promise<FastifyInstance> {
   await app.register(liveStateRoute);
   // Phase 2 — Plan 07: quote-stance CRUD (D-15, SOCIAL-43)
   await app.register(quoteStanceRoute);
+  // Phase 2 — Plan 07: notifications inbox (D-13, D-14 — Privy-gated mark-read)
+  await app.register(notificationsRoute);
   // ─────────────────────────────────────────────────────────
 
   // 5. Boot-time BullMQ compatibility smoke (Pitfall A mitigation)
   // Run after app is ready so we have logging; don't block app start.
+
+  // Set up notification fan-out worker dependencies (created lazily at boot)
+  const notificationFanoutClient = createPublicClient({
+    chain: arbitrumSepolia,
+    transport: http(process.env.RPC_URL_ARBITRUM_SEPOLIA),
+  });
+  const notificationFanoutDb = getDb();
+  const notificationSubgraphUrl =
+    process.env.RELAYER_SUBGRAPH_URL ??
+    process.env.NEXT_PUBLIC_SUBGRAPH_URL ??
+    '';
+
   app.addHook('onReady', async () => {
     // Start paymaster confirmer worker (Plan 07 — D-02)
     startPaymasterConfirmer();
+    // Start notification fan-out worker (Plan 02-07 — D-13, SOCIAL-24)
+    // Worker polls CallerExited events every 30s and fans out per-user notifications
+    try {
+      startNotificationFanout({
+        publicClient: notificationFanoutClient,
+        ffmAddress: FOLLOW_FADE_MARKET_ARBITRUM_SEPOLIA as `0x${string}`,
+        db: notificationFanoutDb,
+        subgraphUrl: notificationSubgraphUrl,
+        intervalMs: 30_000,
+      });
+    } catch (err) {
+      app.log.error(
+        { event: 'notification_fanout_start_failed', err: String(err) },
+        'Failed to start notification fan-out worker',
+      );
+    }
     try {
       const result = await pingWithBullMQCompat();
       if (!result.ok) {
