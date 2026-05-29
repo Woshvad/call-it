@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: milestone
 status: executing
-stopped_at: Completed 02-07-PLAN.md
-last_updated: "2026-05-29T17:44:01.878Z"
+stopped_at: Completed 02-08-PLAN.md
+last_updated: "2026-05-29T18:17:59.484Z"
 last_activity: 2026-05-29
 progress:
   total_phases: 12
   completed_phases: 2
   total_plans: 24
-  completed_plans: 20
-  percent: 83
+  completed_plans: 21
+  percent: 88
 ---
 
 # Project State
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-05-21)
 ## Current Position
 
 Phase: 02 (followfademarket) — EXECUTING
-Plan: 5 of 9
+Plan: 6 of 9
 Status: Ready to execute
 Last activity: 2026-05-29
 
-Progress: [████████░░] 83%
+Progress: [█████████░] 88%
 
 ## Performance Metrics
 
@@ -61,6 +61,7 @@ Progress: [████████░░] 83%
 | Phase 02-followfademarket P02 | 30min | 2 tasks | 14 files |
 | Phase 02-followfademarket P03 | 10min | 2 tasks | 2 files |
 | Phase 02-followfademarket P07 | 12min | 2 tasks | 7 files |
+| Phase 02-followfademarket P08 | 21min | 3 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -83,6 +84,7 @@ Recent decisions affecting current work:
 - [Phase 02-followfademarket]: [02-02]: callerExit sub-functions for 16-slot stack depth; currentTvl tracks stakes only in CR v2; full creation fee to treasury for D-01 zero-balance invariant; FfmTestHelper C3 linearization fix
 - [Phase ?]: 02-03: CallerExited ordinal stays at 3 (not 2) — Disputed=2 was added in Phase 1; ABI-stable ordering enforced via NatSpec comment
 - [Phase ?]: 02-03: Outcome enum Pending=0 default; markSettled + callerExitedAt complete Phase 4 authorization surface
+- [Phase ?]: [Phase 02-08]: repDelta hardcoded to -35 in CallerExitModal; Phase 4 will wire computeCallerExitRepDelta exact value
 
 ### Pending Todos
 
@@ -107,6 +109,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-05-29T17:44:01.868Z
-Stopped at: Completed 02-07-PLAN.md
+Last session: 2026-05-29T18:16:36.844Z
+Stopped at: Completed 02-08-PLAN.md
 Resume file: None

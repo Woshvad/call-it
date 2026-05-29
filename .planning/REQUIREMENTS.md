@@ -192,8 +192,8 @@ Requirements for the v1 mainnet release. Each line is an atomic, testable behavi
 - [ ] **SOCIAL-46**: `claimPayout` requires settlement (`CallNotSettled`), enforces idempotency via `claimed[callId][user]` (`AlreadyClaimed`), reverts `NoPayoutAvailable` for users with no winning shares (§12.2)
 - [ ] **SOCIAL-47**: `claimPayout` follows Checks-Effects-Interactions — marks claimed BEFORE transfer (§12.2)
 - [ ] **SOCIAL-48**: `Followed`, `Faded`, `PayoutClaimed`, `PositionExited`, `ChallengeProposed`, `ChallengeAccepted`, `ChallengeRejected`, `ChallengeRefunded`, `ChallengeSettled` events fire on each action (§12.2, §12.3)
-- [ ] **SOCIAL-49**: Receipt page exposes caller-only "Exit your call · current penalty: [X%]" link after 24h lock; clicking opens confirmation modal with penalty math, return amount, rep impact, public broadcast warning (§15.3, §8.7.2)
-- [ ] **SOCIAL-50**: Receipt page exposes position-holder "Exit your position · 10% penalty" link after 4h cooldown; clicking opens confirmation modal with math + confirm button (§15.3, §8.7.1)
+- [x] **SOCIAL-49**: Receipt page exposes caller-only "Exit your call · current penalty: [X%]" link after 24h lock; clicking opens confirmation modal with penalty math, return amount, rep impact, public broadcast warning (§15.3, §8.7.2)
+- [x] **SOCIAL-50**: Receipt page exposes position-holder "Exit your position · 10% penalty" link after 4h cooldown; clicking opens confirmation modal with math + confirm button (§15.3, §8.7.1)
 - [ ] **SOCIAL-51**: Duel-settled share card uses two-avatar layout with winner highlighted and loser dimmed to 40% opacity (§5.3, §16.4)
 
 ### Reputation System (REP)
@@ -351,8 +351,8 @@ Requirements for the v1 mainnet release. Each line is an atomic, testable behavi
 - [ ] **UI-03**: Call card structure follows the canonical layout — avatar + handle + rep score dot + VERIFIED badges + ⚔ OPEN + DUEL KING + countdown; call statement 28-32px; tag row (category + asset + stake); single conviction bar; action row (Follow filled / Fade outline / Challenge text+icon / Quote icon-only); top-right expand icon (§15.1)
 - [ ] **UI-04**: Quote button shows NO quote count — quote is the lightest action (§15.1)
 - [ ] **UI-05**: New Call page (`/new`) shows "Go on record." title, "Every field shapes the receipt — and the receipt is permanent." subtitle, Drafts·N button top right, split layout (form left + live preview right) (§15.2)
-- [ ] **UI-06**: Live Receipt page (`/call/[id]`) renders sticky caller header, THE CALL hero, 4-stat row (Current Spread + progress bar / Time Left / Stake / Conviction), market positioning bar, 3 action buttons (Follow filled / Fade outline / Challenge orange outline), REASONING block, optional RESOLUTION CRITERIA collapsible block (§15.3)
-- [ ] **UI-07**: Live Receipt CALLER EXITED variant renders amber banner "⚠ CALLER EXITED · veda exited this call [X] ago · $XX slashed", dims call statement, keeps market positioning bar live, retains action buttons for non-caller participants (§15.3, §8.7.3)
+- [x] **UI-06**: Live Receipt page (`/call/[id]`) renders sticky caller header, THE CALL hero, 4-stat row (Current Spread + progress bar / Time Left / Stake / Conviction), market positioning bar, 3 action buttons (Follow filled / Fade outline / Challenge orange outline), REASONING block, optional RESOLUTION CRITERIA collapsible block (§15.3)
+- [x] **UI-07**: Live Receipt CALLER EXITED variant renders amber banner "⚠ CALLER EXITED · veda exited this call [X] ago · $XX slashed", dims call statement, keeps market positioning bar live, retains action buttons for non-caller participants (§15.3, §8.7.3)
 - [ ] **UI-08**: Profile page (`/profile/[address]`) renders top header (avatar + handle + verified badges + TOP X% GLOBAL + wallet address + joined date + counts), Connect socials card (own profile, conditional), Global Reputation hero card, Overview/Calls/Duels tabs (§15.4)
 - [ ] **UI-09**: Profile Overview tab renders 5-stat row (Accuracy with benchmark / Calibration / ROI / Contrarian hits / Streak), CATEGORY REPUTATION grid (3 equal-width cards with strongest highlighted), recent calls list with filter chips, most followed by list, notable receipts trophy cards (§15.4)
 - [ ] **UI-10**: Profile Settings exposes edit display handle, connect/disconnect Twitter, connect/disconnect Farcaster, export embedded wallet (§15.4)
@@ -729,8 +729,8 @@ Which phases cover which requirements. Updated during roadmap creation by the ro
 | SOCIAL-46 | Phase 3 | Pending |
 | SOCIAL-47 | Phase 3 | Pending |
 | SOCIAL-48 | Phase 3 | Pending |
-| SOCIAL-49 | Phase 3 | Pending |
-| SOCIAL-50 | Phase 3 | Pending |
+| SOCIAL-49 | Phase 3 | Complete |
+| SOCIAL-50 | Phase 3 | Complete |
 | SOCIAL-51 | Phase 3 | Pending |
 | REP-01 | Phase 1 | Pending |
 | REP-02 | Phase 1 | Pending |
@@ -876,8 +876,8 @@ Which phases cover which requirements. Updated during roadmap creation by the ro
 | UI-03 | Phase 1 | Pending |
 | UI-04 | Phase 1 | Pending |
 | UI-05 | Phase 1 | Pending |
-| UI-06 | Phase 2 | Pending |
-| UI-07 | Phase 2 | Pending |
+| UI-06 | Phase 2 | Complete |
+| UI-07 | Phase 2 | Complete |
 | UI-08 | Phase 1 | Pending |
 | UI-09 | Phase 7 | Pending |
 | UI-10 | Phase 1 | Pending |
