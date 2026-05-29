@@ -28,8 +28,20 @@ import type { NextRequest } from 'next/server';
 
 const RELAYER_BASE = (process.env['NEXT_PUBLIC_RELAYER_BASE_URL'] ?? '').replace(/\/$/, '');
 
-/** Cookie name for Privy's session token (set by Privy server-side SDK or via privy-id-token) */
-const PRIVY_COOKIE_NAME = 'privy-id-token';
+/**
+ * Cookie name for Privy's session token.
+ *
+ * Use the ACCESS token cookie (`privy-token`), NOT the identity token (`privy-id-token`):
+ *   - The relayer verifies sessions with `privy.verifyAuthToken(token)` (@privy-io/server-auth),
+ *     which validates the ACCESS token. Passing the identity token would 401.
+ *   - `privy-token` is the cookie Privy's documented Next.js middleware pattern reads.
+ *   - The identity-token cookie is only issued when identity tokens are enabled (extra feature)
+ *     and would not verify against verifyAuthToken anyway.
+ *
+ * Fix 2026-05-29: was `privy-id-token` — caused every authenticated user to bounce back to
+ * /signin (first real OAuth login surfaced it; Tier-2 browser tests were skipped in CI).
+ */
+const PRIVY_COOKIE_NAME = 'privy-token';
 
 /** Short-lived cache cookie key for last-known onboarding step */
 const STEP_CACHE_COOKIE = 'ci_onboarding_step';

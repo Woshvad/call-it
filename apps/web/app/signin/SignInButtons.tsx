@@ -52,16 +52,44 @@ function usePrivyReadinessTimeout(timeoutMs: number): boolean {
 
 export default function SignInButtons({ CustodyTooltip }: SignInButtonsProps) {
   const router = useRouter();
-  const { ready, authenticated, login } = usePrivy();
+  const { ready, authenticated, login, getAccessToken } = usePrivy();
   const { connect } = useConnect();
   const privyTimedOut = usePrivyReadinessTimeout(5000);
 
-  // Redirect to / on successful authentication
+  // On successful authentication: write the Privy access token to a first-party
+  // cookie, THEN redirect to /.
+  //
+  // Why the cookie write is required (fix 2026-05-29):
+  //   Privy stores its session in localStorage by default and does NOT set a
+  //   first-party `privy-token` cookie on the app domain. The Next.js middleware
+  //   (server-side) can only read first-party cookies, so without this it never
+  //   sees the session and bounces every authenticated user back to /signin.
+  //   The middleware forwards this token to the relayer, which validates it with
+  //   @privy-io/server-auth `verifyAuthToken` (the ACCESS token). Surfaced by the
+  //   first real OAuth login — browser E2E is skipped in CI.
   useEffect(() => {
-    if (authenticated) {
-      router.push('/');
-    }
-  }, [authenticated, router]);
+    if (!authenticated) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const token = await getAccessToken();
+        if (cancelled) return;
+        if (token) {
+          const secure = window.location.protocol === 'https:' ? '; Secure' : '';
+          // Max-Age ~1h matches Privy access-token lifetime; a returning user with
+          // a live localStorage session but expired cookie self-heals via the
+          // /signin bounce, which re-runs this effect.
+          document.cookie = `privy-token=${token}; path=/; SameSite=Lax; Max-Age=3600${secure}`;
+          router.push('/');
+        }
+      } catch {
+        // getAccessToken failed — leave the user on /signin rather than loop.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [authenticated, getAccessToken, router]);
 
   const handleConnectWallet = useCallback(() => {
     if (!ready) {
