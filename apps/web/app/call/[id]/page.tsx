@@ -41,6 +41,7 @@ import { FOLLOW_FADE_MARKET_ARBITRUM_SEPOLIA } from '@call-it/shared';
 import { followFadeMarketAbi } from '@/lib/abis';
 import {
   computeCallerExitPenaltyPct,
+  computeCallerExitRepDelta,
   POSITION_EXIT_PENALTY_PCT,
   CALLER_EXIT_LOCK_DURATION,
   POSITION_EXIT_COOLDOWN,
@@ -175,7 +176,10 @@ async function fetchActivityFeed(callId: string): Promise<ActivityEntry[]> {
 async function fetchQuoteCalls(callId: string): Promise<QuoteEntry[]> {
   if (!RELAYER_URL) return [];
   try {
-    const res = await fetch(`${RELAYER_URL}/api/calls/quote-stance?quoteCallId=${callId}`);
+    // WR-04: query by parentCallId (list mode) — returns a JSON ARRAY of
+    // quote-call entries for this call, matching the .map() below. The old
+    // ?quoteCallId= path returns a single { stance } object that broke .map().
+    const res = await fetch(`${RELAYER_URL}/api/calls/quote-stance?parentCallId=${callId}`);
     if (!res.ok) return [];
     const raw = await res.json() as unknown[];
     return (raw).map((e) => {
@@ -280,7 +284,15 @@ export default function CallPage() {
     : 0n;
 
   // Position exit math (10% flat — SOCIAL-13)
-  const userPositionValue = userIsFollower ? followShares : fadeShares; // simplified; real value from reserve share
+  // WR-01: position value is the USDC the user's shares redeem for, mirroring
+  // the contract's exitPosition: value = userShares * reserve / totalShares.
+  // Raw shares are 18-decimal and are NOT a USDC value, so use them only to
+  // pro-rate against the live reserve (6-decimal USDC).
+  const userPositionValue = userIsFollower
+    ? (followTotalShares > 0n ? (followShares * followReserve) / followTotalShares : 0n)
+    : userIsFader
+    ? (fadeTotalShares > 0n ? (fadeShares * fadeReserve) / fadeTotalShares : 0n)
+    : 0n;
   const positionSlash = (userPositionValue * POSITION_EXIT_PENALTY_PCT) / 100n;
   const positionUserReceives = userPositionValue - positionSlash;
 
@@ -1045,7 +1057,9 @@ export default function CallPage() {
         penaltyPct={callerPenaltyPct}
         penaltyUsdc={callerPenaltyUsdc}
         stakeReturned={callerStakeReturned}
-        repDelta={-35} // approximate; exact from computeCallerExitRepDelta in Phase 4 wire
+        repDelta={
+          callData ? computeCallerExitRepDelta(callData.createdAt, callData.expiry, nowSec) : -35
+        }
         onSubmit={handleCallerExit}
       />
 
