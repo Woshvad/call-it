@@ -17,6 +17,7 @@
   },
   "dependencies": {
     "@call-it/shared": "workspace:*",
+    "@fastify/cors": "^10.1.0",
     "@google-cloud/kms": "^5.0.0",
     "@google-cloud/secret-manager": "^5.0.0",
     "@logtail/node": "^0.5.0",

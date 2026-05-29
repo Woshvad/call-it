@@ -20,6 +20,7 @@
  */
 
 import Fastify, { type FastifyInstance } from 'fastify';
+import cors from '@fastify/cors';
 import { initEnv } from './env.js';
 import { createLogger, setLogger } from './lib/logger.js';
 import { pingWithBullMQCompat } from './lib/redis.js';
@@ -76,6 +77,32 @@ export async function buildApp(): Promise<FastifyInstance> {
     },
     trustProxy: true,
     bodyLimit: 1_048_576, // 1MB max body
+  });
+
+  // 3b. CORS — the web app calls JWT-gated relayer endpoints directly from the
+  // browser (e.g. useOnboardingState → /api/onboarding/*), which is cross-origin
+  // (Vercel web ↔ Fly relayer in prod; localhost:3000 ↔ localhost:8080 in dev).
+  // Without this, the browser blocks the fetch ("Failed to fetch") and preflight
+  // OPTIONS for the Authorization header fails.
+  //
+  // Allowed origins: NEXT_PUBLIC_OG_BASE_URL (the web origin) + localhost dev,
+  // plus any comma-separated CORS_ALLOWED_ORIGINS override.
+  const corsOrigins = new Set<string>([
+    'http://localhost:3000',
+    'http://localhost:3001',
+  ]);
+  if (env.NEXT_PUBLIC_OG_BASE_URL) corsOrigins.add(env.NEXT_PUBLIC_OG_BASE_URL.replace(/\/$/, ''));
+  if (env.NEXT_PUBLIC_RELAYER_URL) {
+    // no-op: relayer is not a browser origin; listed for clarity
+  }
+  for (const o of (process.env.CORS_ALLOWED_ORIGINS ?? '').split(',').map((s) => s.trim()).filter(Boolean)) {
+    corsOrigins.add(o);
+  }
+  await app.register(cors, {
+    origin: Array.from(corsOrigins),
+    credentials: true,
+    methods: ['GET', 'POST', 'PATCH', 'OPTIONS'],
+    allowedHeaders: ['authorization', 'content-type'],
   });
 
   // 4. Register routes (Phase 0 + Phase 1)
