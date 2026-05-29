@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: milestone
 status: executing
-stopped_at: Phase 1.5 context gathered (Phase 2 + 1.5 both ready to plan)
-last_updated: "2026-05-29T14:29:15.284Z"
-last_activity: 2026-05-29 -- Phase 2 planning complete
+stopped_at: Completed 02-01-PLAN.md
+last_updated: "2026-05-29T15:49:19.045Z"
+last_activity: 2026-05-29
 progress:
   total_phases: 12
   completed_phases: 2
   total_plans: 24
-  completed_plans: 16
-  percent: 67
+  completed_plans: 17
+  percent: 71
 ---
 
 # Project State
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-21)
 
 **Core value:** Every call is permanent, public, and tied to identity. The receipt — created, settled, and shared — must be unfakeable, undeletable, and visually unmistakable.
-**Current focus:** Phase 01 — core-contracts-auth-frontend-skeleton
+**Current focus:** Phase 02 — followfademarket
 
 ## Current Position
 
-Phase: 01 (core-contracts-auth-frontend-skeleton) — EXECUTED, awaiting human verification
-Plan: 10 of 10 complete
+Phase: 02 (followfademarket) — EXECUTING
+Plan: 2 of 9
 Status: Ready to execute
-Last activity: 2026-05-29 -- Phase 2 planning complete
+Last activity: 2026-05-29
 
-Progress: [██████████] 100%
+Progress: [███████░░░] 71%
 
 ## Performance Metrics
 
@@ -57,6 +57,7 @@ Progress: [██████████] 100%
 | Phase 00 P03 | 90 | 4 tasks | 33 files |
 | Phase 00-foundation P04 | 80 | 4 tasks | 23 files |
 | Phase 00-foundation P05 | 90 | 5 tasks | 9 files |
+| Phase 02-followfademarket P01 | 10min | 3 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -75,6 +76,7 @@ Recent decisions affecting current work:
 - [Phase 0 P05]: GCP OIDC federation (google-github-actions/auth@v2) for all deploy workflows — no long-lived service-account JSON keys in GH Secrets (T-00-35)
 - [Phase 0 P05]: DRY fetch_secret() helper pattern in deploy-relayer.yml — centralizes --project=$GCP_PROJECT_ID routing for all 17 GCP Secret Manager fetches
 - [Phase 0 P05]: Injectable step1Override in runSmokeTest() for unit testability — production CI path unaffected
+- [Phase ?]: [Phase 02-01]: test file in test/ not src/validation/ to match vitest include pattern; Wave 0 RED gate confirmed; FfmTestHelper abstract base for all FFM test contracts
 
 ### Pending Todos
 
@@ -99,6 +101,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-05-29T07:22:39.707Z
-Stopped at: Phase 1.5 context gathered (Phase 2 + 1.5 both ready to plan)
-Resume file: .planning/phases/01.5-social-linking-parallel-to-phase-2/01.5-CONTEXT.md
+Last session: 2026-05-29T15:48:38.629Z
+Stopped at: Completed 02-01-PLAN.md
+Resume file: None

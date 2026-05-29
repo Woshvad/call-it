@@ -98,7 +98,7 @@ Call It ships as a person-first onchain social prediction product on Arbitrum ma
   5. Live Receipt page (`/call/[id]`) renders the sticky caller header, THE CALL hero, 4-stat row (Current Spread + Time Left + Stake + Conviction), market positioning bar, 3 action buttons (Follow filled / Fade outline / Challenge orange outline), REASONING block, optional collapsible RESOLUTION CRITERIA block, live activity feed left column, quote-calls right column with FADING/FOLLOWING tag; "Exit your call" / "Exit your position" links appear under the correct conditions with confirmation modals showing penalty math.
   6. Live State OG card (variant 1) renders at `/og/[callId]` with the live follow%/fade% progress bar + time-left countdown + corner bracket motif; `og:image?v={statusVersion}` cache-busts on follow/fade activity per Pitfall 8 prep.
 **Plans**: 9 plans across 4 waves
-  - [ ] 02-01-PLAN.md — Wave 0: Foundry test scaffold (FfmTestHelper + FollowFadeMarket.t.sol + Gates + Interference + TvlAggregation) + TypeScript AMM parity stubs (D-29)
+  - [x] 02-01-PLAN.md — Wave 0: Foundry test scaffold (FfmTestHelper + FollowFadeMarket.t.sol + Gates + Interference + TvlAggregation) + TypeScript AMM parity stubs (D-29)
   - [ ] 02-02-PLAN.md — Wave 1: IFollowFadeMarket interface + FollowFadeMarket AMM contract (full CEI/penalty-injection/caller-exit/TVL)
   - [ ] 02-03-PLAN.md — Wave 1: CallRegistry redeploy diff (stake-forward D-01, markCallerExited D-02) + ProfileRegistry redeploy diff (authorizedRepWriters D-04, applyRepDelta D-05)
   - [ ] 02-04-PLAN.md — Wave 1: DeployPhase2.s.sol + addresses.ts + ABI export + [OPERATOR] Sepolia deploy checkpoint

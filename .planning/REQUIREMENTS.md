@@ -144,32 +144,32 @@ Requirements for the v1 mainnet release. Each line is an atomic, testable behavi
 
 ### Social Actions (SOCIAL)
 
-- [ ] **SOCIAL-01**: User can Follow any live call by depositing USDC into the FollowFadeMarket follow pool, receiving FOLLOW shares priced by the constant-product AMM `follow_shares × fade_shares = k` (§5.1, §8.1, §12.2)
-- [ ] **SOCIAL-02**: User can Fade any live call by depositing USDC into the fade pool, receiving FADE shares (§5.2, §8.1, §12.2)
-- [ ] **SOCIAL-03**: Minimum follow/fade position is $1 USDC (`MIN_POSITION = 1 * 1e6`); reverts `PositionBelowMinimum` (§8.4, §12.2, App.A.1)
-- [ ] **SOCIAL-04**: Maximum follow/fade position per user per call is $100 USDC (`MAX_POSITION`), enforced cumulatively across additive deposits; reverts `PositionAboveMaximum` (§8.4, §12.2, App.A.1)
-- [ ] **SOCIAL-05**: `follow` / `fade` require slippage protection — `minSharesOut` parameter; reverts `SlippageExceeded(expected, actual)` if AMM mints fewer shares (§12.2, App.A.1)
-- [ ] **SOCIAL-06**: Frontend computes expected shares + 1% tolerance and passes through as `minSharesOut` on every follow/fade transaction (§19 Phase 2, §12.2)
-- [ ] **SOCIAL-07**: Post-expiry deposit gate — `follow`/`fade` revert `CallPastExpiry(expiry, now)` when `block.timestamp >= call.expiry` (§12.2, App.A.1)
-- [ ] **SOCIAL-08**: `follow`/`fade` accept deposits when call status is Live OR CallerExited (CallerExited markets stay open per §8.7.2) (§12.2)
-- [ ] **SOCIAL-09**: TVL cap is aggregated across all pools and contracts; `follow`/`fade` revert `TvlCapReached` when over (§10.2, §12.2)
-- [ ] **SOCIAL-10**: `follow`/`fade` record `positionEntryTime[callId][user][side] = block.timestamp` and reset the timestamp to the latest deposit when a user adds to an existing position (§12.2)
-- [ ] **SOCIAL-11**: AMM penalty injection adds slashed USDC directly to the receiving pool reserve so `k` grows and existing shares appreciate pro-rata — no phantom shares minted (§11.2, §12.1 step 7, §12.2 step 7)
-- [ ] **SOCIAL-12**: Followers and faders can exit their position after a 4-hour cooldown (`POSITION_EXIT_COOLDOWN = 4 hours`); `exitPosition` reverts `ExitCooldownActive(unlocksAt)` during cooldown (§8.7.1, §12.2)
-- [ ] **SOCIAL-13**: Follower/fader exit slashes a flat 10% (`POSITION_EXIT_PENALTY_PCT = 10`); user receives 90% of stake back, shares burned (§8.7.1, §12.2)
-- [ ] **SOCIAL-14**: Follower/fader exit slash distribution is 50% to opposite pool / 40% to same-side pool / 10% to protocol treasury (§8.7.1, §12.2)
-- [ ] **SOCIAL-15**: `exitPosition` continues to function while contract is paused (carve-out per §10.3) (§12.2, §10.3)
-- [ ] **SOCIAL-16**: `exitPosition` on an already-settled call reverts `CallNotLive` and UI surfaces "Use Claim Payout instead" (§12.2)
-- [ ] **SOCIAL-17**: Caller cannot exit during the first 24 hours (`CALLER_EXIT_LOCK_DURATION = 24 hours`); `callerExit` reverts `CallerExitLocked(unlocksAt)` during lock (§8.7.2, §12.1)
-- [ ] **SOCIAL-18**: After 24h, caller exit penalty follows `15% + (35% × time_remaining_ratio)` with floor of 15% even at last-minute (§8.7.2, §12.1)
-- [ ] **SOCIAL-19**: Caller exit slash distribution is 50% to follow pool / 40% to fade pool / 10% to protocol treasury (§8.7.2, §12.1)
-- [ ] **SOCIAL-20**: Caller exit snapshots `callerVolumeAtExit = followPool + fadePool` for Model B creator fee calculation (§8.8, §12.1)
-- [ ] **SOCIAL-21**: Caller exit sets `call.status = CallerExited` (single source of truth — no redundant boolean) and `call.callerExitedAt = now` (§12.1)
-- [ ] **SOCIAL-22**: Caller exit emits `CallerExited(callId, caller, timeElapsed, penaltyPaid, stakeReturned, reputationDelta)` event for public broadcast (§8.7.3, §12.1)
+- [x] **SOCIAL-01**: User can Follow any live call by depositing USDC into the FollowFadeMarket follow pool, receiving FOLLOW shares priced by the constant-product AMM `follow_shares × fade_shares = k` (§5.1, §8.1, §12.2)
+- [x] **SOCIAL-02**: User can Fade any live call by depositing USDC into the fade pool, receiving FADE shares (§5.2, §8.1, §12.2)
+- [x] **SOCIAL-03**: Minimum follow/fade position is $1 USDC (`MIN_POSITION = 1 * 1e6`); reverts `PositionBelowMinimum` (§8.4, §12.2, App.A.1)
+- [x] **SOCIAL-04**: Maximum follow/fade position per user per call is $100 USDC (`MAX_POSITION`), enforced cumulatively across additive deposits; reverts `PositionAboveMaximum` (§8.4, §12.2, App.A.1)
+- [x] **SOCIAL-05**: `follow` / `fade` require slippage protection — `minSharesOut` parameter; reverts `SlippageExceeded(expected, actual)` if AMM mints fewer shares (§12.2, App.A.1)
+- [x] **SOCIAL-06**: Frontend computes expected shares + 1% tolerance and passes through as `minSharesOut` on every follow/fade transaction (§19 Phase 2, §12.2)
+- [x] **SOCIAL-07**: Post-expiry deposit gate — `follow`/`fade` revert `CallPastExpiry(expiry, now)` when `block.timestamp >= call.expiry` (§12.2, App.A.1)
+- [x] **SOCIAL-08**: `follow`/`fade` accept deposits when call status is Live OR CallerExited (CallerExited markets stay open per §8.7.2) (§12.2)
+- [x] **SOCIAL-09**: TVL cap is aggregated across all pools and contracts; `follow`/`fade` revert `TvlCapReached` when over (§10.2, §12.2)
+- [x] **SOCIAL-10**: `follow`/`fade` record `positionEntryTime[callId][user][side] = block.timestamp` and reset the timestamp to the latest deposit when a user adds to an existing position (§12.2)
+- [x] **SOCIAL-11**: AMM penalty injection adds slashed USDC directly to the receiving pool reserve so `k` grows and existing shares appreciate pro-rata — no phantom shares minted (§11.2, §12.1 step 7, §12.2 step 7)
+- [x] **SOCIAL-12**: Followers and faders can exit their position after a 4-hour cooldown (`POSITION_EXIT_COOLDOWN = 4 hours`); `exitPosition` reverts `ExitCooldownActive(unlocksAt)` during cooldown (§8.7.1, §12.2)
+- [x] **SOCIAL-13**: Follower/fader exit slashes a flat 10% (`POSITION_EXIT_PENALTY_PCT = 10`); user receives 90% of stake back, shares burned (§8.7.1, §12.2)
+- [x] **SOCIAL-14**: Follower/fader exit slash distribution is 50% to opposite pool / 40% to same-side pool / 10% to protocol treasury (§8.7.1, §12.2)
+- [x] **SOCIAL-15**: `exitPosition` continues to function while contract is paused (carve-out per §10.3) (§12.2, §10.3)
+- [x] **SOCIAL-16**: `exitPosition` on an already-settled call reverts `CallNotLive` and UI surfaces "Use Claim Payout instead" (§12.2)
+- [x] **SOCIAL-17**: Caller cannot exit during the first 24 hours (`CALLER_EXIT_LOCK_DURATION = 24 hours`); `callerExit` reverts `CallerExitLocked(unlocksAt)` during lock (§8.7.2, §12.1)
+- [x] **SOCIAL-18**: After 24h, caller exit penalty follows `15% + (35% × time_remaining_ratio)` with floor of 15% even at last-minute (§8.7.2, §12.1)
+- [x] **SOCIAL-19**: Caller exit slash distribution is 50% to follow pool / 40% to fade pool / 10% to protocol treasury (§8.7.2, §12.1)
+- [x] **SOCIAL-20**: Caller exit snapshots `callerVolumeAtExit = followPool + fadePool` for Model B creator fee calculation (§8.8, §12.1)
+- [x] **SOCIAL-21**: Caller exit sets `call.status = CallerExited` (single source of truth — no redundant boolean) and `call.callerExitedAt = now` (§12.1)
+- [x] **SOCIAL-22**: Caller exit emits `CallerExited(callId, caller, timeElapsed, penaltyPaid, stakeReturned, reputationDelta)` event for public broadcast (§8.7.3, §12.1)
 - [ ] **SOCIAL-23**: Caller exit triggers a public broadcast entry in the global feed: "⚠ [caller] exited their own call · '[statement]' · [time] in · -$X slashed" (§8.7.3, §15.3)
 - [ ] **SOCIAL-24**: Caller exit fires notification to every current follower and fader on the call (§8.7.3)
 - [ ] **SOCIAL-25**: Receipt page displays a permanent "CALLER EXITED" amber banner in the header from exit onward (§8.7.3, §15.3)
-- [ ] **SOCIAL-26**: Caller exit applies reputation slash via ProfileRegistry — decay curve `-45 rep day 1 → -10 rep floor` (§8.7.3, §12.1)
+- [x] **SOCIAL-26**: Caller exit applies reputation slash via ProfileRegistry — decay curve `-45 rep day 1 → -10 rep floor` (§8.7.3, §12.1)
 - [ ] **SOCIAL-27**: Exited callers receive NO additional reputation change at eventual settlement — they are removed from the call's rep accounting (§8.7.3, §12.4)
 - [ ] **SOCIAL-28**: There is no separate "cancel the call" mechanic — only callerExit after lock + normal settlement (§8.7.4)
 - [ ] **SOCIAL-29**: User can Challenge a call via `proposeChallenge(callId, stake)`; reverts `CallerNotOpenToChallenges` when caller toggled off (§5.3, §12.3)
@@ -681,32 +681,32 @@ Which phases cover which requirements. Updated during roadmap creation by the ro
 | CALL-68 | Phase 1 | Pending |
 | CALL-69 | Phase 1 | Pending |
 | CALL-70 | Phase 1 | Pending |
-| SOCIAL-01 | Phase 2 | Pending |
-| SOCIAL-02 | Phase 2 | Pending |
-| SOCIAL-03 | Phase 2 | Pending |
-| SOCIAL-04 | Phase 2 | Pending |
-| SOCIAL-05 | Phase 2 | Pending |
-| SOCIAL-06 | Phase 2 | Pending |
-| SOCIAL-07 | Phase 2 | Pending |
-| SOCIAL-08 | Phase 2 | Pending |
-| SOCIAL-09 | Phase 2 | Pending |
-| SOCIAL-10 | Phase 2 | Pending |
-| SOCIAL-11 | Phase 2 | Pending |
-| SOCIAL-12 | Phase 2 | Pending |
-| SOCIAL-13 | Phase 2 | Pending |
-| SOCIAL-14 | Phase 2 | Pending |
-| SOCIAL-15 | Phase 2 | Pending |
-| SOCIAL-16 | Phase 2 | Pending |
-| SOCIAL-17 | Phase 2 | Pending |
-| SOCIAL-18 | Phase 2 | Pending |
-| SOCIAL-19 | Phase 2 | Pending |
-| SOCIAL-20 | Phase 2 | Pending |
-| SOCIAL-21 | Phase 2 | Pending |
-| SOCIAL-22 | Phase 2 | Pending |
+| SOCIAL-01 | Phase 2 | Complete |
+| SOCIAL-02 | Phase 2 | Complete |
+| SOCIAL-03 | Phase 2 | Complete |
+| SOCIAL-04 | Phase 2 | Complete |
+| SOCIAL-05 | Phase 2 | Complete |
+| SOCIAL-06 | Phase 2 | Complete |
+| SOCIAL-07 | Phase 2 | Complete |
+| SOCIAL-08 | Phase 2 | Complete |
+| SOCIAL-09 | Phase 2 | Complete |
+| SOCIAL-10 | Phase 2 | Complete |
+| SOCIAL-11 | Phase 2 | Complete |
+| SOCIAL-12 | Phase 2 | Complete |
+| SOCIAL-13 | Phase 2 | Complete |
+| SOCIAL-14 | Phase 2 | Complete |
+| SOCIAL-15 | Phase 2 | Complete |
+| SOCIAL-16 | Phase 2 | Complete |
+| SOCIAL-17 | Phase 2 | Complete |
+| SOCIAL-18 | Phase 2 | Complete |
+| SOCIAL-19 | Phase 2 | Complete |
+| SOCIAL-20 | Phase 2 | Complete |
+| SOCIAL-21 | Phase 2 | Complete |
+| SOCIAL-22 | Phase 2 | Complete |
 | SOCIAL-23 | Phase 2 | Pending |
 | SOCIAL-24 | Phase 2 | Pending |
 | SOCIAL-25 | Phase 2 | Pending |
-| SOCIAL-26 | Phase 2 | Pending |
+| SOCIAL-26 | Phase 2 | Complete |
 | SOCIAL-27 | Phase 2 | Pending |
 | SOCIAL-28 | Phase 2 | Pending |
 | SOCIAL-29 | Phase 3 | Pending |
