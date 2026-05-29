@@ -14,7 +14,7 @@
  * - Downstream Plan 07 reads with WHERE removed_at IS NULL filter
  */
 
-import { pgTable, serial, varchar, text, timestamp, integer, index } from 'drizzle-orm/pg-core';
+import { pgTable, serial, varchar, text, timestamp, integer, index, jsonb } from 'drizzle-orm/pg-core';
 
 // ---------------------------------------------------------------------------
 // address_book
@@ -89,3 +89,92 @@ export const onboardingState = pgTable('onboarding_state', {
   followgraphOptinAt: timestamp('followgraph_optin_at'),
   taglineCommittedAt: timestamp('tagline_committed_at'),
 });
+
+// ---------------------------------------------------------------------------
+// notifications
+// ---------------------------------------------------------------------------
+
+/**
+ * Per-user in-app notifications. D-13/D-14.
+ *
+ * Generic event_type column — 'caller_exited' is the first consumer in Phase 2;
+ * designed to be reused by Phase 3 (challenge_proposed) and Phase 4
+ * (settlement_ready, payout_available) without schema changes.
+ *
+ * Soft-read pattern: readAt IS NULL = unread; never deleted.
+ *
+ * Indexes:
+ *   - (user_address, read_at)   — inbox query: WHERE read_at IS NULL
+ *   - (user_address, created_at) — pagination: ORDER BY created_at DESC
+ *
+ * Security (T-02-05-02): eventType written exclusively by the relayer worker;
+ * varchar(50) cap prevents injection via oversized strings.
+ */
+export const notifications = pgTable(
+  'notifications',
+  {
+    id: serial('id').primaryKey(),
+    /** Ethereum address of the notification recipient (0x + 40 hex chars) */
+    userAddress: varchar('user_address', { length: 42 }).notNull(),
+    /**
+     * Application-controlled event discriminant.
+     * Phase 2: 'caller_exited'
+     * Phase 3: 'challenge_proposed'
+     * Phase 4: 'settlement_ready' | 'payout_available'
+     */
+    eventType: varchar('event_type', { length: 50 }).notNull(),
+    /** On-chain callId the notification refers to */
+    callId: integer('call_id').notNull(),
+    /**
+     * Arbitrary JSON payload — call metadata, amounts, etc.
+     * No private keys or PII beyond the recipient's own public address (T-02-05-01).
+     */
+    payload: jsonb('payload').notNull().default({}),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    /** NULL = unread; NOT NULL = read (D-14) */
+    readAt: timestamp('read_at'),
+  },
+  (table) => ({
+    notificationsUserReadIdx: index('notifications_user_read_idx').on(
+      table.userAddress,
+      table.readAt,
+    ),
+    notificationsUserTimeIdx: index('notifications_user_time_idx').on(
+      table.userAddress,
+      table.createdAt,
+    ),
+  }),
+);
+
+// ---------------------------------------------------------------------------
+// quote_stance
+// ---------------------------------------------------------------------------
+
+/**
+ * Off-chain quote-call stance annotation. D-15.
+ *
+ * Records whether a quote-call follows or fades the parent call.
+ * Keyed to the on-chain CallQuoted event (parentCallId + quoteCallId pair).
+ *
+ * Read by: apps/relayer/src/routes/quote-stance.ts
+ * Written by: Drizzle db.insert(quoteStance).values(row) in quote-stance.ts
+ *
+ * Index:
+ *   - (quote_call_id) — look up stance for a given quote call
+ */
+export const quoteStance = pgTable(
+  'quote_stance',
+  {
+    id: serial('id').primaryKey(),
+    /** On-chain callId of the original (parent) call being quoted */
+    callId: integer('call_id').notNull(),
+    /** On-chain callId of the quoting call */
+    quoteCallId: integer('quote_call_id').notNull(),
+    /** 'following' | 'fading' — caller's stated stance relative to the parent call */
+    stance: varchar('stance', { length: 10 }).notNull(),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+  },
+  (table) => ({
+    quoteStanceQuoteIdx: index('quote_stance_quote_idx').on(table.quoteCallId),
+  }),
+);
