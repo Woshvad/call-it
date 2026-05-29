@@ -98,6 +98,27 @@ export const PROFILE_REGISTRY_ARBITRUM_SEPOLIA =
   '0x4dCdE524F0566f583fab237d7CeED2fE8fB02322' as const;
 
 /**
+ * FollowFadeMarket on Arbitrum Sepolia (Phase 2 deploy).
+ *
+ * PLACEHOLDER — NOT YET DEPLOYED. The live Sepolia deploy (plan 02-04 Task 2)
+ * is DEFERRED; the rest of Phase 2 is built against this placeholder. Run
+ * packages/contracts/script/DeployPhase2.s.sol, then replace this zero address
+ * with the broadcast result. The v2 CallRegistry/ProfileRegistry addresses above
+ * will ALSO change on that redeploy — update all three together.
+ *
+ * Threat: T-02-04-01 — wrong/zero address routes all FFM reads/writes to nowhere.
+ */
+export const FOLLOW_FADE_MARKET_ARBITRUM_SEPOLIA =
+  '0x0000000000000000000000000000000000000000' as const;
+
+/**
+ * FollowFadeMarket on Arbitrum One (mainnet).
+ * NOT YET DEPLOYED. Phase 7.5 mainnet deploy after the Sepolia staging gate.
+ */
+export const FOLLOW_FADE_MARKET_ARBITRUM_ONE =
+  '0x0000000000000000000000000000000000000000' as const;
+
+/**
  * CallRegistry on Arbitrum One (mainnet).
  * NOT YET DEPLOYED. Phase 7.5 mainnet deploy after >=48h Sepolia staging gate.
  * Spec: §19.11 mandatory post-deploy smoke test required before public announcement.
@@ -136,8 +157,12 @@ export const PROFILE_REGISTRY_ADDRESSES: AddressRecord = {
 
 /**
  * FollowFadeMarket contract addresses — populated in Phase 2.
+ * Sepolia entry is a PLACEHOLDER until the deferred 02-04 deploy lands.
  */
-export const FOLLOW_FADE_MARKET_ADDRESSES: AddressRecord = { ...EMPTY_ADDRESSES };
+export const FOLLOW_FADE_MARKET_ADDRESSES: AddressRecord = {
+  [ARBITRUM_MAINNET_CHAIN_ID]: FOLLOW_FADE_MARKET_ARBITRUM_ONE,
+  [ARBITRUM_SEPOLIA_CHAIN_ID]: FOLLOW_FADE_MARKET_ARBITRUM_SEPOLIA,
+};
 
 /**
  * ChallengeEscrow contract addresses — populated in Phase 2.
