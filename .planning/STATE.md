@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: milestone
 status: executing
-stopped_at: Completed 02-01-PLAN.md
-last_updated: "2026-05-29T15:49:19.045Z"
+stopped_at: Completed 02-02-PLAN.md
+last_updated: "2026-05-29T16:27:00.804Z"
 last_activity: 2026-05-29
 progress:
   total_phases: 12
   completed_phases: 2
   total_plans: 24
-  completed_plans: 17
-  percent: 71
+  completed_plans: 18
+  percent: 75
 ---
 
 # Project State
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-05-21)
 ## Current Position
 
 Phase: 02 (followfademarket) — EXECUTING
-Plan: 2 of 9
+Plan: 3 of 9
 Status: Ready to execute
 Last activity: 2026-05-29
 
-Progress: [███████░░░] 71%
+Progress: [████████░░] 75%
 
 ## Performance Metrics
 
@@ -58,6 +58,7 @@ Progress: [███████░░░] 71%
 | Phase 00-foundation P04 | 80 | 4 tasks | 23 files |
 | Phase 00-foundation P05 | 90 | 5 tasks | 9 files |
 | Phase 02-followfademarket P01 | 10min | 3 tasks | 8 files |
+| Phase 02-followfademarket P02 | 30min | 2 tasks | 14 files |
 
 ## Accumulated Context
 
@@ -77,6 +78,7 @@ Recent decisions affecting current work:
 - [Phase 0 P05]: DRY fetch_secret() helper pattern in deploy-relayer.yml — centralizes --project=$GCP_PROJECT_ID routing for all 17 GCP Secret Manager fetches
 - [Phase 0 P05]: Injectable step1Override in runSmokeTest() for unit testability — production CI path unaffected
 - [Phase ?]: [Phase 02-01]: test file in test/ not src/validation/ to match vitest include pattern; Wave 0 RED gate confirmed; FfmTestHelper abstract base for all FFM test contracts
+- [Phase 02-followfademarket]: [02-02]: callerExit sub-functions for 16-slot stack depth; currentTvl tracks stakes only in CR v2; full creation fee to treasury for D-01 zero-balance invariant; FfmTestHelper C3 linearization fix
 
 ### Pending Todos
 
@@ -101,6 +103,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-05-29T15:48:38.629Z
-Stopped at: Completed 02-01-PLAN.md
+Last session: 2026-05-29T16:24:05.608Z
+Stopped at: Completed 02-02-PLAN.md
 Resume file: None

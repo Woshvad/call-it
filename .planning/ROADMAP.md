@@ -99,7 +99,7 @@ Call It ships as a person-first onchain social prediction product on Arbitrum ma
   6. Live State OG card (variant 1) renders at `/og/[callId]` with the live follow%/fade% progress bar + time-left countdown + corner bracket motif; `og:image?v={statusVersion}` cache-busts on follow/fade activity per Pitfall 8 prep.
 **Plans**: 9 plans across 4 waves
   - [x] 02-01-PLAN.md — Wave 0: Foundry test scaffold (FfmTestHelper + FollowFadeMarket.t.sol + Gates + Interference + TvlAggregation) + TypeScript AMM parity stubs (D-29)
-  - [ ] 02-02-PLAN.md — Wave 1: IFollowFadeMarket interface + FollowFadeMarket AMM contract (full CEI/penalty-injection/caller-exit/TVL)
+  - [x] 02-02-PLAN.md — Wave 1: IFollowFadeMarket interface + FollowFadeMarket AMM contract (full CEI/penalty-injection/caller-exit/TVL)
   - [ ] 02-03-PLAN.md — Wave 1: CallRegistry redeploy diff (stake-forward D-01, markCallerExited D-02) + ProfileRegistry redeploy diff (authorizedRepWriters D-04, applyRepDelta D-05)
   - [ ] 02-04-PLAN.md — Wave 1: DeployPhase2.s.sol + addresses.ts + ABI export + [OPERATOR] Sepolia deploy checkpoint
   - [ ] 02-05-PLAN.md — Wave 2: DB schema (notifications + quote_stance tables) + [BLOCKING] Drizzle migration

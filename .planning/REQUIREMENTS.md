@@ -170,8 +170,8 @@ Requirements for the v1 mainnet release. Each line is an atomic, testable behavi
 - [ ] **SOCIAL-24**: Caller exit fires notification to every current follower and fader on the call (§8.7.3)
 - [ ] **SOCIAL-25**: Receipt page displays a permanent "CALLER EXITED" amber banner in the header from exit onward (§8.7.3, §15.3)
 - [x] **SOCIAL-26**: Caller exit applies reputation slash via ProfileRegistry — decay curve `-45 rep day 1 → -10 rep floor` (§8.7.3, §12.1)
-- [ ] **SOCIAL-27**: Exited callers receive NO additional reputation change at eventual settlement — they are removed from the call's rep accounting (§8.7.3, §12.4)
-- [ ] **SOCIAL-28**: There is no separate "cancel the call" mechanic — only callerExit after lock + normal settlement (§8.7.4)
+- [x] **SOCIAL-27**: Exited callers receive NO additional reputation change at eventual settlement — they are removed from the call's rep accounting (§8.7.3, §12.4)
+- [x] **SOCIAL-28**: There is no separate "cancel the call" mechanic — only callerExit after lock + normal settlement (§8.7.4)
 - [ ] **SOCIAL-29**: User can Challenge a call via `proposeChallenge(callId, stake)`; reverts `CallerNotOpenToChallenges` when caller toggled off (§5.3, §12.3)
 - [ ] **SOCIAL-30**: Challenge form pre-fills challenger's stake to match the caller's stake exactly; challenger can override (§5.3, §15.5)
 - [ ] **SOCIAL-31**: Asymmetric duels are allowed — pot is `min(callerStake, challengerStake) × 2` plus overage returned to whichever side overcommitted at settlement (§5.3, §12.3)
@@ -707,8 +707,8 @@ Which phases cover which requirements. Updated during roadmap creation by the ro
 | SOCIAL-24 | Phase 2 | Pending |
 | SOCIAL-25 | Phase 2 | Pending |
 | SOCIAL-26 | Phase 2 | Complete |
-| SOCIAL-27 | Phase 2 | Pending |
-| SOCIAL-28 | Phase 2 | Pending |
+| SOCIAL-27 | Phase 2 | Complete |
+| SOCIAL-28 | Phase 2 | Complete |
 | SOCIAL-29 | Phase 3 | Pending |
 | SOCIAL-30 | Phase 3 | Pending |
 | SOCIAL-31 | Phase 3 | Pending |
