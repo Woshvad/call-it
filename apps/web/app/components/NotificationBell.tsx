@@ -201,7 +201,6 @@ export function NotificationBell() {
           onClose={handleClose}
           onMarkedRead={handleMarkedRead}
           relayerUrl={RELAYER_URL}
-          userAddress={address}
         />
       )}
     </>

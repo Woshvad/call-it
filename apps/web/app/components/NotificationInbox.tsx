@@ -6,6 +6,9 @@
  *   "⚠ [callerHandle] exited their own call · [callStatement] · slashed [amount]"
  *
  * Mark-read: POST /api/notifications/mark-read { ids: [...] }
+ *   Sends Authorization: Bearer <privy access token> — the relayer's
+ *   privySessionPreHandler requires it and resolves the owner address from the
+ *   verified session (CR-01/CR-03). The client no longer sends a ?user= param.
  *
  * Neobrutalist design tokens:
  *   - #09090E background
@@ -14,13 +17,15 @@
  *   - SpaceGrotesk / monospace typography
  *
  * Security (T-02-09-03):
- *   - userAddress from parent (from useAccount, not URL param)
- *   - mark-read POST hits relayer with Privy session auth (Plan 07 privySessionPreHandler)
+ *   - mark-read POST hits relayer with Privy session auth (Plan 07 privySessionPreHandler);
+ *     the owner address is resolved from the verified session server-side (CR-01),
+ *     so the component no longer needs (and never sends) a user address.
  *
  * Requirements: SOCIAL-24, SOCIAL-25, D-13
  */
 
 import { useCallback, useEffect, useRef } from 'react';
+import { usePrivy } from '@privy-io/react-auth';
 import type { Notification } from './NotificationBell';
 
 interface NotificationInboxProps {
@@ -28,7 +33,6 @@ interface NotificationInboxProps {
   onClose: () => void;
   onMarkedRead: (ids: number[]) => void;
   relayerUrl: string;
-  userAddress: string;
 }
 
 /** Format ISO timestamp as relative time ("3 min ago", "2 hr ago", "3 days ago") */
@@ -157,9 +161,9 @@ export function NotificationInbox({
   onClose,
   onMarkedRead,
   relayerUrl,
-  userAddress,
 }: NotificationInboxProps) {
   const panelRef = useRef<HTMLDivElement>(null);
+  const { getAccessToken } = usePrivy();
 
   // Close on Escape key
   useEffect(() => {
@@ -170,23 +174,40 @@ export function NotificationInbox({
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [onClose]);
 
+  // POST mark-read with the verified Privy access token. The relayer requires
+  // Authorization: Bearer and resolves the owner address from the session
+  // (CR-01/CR-03) — no ?user= param is sent. Returns true on success.
+  const postMarkRead = useCallback(
+    async (unreadIds: number[]): Promise<boolean> => {
+      if (unreadIds.length === 0 || !relayerUrl) return false;
+      try {
+        const token = await getAccessToken();
+        if (!token) return false;
+        const res = await fetch(`${relayerUrl}/api/notifications/mark-read`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ ids: unreadIds }),
+        });
+        return res.ok;
+      } catch {
+        // Silently ignore — UI stays consistent even if mark-read fails
+        return false;
+      }
+    },
+    [relayerUrl, getAccessToken],
+  );
+
   // Auto-mark all unread as read when inbox opens
   useEffect(() => {
     const unreadIds = notifications.filter((n) => !n.readAt).map((n) => n.id);
-    if (unreadIds.length === 0 || !relayerUrl || !userAddress) return;
+    if (unreadIds.length === 0) return;
 
-    fetch(`${relayerUrl}/api/notifications/mark-read`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ids: unreadIds }),
-      credentials: 'include',
-    })
-      .then((res) => {
-        if (res.ok) onMarkedRead(unreadIds);
-      })
-      .catch(() => {
-        // Silently ignore — UI stays consistent even if mark-read fails
-      });
+    postMarkRead(unreadIds).then((ok) => {
+      if (ok) onMarkedRead(unreadIds);
+    });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Run once on mount only
 
@@ -205,19 +226,12 @@ export function NotificationInbox({
 
   const handleMarkAllRead = useCallback(() => {
     const unreadIds = notifications.filter((n) => !n.readAt).map((n) => n.id);
-    if (unreadIds.length === 0 || !relayerUrl) return;
+    if (unreadIds.length === 0) return;
 
-    fetch(`${relayerUrl}/api/notifications/mark-read`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ids: unreadIds }),
-      credentials: 'include',
-    })
-      .then((res) => {
-        if (res.ok) onMarkedRead(unreadIds);
-      })
-      .catch(() => {});
-  }, [notifications, relayerUrl, onMarkedRead]);
+    postMarkRead(unreadIds).then((ok) => {
+      if (ok) onMarkedRead(unreadIds);
+    });
+  }, [notifications, onMarkedRead, postMarkRead]);
 
   return (
     /* Backdrop */
