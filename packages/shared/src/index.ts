@@ -127,3 +127,22 @@ export type { CreateCallInput, CreateCallOutput } from './validation/call-gates.
 // ── Hashing — duplicate hash ──────────────────────────────────────────────────
 export { dayBucketUtc, computeDuplicateHash } from './hashing/duplicate-hash.js';
 export type { DuplicateHashInput } from './hashing/duplicate-hash.js';
+
+// ── Validation — follow-fade-gates (D-29 parity stubs) ────────────────────────
+export {
+  MIN_POSITION,
+  MAX_POSITION,
+  POSITION_EXIT_PENALTY_PCT,
+  POSITION_EXIT_COOLDOWN,
+  CALLER_EXIT_LOCK_DURATION,
+  CALLER_EXIT_BASE_PCT,
+  CALLER_EXIT_VARIABLE_PCT,
+  CALLER_EXIT_REP_MAX_DELTA,
+  CALLER_EXIT_REP_MIN_DELTA,
+  SLIPPAGE_TOLERANCE_BPS,
+  computeMinSharesOut,
+  computeMinSharesOutWithSlippage,
+  computeCallerExitPenaltyPct,
+  computeCallerExitRepDelta,
+  computePositionSlashSplit,
+} from './validation/follow-fade-gates.js';
