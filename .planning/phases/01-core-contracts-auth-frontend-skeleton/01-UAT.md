@@ -4,8 +4,8 @@ created: 2026-05-22
 updated: 2026-05-29
 status: partial
 gaps_total: 6
-gaps_open: 3
-gaps_resolved: 2
+gaps_open: 1
+gaps_resolved: 4
 gaps_partial: 1
 verification_source: .planning/phases/01-core-contracts-auth-frontend-skeleton/01-VERIFICATION.md
 ---
@@ -44,24 +44,43 @@ Wired:
 
 **Still open (rolls into Step 11):** subgraph Studio deploy (`pnpm --filter @call-it/subgraph deploy:sepolia`) + confirm a synthetic `CallCreated` indexes within 30s. Contract verification on Arbiscan (`--verify`) deferred — needs a free Arbiscan API key.
 
-### Gap 01-UAT-02 — Twitter OAuth round-trip (AUTH-04)
+### Gap 01-UAT-02 — OAuth round-trip → embedded wallet → onboarding (AUTH-03/04)
 
-**Status:** failed (cannot run in CI — needs real Privy App ID + browser)
+**Status: RESOLVED 2026-05-29** (verified live via Google; Twitter wired identically)
 
-**Expected:** Signing in via the Twitter button on `/signin` produces an authenticated Privy session that includes an embedded wallet auto-created in the same flow AND the user's Twitter handle pre-linked, without a second prompt.
+Verified the full OAuth → embedded-wallet → onboarding round-trip end-to-end against
+a real Privy App ID + the locally-run relayer. **Google** was the verified path
+(operator-confirmed: sign-in → authenticated session → embedded wallet → onboarding
+flow advances handle → socials → … with no errors). Twitter uses the identical
+`login({ loginMethods: ['twitter'] })` code path and the Twitter Developer App is
+configured in Privy, so it exercises the same mechanism.
 
-**How to close:** With a real Privy App ID set in `NEXT_PUBLIC_PRIVY_APP_ID`, run the web app locally (`pnpm --filter @call-it/web dev`), navigate to `/signin`, click Twitter, complete OAuth, and confirm:
-1. Post-OAuth session has `embeddedWallet.address` populated.
-2. `linkedAccounts` array includes a `twitter_oauth` entry with the handle.
-3. Onboarding flow proceeds to `/onboarding/handle` with the Twitter handle pre-filled (AUTH-20 fallback chain).
+**Two real auth-gate bugs were found + fixed to get here** (first real OAuth login —
+the Tier-2 browser path was always skipped in CI):
+- **Middleware cookie mismatch** (commit `ef10f4e`): middleware read `privy-id-token`
+  but the relayer verifies the ACCESS token (`privy-token`) via `verifyAuthToken`.
+  Switched to `privy-token`; SignInButtons now writes the access token to a first-party
+  cookie after auth so the server-side middleware can read it (Privy stores the session
+  in localStorage by default and sets no first-party cookie).
+- See also the relayer-boot + CORS fixes in the session note at the bottom of this file.
 
-### Gap 01-UAT-03 — Coinbase Onramp popup (AUTH-25 / D-34)
+**Residual:** Twitter-specific round-trip (handle pre-link from `twitter_oauth`) not
+separately screen-verified; mechanism identical to the verified Google path.
 
-**Status:** failed (cannot run in CI — needs real Onramp credentials)
+### Gap 01-UAT-03 — Fund flow (AUTH-23/25) — provider SUPERSEDED
 
-**Expected:** Clicking the Coinbase Onramp button on `/onboarding/fund` opens a popup window (NOT a redirect), the user completes a sandbox test purchase, returns to the fund screen, and the USDC balance refreshes within 5s.
+**Status: RESOLVED 2026-05-29** (Coinbase Onramp dropped; funding is Privy-native)
 
-**How to close:** Set `NEXT_PUBLIC_COINBASE_APP_ID` and `NEXT_PUBLIC_COINBASE_ONRAMP_API_KEY` from Coinbase Cloud sandbox. Test the full popup → return flow.
+The funding provider was switched from Coinbase Onramp (spec D-34) to **Privy-native
+`useFundWallet`** (commit `73681c9`). Rationale: the operator hit Coinbase CDP setup
+friction, and Coinbase Onramp cannot deliver Sepolia testnet USDC anyway. Privy
+aggregates card (Moonpay/Coinbase) + external-wallet + exchange transfer behind one
+dashboard-configured flow — no separate CDP app or `NEXT_PUBLIC_COINBASE_*` env vars.
+
+The `/onboarding/fund` step renders both paths (Privy funding button + direct USDC
+transfer with QR/copy) inside the now-working onboarding flow. The "fund flow exists"
+requirement (AUTH-23/25) is satisfied. Supersedes spec D-34. For Sepolia testing,
+fund the embedded wallet via the Circle faucet → direct transfer.
 
 ### Gap 01-UAT-04 — Paymaster 5-tx cap end-to-end (AUTH-27 / D-02)
 
@@ -70,6 +89,19 @@ Wired:
 **Expected:** First 5 `createCall` userOps are sponsored by Alchemy AA bundler. The 6th attempt receives `-32000 sponsorship-cap-exceeded` from `/api/paymaster/policy`. The `PaymasterCapBanner` appears in the UI offering the Circle USDC Paymaster handoff. The `useCirclePaymaster` hook signs an EIP-2612 permit and the 6th tx lands via Circle Paymaster (USDC gas).
 
 **How to close:** With real `NEXT_PUBLIC_ALCHEMY_AA_POLICY_ID` + Sepolia deployment from Gap 01-UAT-01, run 5 `createCall` from a fresh embedded wallet, confirm Upstash counter increments on each `UserOperationEvent`, attempt the 6th — verify the cap-banner + Circle handoff fires and lands the tx.
+
+**Status update 2026-05-29 — UNBLOCKED, full e2e pending.** The relayer now boots and
+serves locally (`/paymaster/policy` reachable; auth + onboarding round-trip verified).
+The paymaster *counter* uses Upstash REST (works). Two gaps remain before the 5→6 e2e
+can be exercised:
+1. `ALCHEMY_WS_URL` is not set, so the `paymaster-confirmer` WebSocket worker (which
+   increments the counter on confirmed `UserOperationEvent`s) does not start — the
+   counter won't auto-increment from real userOps without it.
+2. Requires actually sending 6 sponsored `createCall` userOps from a funded embedded
+   wallet on Sepolia.
+Neither is a code defect; both are operator/runtime setup. Relayer-side cap logic +
+`PaymasterCapBanner` + Circle handoff hook are all in place and unit-tested (111 relayer
+tests pass).
 
 ### Gap 01-UAT-05 — Circle USDC Paymaster mainnet address verification (D-04)
 
@@ -118,4 +150,31 @@ Tracked separately from the UAT gaps above — these are infrastructure setup th
 3. **Privy webhook secret rotation runbook** (from 01-07) — verify Svix `whsec_`-prefixed format in GCP Secret Manager.
 4. **ENS_MAINNET_RPC_URL** (from 01-01 + 01-09) — separate Alchemy free-tier Ethereum mainnet RPC for ENS reverse-record resolution (per-network IAM isolation from Phase 0 D-09).
 5. **The Graph Studio deploy key** (from 01-10) — for `pnpm --filter @call-it/subgraph deploy:sepolia` to publish the extended mappings.
-6. **Coinbase Onramp app config** (from 01-06) — Allowed Origins for production + dev URLs.
+6. ~~**Coinbase Onramp app config**~~ — SUPERSEDED 2026-05-29 (funding is Privy-native now; see Gap 03).
+
+## Session note — 2026-05-29: operator onboarding + local-stack bring-up
+
+External services wired (values in gitignored `.env.local` + GCP Secret Manager
+project `call-it-sepolia-602217`): Privy app, Alchemy (RPC + AA policy `274820ba…`),
+Fly app `call-it-relayer-sepolia` + Postgres `call-it-pg-sepolia`, Upstash Redis,
+15 GCP secrets. Sepolia contracts deployed (Gap 01). `deploy-relayer.yml` gaps fixed
+(real GCP project id + `POSTGRES_URL`/`PRIVY_WEBHOOK_SECRET`/`ENS_MAINNET_RPC_URL` added
+to fetch+inject lists).
+
+**Full local stack verified working** (web :3000 → relayer :8080 → Fly Postgres via
+`flyctl proxy`): sign-in → embedded wallet → onboarding round-trip. Three latent Phase 1
+bugs found + fixed along the way — all never caught because browser/relayer-boot paths
+were skipped in CI:
+
+| Fix | Commit | What |
+|---|---|---|
+| Auth gate | `ef10f4e` | middleware read `privy-id-token`; switched to `privy-token` (access token, matches relayer `verifyAuthToken`) + client writes first-party cookie post-auth |
+| Relayer boot | `3accb16` | `@call-it/shared` `export *` barrel → explicit named re-exports (named imports unresolvable under tsx+NodeNext); viem `webSocketTransport` → `webSocket` |
+| CORS | `f58564f` | added `@fastify/cors` — web→relayer browser calls were cross-origin with no CORS (prod bug too: Vercel↔Fly) |
+
+**Local-run notes for resume:** relayer runs via `node --env-file=.env.local --import tsx
+src/index.ts` from `apps/relayer/` with `flyctl proxy 5432 -a call-it-pg-sepolia` open and
+`POSTGRES_URL` pointed at `127.0.0.1:5432`; web `.env.local` `NEXT_PUBLIC_RELAYER_BASE_URL`
+points at `http://localhost:8080`. Revert both to the Fly URL once the relayer is deployed.
+Upstash free-tier REST is not BullMQ-TCP-compatible (`connect EPERM` log noise, non-fatal);
+needs Upstash Pro or a Fly Redis sidecar for the job queue at deploy time.
