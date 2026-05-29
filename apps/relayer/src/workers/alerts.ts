@@ -148,6 +148,43 @@ export async function sendAlert(
 }
 
 /**
+ * Swallow-and-log variant of sendAlert (WR-03).
+ *
+ * Worker loops (e.g. the notification fan-out tick) must never crash because an
+ * alert failed or because Telegram env vars are unset in staging — `getBot()`
+ * throws synchronously when TELEGRAM_BOT_TOKEN / chat IDs are missing, and
+ * `sendAlert` re-throws on send failure. This wrapper catches BOTH paths so a
+ * caller cannot accidentally take down its loop by forgetting a try/catch.
+ *
+ * Use this from all non-critical worker paths. Reserve the re-throwing
+ * `sendAlert` for callers that genuinely need to react to a failed send
+ * (e.g. the synthetic-event test handler).
+ *
+ * @returns true if the alert was sent, false if it was swallowed.
+ */
+export async function sendAlertSafe(
+  event: AlertEvent,
+  payload: Record<string, unknown>,
+): Promise<boolean> {
+  try {
+    await sendAlert(event, payload);
+    return true;
+  } catch (err) {
+    // sendAlert already logs send failures; this also covers getBot() throwing
+    // (missing Telegram env), which sendAlert does not catch.
+    getLogger().warn(
+      {
+        event: 'telegram_alert_swallowed',
+        alertEvent: event,
+        err: err instanceof Error ? err.message : String(err),
+      },
+      'Alert send failed — swallowed to keep caller loop alive (WR-03)',
+    );
+    return false;
+  }
+}
+
+/**
  * Reset bot singleton (for testing only).
  * @internal
  */

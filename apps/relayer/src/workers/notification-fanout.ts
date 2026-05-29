@@ -34,8 +34,50 @@ import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { getRedis } from '../lib/redis.js';
 import { logger } from '../lib/logger.js';
 import { notifications } from '../db/schema.js';
-import { sendAlert } from './alerts.js';
+import { sendAlertSafe } from './alerts.js';
+import { PROFILE_REGISTRY_ARBITRUM_SEPOLIA } from '@call-it/shared';
 import type * as schema from '../db/schema.js';
+
+// Max block span scanned per tick (WR-05) — most RPC providers reject very large
+// getLogs ranges. Caps catch-up so a missed/late init can never request block 1→head.
+const MAX_BLOCK_RANGE_PER_TICK = 10_000n;
+const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000';
+
+// ── ProfileRegistry.displayHandle slice (WR-06) ────────────────────────────────
+const PROFILE_REGISTRY_ABI = [
+  {
+    type: 'function',
+    name: 'displayHandle',
+    stateMutability: 'view',
+    inputs: [{ name: '', type: 'address' }],
+    outputs: [{ name: '', type: 'string' }],
+  },
+] as const;
+
+/**
+ * Resolve a caller's display handle from the deployed ProfileRegistry (WR-06).
+ * Falls back to the lowercased 0x address when no handle is set or the read
+ * fails — never throws.
+ */
+async function resolveCallerHandle(
+  publicClient: PublicClient,
+  caller: string,
+): Promise<string> {
+  if ((PROFILE_REGISTRY_ARBITRUM_SEPOLIA as string).toLowerCase() === ZERO_ADDRESS) {
+    return caller;
+  }
+  try {
+    const handle = (await publicClient.readContract({
+      address: PROFILE_REGISTRY_ARBITRUM_SEPOLIA as `0x${string}`,
+      abi: PROFILE_REGISTRY_ABI,
+      functionName: 'displayHandle',
+      args: [caller as `0x${string}`],
+    })) as string;
+    return handle && handle.length > 0 ? handle : caller;
+  } catch {
+    return caller;
+  }
+}
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -197,16 +239,26 @@ async function processCallerExitedEvent(
     return;
   }
 
+  // WR-06: exclude the caller's own address from the holder set — a caller who
+  // also holds a follow/fade position must not be told "you exited your own call".
+  const recipientHolders = holders.filter(
+    (position) => position.user.id.toLowerCase() !== caller,
+  );
+
+  // WR-06: resolve the caller's display handle (never the raw 0x address) so the
+  // UI renders @handle. Falls back to the address when no handle is set.
+  const callerHandle = await resolveCallerHandle(config.publicClient, caller);
+
   // 2. Batch-insert notification rows
-  if (holders.length > 0) {
+  if (recipientHolders.length > 0) {
     const payload = {
-      callerHandle: caller,
+      callerHandle,
       penaltyPaid: (args.penaltyPaid ?? 0n).toString(),
       stakeReturned: (args.stakeReturned ?? 0n).toString(),
       reputationDelta: (args.reputationDelta ?? 0n).toString(),
     };
 
-    const rows = holders.map((position) => ({
+    const rows = recipientHolders.map((position) => ({
       userAddress: position.user.id.toLowerCase(),
       eventType: 'caller_exited' as const,
       callId: parseInt(callId, 10),
@@ -252,22 +304,15 @@ async function processCallerExitedEvent(
   }
 
   // 4. Fire P1 informational alert (D-13 public broadcast)
-  try {
-    await sendAlert('caller_exited_broadcast', {
-      callId,
-      caller,
-      holderCount: holders.length,
-      penaltyPaid: (args.penaltyPaid ?? 0n).toString(),
-      stakeReturned: (args.stakeReturned ?? 0n).toString(),
-    });
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    logger.warn(
-      { event: 'notification_fanout_error', error: message, callId, phase: 'alert' },
-      'Failed to send caller_exited_broadcast alert — continuing',
-    );
-    // Non-fatal — alert failure must not block notification fan-out
-  }
+  // WR-03: sendAlertSafe swallows-and-logs (including getBot() throwing on missing
+  // Telegram env in staging), so this can never crash the fan-out tick.
+  await sendAlertSafe('caller_exited_broadcast', {
+    callId,
+    caller,
+    holderCount: recipientHolders.length,
+    penaltyPaid: (args.penaltyPaid ?? 0n).toString(),
+    stakeReturned: (args.stakeReturned ?? 0n).toString(),
+  });
 }
 
 // ── Main export ───────────────────────────────────────────────────────────────
@@ -282,6 +327,11 @@ export function startNotificationFanout(config: NotificationFanoutConfig): Notif
   const { publicClient, ffmAddress, intervalMs = 30_000 } = config;
 
   let lastBlockSeen: bigint = 0n;
+  // WR-05: tracks whether lastBlockSeen has been seeded from a real head. If init
+  // fails we must NOT default to scanning from block 1 (a multi-million-block
+  // getLogs range that RPC providers reject and that would replay/duplicate every
+  // historical event). Instead the tick re-attempts seeding before scanning.
+  let initialized = false;
   let totalEventsProcessed = 0;
   let errors = 0;
   let intervalId: ReturnType<typeof setInterval> | null = null;
@@ -291,6 +341,7 @@ export function startNotificationFanout(config: NotificationFanoutConfig): Notif
   const initPromise = (async () => {
     try {
       lastBlockSeen = await publicClient.getBlockNumber();
+      initialized = true;
       logger.info(
         { event: 'notification_fanout_started', lastBlockSeen: lastBlockSeen.toString(), ffmAddress },
         'Notification fan-out worker started',
@@ -299,7 +350,7 @@ export function startNotificationFanout(config: NotificationFanoutConfig): Notif
       const message = err instanceof Error ? err.message : String(err);
       logger.error({ event: 'notification_fanout_error', error: message, phase: 'init' });
       errors++;
-      lastBlockSeen = 0n;
+      // Leave initialized=false so the tick re-seeds rather than scanning from 1.
     }
   })();
 
@@ -312,26 +363,66 @@ export function startNotificationFanout(config: NotificationFanoutConfig): Notif
     // Wait for initialization to complete
     await initPromise;
 
+    // WR-05: if init failed, retry seeding the head before scanning. Until we
+    // have a real head we cannot safely choose a fromBlock, so skip this tick.
+    if (!initialized) {
+      try {
+        lastBlockSeen = await publicClient.getBlockNumber();
+        initialized = true;
+        logger.info(
+          { event: 'notification_fanout_init_recovered', lastBlockSeen: lastBlockSeen.toString() },
+          'Re-seeded lastBlockSeen after failed init — skipping this tick to avoid full-chain scan',
+        );
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        logger.warn(
+          { event: 'notification_fanout_error', error: message, phase: 'init_retry' },
+          'getBlockNumber still failing — skipping tick (will retry next interval)',
+        );
+        errors++;
+      }
+      return;
+    }
+
     logger.info(
       { event: 'notification_fanout_tick', lastBlockSeen: lastBlockSeen.toString() },
       'Notification fan-out tick',
     );
 
     try {
-      const fromBlock = lastBlockSeen === 0n ? 1n : lastBlockSeen + 1n;
+      const fromBlock = lastBlockSeen + 1n;
+
+      // WR-05: cap the scan window so a long catch-up never requests an oversized
+      // range the RPC provider rejects. Subsequent ticks advance through the gap.
+      let toBlock: bigint | 'latest' = 'latest';
+      let cappedToBlock: bigint | null = null;
+      try {
+        const head = await publicClient.getBlockNumber();
+        if (head - fromBlock > MAX_BLOCK_RANGE_PER_TICK) {
+          cappedToBlock = fromBlock + MAX_BLOCK_RANGE_PER_TICK;
+          toBlock = cappedToBlock;
+        }
+      } catch {
+        // If head is unavailable, fall back to 'latest' (single recent tick).
+      }
 
       const logs = await publicClient.getLogs({
         address: ffmAddress,
         event: CALLER_EXITED_EVENT,
         fromBlock,
-        toBlock: 'latest',
+        toBlock,
       });
 
-      // Advance lastBlockSeen regardless of whether logs were found
+      // Advance lastBlockSeen. When the range was capped, advance only to the cap
+      // so the next tick continues from there; otherwise advance to current head.
       try {
-        const currentBlock = await publicClient.getBlockNumber();
-        if (currentBlock > lastBlockSeen) {
-          lastBlockSeen = currentBlock;
+        if (cappedToBlock !== null) {
+          lastBlockSeen = cappedToBlock;
+        } else {
+          const currentBlock = await publicClient.getBlockNumber();
+          if (currentBlock > lastBlockSeen) {
+            lastBlockSeen = currentBlock;
+          }
         }
       } catch {
         // Non-fatal — advance will happen on next tick
