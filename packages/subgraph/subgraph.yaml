@@ -103,7 +103,9 @@ dataSources:
     name: FollowFadeMarket
     network: arbitrum-sepolia
     source:
-      # Phase 2 placeholder — address populated when FollowFadeMarket deploys.
+      # Phase 2 placeholder — FOLLOW_FADE_MARKET_ARBITRUM_SEPOLIA from addresses.ts.
+      # Currently zero address (deferred deploy, plan 02-04 Task 2).
+      # Update address + startBlock after running packages/contracts/script/DeployPhase2.s.sol.
       address: "0x0000000000000000000000000000000000000000"
       abi: FollowFadeMarket
       startBlock: 1
@@ -116,12 +118,22 @@ dataSources:
         - Call
         - Position
         - PositionExit
+        - CallerExit
         - TvlSnapshot
       abis:
         - name: FollowFadeMarket
           file: ./abis/FollowFadeMarket.json
-      blockHandlers:
-        - handler: handleBlock
+      eventHandlers:
+        - event: Followed(indexed uint256,indexed address,uint256,uint256)
+          handler: handleFollowed
+        - event: Faded(indexed uint256,indexed address,uint256,uint256)
+          handler: handleFaded
+        - event: PositionExited(indexed uint256,indexed address,uint8,uint256,uint256)
+          handler: handlePositionExited
+        - event: CallerExited(indexed uint256,indexed address,uint64,uint256,uint256,int256)
+          handler: handleCallerExited
+        - event: PoolInitialized(indexed uint256,uint256,uint256)
+          handler: handlePoolInitialized
   - kind: ethereum/contract
     name: ChallengeEscrow
     network: arbitrum-sepolia
