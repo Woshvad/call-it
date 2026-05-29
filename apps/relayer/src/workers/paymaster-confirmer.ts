@@ -22,7 +22,7 @@
  * Requirements: AUTH-27, AUTH-28, D-02, SAFETY-18, T-01-41, T-01-45
  */
 
-import { createPublicClient, webSocketTransport, parseAbi, type Log } from 'viem';
+import { createPublicClient, webSocket, parseAbi, type Log } from 'viem';
 import { arbitrum } from 'viem/chains';
 import { incrementPaymasterCount, getSenderMapping } from '../lib/upstash-counter.js';
 import { sendAlert } from './alerts.js';
@@ -140,7 +140,7 @@ export function startPaymasterConfirmer(): () => void {
 
   const client = createPublicClient({
     chain: arbitrum,
-    transport: webSocketTransport(alchemyWsUrl),
+    transport: webSocket(alchemyWsUrl),
   });
 
   let retryTimeout: ReturnType<typeof setTimeout> | undefined;
