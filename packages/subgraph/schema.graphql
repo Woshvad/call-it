@@ -33,14 +33,20 @@ type Call @entity(immutable: false) {
 
 type Position @entity(immutable: false) {
   id: ID!
-  call: Call!
-  user: Bytes!
+  # Relation reference (set by CallRegistry handlers; nullable for FFM-only positions)
+  call: Call
+  # String fields used by FollowFadeMarket handlers (id = callId-userHex-side)
+  callId: String!
+  user: String!
   side: String!
+  usdcDeposited: BigInt!
+  sharesHeld: BigInt!
+  entryTime: BigInt!
+  exitedAt: BigInt
+  # Legacy fields retained for backward compat with Phase 1 CallRegistry mapping
   stake: BigInt!
   shares: BigInt!
-  entryTime: BigInt!
   claimed: Boolean!
-  exitedAt: BigInt
 }
 
 type Challenge @entity(immutable: false) {
@@ -156,12 +162,19 @@ type ConvictionCap @entity(immutable: true) {
   timestamp: BigInt!
 }
 
-type CallerExit @entity(immutable: true) {
+type CallerExit @entity(immutable: false) {
   id: ID!
-  call: Call!
+  # Relation reference (nullable — FFM handlers use string callId below)
+  call: Call
+  # String callId used by FollowFadeMarket handleCallerExited (id = callId string)
+  callId: String!
   exitedAt: BigInt!
   penaltyApplied: BigInt!
+  penaltyPaid: BigInt!
+  stakeReturned: BigInt!
+  reputationDelta: BigInt!
   callerVolumeAtExit: BigInt!
+  timestamp: BigInt!
 }
 
 type PayoutClaim @entity(immutable: true) {
@@ -174,10 +187,18 @@ type PayoutClaim @entity(immutable: true) {
 
 type PositionExit @entity(immutable: true) {
   id: ID!
-  position: Position!
-  exitedAt: BigInt!
+  # Relation reference (nullable — FFM handlers use string fields below)
+  position: Position
+  # String fields used by FollowFadeMarket handlePositionExited (id = callId-userHex-timestamp)
+  callId: String!
+  user: String!
+  side: String!
+  usdcReturned: BigInt!
   slashAmount: BigInt!
   returnedAmount: BigInt!
+  timestamp: BigInt!
+  # Legacy alias retained for backward compat
+  exitedAt: BigInt!
 }
 
 type ChallengePayout @entity(immutable: true) {
