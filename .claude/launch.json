@@ -1,0 +1,12 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "web",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["--filter", "@call-it/web", "dev:webpack"],
+      "port": 3000,
+      "autoPort": false
+    }
+  ]
+}

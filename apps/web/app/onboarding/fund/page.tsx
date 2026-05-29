@@ -2,7 +2,9 @@
  * Fund step — fund your embedded wallet before committing to the tagline.
  *
  * Shows two funding paths:
- *   1. Coinbase Onramp popup (D-34) — `<CoinbaseOnrampButton />`
+ *   1. Privy-native funding (`<PrivyFundButton />`) — card / external wallet / exchange,
+ *      via Privy's useFundWallet flow (supersedes the spec's D-34 Coinbase Onramp popup;
+ *      see PrivyFundButton.tsx for the provider-swap rationale, 2026-05-29).
  *   2. Direct USDC transfer — user's embedded wallet address (copyable, QR code)
  *
  * Live balance shown via `useUsdcBalance()`.
@@ -12,7 +14,7 @@
  *   shown in the deposit instructions panel (this is the explicit exception —
  *   the user needs to know where to send funds).
  *
- * Requirements: AUTH-23, AUTH-25, D-34
+ * Requirements: AUTH-23, AUTH-25 (funding provider: Privy-native, not D-34 Coinbase)
  */
 
 'use client';
@@ -21,7 +23,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAccount } from 'wagmi';
 import { Button, Tag } from '@call-it/ui';
-import { CoinbaseOnrampButton } from '../../../components/CoinbaseOnrampButton';
+import { PrivyFundButton } from '../../../components/PrivyFundButton';
 import { useUsdcBalance } from '../../../hooks/useUsdcBalance';
 import { useOnboardingState } from '../../../hooks/useOnboardingState';
 
@@ -144,12 +146,12 @@ export default function FundPage() {
 
       {/* Funding options */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-        {/* Option 1: Coinbase Onramp (D-34 popup) */}
+        {/* Option 1: Privy-native funding (card / external wallet / exchange) */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
           <p style={{ fontSize: '0.625rem', fontFamily: 'monospace', color: '#A1A1AA', textTransform: 'uppercase', letterSpacing: '0.08em', margin: 0 }}>
-            Buy with card or bank
+            Buy with card or transfer from an exchange
           </p>
-          <CoinbaseOnrampButton
+          <PrivyFundButton
             onComplete={() => { /* balance auto-refreshes via useUsdcBalance */ }}
           />
         </div>

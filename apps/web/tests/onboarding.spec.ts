@@ -10,13 +10,14 @@
  *   - AUTH-21 commitment copy is verbatim on Screen 4 (tagline)
  *   - AUTH-44: no wallet address rendered in the main onboarding visual
  *   - Middleware exists and contains the resume/redirect logic (taglineCommittedAt check)
- *   - CoinbaseOnrampButton uses window.open (not window.location.href) — D-34
+ *   - PrivyFundButton uses Privy's useFundWallet flow (funding provider swapped from
+ *     the spec's D-34 Coinbase Onramp to Privy-native funding, 2026-05-29)
  *   - useUsdcBalance references USDC_ARB_NATIVE (not inline address)
  *
  * **Tier 2 — Browser E2E (requires real Privy app ID)**
  * Skipped unless NEXT_PUBLIC_PRIVY_APP_ID is a real Privy app ID.
  *
- * Requirements: AUTH-19, AUTH-20, AUTH-21, AUTH-22, AUTH-24, AUTH-25, D-32, D-34
+ * Requirements: AUTH-19, AUTH-20, AUTH-21, AUTH-22, AUTH-24, AUTH-25, D-32
  */
 
 import { test, expect } from '@playwright/test';
@@ -33,7 +34,7 @@ const ONBOARDING_FUND = path.join(WEB_ROOT, 'app', 'onboarding', 'fund', 'page.t
 const ONBOARDING_TAGLINE = path.join(WEB_ROOT, 'app', 'onboarding', 'tagline', 'page.tsx');
 const ONBOARDING_LAYOUT = path.join(WEB_ROOT, 'app', 'onboarding', 'layout.tsx');
 const CUSTODY_CARD = path.join(WEB_ROOT, 'components', 'CustodyDisclosureCard.tsx');
-const COINBASE_BUTTON = path.join(WEB_ROOT, 'components', 'CoinbaseOnrampButton.tsx');
+const PRIVY_FUND_BUTTON = path.join(WEB_ROOT, 'components', 'PrivyFundButton.tsx');
 const USDC_BALANCE_HOOK = path.join(WEB_ROOT, 'hooks', 'useUsdcBalance.ts');
 const MIDDLEWARE = path.join(WEB_ROOT, 'middleware.ts');
 const PROVIDERS = path.join(WEB_ROOT, 'app', 'Providers.tsx');
@@ -100,26 +101,28 @@ test.describe('Tier 1: Onboarding source code assertions', () => {
     expect(source).toContain("'tagline'");
   });
 
-  test('D-34: CoinbaseOnrampButton uses window.open (NOT redirect)', () => {
-    const source = readFileSync(COINBASE_BUTTON, 'utf-8');
-    // Must have window.open
-    expect(source).toContain('window.open(');
-    // Must NOT use redirect pattern
-    expect(source).not.toMatch(/window\.location\.href\s*=.*coinbase/i);
-    expect(source).not.toMatch(/window\.location\.replace.*coinbase/i);
-    expect(source).not.toMatch(/router\.push.*pay\.coinbase/i);
+  test('Funding: PrivyFundButton uses Privy useFundWallet (not a standalone onramp)', () => {
+    const source = readFileSync(PRIVY_FUND_BUTTON, 'utf-8');
+    expect(source).toContain('useFundWallet');
+    expect(source).toContain('@privy-io/react-auth');
+    expect(source).toContain('fundWallet(');
+    // The standalone Coinbase popup integration must be gone (no hardcoded pay.coinbase origin).
+    expect(source).not.toContain('pay.coinbase.com');
   });
 
-  test('D-34: CoinbaseOnrampButton popup dimensions match spec', () => {
-    const source = readFileSync(COINBASE_BUTTON, 'utf-8');
-    expect(source).toContain('width=500');
-    expect(source).toContain('height=700');
+  test('Funding: PrivyFundButton funds USDC on the configured Arbitrum chain', () => {
+    const source = readFileSync(PRIVY_FUND_BUTTON, 'utf-8');
+    expect(source).toContain("asset: 'USDC'");
+    // Network-driven chain selection (D-36 — Arbitrum only).
+    expect(source).toMatch(/arbitrum\b/);
+    expect(source).toMatch(/arbitrumSepolia/);
+    expect(source).toContain('NEXT_PUBLIC_NETWORK');
   });
 
-  test('T-01-37: CoinbaseOnrampButton validates postMessage origin', () => {
-    const source = readFileSync(COINBASE_BUTTON, 'utf-8');
-    expect(source).toContain("'https://pay.coinbase.com'");
-    expect(source).toMatch(/event\.origin\s*!==\s*COINBASE_ONRAMP_ORIGIN|event\.origin\s*===\s*COINBASE_ONRAMP_ORIGIN/);
+  test('Funding: PrivyFundButton refetches balance on completed funding', () => {
+    const source = readFileSync(PRIVY_FUND_BUTTON, 'utf-8');
+    expect(source).toContain('refetch');
+    expect(source).toContain("status === 'completed'");
   });
 
   test('T-01-39: useUsdcBalance references USDC_ARB_NATIVE from @call-it/shared', () => {
@@ -155,9 +158,9 @@ test.describe('Tier 1: Onboarding source code assertions', () => {
     expect(source).toContain('Skip for now');
   });
 
-  test('Fund page renders CoinbaseOnrampButton', () => {
+  test('Fund page renders PrivyFundButton', () => {
     const source = readFileSync(ONBOARDING_FUND, 'utf-8');
-    expect(source).toContain('CoinbaseOnrampButton');
+    expect(source).toContain('PrivyFundButton');
     expect(source).toContain('usdc-balance');
   });
 });
