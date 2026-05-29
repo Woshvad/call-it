@@ -25,12 +25,24 @@ See: .planning/PROJECT.md (updated 2026-05-21)
 
 ## Current Position
 
-Phase: 02 (followfademarket) — EXECUTING
-Plan: 7 of 9
-Status: Ready to execute
-Last activity: 2026-05-29
+Phase: 02 (followfademarket) — CODE COMPLETE (6/9 plans); 3 plans deferred pending live infra
+Plan: 6 of 9 complete (02-01,02,03,07,08,09). OPEN: 02-04, 02-05, 02-06 (live-infra checkpoints deferred per operator decision)
+Status: Paused at deferred live-infra gates — phase NOT marked complete. See "Deferred Live Infra" below.
+Last activity: 2026-05-29 -- Phase 2 code complete (6/9); live contract deploy / DB migrate / subgraph publish deferred
 
-Progress: [█████████░] 92%
+Progress: [██████░░░░] 6/9 plans (code-complete); phase completion blocked on 3 deferred deploys
+
+## Deferred Live Infra (Phase 2 — resume to close)
+
+All Phase 2 CODE is shipped and tests pass; the following LIVE operator actions were deferred (operator chose "continue, defer deploy"). Plans 02-04/05/06 stay OPEN (no SUMMARY) until done. After each, write the SUMMARY + mark ROADMAP complete (or re-run `/gsd-execute-phase 2` to resume the open plans).
+
+1. **02-04 — Arbitrum Sepolia contract deploy** (DeployPhase2.s.sol committed `8855c15`):
+   - Replace the 5 placeholder Pyth feed IDs (UNI, LINK, AAVE, MKR, DOGE — currently `bytes32(0)`) with verified Hermes IDs.
+   - Set DEPLOYER_PRIVATE_KEY, TREASURY_ADDRESS, ARBITRUM_SEPOLIA_RPC, ARBISCAN_SEPOLIA_API_KEY.
+   - `forge script packages/contracts/script/DeployPhase2.s.sol --rpc-url $ARBITRUM_SEPOLIA_RPC --broadcast --verify`
+   - Update the 3 v2 addresses in `packages/shared/src/constants/addresses.ts` (replace the FOLLOW_FADE_MARKET_ARBITRUM_SEPOLIA zero placeholder + CallRegistry/ProfileRegistry v2) and `packages/subgraph/subgraph.yaml` (+startBlocks).
+2. **02-05 — Fly Postgres migration** (schema `361ff9d` + SQL `fd3215b` committed): `pnpm --filter @call-it/relayer db:migrate`; verify `\dt` lists `notifications` + `quote_stance`.
+3. **02-06 — Subgraph Studio publish** (handlers `d03057c` + yaml `5bca56b` committed): after 02-04 addresses land in subgraph.yaml, `graph codegen && graph build`, then `pnpm graph deploy --studio call-it-sepolia` (needs GRAPH_STUDIO_DEPLOY_KEY).
 
 ## Performance Metrics
 
