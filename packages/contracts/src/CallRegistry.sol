@@ -322,6 +322,8 @@ contract CallRegistry is Ownable2Step, ReentrancyGuard, Pausable, ICallRegistry 
                 status: CallStatus.Live,
                 conviction: 0,
                 openToChallenges: false,
+                callerExitedAt: 0,
+                outcome: Outcome.Pending,
                 duplicateHash: bytes32(0),
                 criteriaHash: bytes32(0),
                 assetA: 0,
@@ -363,9 +365,22 @@ contract CallRegistry is Ownable2Step, ReentrancyGuard, Pausable, ICallRegistry 
     }
 
     /// @inheritdoc ICallRegistry
-    /// @dev Phase 2 implements the decay formula. Phase 1 stub always returns 0.
-    function computeCallerExitPenalty(uint256 /*callId*/) external pure returns (uint256) {
-        return 0;
+    /// @dev Phase 2: real penalty formula (Research Pattern 5).
+    ///      penalty = 15% + 35% * (remaining / totalDuration), floor 15% at expiry.
+    ///      Returns the penalty percentage (e.g. 32 for 32%).
+    ///      Returns 0 for invalid callId (out of range).
+    function computeCallerExitPenalty(uint256 callId) external view returns (uint256) {
+        if (callId == 0 || callId >= _calls.length) return 0;
+        Call storage c = _calls[callId];
+        if (block.timestamp >= uint256(c.expiry)) {
+            return 15; // floor: call expired
+        }
+        uint256 totalDuration = uint256(c.expiry) - uint256(c.createdAt);
+        if (totalDuration == 0) return 15; // degenerate guard
+        uint256 remaining = uint256(c.expiry) - block.timestamp;
+        // Multiply first to preserve precision (same as FollowFadeMarket._callerExitPenaltyPct)
+        uint256 variable = (35 * remaining) / totalDuration;
+        return 15 + variable; // range [15, 50]
     }
 
     // ─── Owner-only admin functions ─────────────────────────────────────────────
@@ -413,6 +428,15 @@ contract CallRegistry is Ownable2Step, ReentrancyGuard, Pausable, ICallRegistry 
     function markCallerExited(uint256 callId) external {
         if (msg.sender != followFadeMarket) revert NotAuthorized();
         _calls[callId].status = CallStatus.CallerExited;
+        _calls[callId].callerExitedAt = uint64(block.timestamp); // SOCIAL-21: snapshot exit timestamp
+    }
+
+    /// @inheritdoc ICallRegistry
+    /// @notice Called by SettlementManager to mark a call as Settled with outcome. D-02.
+    function markSettled(uint256 callId, Outcome outcome) external {
+        if (msg.sender != settlementManager) revert NotSettlementManager();
+        _calls[callId].status = CallStatus.Settled;
+        _calls[callId].outcome = outcome;
     }
 
     /// @inheritdoc ICallRegistry

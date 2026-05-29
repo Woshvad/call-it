@@ -31,12 +31,23 @@ interface ICallRegistry {
         ProtocolMilestone // 7 — protocol milestone event (requires criteriaHash)
     }
 
+    /// @dev Ordinals are stable: Live=0, Settled=1, Disputed=2, CallerExited=3. Do NOT reorder.
+    ///      CallerExited is appended after Disputed to preserve ABI compatibility with Phase 1.
     /// @notice Call status lifecycle.
     enum CallStatus {
         Live,         // 0 — active, accepting follows/fades
         Settled,      // 1 — settled by SettlementManager
         Disputed,     // 2 — under dispute resolution (Phase 4)
         CallerExited  // 3 — caller exited early (Phase 2)
+    }
+
+    /// @notice Settlement outcome for a call. Set by markSettled(). D-02.
+    ///         Phase 2 ships the enum; Phase 4 SettlementManager populates it.
+    /// @dev Ordinals are stable: Pending=0, CallerWon=1, CallerLost=2. Do NOT reorder.
+    enum Outcome {
+        Pending,    // 0 — not yet settled (default)
+        CallerWon,  // 1 — caller's price target / event outcome was correct
+        CallerLost  // 2 — caller was wrong
     }
 
     /// @notice Call category for reputation routing. CALL-62/63, REP-28/29.
@@ -131,6 +142,9 @@ interface ICallRegistry {
         CallStatus   status;      // 1 byte
         uint8   conviction;       // 1 byte (1–100)
         bool    openToChallenges; // 1 byte
+        // slot 2 continued (7 bytes remaining after above packs to 32)
+        uint64  callerExitedAt;   // 8 bytes — timestamp of markCallerExited(); 0 if not exited. SOCIAL-21.
+        Outcome outcome;          // 1 byte — settlement outcome; Pending until markSettled(). D-02.
 
         // slot 3+
         bytes32 duplicateHash;
@@ -186,8 +200,9 @@ interface ICallRegistry {
         uint64     expiry
     ) external pure returns (bytes32);
 
-    /// @notice Phase 2 exit penalty stub. Returns 0 in Phase 1. CALL-68.
-    function computeCallerExitPenalty(uint256 callId) external pure returns (uint256);
+    /// @notice Phase 2 exit penalty. Returns penalty percentage (15–50). CALL-68, SOCIAL-18.
+    ///         formula: 15 + 35 * remaining / totalDuration; floor 15% at expiry.
+    function computeCallerExitPenalty(uint256 callId) external view returns (uint256);
 
     // ─── Owner-only admin functions ────────────────────────────────────────────
 
@@ -208,6 +223,10 @@ interface ICallRegistry {
 
     /// @notice Called by FollowFadeMarket to mark a call as CallerExited. D-02.
     function markCallerExited(uint256 callId) external;
+
+    /// @notice Called by SettlementManager to mark a call as Settled with an outcome. D-02.
+    ///         Reverts NotSettlementManager if msg.sender != settlementManager.
+    function markSettled(uint256 callId, Outcome outcome) external;
 
     /// @notice Pause createCall. SAFETY-04.
     function pause() external;
