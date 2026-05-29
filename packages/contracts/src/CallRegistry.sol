@@ -344,8 +344,10 @@ contract CallRegistry is Ownable2Step, ReentrancyGuard, Pausable, ICallRegistry 
         uint256[] storage ids = _userCalls[user];
         uint256 total = ids.length;
         if (offset >= total || limit == 0) return new uint256[](0);
-        uint256 end = offset + limit;
-        if (end > total) end = total;
+        // WR-07: guard against `offset + limit` overflow for adversarial `limit`
+        // near type(uint256).max. `offset < total` is already established above,
+        // so `total - offset` is safe and non-zero.
+        uint256 end = limit > total - offset ? total : offset + limit;
         result = new uint256[](end - offset);
         for (uint256 i = offset; i < end; i++) {
             result[i - offset] = ids[i];
@@ -427,6 +429,10 @@ contract CallRegistry is Ownable2Step, ReentrancyGuard, Pausable, ICallRegistry 
     /// @inheritdoc ICallRegistry
     function markCallerExited(uint256 callId) external {
         if (msg.sender != followFadeMarket) revert NotAuthorized();
+        require(callId != 0 && callId < _calls.length, "bad-callId");
+        // SOCIAL-27: only a Live call may be exited; a Settled (or already-exited)
+        // call must never be re-flipped back to CallerExited.
+        require(_calls[callId].status == CallStatus.Live, "not-live");
         _calls[callId].status = CallStatus.CallerExited;
         _calls[callId].callerExitedAt = uint64(block.timestamp); // SOCIAL-21: snapshot exit timestamp
     }
@@ -435,6 +441,9 @@ contract CallRegistry is Ownable2Step, ReentrancyGuard, Pausable, ICallRegistry 
     /// @notice Called by SettlementManager to mark a call as Settled with outcome. D-02.
     function markSettled(uint256 callId, Outcome outcome) external {
         if (msg.sender != settlementManager) revert NotSettlementManager();
+        require(callId != 0 && callId < _calls.length, "bad-callId");
+        // One-shot guard: a Settled call's outcome must never be overwritten.
+        require(_calls[callId].status != CallStatus.Settled, "already-settled");
         _calls[callId].status = CallStatus.Settled;
         _calls[callId].outcome = outcome;
     }
