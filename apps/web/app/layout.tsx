@@ -1,5 +1,7 @@
 import type { Metadata } from 'next';
 import { ClientProviders } from './ClientProviders';
+// GlobalNav mounts NotificationBell (authenticated users only — SOCIAL-24, D-13)
+import { GlobalNav } from './components/GlobalNav';
 
 // Force dynamic rendering — Providers are client-only (no SSR), so SSG is not compatible.
 export const dynamic = 'force-dynamic';
@@ -28,7 +30,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           minHeight: '100vh',
         }}
       >
-        <ClientProviders>{children}</ClientProviders>
+        <ClientProviders>
+          <GlobalNav />
+          {children}
+        </ClientProviders>
       </body>
     </html>
   );
