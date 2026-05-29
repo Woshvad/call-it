@@ -37,6 +37,8 @@ import { callsPreflightRoute } from './routes/calls-preflight.js';
 import { callsDupCheckRoute } from './routes/calls-dup-check.js';
 import { feedRoute } from './routes/feed.js';
 import { profileRoute } from './routes/profile.js';
+import { liveStateRoute } from './routes/live-state.js';
+import { quoteStanceRoute } from './routes/quote-stance.js';
 import { sendAlert } from './workers/alerts.js';
 import { startPaymasterConfirmer } from './workers/paymaster-confirmer.js';
 
@@ -135,6 +137,11 @@ export async function buildApp(): Promise<FastifyInstance> {
   await app.register(feedRoute);
   // Phase 1 — Plan 09: profile resolution (ENS + AUTH-11 priority chain — D-13)
   await app.register(profileRoute);
+  // ── Plan 02-07 routes ─────────────────────────────────────
+  // Phase 2 — Plan 07: live-state proxy (FFM contract reads + 4s Redis cache — D-07)
+  await app.register(liveStateRoute);
+  // Phase 2 — Plan 07: quote-stance CRUD (D-15, SOCIAL-43)
+  await app.register(quoteStanceRoute);
   // ─────────────────────────────────────────────────────────
 
   // 5. Boot-time BullMQ compatibility smoke (Pitfall A mitigation)
