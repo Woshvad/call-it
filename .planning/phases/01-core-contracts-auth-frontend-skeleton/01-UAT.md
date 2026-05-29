@@ -1,11 +1,11 @@
 ---
 phase: 01-core-contracts-auth-frontend-skeleton
 created: 2026-05-22
-updated: 2026-05-22
+updated: 2026-05-29
 status: partial
 gaps_total: 6
-gaps_open: 4
-gaps_resolved: 1
+gaps_open: 3
+gaps_resolved: 2
 gaps_partial: 1
 verification_source: .planning/phases/01-core-contracts-auth-frontend-skeleton/01-VERIFICATION.md
 ---
@@ -23,25 +23,26 @@ Phase 1 execution is complete: 10 plans landed across 7 waves, ~45 commits, 257+
 
 ### Gap 01-UAT-01 — CallRegistry / ProfileRegistry Sepolia deploy
 
-**Status:** failed (not yet attempted)
+**Status: RESOLVED 2026-05-29**
 
-**What:** The contract code is complete and verified (80 Foundry tests pass) but has not been deployed to Arbitrum Sepolia. `addresses.ts` has placeholder `0x0...0` for both `CALL_REGISTRY_ARBITRUM_SEPOLIA` and `PROFILE_REGISTRY_ARBITRUM_SEPOLIA`. `subgraph.yaml` data-source addresses are likewise placeholder.
+Deployed to Arbitrum Sepolia (chain 421614) via `DeployPhase1.s.sol`:
+- **ProfileRegistry:** `0x4dCdE524F0566f583fab237d7CeED2fE8fB02322`
+- **CallRegistry:**    `0xC61deC55ED916f97006FC1B01695Ee9297a8867C`
+- **Deploy block:** 271888754 · **Deployer/owner:** `0xF4ee61950B63cCA5C82f1146484d018Ac95Bd0F2`
 
-**How to close:**
-```bash
-# Requires funded Arbitrum Sepolia deployer key in $DEPLOYER_PRIVATE_KEY
-cd packages/contracts
-forge script script/DeployPhase1.s.sol:DeployPhase1 \
-  --rpc-url arbitrum_sepolia \
-  --broadcast \
-  --verify
+Post-deploy smoke test (§19.11) — all green:
+- `tvlCap()` → `5000000000` ($5,000) ✓
+- `currentTvl()` → `0` ✓
+- `owner()` (both contracts) → deployer ✓
+- `profileRegistry()` → ProfileRegistry address ✓
 
-# Record deployed addresses
-# Update packages/shared/src/constants/addresses.ts CALL_REGISTRY_ARBITRUM_SEPOLIA + PROFILE_REGISTRY_ARBITRUM_SEPOLIA
-# Update packages/subgraph/subgraph.yaml CallRegistry + ProfileRegistry source.address + startBlock
-# Re-deploy subgraph: pnpm --filter @call-it/subgraph deploy:sepolia
-# Verify a synthetic CallCreated event indexes within 30s
-```
+**Stack-pin reconciliation:** the `lib/openzeppelin-contracts` submodule was an uninitialized git submodule pointing at the stale **v5.3.0** commit. Bumped to the pinned **v5.6.1** (CLAUDE.md `=5.6.1`) before deploying; re-ran the full Foundry suite — **80/80 tests pass** against 5.6.1. The submodule gitlink bump is part of this change set.
+
+Wired:
+- `packages/shared/src/constants/addresses.ts` → `CALL_REGISTRY_ARBITRUM_SEPOLIA`, `PROFILE_REGISTRY_ARBITRUM_SEPOLIA`
+- `packages/subgraph/subgraph.yaml` → both data-source `address` + `startBlock: 271888754`
+
+**Still open (rolls into Step 11):** subgraph Studio deploy (`pnpm --filter @call-it/subgraph deploy:sepolia`) + confirm a synthetic `CallCreated` indexes within 30s. Contract verification on Arbiscan (`--verify`) deferred — needs a free Arbiscan API key.
 
 ### Gap 01-UAT-02 — Twitter OAuth round-trip (AUTH-04)
 

@@ -24,8 +24,11 @@
 # Per D-03: min_machines_running=1 ensures rolling-deploy keeps one healthy instance alive.
 #
 # Network routing:
-#   Branch: sepolia → GCP project: call-it-sepolia → Fly app: call-it-relayer-sepolia
-#   Branch: main    → GCP project: call-it-mainnet → Fly app: call-it-relayer-mainnet
+#   Branch: sepolia → GCP project: call-it-sepolia-602217 → Fly app: call-it-relayer-sepolia
+#   Branch: main    → GCP project: call-it-mainnet (PLACEHOLDER — create real project in
+#                     Phase 6 and replace the literal in the select-network step below;
+#                     'call-it-mainnet' may be globally taken, like 'call-it-sepolia' was)
+#                     → Fly app: call-it-relayer-mainnet
 #
 # Required GitHub Secrets:
 #   FLY_API_TOKEN                       — Fly.io Dashboard → Account Settings → Access Tokens (deploy scope)
@@ -75,7 +78,8 @@ jobs:
             echo "NETWORK=mainnet" >> "$GITHUB_ENV"
             echo "BUILD_ARG_NETWORK=arbitrum-one" >> "$GITHUB_ENV"
           else
-            echo "GCP_PROJECT_ID=call-it-sepolia" >> "$GITHUB_ENV"
+            # Real sepolia project ID — the plain 'call-it-sepolia' was globally taken.
+            echo "GCP_PROJECT_ID=call-it-sepolia-602217" >> "$GITHUB_ENV"
             echo "GCP_SERVICE_ACCOUNT=${{ secrets.GCP_SERVICE_ACCOUNT_SEPOLIA }}" >> "$GITHUB_ENV"
             echo "FLY_APP_NAME=call-it-relayer-sepolia" >> "$GITHUB_ENV"
             echo "NETWORK=sepolia" >> "$GITHUB_ENV"
@@ -114,9 +118,12 @@ jobs:
 
           # Application secrets
           fetch_secret "PRIVY_APP_SECRET"
+          fetch_secret "PRIVY_WEBHOOK_SECRET"
           fetch_secret "ALCHEMY_API_KEY"
           fetch_secret "RPC_URL_ARBITRUM_SEPOLIA"
           fetch_secret "RPC_URL_ARBITRUM_MAINNET"
+          fetch_secret "ENS_MAINNET_RPC_URL"
+          fetch_secret "POSTGRES_URL"
           fetch_secret "PINATA_JWT"
           fetch_secret "TELEGRAM_BOT_TOKEN"
           fetch_secret "TELEGRAM_CHAT_ID_P0"
@@ -142,9 +149,12 @@ jobs:
         run: |
           flyctl secrets set \
             "PRIVY_APP_SECRET=${{ steps.secrets.outputs.PRIVY_APP_SECRET }}" \
+            "PRIVY_WEBHOOK_SECRET=${{ steps.secrets.outputs.PRIVY_WEBHOOK_SECRET }}" \
             "ALCHEMY_API_KEY=${{ steps.secrets.outputs.ALCHEMY_API_KEY }}" \
             "RPC_URL_ARBITRUM_SEPOLIA=${{ steps.secrets.outputs.RPC_URL_ARBITRUM_SEPOLIA }}" \
             "RPC_URL_ARBITRUM_MAINNET=${{ steps.secrets.outputs.RPC_URL_ARBITRUM_MAINNET }}" \
+            "ENS_MAINNET_RPC_URL=${{ steps.secrets.outputs.ENS_MAINNET_RPC_URL }}" \
+            "POSTGRES_URL=${{ steps.secrets.outputs.POSTGRES_URL }}" \
             "PINATA_JWT=${{ steps.secrets.outputs.PINATA_JWT }}" \
             "TELEGRAM_BOT_TOKEN=${{ steps.secrets.outputs.TELEGRAM_BOT_TOKEN }}" \
             "TELEGRAM_CHAT_ID_P0=${{ steps.secrets.outputs.TELEGRAM_CHAT_ID_P0 }}" \

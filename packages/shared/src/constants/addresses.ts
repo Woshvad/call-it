@@ -76,34 +76,26 @@ const EMPTY_ADDRESSES: AddressRecord = {
 /**
  * CallRegistry on Arbitrum Sepolia (Phase 1 deploy).
  *
- * PLACEHOLDER: Sepolia deploy requires a funded deployer key and RPC access.
- * Run the deploy command documented in packages/contracts/script/DeployPhase1.s.sol
- * and update this value with the deployed address.
+ * DEPLOYED 2026-05-29 via DeployPhase1.s.sol (OZ 5.6.1, solc 0.8.30).
+ * Deploy block: 271888754. Deployer/owner: 0xF4ee61950B63cCA5C82f1146484d018Ac95Bd0F2.
  *
- * Command to deploy:
- *   cd packages/contracts && \
- *   DEPLOYER_PRIVATE_KEY=<key> forge script script/DeployPhase1.s.sol:DeployPhase1 \
- *     --rpc-url arbitrum_sepolia --broadcast \
- *     --verify --etherscan-api-key $ARBISCAN_SEPOLIA_API_KEY
- *
- * Post-deploy smoke test (§19.11):
- *   cast call <addr> "currentTvl()"  -> 0
- *   cast call <addr> "tvlCap()"      -> 5000000000
+ * Post-deploy smoke test (§19.11) — all green:
+ *   cast call <addr> "currentTvl()"  -> 0           ✓
+ *   cast call <addr> "tvlCap()"      -> 5000000000  ✓
+ *   cast call <addr> "owner()"       -> deployer     ✓
  *
  * Threat: T-01-16 -- wrong address pinned in frontend silently routes txs to wrong contract.
  */
 export const CALL_REGISTRY_ARBITRUM_SEPOLIA =
-  '0x0000000000000000000000000000000000000000' as const;
-// PLACEHOLDER: Replace with address from DeployPhase1.s.sol after Sepolia deploy.
+  '0xC61deC55ED916f97006FC1B01695Ee9297a8867C' as const;
 
 /**
  * ProfileRegistry on Arbitrum Sepolia (Phase 1 deploy).
- * Deployed alongside CallRegistry via DeployPhase1.s.sol.
- * See CALL_REGISTRY_ARBITRUM_SEPOLIA comment for deploy instructions.
+ * Deployed alongside CallRegistry via DeployPhase1.s.sol (2026-05-29).
+ * Deploy block: 271888754. Owner: 0xF4ee61950B63cCA5C82f1146484d018Ac95Bd0F2.
  */
 export const PROFILE_REGISTRY_ARBITRUM_SEPOLIA =
-  '0x0000000000000000000000000000000000000000' as const;
-// PLACEHOLDER: Replace with address from DeployPhase1.s.sol after Sepolia deploy.
+  '0x4dCdE524F0566f583fab237d7CeED2fE8fB02322' as const;
 
 /**
  * CallRegistry on Arbitrum One (mainnet).

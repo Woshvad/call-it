@@ -8,12 +8,11 @@ dataSources:
     name: CallRegistry
     network: arbitrum-sepolia
     source:
-      # Phase 1: Deployed CallRegistry address on Arbitrum Sepolia.
-      # Update CALL_REGISTRY_ARBITRUM_SEPOLIA in packages/shared/src/constants/addresses.ts
-      # and re-run deploy:sepolia after Sepolia deploy (see SUMMARY-01-10).
-      address: "0x0000000000000000000000000000000000000000"
+      # Phase 1: Deployed CallRegistry on Arbitrum Sepolia (2026-05-29).
+      # Matches CALL_REGISTRY_ARBITRUM_SEPOLIA in packages/shared/src/constants/addresses.ts.
+      address: "0xC61deC55ED916f97006FC1B01695Ee9297a8867C"
       abi: CallRegistry
-      startBlock: 1
+      startBlock: 271888754
     mapping:
       kind: ethereum/events
       apiVersion: 0.0.9
@@ -65,12 +64,11 @@ dataSources:
     name: ProfileRegistry
     network: arbitrum-sepolia
     source:
-      # Phase 1: Deployed ProfileRegistry address on Arbitrum Sepolia.
-      # Update PROFILE_REGISTRY_ARBITRUM_SEPOLIA in packages/shared/src/constants/addresses.ts
-      # and re-run deploy:sepolia after Sepolia deploy (see SUMMARY-01-10).
-      address: "0x0000000000000000000000000000000000000000"
+      # Phase 1: Deployed ProfileRegistry on Arbitrum Sepolia (2026-05-29).
+      # Matches PROFILE_REGISTRY_ARBITRUM_SEPOLIA in packages/shared/src/constants/addresses.ts.
+      address: "0x4dCdE524F0566f583fab237d7CeED2fE8fB02322"
       abi: ProfileRegistry
-      startBlock: 1
+      startBlock: 271888754
     mapping:
       kind: ethereum/events
       apiVersion: 0.0.9

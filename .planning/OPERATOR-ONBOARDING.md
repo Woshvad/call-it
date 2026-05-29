@@ -21,7 +21,7 @@ Phase 1 (Core contracts + auth + frontend skeleton) is **execution-complete**:
 
 | Gap | Description | Status |
 |---|---|---|
-| 1 | CallRegistry + ProfileRegistry Sepolia deploy | ❌ Open — needs funded deployer key |
+| 1 | CallRegistry + ProfileRegistry Sepolia deploy | ✅ **Resolved** (2026-05-29) — ProfileRegistry `0x4dCdE5…2322`, CallRegistry `0xC61deC…867C`, block 271888754; OZ bumped 5.3.0→5.6.1, 80/80 tests pass; addresses + subgraph.yaml wired |
 | 2 | Twitter OAuth round-trip | ❌ Open — needs real Privy App ID |
 | 3 | Coinbase Onramp popup | ❌ Open — needs Coinbase Cloud credentials |
 | 4 | Paymaster 5→6 e2e | ❌ Open — needs Alchemy AA + Sepolia deploy |
@@ -122,11 +122,18 @@ For each step: signup link, what value to copy, where it lands. Reply with value
 1. Install Fly CLI (PowerShell as admin): `iwr https://fly.io/install.ps1 -useb | iex`
 2. `fly auth signup` (or `fly auth login`).
 3. Add payment method (free tier covers ~$5/mo).
-4. From `apps/relayer/`: `fly launch --copy-config --no-deploy`. Prompts:
-   - App name: `call-it-relayer` (note for Privy webhook + Alchemy policy URL)
-   - Region: `iad` (per Phase 0 D-01)
-   - Postgres: **Yes, create** → Development tier
-5. `fly postgres attach call-it-pg --app call-it-relayer` if not auto-attached. Copy the printed `DATABASE_URL` → `POSTGRES_URL`.
+4. **App naming follows D-09 per-network isolation** (matches `.github/workflows/deploy-relayer.yml`):
+   - Sepolia staging: `call-it-relayer-sepolia` + Postgres `call-it-pg-sepolia`
+   - Mainnet (later, in Phase 6): `call-it-relayer-mainnet` + Postgres `call-it-pg-mainnet`
+
+   Provision the sepolia pair (one-time, scripted via flyctl; avoids `fly launch`'s interactive prompts):
+   ```powershell
+   flyctl apps create call-it-relayer-sepolia --org personal
+   flyctl postgres create --name call-it-pg-sepolia --org personal --region iad `
+     --vm-size shared-cpu-1x --initial-cluster-size 1 --volume-size 1
+   flyctl postgres attach call-it-pg-sepolia --app call-it-relayer-sepolia
+   ```
+   The `attach` command prints the `DATABASE_URL` and also sets it as a Fly secret on the app. Copy the URL into the operator's local `apps/relayer/.env.local` as `POSTGRES_URL` for offline dev.
 
 **Send Claude:** Fly app name, public Fly URL (`https://<app>.fly.dev`), `POSTGRES_URL`.
 
