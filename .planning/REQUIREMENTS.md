@@ -166,9 +166,9 @@ Requirements for the v1 mainnet release. Each line is an atomic, testable behavi
 - [x] **SOCIAL-20**: Caller exit snapshots `callerVolumeAtExit = followPool + fadePool` for Model B creator fee calculation (§8.8, §12.1)
 - [x] **SOCIAL-21**: Caller exit sets `call.status = CallerExited` (single source of truth — no redundant boolean) and `call.callerExitedAt = now` (§12.1)
 - [x] **SOCIAL-22**: Caller exit emits `CallerExited(callId, caller, timeElapsed, penaltyPaid, stakeReturned, reputationDelta)` event for public broadcast (§8.7.3, §12.1)
-- [ ] **SOCIAL-23**: Caller exit triggers a public broadcast entry in the global feed: "⚠ [caller] exited their own call · '[statement]' · [time] in · -$X slashed" (§8.7.3, §15.3)
-- [ ] **SOCIAL-24**: Caller exit fires notification to every current follower and fader on the call (§8.7.3)
-- [ ] **SOCIAL-25**: Receipt page displays a permanent "CALLER EXITED" amber banner in the header from exit onward (§8.7.3, §15.3)
+- [x] **SOCIAL-23**: Caller exit triggers a public broadcast entry in the global feed: "⚠ [caller] exited their own call · '[statement]' · [time] in · -$X slashed" (§8.7.3, §15.3)
+- [x] **SOCIAL-24**: Caller exit fires notification to every current follower and fader on the call (§8.7.3)
+- [x] **SOCIAL-25**: Receipt page displays a permanent "CALLER EXITED" amber banner in the header from exit onward (§8.7.3, §15.3)
 - [x] **SOCIAL-26**: Caller exit applies reputation slash via ProfileRegistry — decay curve `-45 rep day 1 → -10 rep floor` (§8.7.3, §12.1)
 - [x] **SOCIAL-27**: Exited callers receive NO additional reputation change at eventual settlement — they are removed from the call's rep accounting (§8.7.3, §12.4)
 - [x] **SOCIAL-28**: There is no separate "cancel the call" mechanic — only callerExit after lock + normal settlement (§8.7.4)
@@ -703,9 +703,9 @@ Which phases cover which requirements. Updated during roadmap creation by the ro
 | SOCIAL-20 | Phase 2 | Complete |
 | SOCIAL-21 | Phase 2 | Complete |
 | SOCIAL-22 | Phase 2 | Complete |
-| SOCIAL-23 | Phase 2 | Pending |
-| SOCIAL-24 | Phase 2 | Pending |
-| SOCIAL-25 | Phase 2 | Pending |
+| SOCIAL-23 | Phase 2 | Complete |
+| SOCIAL-24 | Phase 2 | Complete |
+| SOCIAL-25 | Phase 2 | Complete |
 | SOCIAL-26 | Phase 2 | Complete |
 | SOCIAL-27 | Phase 2 | Complete |
 | SOCIAL-28 | Phase 2 | Complete |
