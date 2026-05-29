@@ -97,7 +97,16 @@ Call It ships as a person-first onchain social prediction product on Arbitrum ma
   4. Canonical `getTvl()` view on FollowFadeMarket returns total across all callId sub-states; TVL cap aggregation across CallRegistry + FollowFadeMarket + ChallengeEscrow (when present) is correctly enforced by `follow`/`fade` per Pitfall 3; Foundry property-based fuzz tests assert the AMM `k`-invariant per-callId across multi-call interference fixtures (Pitfall 9); empty-pool LP-fee math routes to treasury per Pitfall 22 invariant.
   5. Live Receipt page (`/call/[id]`) renders the sticky caller header, THE CALL hero, 4-stat row (Current Spread + Time Left + Stake + Conviction), market positioning bar, 3 action buttons (Follow filled / Fade outline / Challenge orange outline), REASONING block, optional collapsible RESOLUTION CRITERIA block, live activity feed left column, quote-calls right column with FADING/FOLLOWING tag; "Exit your call" / "Exit your position" links appear under the correct conditions with confirmation modals showing penalty math.
   6. Live State OG card (variant 1) renders at `/og/[callId]` with the live follow%/fade% progress bar + time-left countdown + corner bracket motif; `og:image?v={statusVersion}` cache-busts on follow/fade activity per Pitfall 8 prep.
-**Plans**: TBD
+**Plans**: 9 plans across 4 waves
+  - [ ] 02-01-PLAN.md — Wave 0: Foundry test scaffold (FfmTestHelper + FollowFadeMarket.t.sol + Gates + Interference + TvlAggregation) + TypeScript AMM parity stubs (D-29)
+  - [ ] 02-02-PLAN.md — Wave 1: IFollowFadeMarket interface + FollowFadeMarket AMM contract (full CEI/penalty-injection/caller-exit/TVL)
+  - [ ] 02-03-PLAN.md — Wave 1: CallRegistry redeploy diff (stake-forward D-01, markCallerExited D-02) + ProfileRegistry redeploy diff (authorizedRepWriters D-04, applyRepDelta D-05)
+  - [ ] 02-04-PLAN.md — Wave 1: DeployPhase2.s.sol + addresses.ts + ABI export + [OPERATOR] Sepolia deploy checkpoint
+  - [ ] 02-05-PLAN.md — Wave 2: DB schema (notifications + quote_stance tables) + [BLOCKING] Drizzle migration
+  - [ ] 02-06-PLAN.md — Wave 2: Subgraph extension (follow-fade-market.ts + subgraph.yaml update + Sepolia Studio redeploy)
+  - [ ] 02-07-PLAN.md — Wave 2: Relayer routes (live-state + quote-stance + notifications) + notification-fanout worker + statusVersion bump
+  - [ ] 02-08-PLAN.md — Wave 3: /call/[id] Live Receipt page + 4 modal components (Follow/Fade/CallerExit/PositionExit)
+  - [ ] 02-09-PLAN.md — Wave 4: OG card variant 1 (/og/[callId]/route.ts Node runtime) + NotificationBell + NotificationInbox
 **UI hint**: yes
 **Pitfalls mitigated**: 3 (canonical `getTvl()` + TVL aggregation boundary tests staged for Phase 6), 8 (OG cache-busting via `?v={statusVersion}` rolls forward on every state change), 9 (per-callId AMM invariant property-based fuzz), 10 (strict `block.timestamp < call.expiry` gate in `follow`/`fade`), 22 (empty-pool LP-fee math routes to treasury — explicit fixture test)
 
@@ -223,7 +232,7 @@ Phases execute in numeric order: 0 → 1 → 1.5 (parallel with 2) → 2 → 3 �
 | 0. Foundation | 5/5 | Complete   | 2026-05-22 |
 | 1. Core contracts + auth + frontend skeleton | 0/10 | Planned | - |
 | 1.5. Social linking | 0/TBD | Not started | - |
-| 2. FollowFadeMarket | 0/TBD | Not started | - |
+| 2. FollowFadeMarket | 0/9 | Planned | - |
 | 3. ChallengeEscrow | 0/TBD | Not started | - |
 | 4. SettlementManager + 7 oracle paths + Solidity baseline rep delta | 0/TBD | Not started | - |
 | 5. StylusScoreEngine + 48h cutoff | 0/TBD | Not started | - |
