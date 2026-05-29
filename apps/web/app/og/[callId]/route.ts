@@ -362,37 +362,55 @@ export async function GET(
   }
 
   try {
-    // ── Parallel RPC reads (viem server-side, NOT wagmi) ────────────────────
-    // FOLLOW_FADE_MARKET_ARBITRUM_SEPOLIA is 0x000..000 until Phase 2 deploy.
-    // Reads against zero address return 0 → followReserve = fadeReserve = 0 → 50/50 bar.
-    const [callData, followReserveRaw, fadeReserveRaw] = await Promise.all([
-      publicClient.readContract({
-        address: CALL_REGISTRY_ARBITRUM_SEPOLIA as `0x${string}`,
-        abi: callRegistryGetCallAbi,
-        functionName: 'getCall',
-        args: [callId],
-      }),
-      publicClient.readContract({
-        address: FOLLOW_FADE_MARKET_ARBITRUM_SEPOLIA as `0x${string}`,
-        abi: followFadeMarketAbi,
-        functionName: 'followReserve',
-        args: [callId],
-      }),
-      publicClient.readContract({
-        address: FOLLOW_FADE_MARKET_ARBITRUM_SEPOLIA as `0x${string}`,
-        abi: followFadeMarketAbi,
-        functionName: 'fadeReserve',
-        args: [callId],
-      }),
-    ]);
+    // ── WR-09: short-circuit the known-zero FFM placeholder ──────────────────
+    // FOLLOW_FADE_MARKET_ARBITRUM_SEPOLIA is 0x000..000 until the deferred Phase 2
+    // deploy. Reading reserves against the zero address is a guaranteed-useless RPC
+    // round trip that previously also relied on a revert to trip the catch→fallback
+    // path. Skip those two reads entirely and treat reserves as empty (50/50 bar);
+    // the deployed CallRegistry.getCall still runs for real call metadata.
+    const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000';
+    const ffmDeployed =
+      (FOLLOW_FADE_MARKET_ARBITRUM_SEPOLIA as string).toLowerCase() !== ZERO_ADDRESS;
+
+    const callDataPromise = publicClient.readContract({
+      address: CALL_REGISTRY_ARBITRUM_SEPOLIA as `0x${string}`,
+      abi: callRegistryGetCallAbi,
+      functionName: 'getCall',
+      args: [callId],
+    });
+
+    let callData: Awaited<typeof callDataPromise>;
+    let followReserve = 0n;
+    let fadeReserve = 0n;
+
+    if (ffmDeployed) {
+      const [cd, followReserveRaw, fadeReserveRaw] = await Promise.all([
+        callDataPromise,
+        publicClient.readContract({
+          address: FOLLOW_FADE_MARKET_ARBITRUM_SEPOLIA as `0x${string}`,
+          abi: followFadeMarketAbi,
+          functionName: 'followReserve',
+          args: [callId],
+        }),
+        publicClient.readContract({
+          address: FOLLOW_FADE_MARKET_ARBITRUM_SEPOLIA as `0x${string}`,
+          abi: followFadeMarketAbi,
+          functionName: 'fadeReserve',
+          args: [callId],
+        }),
+      ]);
+      callData = cd;
+      followReserve = followReserveRaw as bigint;
+      fadeReserve = fadeReserveRaw as bigint;
+    } else {
+      // Deferred FFM deploy — only the CallRegistry read is meaningful.
+      callData = await callDataPromise;
+    }
 
     // ── Guard: call not found (zero caller address = burned slot 0 or uninitialized) ──
     if (!callData.caller || callData.caller === '0x0000000000000000000000000000000000000000') {
       throw new Error('call-not-found');
     }
-
-    const followReserve = followReserveRaw as bigint;
-    const fadeReserve = fadeReserveRaw as bigint;
 
     // ── Compute follow%/fade% ───────────────────────────────────────────────
     let followPct = 50;
