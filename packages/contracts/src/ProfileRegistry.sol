@@ -229,7 +229,13 @@ contract ProfileRegistry is Ownable2Step, IProfileRegistry {
         _initIfNeeded(user);
         int256 current = int256(uint256(_profiles[user].globalRep));
         int256 newRep = current + delta;
-        _profiles[user].globalRep = uint128(newRep < 0 ? 0 : uint256(newRep));
+        // REP-02: floor at 0.
+        if (newRep < 0) newRep = 0;
+        // WR-08: explicit upper clamp so a future positive-delta writer cannot
+        // silently truncate via the uint128 cast and corrupt the reputation score.
+        int256 maxRep = int256(uint256(type(uint128).max));
+        if (newRep > maxRep) newRep = maxRep;
+        _profiles[user].globalRep = uint128(uint256(newRep));
         emit RepDeltaApplied(user, delta, _profiles[user].globalRep);
     }
 
