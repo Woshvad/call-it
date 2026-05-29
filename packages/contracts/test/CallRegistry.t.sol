@@ -114,11 +114,12 @@ contract CallRegistryTest is Test {
         assertEq(before - after_, TOTAL, "should pull stake + $10 creation fee");
     }
 
-    /// @notice CALL-34: TVL increases by stake + fee after createCall.
+    /// @notice CALL-34: TVL increases by stake only after createCall (Phase 2: fee goes to treasury).
     function test_createCall_increments_currentTvl() public {
         assertEq(registry.currentTvl(), 0);
         _createEthCall(alice, uint96(STAKE), 50, uint256(ETH_FEED));
-        assertEq(registry.currentTvl(), TOTAL);
+        // Phase 2: currentTvl tracks stake only; creation fee is routed to treasury
+        assertEq(registry.currentTvl(), STAKE);
     }
 
     /// @notice SAFETY-18: callId 0 is burned; getCall(0) returns zero-initialized struct.
@@ -323,18 +324,18 @@ contract CallRegistryTest is Test {
 
     // ─── CALL-34: TVL cap ─────────────────────────────────────────────────────
 
-    /// @notice CALL-34: incoming exceeds available TVL reverts TvlCapReached.
+    /// @notice CALL-34: incoming stake exceeds available TVL reverts TvlCapReached.
     function test_tvl_cap_reverts_TvlCapReached() public {
-        // Set cap to just below what alice is about to submit
+        // Phase 2: currentTvl tracks stake only; set cap below STAKE to trigger revert.
         vm.prank(owner);
-        registry.setTvlCap(TOTAL - 1); // cap at $19.99, but stake+fee=$20
+        registry.setTvlCap(STAKE - 1); // cap at $9.99; stake=$10 exceeds it
 
         vm.prank(alice);
         vm.expectRevert(
             abi.encodeWithSelector(
                 ICallRegistry.TvlCapReached.selector,
-                TOTAL,
-                TOTAL - 1
+                STAKE,          // requested = stake (not stake+fee)
+                STAKE - 1       // available = tvlCap - currentTvl
             )
         );
         registry.createCall(

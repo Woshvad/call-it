@@ -197,20 +197,25 @@ contract ProfileRegistryTest is Test {
 
     // ─── updateAfterSettlement: settlementManager guard ──────────────────────
 
-    /// @notice Non-settlementManager calling updateAfterSettlement reverts NotSettlementManager.
+    /// @notice Non-authorized caller calling updateAfterSettlement reverts NotAuthorizedWriter.
+    ///         Phase 2: auth check uses authorizedRepWriters mapping (not settlementManager addr).
     function test_updateAfterSettlement_reverts_NotSettlementManager_for_non_manager() public {
-        vm.prank(alice); // alice is NOT the settlementManager
-        vm.expectRevert(IProfileRegistry.NotSettlementManager.selector);
+        vm.prank(alice); // alice is NOT in authorizedRepWriters
+        vm.expectRevert(IProfileRegistry.NotAuthorizedWriter.selector);
         registry.updateAfterSettlement(alice, true, 0);
     }
 
-    /// @notice settlementManager can call updateAfterSettlement (Phase 1 no-op, emits event).
+    /// @notice Authorized rep writer can call updateAfterSettlement (Phase 2 auth update).
+    ///         Phase 2: settlementManager must be authorized via setAuthorizedRepWriter.
     function test_updateAfterSettlement_callable_by_settlement_manager() public {
         vm.prank(owner);
         registry.setSettlementManager(settlementManager);
+        // Phase 2: also authorize as rep writer (D-04)
+        vm.prank(owner);
+        registry.setAuthorizedRepWriter(settlementManager, true);
 
         vm.prank(settlementManager);
-        // Phase 1 is a no-op skeleton; just verify it does not revert
+        // No-op skeleton; just verify it does not revert
         registry.updateAfterSettlement(alice, true, 0);
     }
 

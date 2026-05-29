@@ -69,6 +69,9 @@ interface ICallRegistry {
     /// @notice Emitted when owner rotates the settlementManager address.
     event SettlementManagerSet(address indexed newManager);
 
+    /// @notice Emitted when owner sets the FollowFadeMarket address. D-02.
+    event FollowFadeMarketSet(address indexed newMarket);
+
     // ─── Custom errors ────────────────────────────────────────────────────────
 
     /// @notice Gate 6.1: stake < MIN_STAKE ($5 USDC). CALL-20.
@@ -106,6 +109,9 @@ interface ICallRegistry {
 
     /// @notice Thrown if a restricted function is called by non-settlementManager.
     error NotSettlementManager();
+
+    /// @notice Thrown if a restricted function is called by an unauthorized address. D-02.
+    error NotAuthorized();
 
     // ─── Call struct (returned by getCall) ───────────────────────────────────
 
@@ -160,6 +166,13 @@ interface ICallRegistry {
     /// @notice Retrieve a call by ID. Returns zero-initialized struct for callId 0. CALL-67.
     function getCall(uint256 callId) external view returns (Call memory);
 
+    /// @notice Current TVL tracked in CallRegistry (stake counter). D-03.
+    ///         Read by FollowFadeMarket for combined TVL cap check.
+    function currentTvl() external view returns (uint256);
+
+    /// @notice Maximum TVL cap. Read by FollowFadeMarket for combined TVL cap check. D-03.
+    function tvlCap() external view returns (uint256);
+
     /// @notice Paginated list of callIds for a given user. CALL-67.
     function getCallsByUser(address user, uint256 offset, uint256 limit)
         external view returns (uint256[] memory);
@@ -182,13 +195,19 @@ interface ICallRegistry {
     function addAsset(string calldata symbol, bytes32 feedId) external;
 
     /// @notice Add an NFT collection address to the allowlist. CALL-11.
-    function addNFTCollection(address collection) external;
+    function addNFTCollection(address collection, string calldata symbol) external;
 
     /// @notice Update the TVL cap (must be <= MAX_ALLOWED_CAP). CALL-34.
     function setTvlCap(uint256 newCap) external;
 
     /// @notice Rotate the settlementManager address.
     function setSettlementManager(address newManager) external;
+
+    /// @notice Owner-only: set FollowFadeMarket address after Phase 2 deploy. D-02.
+    function setFollowFadeMarket(address newMarket) external;
+
+    /// @notice Called by FollowFadeMarket to mark a call as CallerExited. D-02.
+    function markCallerExited(uint256 callId) external;
 
     /// @notice Pause createCall. SAFETY-04.
     function pause() external;

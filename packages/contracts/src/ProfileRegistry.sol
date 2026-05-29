@@ -101,6 +101,11 @@ contract ProfileRegistry is Ownable2Step, IProfileRegistry {
     ///         Set to address(0) at deploy; updated by owner before Phase 1.5 social linking.
     address public relayer;
 
+    /// @notice Generic authorized rep-writers set. D-04.
+    ///         FollowFadeMarket authorized at Phase 2 deploy.
+    ///         SettlementManager authorized in Phase 4 — no third redeploy needed.
+    mapping(address => bool) public authorizedRepWriters;
+
     // ─── Constructor ───────────────────────────────────────────────────────────
 
     /// @notice Deploys a non-upgradeable ProfileRegistry owned by msg.sender.
@@ -122,12 +127,24 @@ contract ProfileRegistry is Ownable2Step, IProfileRegistry {
         emit RelayerSet(newRelayer);
     }
 
+    /// @inheritdoc IProfileRegistry
+    function setAuthorizedRepWriter(address writer, bool authorized) external onlyOwner {
+        authorizedRepWriters[writer] = authorized;
+        emit RepWriterSet(writer, authorized);
+    }
+
     // ─── View functions ─────────────────────────────────────────────────────────
 
     /// @inheritdoc IProfileRegistry
     /// @dev Returns 0 for uninitialized users (profile not yet created).
     function settledCalls(address user) external view returns (uint16) {
         return _profiles[user].settledCalls;
+    }
+
+    /// @notice Returns the full Profile struct for a user.
+    ///         Returns a zero-initialized struct for uninitialized users.
+    function getProfile(address user) external view returns (Profile memory) {
+        return _profiles[user];
     }
 
     // ─── User-callable mutations ─────────────────────────────────────────────
@@ -193,15 +210,27 @@ contract ProfileRegistry is Ownable2Step, IProfileRegistry {
     // ─── SettlementManager-only mutations ────────────────────────────────────
 
     /// @inheritdoc IProfileRegistry
-    /// @dev Phase 1 SKELETON: body is intentionally empty beyond the auth check.
+    /// @dev Phase 2: auth guard updated to use authorizedRepWriters (D-04).
     ///      Phase 4 wires actual rep delta math here.
     function updateAfterSettlement(address user, bool /*isWinner*/, uint8 /*category*/) external {
-        if (msg.sender != settlementManager) revert NotSettlementManager();
-        // Phase 1 no-op skeleton. Phase 4 will implement:
+        if (!authorizedRepWriters[msg.sender]) revert NotAuthorizedWriter();
+        // Phase 4 will implement full logic:
         // _profiles[user].settledCalls += 1;
         // if (isWinner) _profiles[user].wins += 1; else _profiles[user].losses += 1;
         // Phase 5 Stylus engine computes globalRep delta.
         emit ProfileUpdated(user, _profiles[user].totalCalls, _profiles[user].settledCalls);
+    }
+
+    /// @inheritdoc IProfileRegistry
+    /// @dev D-05: apply a signed rep delta to globalRep, floor at 0 (REP-02).
+    ///      Lazily initializes the profile if not yet created.
+    function applyRepDelta(address user, int256 delta) external {
+        if (!authorizedRepWriters[msg.sender]) revert NotAuthorizedWriter();
+        _initIfNeeded(user);
+        int256 current = int256(uint256(_profiles[user].globalRep));
+        int256 newRep = current + delta;
+        _profiles[user].globalRep = uint128(newRep < 0 ? 0 : uint256(newRep));
+        emit RepDeltaApplied(user, delta, _profiles[user].globalRep);
     }
 
     // ─── Internal helpers ─────────────────────────────────────────────────────

@@ -28,6 +28,7 @@ import { Pausable } from "@openzeppelin/contracts/utils/Pausable.sol";
 import { USDC_ARB_NATIVE } from "./constants/USDC.sol";
 import { IProfileRegistry } from "./interfaces/IProfileRegistry.sol";
 import { ICallRegistry } from "./interfaces/ICallRegistry.sol";
+import { IFollowFadeMarket } from "./interfaces/IFollowFadeMarket.sol";
 import { DuplicateHashLib } from "./libraries/DuplicateHashLib.sol";
 
 /// @title CallRegistry
@@ -106,6 +107,13 @@ contract CallRegistry is Ownable2Step, ReentrancyGuard, Pausable, ICallRegistry 
 
     /// @notice Phase 4 settlement manager address. Settable by owner. CALL-27.
     address public settlementManager;
+
+    /// @notice Phase 2 FollowFadeMarket address. Settable by owner after Phase 2 deploy. D-02.
+    address public followFadeMarket;
+
+    /// @notice Treasury address for USDC creation fee routing. D-01.
+    ///         MUST be a separate EOA or Safe — NEVER address(this) (TVL accounting invariant).
+    address public treasury;
 
     /// @notice Current TVL tracked locally. Phase 6 aggregates across contracts. CALL-34.
     uint256 public currentTvl;
@@ -234,9 +242,9 @@ contract CallRegistry is Ownable2Step, ReentrancyGuard, Pausable, ICallRegistry 
         uint256 existing = activeDuplicateHashes[dupHash];
         if (existing != 0) revert DuplicateCall(existing);
 
-        // CALL-34: TVL cap
+        // CALL-34: TVL cap (D-01: currentTvl tracks stake only, not fee)
         uint256 incoming = uint256(p.stake) + uint256(CREATION_FEE);
-        if (currentTvl + incoming > tvlCap) revert TvlCapReached(incoming, tvlCap - currentTvl);
+        if (currentTvl + uint256(p.stake) > tvlCap) revert TvlCapReached(uint256(p.stake), tvlCap - currentTvl);
 
         // CALL-35/36: USDC pre-checks
         uint256 allowance = IERC20(USDC_ARB_NATIVE).allowance(msg.sender, address(this));
@@ -268,10 +276,25 @@ contract CallRegistry is Ownable2Step, ReentrancyGuard, Pausable, ICallRegistry 
 
         activeDuplicateHashes[dupHash] = callId;
         _userCalls[msg.sender].push(callId);
-        currentTvl += incoming;
+        // D-01: currentTvl tracks stake only (fee is not protocol-tracked TVL)
+        currentTvl += uint256(p.stake);
 
         // INTERACTIONS: token pull LAST (CEI, SAFETY-05, SAFETY-14)
         IERC20(USDC_ARB_NATIVE).safeTransferFrom(msg.sender, address(this), incoming);
+
+        // D-01: Forward stake to FollowFadeMarket (single-custodian model).
+        //       ALL incoming USDC must leave CallRegistry immediately (CallRegistry holds $0).
+        //       Route: stake → FollowFadeMarket; full creation fee → treasury.
+        //       The virtual fade seed ($7) is accounting-only — never transferred.
+        if (followFadeMarket != address(0)) {
+            uint256 virtualFadeSeed = uint256(c.virtualFadeSeed);
+            // Send full creation fee to treasury (CallRegistry must hold $0 after createCall)
+            if (treasury != address(0)) {
+                IERC20(USDC_ARB_NATIVE).safeTransfer(treasury, uint256(CREATION_FEE));
+            }
+            IERC20(USDC_ARB_NATIVE).safeTransfer(followFadeMarket, uint256(p.stake));
+            IFollowFadeMarket(followFadeMarket).initPool(callId, uint256(p.stake), virtualFadeSeed);
+        }
 
         // Events
         emit CallCreated(callId, msg.sender, p.marketType, p.stake);
@@ -355,7 +378,7 @@ contract CallRegistry is Ownable2Step, ReentrancyGuard, Pausable, ICallRegistry 
     }
 
     /// @inheritdoc ICallRegistry
-    function addNFTCollection(address collection) external onlyOwner {
+    function addNFTCollection(address collection, string calldata /*symbol*/) external onlyOwner {
         allowlistedNftCollections[collection] = true;
         emit NftCollectionAllowlisted(collection);
     }
@@ -371,6 +394,25 @@ contract CallRegistry is Ownable2Step, ReentrancyGuard, Pausable, ICallRegistry 
     function setSettlementManager(address newManager) external onlyOwner {
         settlementManager = newManager;
         emit SettlementManagerSet(newManager);
+    }
+
+    /// @inheritdoc ICallRegistry
+    function setFollowFadeMarket(address newMarket) external onlyOwner {
+        followFadeMarket = newMarket;
+        emit FollowFadeMarketSet(newMarket);
+    }
+
+    /// @notice Owner-only: set treasury address for fee routing. D-01.
+    ///         MUST be a separate EOA or Safe — NEVER address(this).
+    function setTreasury(address _treasury) external onlyOwner {
+        require(_treasury != address(0) && _treasury != address(this), "invalid-treasury");
+        treasury = _treasury;
+    }
+
+    /// @inheritdoc ICallRegistry
+    function markCallerExited(uint256 callId) external {
+        if (msg.sender != followFadeMarket) revert NotAuthorized();
+        _calls[callId].status = CallStatus.CallerExited;
     }
 
     /// @inheritdoc ICallRegistry

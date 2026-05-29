@@ -9,7 +9,14 @@ pragma solidity =0.8.30;
 // FfmTestHelper.sol compiles independently; FollowFadeMarket.t.sol WILL fail
 // to compile until Plan 02 creates FollowFadeMarket.sol (expected RED gate).
 
-import { Test } from "forge-std/Test.sol";
+// forge-std: import components individually so FfmTestHelper does NOT inherit StdInvariant.
+// FollowFadeMarketGates.t.sol uses `is FfmTestHelper, StdInvariant` and Solidity C3
+// linearization fails if FfmTestHelper already includes StdInvariant transitively.
+import { TestBase } from "forge-std/Base.sol";
+import { StdAssertions } from "forge-std/StdAssertions.sol";
+import { StdChains } from "forge-std/StdChains.sol";
+import { StdCheats } from "forge-std/StdCheats.sol";
+import { StdUtils } from "forge-std/StdUtils.sol";
 import { CallRegistry } from "../../src/CallRegistry.sol";
 import { ProfileRegistry } from "../../src/ProfileRegistry.sol";
 import { ICallRegistry } from "../../src/interfaces/ICallRegistry.sol";
@@ -25,7 +32,11 @@ import { IFollowFadeMarket } from "../../src/interfaces/IFollowFadeMarket.sol";
 ///
 ///         All FFM test contracts inherit this. Wave 0: file exists but FFM
 ///         contracts do not yet — compile failure is the expected RED gate.
-abstract contract FfmTestHelper is Test {
+// NOTE: FfmTestHelper inherits the Test components WITHOUT StdInvariant to allow
+// FollowFadeMarketGates.t.sol to use `is FfmTestHelper, StdInvariant` without
+// triggering Solidity C3 linearization failure. (Rule 1 deviation fix from Wave 0.)
+abstract contract FfmTestHelper is TestBase, StdAssertions, StdChains, StdCheats, StdUtils {
+    bool public IS_TEST = true;
     // ─── Constants matching FollowFadeMarket.sol (Plan 02) ────────────────────
     uint256 internal constant MIN_POSITION        = 1e6;      // $1 USDC
     uint256 internal constant MAX_POSITION        = 100e6;    // $100 USDC
@@ -89,6 +100,8 @@ abstract contract FfmTestHelper is Test {
 
         // 4. Wire FollowFadeMarket into CallRegistry (D-02)
         registry.setFollowFadeMarket(address(ffm));
+        // Set treasury on CallRegistry so creation fees are routed out (D-01: CR holds $0)
+        registry.setTreasury(treasury);
 
         // 5. Authorize FollowFadeMarket as rep writer (D-04)
         profileRegistry.setAuthorizedRepWriter(address(ffm), true);

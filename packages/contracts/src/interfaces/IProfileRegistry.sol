@@ -26,6 +26,12 @@ interface IProfileRegistry {
     /// @notice Emitted when owner rotates the relayer role.
     event RelayerSet(address indexed newRelayer);
 
+    /// @notice Emitted when a rep writer is authorized or revoked. D-04.
+    event RepWriterSet(address indexed writer, bool authorized);
+
+    /// @notice Emitted when applyRepDelta modifies a user's globalRep. D-05.
+    event RepDeltaApplied(address indexed user, int256 delta, uint128 newRep);
+
     /// @notice Emitted when the relayer links a social identity for a user.
     /// @param kind 0 = Twitter, 1 = Farcaster
     event SocialLinked(address indexed user, uint8 kind, string handle, bytes32 proofHash);
@@ -44,6 +50,9 @@ interface IProfileRegistry {
 
     /// @notice Reverts when msg.sender != relayer on social-link calls.
     error NotRelayer();
+
+    /// @notice Reverts when msg.sender is not in authorizedRepWriters. D-04.
+    error NotAuthorizedWriter();
 
     // ─── View functions ───────────────────────────────────────────────────────
 
@@ -87,4 +96,11 @@ interface IProfileRegistry {
     /// @notice User-callable: remove the caller's own Farcaster social link. AUTH-41.
     ///         Zeroes farcasterHandle and farcasterProofHash. Emits SocialUnlinked(msg.sender, 1).
     function unlinkFarcaster() external;
+
+    /// @notice Authorized rep writers only: apply a signed integer delta to globalRep. D-05.
+    ///         Floor at 0 (REP-02). Reverts NotAuthorizedWriter if not authorized.
+    function applyRepDelta(address user, int256 delta) external;
+
+    /// @notice Owner-only: authorize or revoke a rep writer address. D-04.
+    function setAuthorizedRepWriter(address writer, bool authorized) external;
 }

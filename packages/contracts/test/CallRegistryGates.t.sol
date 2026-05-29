@@ -197,13 +197,15 @@ contract CallRegistryGates is Test {
 
     // ─── Fuzz: TVL cap boundary ────────────────────────────────────────────────
 
-    /// @notice CALL-34: incoming > tvlCap reverts TvlCapReached; incoming <= tvlCap passes.
+    /// @notice CALL-34: stake > tvlCap reverts TvlCapReached; stake <= tvlCap passes.
+    ///         Phase 2: currentTvl tracks stake only (not stake+fee); cap check uses stake.
     function test_fuzz_tvl_cap_boundary(uint96 stake, uint256 capBase) public {
         stake = uint96(bound(stake, uint256(registry.MIN_STAKE()), uint256(registry.MAX_STAKE())));
-        uint256 incoming = uint256(stake) + uint256(registry.CREATION_FEE());
+        // Phase 2: shouldRevert based on stake only (not incoming = stake + fee)
+        uint256 stakeOnly = uint256(stake);
 
-        // Bound cap to be near incoming (0 to 3x incoming)
-        capBase = bound(capBase, 0, incoming * 3);
+        // Bound cap to be near stakeOnly (0 to 3x stakeOnly)
+        capBase = bound(capBase, 0, stakeOnly * 3);
 
         vm.prank(owner);
         registry.setTvlCap(capBase);
@@ -212,12 +214,12 @@ contract CallRegistryGates is Test {
         vm.prank(owner);
         registry.addAsset(string(abi.encodePacked("TV", stake)), feed);
 
-        bool shouldRevert = incoming > capBase;
+        bool shouldRevert = stakeOnly > capBase;
 
         if (shouldRevert) {
             vm.prank(caller);
             vm.expectRevert(
-                abi.encodeWithSelector(ICallRegistry.TvlCapReached.selector, incoming, capBase)
+                abi.encodeWithSelector(ICallRegistry.TvlCapReached.selector, stakeOnly, capBase)
             );
             registry.createCall(
                 ICallRegistry.MarketType.PriceTarget,

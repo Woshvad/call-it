@@ -290,7 +290,8 @@ contract CallRegistryParityTest is Test {
 
     function test_parity_tvl_cap_exact_passes() public {
         vm.prank(owner);
-        registry.setTvlCap(20e6); // exactly stake($10) + fee($10)
+        // Phase 2: TVL cap is checked against stake only (fee goes to treasury)
+        registry.setTvlCap(10e6); // exactly stake($10)
 
         vm.prank(alice);
         uint256 id = registry.createCall(
@@ -303,11 +304,12 @@ contract CallRegistryParityTest is Test {
 
     function test_parity_tvl_cap_plus_one_reverts() public {
         vm.prank(owner);
-        registry.setTvlCap(20e6 - 1); // one less than needed
+        // Phase 2: TVL cap is checked against stake only
+        registry.setTvlCap(10e6 - 1); // one below stake($10)
 
         vm.prank(alice);
         vm.expectRevert(
-            abi.encodeWithSelector(ICallRegistry.TvlCapReached.selector, 20e6, 20e6 - 1)
+            abi.encodeWithSelector(ICallRegistry.TvlCapReached.selector, 10e6, 10e6 - 1)
         );
         registry.createCall(
             ICallRegistry.MarketType.PriceTarget, ICallRegistry.EventSubtype.None,
