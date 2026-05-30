@@ -10,7 +10,28 @@
  * Never put a real connection string in this file.
  */
 
+import { existsSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { defineConfig } from 'drizzle-kit';
+
+// Local-dev convenience: hydrate process.env from env files when the variable is
+// not already provided by the real environment. CI/production inject POSTGRES_URL
+// directly (Fly secrets via GCP Secret Manager) — that path is untouched because
+// this block is skipped whenever POSTGRES_URL is already set. Uses Node's native
+// process.loadEnvFile (Node >=20.12) — no dotenv dependency. Checks the relayer's
+// own .env.local first, then the monorepo-root .env. Never throws.
+if (!process.env.POSTGRES_URL) {
+  for (const envPath of ['.env.local', resolve(process.cwd(), '../../.env')]) {
+    if (existsSync(envPath)) {
+      try {
+        process.loadEnvFile(envPath);
+        if (process.env.POSTGRES_URL) break;
+      } catch {
+        /* ignore — fall through to the next candidate / process.env */
+      }
+    }
+  }
+}
 
 export default defineConfig({
   schema: './src/db/schema.ts',
