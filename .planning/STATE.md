@@ -41,7 +41,7 @@ All Phase 2 CODE is shipped and tests pass; the following LIVE operator actions 
    - Set DEPLOYER_PRIVATE_KEY, TREASURY_ADDRESS, ARBITRUM_SEPOLIA_RPC, ARBISCAN_SEPOLIA_API_KEY.
    - `forge script packages/contracts/script/DeployPhase2.s.sol --rpc-url $ARBITRUM_SEPOLIA_RPC --broadcast --verify`
    - Update the 3 v2 addresses in `packages/shared/src/constants/addresses.ts` (replace the FOLLOW_FADE_MARKET_ARBITRUM_SEPOLIA zero placeholder + CallRegistry/ProfileRegistry v2) and `packages/subgraph/subgraph.yaml` (+startBlocks).
-2. **02-05 — Fly Postgres migration** (schema `361ff9d` + SQL `fd3215b` committed): `pnpm --filter @call-it/relayer db:migrate`; verify `\dt` lists `notifications` + `quote_stance`.
+2. **02-05 — Fly Postgres migration** (migrations committed): `pnpm --filter @call-it/relayer db:migrate` applies BOTH pending migrations — `0001_even_vertigo` (notifications + quote_stance tables, `fd3215b`) and `0002_rich_blur` (WR-05 idempotency unique index on notifications, `9151a47`). Verify `\dt` lists `notifications` + `quote_stance`, and `\d notifications` shows `notifications_user_event_call_idx` (UNIQUE).
 3. **02-06 — Subgraph Studio publish** (handlers `d03057c` + yaml `5bca56b` committed): after 02-04 addresses land in subgraph.yaml, `graph codegen && graph build`, then `pnpm graph deploy --studio call-it-sepolia` (needs GRAPH_STUDIO_DEPLOY_KEY).
 
 ## Performance Metrics
