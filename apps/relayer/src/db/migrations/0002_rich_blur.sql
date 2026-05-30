@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX "notifications_user_event_call_idx" ON "notifications" USING btree ("user_address","event_type","call_id");

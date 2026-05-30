@@ -266,11 +266,19 @@ async function processCallerExitedEvent(
     }));
 
     try {
-      // Insert in batches of 100 to avoid query size limits
+      // Insert in batches of 100 to avoid query size limits.
+      // WR-05: ON CONFLICT DO NOTHING on the (user_address, event_type, call_id)
+      // unique index makes fan-out idempotent — a re-processed CallerExited event
+      // (capped-range overlap, restart, RPC retry) cannot create duplicate rows.
       const BATCH_SIZE = 100;
       for (let i = 0; i < rows.length; i += BATCH_SIZE) {
         const batch = rows.slice(i, i + BATCH_SIZE);
-        await config.db.insert(notifications).values(batch);
+        await config.db
+          .insert(notifications)
+          .values(batch)
+          .onConflictDoNothing({
+            target: [notifications.userAddress, notifications.eventType, notifications.callId],
+          });
       }
       logger.info(
         { event: 'notification_fanout_notifications_inserted', callId, count: rows.length },

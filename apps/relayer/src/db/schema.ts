@@ -14,7 +14,7 @@
  * - Downstream Plan 07 reads with WHERE removed_at IS NULL filter
  */
 
-import { pgTable, serial, varchar, text, timestamp, integer, index, jsonb } from 'drizzle-orm/pg-core';
+import { pgTable, serial, varchar, text, timestamp, integer, index, uniqueIndex, jsonb } from 'drizzle-orm/pg-core';
 
 // ---------------------------------------------------------------------------
 // address_book
@@ -106,6 +106,12 @@ export const onboardingState = pgTable('onboarding_state', {
  * Indexes:
  *   - (user_address, read_at)   — inbox query: WHERE read_at IS NULL
  *   - (user_address, created_at) — pagination: ORDER BY created_at DESC
+ *   - UNIQUE (user_address, event_type, call_id) — fan-out idempotency (WR-05).
+ *     A caller exits a given call at most once, so each holder receives at most
+ *     one caller_exited notification per call. This lets notification-fanout.ts
+ *     run INSERT ... ON CONFLICT DO NOTHING, so a re-processed event (capped-range
+ *     overlap, worker restart, RPC retry) cannot create duplicate rows. Generalises
+ *     to future event types (one settlement_ready per call, etc.).
  *
  * Security (T-02-05-02): eventType written exclusively by the relayer worker;
  * varchar(50) cap prevents injection via oversized strings.
@@ -142,6 +148,13 @@ export const notifications = pgTable(
     notificationsUserTimeIdx: index('notifications_user_time_idx').on(
       table.userAddress,
       table.createdAt,
+    ),
+    // WR-05: idempotency key — dedupes re-processed events at the DB layer so the
+    // fan-out worker's ON CONFLICT DO NOTHING cannot create duplicate rows.
+    notificationsDedupeIdx: uniqueIndex('notifications_user_event_call_idx').on(
+      table.userAddress,
+      table.eventType,
+      table.callId,
     ),
   }),
 );

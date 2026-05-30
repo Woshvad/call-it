@@ -15,6 +15,13 @@
       "when": 1780075141683,
       "tag": "0001_even_vertigo",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1780137242557,
+      "tag": "0002_rich_blur",
+      "breakpoints": true
     }
   ]
 }
