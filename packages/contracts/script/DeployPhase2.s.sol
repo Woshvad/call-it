@@ -63,12 +63,9 @@ contract DeployPhase2 is Script {
     // All pinned feed IDs are taken verbatim from CLAUDE.md verified catalogue.
     // Source of truth for TS side: packages/shared/src/constants/pyth-feed-ids.ts
     //
-    // IMPORTANT: 5 feeds are marked "TODO_VERIFY" (UNI, LINK, AAVE, MKR, DOGE).
-    // These are set to bytes32(0) as placeholders. OPERATOR MUST replace with
-    // real Pyth feed IDs from https://hermes.pyth.network/v2/price_feeds BEFORE
-    // running this script against Sepolia or mainnet. Calling addAsset with
-    // bytes32(0) will register a zero feed key that accepts any asset input --
-    // DO NOT DEPLOY without replacing these placeholders.
+    // RESOLVED 2026-05-30: UNI, LINK, AAVE, DOGE verified against Hermes; MKR
+    // removed (Pyth delisted MKR/USD after the MakerDAO->Sky rebrand) and
+    // replaced by SKY/USD. No bytes32(0) placeholders remain in the allowlist.
 
     // Fully pinned in CLAUDE.md (verified 2026-05-21):
     bytes32 constant FEED_BTC    = 0xe62df6c8b4a85fe1a67db44dc12de5db330f7ac66b72dc658afedf0f4a415b43;
@@ -91,15 +88,14 @@ contract DeployPhase2 is Script {
     bytes32 constant FEED_FET    = 0x7da003ada32eabbac855af3d22fcf0fe692cc589f0cfd5ced63cf0bdcc742efe;
     bytes32 constant FEED_ONDO   = 0xd40472610abe56d36d065a0cf889fc8f1dd9f3b7f2a478231a5fc6df07ea5ce3;
 
-    // TODO_VERIFY: These 5 feed IDs are placeholders (bytes32(0)).
-    // OPERATOR MUST replace with verified Pyth feed IDs before running this script.
-    // Verify at: https://hermes.pyth.network/v2/price_feeds?query=<SYMBOL>&asset_type=crypto
-    // Mirror of packages/shared/src/constants/pyth-feed-ids.ts TODO_VERIFY entries.
-    bytes32 constant FEED_UNI    = bytes32(0); // TODO_VERIFY: UNI/USD Pyth feed ID
-    bytes32 constant FEED_LINK   = bytes32(0); // TODO_VERIFY: LINK/USD Pyth feed ID
-    bytes32 constant FEED_AAVE   = bytes32(0); // TODO_VERIFY: AAVE/USD Pyth feed ID
-    bytes32 constant FEED_MKR    = bytes32(0); // TODO_VERIFY: MKR/USD Pyth feed ID
-    bytes32 constant FEED_DOGE   = bytes32(0); // TODO_VERIFY: DOGE/USD Pyth feed ID
+    // Verified against Hermes 2026-05-30 (https://hermes.pyth.network/v2/price_feeds).
+    // Mirror of packages/shared/src/constants/pyth-feed-ids.ts.
+    bytes32 constant FEED_UNI    = 0x78d185a741d07edb3412b09008b7c5cfb9bbbd7d568bf00ba737b456ba171501;
+    bytes32 constant FEED_LINK   = 0x8ac0c70fff57e9aefdf5edf44b51d62c2d433653cbb2cf5cc06bb115af04d221;
+    bytes32 constant FEED_AAVE   = 0x2b9ab1e972a281585084148ba1389800799bd4be63b957507db1349314e47445;
+    bytes32 constant FEED_DOGE   = 0xdcef50dd0a4cd2dcc17e45df1676dcb336a11a61c69df7a0299b0150c672d25c;
+    // MKR/USD delisted from Pyth (MakerDAO -> Sky rebrand). Replaced by SKY/USD.
+    bytes32 constant FEED_SKY    = 0xa483243eed64ca27a1f6e26385b7d1e0d07e9fe264bb6903efb3efc4689d3fe7;
 
     // ─── NFT Collection Addresses (Ethereum Mainnet) ────────────────────────────
     // Source: CALL_IT_SPEC1.md §4.4 + §13.2 + REQUIREMENTS.md CALL-07
@@ -180,7 +176,7 @@ contract DeployPhase2 is Script {
         callRegistry.addAsset("UNI",    FEED_UNI);
         callRegistry.addAsset("LINK",   FEED_LINK);
         callRegistry.addAsset("AAVE",   FEED_AAVE);
-        callRegistry.addAsset("MKR",    FEED_MKR);
+        callRegistry.addAsset("SKY",    FEED_SKY);  // replaces MKR (Pyth delisted MKR/USD)
         callRegistry.addAsset("EIGEN",  FEED_EIGEN);
         callRegistry.addAsset("ETHFI",  FEED_ETHFI);
         callRegistry.addAsset("EZETH",  FEED_EZETH);

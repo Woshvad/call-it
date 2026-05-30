@@ -1,5 +1,5 @@
 /**
- * Pyth Network price feed IDs for all 25 allowlisted assets in Call It v1.
+ * Pyth Network price feed IDs for all 24 allowlisted assets in Call It v1.
  *
  * All values are 0x-prefixed 64-hex-char bytes32 strings (66 chars total).
  * Source: CLAUDE.md "Pyth Feed Catalogue — Verified Against Hermes API (2026-05-21)"
@@ -10,10 +10,10 @@
  * - RENDER replaces RNDR (renamed post-token-migration) — see CLAUDE.md
  * - KPEPE and KBONK are NOT exported (use unscaled PEPE/BONK per CLAUDE.md)
  *
- * For "verify before deploy" feeds (UNI, LINK, AAVE, MKR, DOGE):
- * - Marked with _TODO_VERIFY suffix
- * - Placeholder value: 0x000...0
- * - Run `scripts/verify-versions.ts` to surface these stubs
+ * Formerly-unverified feeds resolved 2026-05-30 against Hermes:
+ * - UNI, LINK, AAVE, DOGE now verified (real IDs below)
+ * - MKR removed: Pyth delisted MKR/USD after the MakerDAO->Sky rebrand (2024);
+ *   replaced by SKY/USD (PYTH_SKY_USD). SKY is a distinct token/price scale.
  *
  * Requirement: OPS-21, OPS-23
  */
@@ -31,25 +31,29 @@ export const PYTH_ETH_USD =
 export const PYTH_SOL_USD =
   '0xef0d8b6fda2ceba41da15d4095d1da392a0d2f8ed0c6c7bc0f4cfac8c280b56d' as const;
 
-/** UNI/USD — verify before deploy; see CLAUDE.md Pyth Feed Catalogue */
-export const PYTH_UNI_USD_TODO_VERIFY =
-  '0x0000000000000000000000000000000000000000000000000000000000000000' as const;
+/** UNI/USD — verified 2026-05-30 via Hermes */
+export const PYTH_UNI_USD =
+  '0x78d185a741d07edb3412b09008b7c5cfb9bbbd7d568bf00ba737b456ba171501' as const;
 
-/** LINK/USD — verify before deploy; see CLAUDE.md Pyth Feed Catalogue */
-export const PYTH_LINK_USD_TODO_VERIFY =
-  '0x0000000000000000000000000000000000000000000000000000000000000000' as const;
+/** LINK/USD — verified 2026-05-30 via Hermes */
+export const PYTH_LINK_USD =
+  '0x8ac0c70fff57e9aefdf5edf44b51d62c2d433653cbb2cf5cc06bb115af04d221' as const;
 
-/** AAVE/USD — verify before deploy; see CLAUDE.md Pyth Feed Catalogue */
-export const PYTH_AAVE_USD_TODO_VERIFY =
-  '0x0000000000000000000000000000000000000000000000000000000000000000' as const;
+/** AAVE/USD — verified 2026-05-30 via Hermes */
+export const PYTH_AAVE_USD =
+  '0x2b9ab1e972a281585084148ba1389800799bd4be63b957507db1349314e47445' as const;
 
-/** MKR/USD — verify before deploy; see CLAUDE.md Pyth Feed Catalogue */
-export const PYTH_MKR_USD_TODO_VERIFY =
-  '0x0000000000000000000000000000000000000000000000000000000000000000' as const;
+/**
+ * SKY/USD — verified 2026-05-30 via Hermes.
+ * Replaces MKR/USD: Pyth delisted MKR after the MakerDAO->Sky rebrand (2024).
+ * SKY is a distinct token at a distinct price scale (NOT a 1:1 MKR substitute).
+ */
+export const PYTH_SKY_USD =
+  '0xa483243eed64ca27a1f6e26385b7d1e0d07e9fe264bb6903efb3efc4689d3fe7' as const;
 
-/** DOGE/USD — verify before deploy; see CLAUDE.md Pyth Feed Catalogue */
-export const PYTH_DOGE_USD_TODO_VERIFY =
-  '0x0000000000000000000000000000000000000000000000000000000000000000' as const;
+/** DOGE/USD — verified 2026-05-30 via Hermes */
+export const PYTH_DOGE_USD =
+  '0xdcef50dd0a4cd2dcc17e45df1676dcb336a11a61c69df7a0299b0150c672d25c' as const;
 
 // ---------------------------------------------------------------------------
 // L2s (all verified 2026-05-21)
@@ -129,22 +133,21 @@ export const PYTH_FET_USD =
 // ---------------------------------------------------------------------------
 
 /**
- * All 25 Pyth feed IDs, keyed by ticker symbol.
- * TODO_VERIFY entries have placeholder bytes32 (0x000...0) and must be
- * verified against Hermes before mainnet deployment.
+ * All 24 Pyth feed IDs, keyed by ticker symbol. All verified against Hermes.
+ * (UNI/LINK/AAVE/DOGE verified 2026-05-30; MKR replaced by SKY.)
  *
- * Run: `pnpm verify-versions` to surface placeholders.
+ * Run: `pnpm verify-versions` to check registry drift.
  */
 export const PYTH_FEED_IDS = {
   // Majors
   BTC: PYTH_BTC_USD,
   ETH: PYTH_ETH_USD,
   SOL: PYTH_SOL_USD,
-  UNI: PYTH_UNI_USD_TODO_VERIFY, // TODO_VERIFY: check Hermes before deploy
-  LINK: PYTH_LINK_USD_TODO_VERIFY, // TODO_VERIFY: check Hermes before deploy
-  AAVE: PYTH_AAVE_USD_TODO_VERIFY, // TODO_VERIFY: check Hermes before deploy
-  MKR: PYTH_MKR_USD_TODO_VERIFY, // TODO_VERIFY: check Hermes before deploy
-  DOGE: PYTH_DOGE_USD_TODO_VERIFY, // TODO_VERIFY: check Hermes before deploy
+  UNI: PYTH_UNI_USD,
+  LINK: PYTH_LINK_USD,
+  AAVE: PYTH_AAVE_USD,
+  SKY: PYTH_SKY_USD, // replaces MKR (Pyth delisted MKR/USD after Maker->Sky rebrand)
+  DOGE: PYTH_DOGE_USD,
   // L2s
   ARB: PYTH_ARB_USD,
   OP: PYTH_OP_USD,
@@ -168,5 +171,9 @@ export const PYTH_FEED_IDS = {
   FET: PYTH_FET_USD,
 } as const;
 
-/** Feed IDs that require verification before mainnet deployment */
-export const PYTH_FEED_IDS_TODO_VERIFY = ['UNI', 'LINK', 'AAVE', 'MKR', 'DOGE'] as const;
+/**
+ * Feed IDs that require verification before mainnet deployment.
+ * Empty as of 2026-05-30 — all formerly-unverified feeds are resolved
+ * (UNI/LINK/AAVE/DOGE verified; MKR delisted by Pyth, replaced by SKY).
+ */
+export const PYTH_FEED_IDS_TODO_VERIFY = [] as const;

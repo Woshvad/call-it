@@ -33,7 +33,7 @@ describe('Pyth feed ID constants', () => {
     });
 
     it('PYTH_FEED_IDS object has exactly 24 entries', () => {
-      // 24 = 19 verified + 5 TODO_VERIFY (UNI, LINK, AAVE, MKR, DOGE)
+      // 24 = all verified (UNI/LINK/AAVE/DOGE resolved 2026-05-30; MKR replaced by SKY)
       expect(Object.keys(feedIds.PYTH_FEED_IDS)).toHaveLength(24);
     });
   });
@@ -186,18 +186,49 @@ describe('Pyth feed ID constants', () => {
     });
   });
 
-  describe('TODO_VERIFY stubs', () => {
-    it('PYTH_FEED_IDS_TODO_VERIFY lists UNI, LINK, AAVE, MKR, DOGE', () => {
-      expect(feedIds.PYTH_FEED_IDS_TODO_VERIFY).toEqual(['UNI', 'LINK', 'AAVE', 'MKR', 'DOGE']);
+  describe('Formerly-unverified feeds (resolved 2026-05-30 via Hermes)', () => {
+    it('PYTH_FEED_IDS_TODO_VERIFY is now empty (all resolved)', () => {
+      expect(feedIds.PYTH_FEED_IDS_TODO_VERIFY).toEqual([]);
     });
 
-    it('TODO_VERIFY feeds have placeholder bytes32 (0x000...0) — must be verified before deploy', () => {
-      for (const symbol of feedIds.PYTH_FEED_IDS_TODO_VERIFY) {
-        const feedId = feedIds.PYTH_FEED_IDS[symbol as keyof typeof feedIds.PYTH_FEED_IDS];
-        expect(feedId, `${symbol} TODO_VERIFY should have placeholder 0x000...0`).toBe(
-          ZERO_BYTES32,
-        );
+    it('no feed in PYTH_FEED_IDS remains a zero placeholder', () => {
+      for (const [symbol, feedId] of Object.entries(feedIds.PYTH_FEED_IDS)) {
+        expect(feedId, `${symbol} must not be the zero placeholder`).not.toBe(ZERO_BYTES32);
       }
+    });
+
+    it('UNI/USD verified', () => {
+      expect(feedIds.PYTH_UNI_USD).toBe(
+        '0x78d185a741d07edb3412b09008b7c5cfb9bbbd7d568bf00ba737b456ba171501',
+      );
+    });
+
+    it('LINK/USD verified', () => {
+      expect(feedIds.PYTH_LINK_USD).toBe(
+        '0x8ac0c70fff57e9aefdf5edf44b51d62c2d433653cbb2cf5cc06bb115af04d221',
+      );
+    });
+
+    it('AAVE/USD verified', () => {
+      expect(feedIds.PYTH_AAVE_USD).toBe(
+        '0x2b9ab1e972a281585084148ba1389800799bd4be63b957507db1349314e47445',
+      );
+    });
+
+    it('DOGE/USD verified', () => {
+      expect(feedIds.PYTH_DOGE_USD).toBe(
+        '0xdcef50dd0a4cd2dcc17e45df1676dcb336a11a61c69df7a0299b0150c672d25c',
+      );
+    });
+
+    it('SKY/USD replaces MKR (Pyth delisted MKR after Maker->Sky rebrand)', () => {
+      expect(feedIds.PYTH_SKY_USD).toBe(
+        '0xa483243eed64ca27a1f6e26385b7d1e0d07e9fe264bb6903efb3efc4689d3fe7',
+      );
+      expect('PYTH_MKR_USD' in feedIds).toBe(false);
+      expect('PYTH_MKR_USD_TODO_VERIFY' in feedIds).toBe(false);
+      expect(feedIds.PYTH_FEED_IDS).toHaveProperty('SKY');
+      expect(feedIds.PYTH_FEED_IDS).not.toHaveProperty('MKR');
     });
   });
 });

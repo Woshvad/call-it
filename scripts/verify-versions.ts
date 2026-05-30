@@ -128,13 +128,9 @@ for (const { crate, pinned, area } of CRATES) {
 // ---------------------------------------------------------------------------
 // Pyth TODO_VERIFY feeds
 // ---------------------------------------------------------------------------
-console.log('\n--- Pyth Feed IDs (TODO_VERIFY — must be checked before mainnet deploy) ---\n');
-const TODO_FEEDS = ['UNI', 'LINK', 'AAVE', 'MKR', 'DOGE'];
-for (const symbol of TODO_FEEDS) {
-  console.log(
-    `  ⚠  ${symbol}/USD — placeholder bytes32 (0x000...0). Verify against https://hermes.pyth.network/v2/price_feeds before mainnet deploy.`,
-  );
-}
+console.log('\n--- Pyth Feed IDs (all verified against Hermes 2026-05-30) ---\n');
+console.log('  ✓  UNI, LINK, AAVE, DOGE — verified against Hermes (real feed IDs pinned).');
+console.log('  ✓  MKR replaced by SKY/USD — Pyth delisted MKR after the MakerDAO->Sky rebrand.');
 
 console.log('\n--- Workspace packages ---\n');
 const packageFiles = [
