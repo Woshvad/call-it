@@ -207,7 +207,7 @@ To guarantee clean automated resolution, v1 supports calls on a curated allowlis
 
 - **Majors:** BTC, ETH, SOL
 - **L2s:** ARB, OP, MATIC (POL), MNT
-- **DeFi blue chips:** UNI, LINK, AAVE, MKR
+- **DeFi blue chips:** UNI, LINK, AAVE, SKY (was MKR — Pyth delisted MKR/USD after the MakerDAO→Sky rebrand; see CLAUDE.md Pyth Feed Catalogue)
 - **Restaking / LSTs:** EIGEN, ETHFI, ezETH
 - **Memes:** PEPE, WIF, BONK, DOGE
 - **Arbitrum ecosystem:** GMX, PENDLE, RDNT
@@ -549,7 +549,7 @@ This creates a felt tension when the user moves the conviction slider past the t
 - Each call belongs to exactly one category and only affects that sub-score plus the global
 - Category assignment rules:
   - **Majors:** BTC, ETH, SOL, and any NFT calls (blue-chip collections behave as majors for reputation purposes)
-  - **DeFi:** All other coins on the v1 allowlist (UNI, LINK, AAVE, MKR, GMX, PENDLE, RDNT, EIGEN, ETHFI, ezETH, ONDO, RNDR, FET, ARB, OP, MATIC, MNT) and all DeFi-protocol event calls (TVL milestones, volume/fees, on-chain metrics, governance)
+  - **DeFi:** All other coins on the v1 allowlist (UNI, LINK, AAVE, SKY [was MKR — Pyth delisted MKR/USD post Maker→Sky rebrand], GMX, PENDLE, RDNT, EIGEN, ETHFI, ezETH, ONDO, RNDR, FET, ARB, OP, MATIC, MNT) and all DeFi-protocol event calls (TVL milestones, volume/fees, on-chain metrics, governance)
   - **Other:** Memes (PEPE, WIF, BONK, DOGE), CEX listings, token launches, protocol milestones, and any call that doesn't cleanly fit Majors or DeFi
 - Reveals where a caller's edge actually is
 - Categories are stored as an enum and can be split further in v2 (Memecoins, Layer 2s, Restaking, etc.) without a contract redeploy as long as new enum values are appended at the end
