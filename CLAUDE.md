@@ -134,17 +134,17 @@ Call It is a social prediction product for crypto-native users who want to build
 | POL | Crypto.POL/USD | `ffd11c5a1cfd42f80afb2df4d9f264c15f956d68153335374ec10722edd70472` | "Polygon Ecosystem Token" — POL replaced MATIC in 2024. **Use POL feed, not MATIC.** Hermes returns no MATIC/USD feed. Update the spec's reference. |
 | MATIC | (none) | — | **Deprecated by Polygon Labs in 2024.** Map to POL above. |
 | MNT | Crypto.MNT/USD | `4e3037c822d852d79af3ac80e35eb420ee3b870dca49f9344a38ef4773fb0585` | Mantle |
-| UNI | Crypto.UNI/USD | (verify before deploy) | Standard major — Pyth has it; ID not re-fetched here |
-| LINK | Crypto.LINK/USD | (verify before deploy) | Standard major |
-| AAVE | Crypto.AAVE/USD | (verify before deploy) | Standard major |
-| MKR | Crypto.MKR/USD | (verify before deploy) | Standard major |
+| UNI | Crypto.UNI/USD | `78d185a741d07edb3412b09008b7c5cfb9bbbd7d568bf00ba737b456ba171501` | Verified against Hermes 2026-05-30 |
+| LINK | Crypto.LINK/USD | `8ac0c70fff57e9aefdf5edf44b51d62c2d433653cbb2cf5cc06bb115af04d221` | Verified against Hermes 2026-05-30 |
+| AAVE | Crypto.AAVE/USD | `2b9ab1e972a281585084148ba1389800799bd4be63b957507db1349314e47445` | Verified against Hermes 2026-05-30 |
+| SKY (was MKR) | Crypto.SKY/USD | `a483243eed64ca27a1f6e26385b7d1e0d07e9fe264bb6903efb3efc4689d3fe7` | **MKR delisted.** Pyth returns no MKR/USD feed after the MakerDAO→Sky rebrand (2024); `query=MKR` and `query=Maker` both empty. Use SKY/USD. SKY is a distinct token/price scale, NOT a 1:1 MKR substitute. Verified 2026-05-30. |
 | EIGEN | Crypto.EIGEN/USD | `c65db025687356496e8653d0d6608eec64ce2d96e2e28c530e574f0e4f712380` | EigenLayer |
 | ETHFI | Crypto.ETHFI/USD | `b27578a9654246cb0a2950842b92330e9ace141c52b63829cc72d5c45a5a595a` | Ether.fi |
 | ezETH | Crypto.EZETH/USD | `06c217a791f5c4f988b36629af4cb88fad827b2485400a358f3b02886b54de92` | Renzo Restaked ETH |
 | PEPE | Crypto.PEPE/USD | `d69731a2e74ac1ce884fc3890f7ee324b6deb66147055249568869ed700882e4` | Note: Hermes also returns `Crypto.KPEPE/USD` (×1000 scaled) — use the unscaled `PEPE/USD` |
 | WIF | Crypto.WIF/USD | `4ca4beeca86f0d164160323817a4e42b10010a724c2217c6ee41b54cd4cc61fc` | Dogwifhat |
 | BONK | Crypto.BONK/USD | `72b021217ca3fe68922a19aaf990109cb9d84e9ad004b4d2025ad6f529314419` | Note: Hermes also returns `Crypto.KBONK/USD` — use unscaled |
-| DOGE | Crypto.DOGE/USD | (verify before deploy) | Standard major-meme |
+| DOGE | Crypto.DOGE/USD | `dcef50dd0a4cd2dcc17e45df1676dcb336a11a61c69df7a0299b0150c672d25c` | Verified against Hermes 2026-05-30 |
 | GMX | Crypto.GMX/USD | `b962539d0fcb272a494d65ea56f94851c2bcf8823935da05bd628916e2e9edbf` | |
 | PENDLE | Crypto.PENDLE/USD | `9a4df90b25497f66b1afb012467e316e801ca3d839456db028892fe8c70c8016` | |
 | RDNT | Crypto.RDNT/USD | `c8cf45412be4268bef8f76a8b0d60971c6e57ab57919083b8e9f12ba72adeeb6` | Radiant |
