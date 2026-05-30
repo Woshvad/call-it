@@ -37,7 +37,7 @@ Progress: [██████░░░░] 6/9 plans (code-complete); phase comp
 All Phase 2 CODE is shipped and tests pass; the following LIVE operator actions were deferred (operator chose "continue, defer deploy"). Plans 02-04/05/06 stay OPEN (no SUMMARY) until done. After each, write the SUMMARY + mark ROADMAP complete (or re-run `/gsd-execute-phase 2` to resume the open plans).
 
 1. **02-04 — Arbitrum Sepolia contract deploy** (DeployPhase2.s.sol committed `8855c15`):
-   - Replace the 5 placeholder Pyth feed IDs (UNI, LINK, AAVE, MKR, DOGE — currently `bytes32(0)`) with verified Hermes IDs.
+   - ✅ DONE (2026-05-30, commits `5847b71`+`1cb39e8`): Pyth feed IDs resolved — UNI/LINK/AAVE/DOGE verified against Hermes; MKR delisted by Pyth (Maker→Sky rebrand) and replaced by SKY/USD. No `bytes32(0)` placeholders remain. Deploy script is feed-ID-ready.
    - Set DEPLOYER_PRIVATE_KEY, TREASURY_ADDRESS, ARBITRUM_SEPOLIA_RPC, ARBISCAN_SEPOLIA_API_KEY.
    - `forge script packages/contracts/script/DeployPhase2.s.sol --rpc-url $ARBITRUM_SEPOLIA_RPC --broadcast --verify`
    - Update the 3 v2 addresses in `packages/shared/src/constants/addresses.ts` (replace the FOLLOW_FADE_MARKET_ARBITRUM_SEPOLIA zero placeholder + CallRegistry/ProfileRegistry v2) and `packages/subgraph/subgraph.yaml` (+startBlocks).
