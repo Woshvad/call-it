@@ -74,42 +74,50 @@ const EMPTY_ADDRESSES: AddressRecord = {
 // ---------------------------------------------------------------------------
 
 /**
- * CallRegistry on Arbitrum Sepolia (Phase 1 deploy).
+ * CallRegistry on Arbitrum Sepolia — v2 (Phase 2 redeploy).
  *
- * DEPLOYED 2026-05-29 via DeployPhase1.s.sol (OZ 5.6.1, solc 0.8.30).
- * Deploy block: 271888754. Deployer/owner: 0xF4ee61950B63cCA5C82f1146484d018Ac95Bd0F2.
+ * DEPLOYED 2026-05-30 via DeployPhase2.s.sol (OZ 5.6.1, solc 0.8.30).
+ * Deploy block: 272458669. Deployer/owner/treasury: 0xDa8c5726f596E8dae99e6dDEBa8AEa1c8bE9A4a5.
+ * Supersedes the Phase 1 v1 address (0xC61deC55ED916f97006FC1B01695Ee9297a8867C).
  *
- * Post-deploy smoke test (§19.11) — all green:
- *   cast call <addr> "currentTvl()"  -> 0           ✓
- *   cast call <addr> "tvlCap()"      -> 5000000000  ✓
- *   cast call <addr> "owner()"       -> deployer     ✓
+ * Post-deploy verification (on-chain, all green):
+ *   followFadeMarket()  -> FFM address                                 ✓
+ *   profileRegistry()   -> ProfileRegistry v2                          ✓
+ *   treasury()          -> 0xDa8c...A4a5                               ✓
+ *   tvlCap()            -> 5000000000                                  ✓
+ *   currentTvl()        -> 0                                           ✓
  *
  * Threat: T-01-16 -- wrong address pinned in frontend silently routes txs to wrong contract.
  */
 export const CALL_REGISTRY_ARBITRUM_SEPOLIA =
-  '0xC61deC55ED916f97006FC1B01695Ee9297a8867C' as const;
+  '0x7DAd732764abfC935aD5bf8e5CFF9BEA7B2C234D' as const;
 
 /**
- * ProfileRegistry on Arbitrum Sepolia (Phase 1 deploy).
- * Deployed alongside CallRegistry via DeployPhase1.s.sol (2026-05-29).
- * Deploy block: 271888754. Owner: 0xF4ee61950B63cCA5C82f1146484d018Ac95Bd0F2.
+ * ProfileRegistry on Arbitrum Sepolia — v2 (Phase 2 redeploy).
+ * Deployed alongside CallRegistry v2 via DeployPhase2.s.sol (2026-05-30).
+ * Deploy block: 272458667. Owner: 0xDa8c5726f596E8dae99e6dDEBa8AEa1c8bE9A4a5.
+ * v2 adds authorizedRepWriters (FFM authorized). Supersedes the Phase 1 v1
+ * address (0x4dCdE524F0566f583fab237d7CeED2fE8fB02322).
  */
 export const PROFILE_REGISTRY_ARBITRUM_SEPOLIA =
-  '0x4dCdE524F0566f583fab237d7CeED2fE8fB02322' as const;
+  '0xAfe239a3606b89Ef65DbBcDb1b87a920052c359E' as const;
 
 /**
  * FollowFadeMarket on Arbitrum Sepolia (Phase 2 deploy).
  *
- * PLACEHOLDER — NOT YET DEPLOYED. The live Sepolia deploy (plan 02-04 Task 2)
- * is DEFERRED; the rest of Phase 2 is built against this placeholder. Run
- * packages/contracts/script/DeployPhase2.s.sol, then replace this zero address
- * with the broadcast result. The v2 CallRegistry/ProfileRegistry addresses above
- * will ALSO change on that redeploy — update all three together.
+ * DEPLOYED 2026-05-30 via DeployPhase2.s.sol. Deploy block: 272458674.
+ * Constructor: (CallRegistry v2, ProfileRegistry v2, treasury 0xDa8c...A4a5).
+ *
+ * Post-deploy verification (on-chain, all green):
+ *   callRegistry()     -> CallRegistry v2                              ✓
+ *   profileRegistry()  -> ProfileRegistry v2                          ✓
+ *   treasury()         -> 0xDa8c...A4a5                               ✓
+ *   (CallRegistry.followFadeMarket() points back here; PR.authorizedRepWriters(FFM)=true)
  *
  * Threat: T-02-04-01 — wrong/zero address routes all FFM reads/writes to nowhere.
  */
 export const FOLLOW_FADE_MARKET_ARBITRUM_SEPOLIA =
-  '0x0000000000000000000000000000000000000000' as const;
+  '0x12aafa5a70c3aD8Bd3a52252744f9F7Aa073E362' as const;
 
 /**
  * FollowFadeMarket on Arbitrum One (mainnet).

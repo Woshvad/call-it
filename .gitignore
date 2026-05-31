@@ -20,8 +20,12 @@ build
 .env.production
 .env.prod
 # Backups of env files (may contain real secrets) — NEVER commit
-.env*.bak
-*.env.bak
+.env*.bak*
+*.env.bak*
+.env.bak*
+
+# Foundry deploy logs (regenerable; canonical record is broadcast/run-latest.json)
+deploy-*.log
 
 # Foundry build artifacts
 forge-cache

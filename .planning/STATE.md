@@ -25,24 +25,24 @@ See: .planning/PROJECT.md (updated 2026-05-21)
 
 ## Current Position
 
-Phase: 02 (followfademarket) — CODE COMPLETE (6/9 plans); 3 plans deferred pending live infra
-Plan: 6 of 9 complete (02-01,02,03,07,08,09). OPEN: 02-04, 02-05, 02-06 (live-infra checkpoints deferred per operator decision)
-Status: Paused at deferred live-infra gates — phase NOT marked complete. See "Deferred Live Infra" below.
-Last activity: 2026-05-29 -- Phase 2 code complete (6/9); live contract deploy / DB migrate / subgraph publish deferred
+Phase: 02 (followfademarket) — 8/9 plans complete; only 02-06 (subgraph publish) remains
+Plan: 8 of 9 complete (02-01,02,03,04,05,07,08,09). OPEN: 02-06 (subgraph Studio publish — needs Graph deploy key)
+Status: Contracts deployed + verified on Arbitrum Sepolia; DB migrated; code-review fixes applied. Phase NOT marked complete (02-06 open). See "Deferred Live Infra" below.
+Last activity: 2026-05-30 -- 02-04 deployed+verified, 02-05 DB migrated; only 02-06 subgraph publish remains
 
-Progress: [██████░░░░] 6/9 plans (code-complete); phase completion blocked on 3 deferred deploys
+Progress: [█████████░] 8/9 plans; phase completion blocked on 02-06 subgraph publish
 
 ## Deferred Live Infra (Phase 2 — resume to close)
 
-All Phase 2 CODE is shipped and tests pass; the following LIVE operator actions were deferred (operator chose "continue, defer deploy"). Plans 02-04/05/06 stay OPEN (no SUMMARY) until done. After each, write the SUMMARY + mark ROADMAP complete (or re-run `/gsd-execute-phase 2` to resume the open plans).
+Phase 2 CODE is shipped and tests pass. Live operator actions were deferred (operator chose "continue, defer deploy"). Status of the 3 originally-open plans:
 
-1. **02-04 — Arbitrum Sepolia contract deploy** (DeployPhase2.s.sol committed `8855c15`):
-   - ✅ DONE (2026-05-30, commits `5847b71`+`1cb39e8`): Pyth feed IDs resolved — UNI/LINK/AAVE/DOGE verified against Hermes; MKR delisted by Pyth (Maker→Sky rebrand) and replaced by SKY/USD. No `bytes32(0)` placeholders remain. Deploy script is feed-ID-ready.
-   - Set DEPLOYER_PRIVATE_KEY, TREASURY_ADDRESS, ARBITRUM_SEPOLIA_RPC, ARBISCAN_SEPOLIA_API_KEY.
-   - `forge script packages/contracts/script/DeployPhase2.s.sol --rpc-url $ARBITRUM_SEPOLIA_RPC --broadcast --verify`
-   - Update the 3 v2 addresses in `packages/shared/src/constants/addresses.ts` (replace the FOLLOW_FADE_MARKET_ARBITRUM_SEPOLIA zero placeholder + CallRegistry/ProfileRegistry v2) and `packages/subgraph/subgraph.yaml` (+startBlocks).
+1. **02-04 — Arbitrum Sepolia contract deploy** — ✅ **DONE (2026-05-30).** Deployed all 3 contracts to Arbitrum Sepolia (chain 421614), 37 txs / 0 failures, all 9 on-chain assertions passed + independently re-verified. Pyth feed IDs resolved beforehand (commit `1e9b135`: UNI/LINK/AAVE/DOGE verified; MKR→SKY — SKY confirmed live on-chain). Addresses (deployer/owner/treasury `0xDa8c5726f596E8dae99e6dDEBa8AEa1c8bE9A4a5`):
+   - ProfileRegistry v2: `0xAfe239a3606b89Ef65DbBcDb1b87a920052c359E` (block 272458667)
+   - CallRegistry v2:    `0x7DAd732764abfC935aD5bf8e5CFF9BEA7B2C234D` (block 272458669)
+   - FollowFadeMarket:   `0x12aafa5a70c3aD8Bd3a52252744f9F7Aa073E362` (block 272458674)
+   - addresses.ts + subgraph.yaml updated to these v2 addresses; 02-04-SUMMARY.md written. (`--verify` skipped — no Arbiscan key; verify later with forge verify-contract.)
 2. **02-05 — Fly Postgres migration** — ✅ **DONE (2026-05-30).** Applied BOTH migrations (`0001_even_vertigo` tables + `0002_rich_blur` WR-05 unique index) to Fly Postgres `call-it-pg-sepolia` via `db:migrate` through a `fly proxy 5433:5432` tunnel. Verified live: `notifications` + `quote_stance` tables exist; `notifications_user_event_call_idx` present and UNIQUE. Plan 02-05 closed (02-05-SUMMARY.md). Local note: `.env.local` POSTGRES_URL repointed to `127.0.0.1:5433` (5432 was occupied locally); backup at `.env.local.bak`.
-3. **02-06 — Subgraph Studio publish** (handlers `d03057c` + yaml `5bca56b` committed): after 02-04 addresses land in subgraph.yaml, `graph codegen && graph build`, then `pnpm graph deploy --studio call-it-sepolia` (needs GRAPH_STUDIO_DEPLOY_KEY).
+3. **02-06 — Subgraph Studio publish** — ◆ OPEN (only remaining Phase 2 plan). subgraph.yaml now points at the deployed v2 addresses + startBlocks; `graph build` validates clean. Remaining: set `SUBGRAPH_STUDIO_DEPLOY_KEY`, then `cd packages/subgraph && graph auth $KEY && pnpm run build && pnpm run deploy:sepolia`; then write 02-06-SUMMARY.md → Phase 2 done (9/9) → run phase verification.
 
 ## Performance Metrics
 
