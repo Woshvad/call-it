@@ -42,7 +42,7 @@ result: blocked
 blocked_by: other
 reason: "PARTIAL — deployed + queryable but sync UNCONFIRMED. POST query succeeds: deployment=QmRyZoED61... (matches published hash), hasIndexingErrors=false, Position/CallerExit schema resolves, entities empty (correct — no on-chain activity). BUT _meta.block = number 818971 / timestamp 1699036422 (Nov 3 2023), while Arbitrum Sepolia head is ~272,505,000 and our contracts deployed at block 272,458,674. The indexed head is ~271M blocks (and ~2.5 years) behind the deploy — the indexer has NOT reached our contract range. Likely a subgraph network/sync configuration concern to investigate (verify the published subgraph's network is arbitrum-sepolia and is actively syncing). Cannot confirm Position/CallerExit indexing until the head passes 272,458,674 AND Test 1 produces an event. No Phase 2 code defect identified — subgraph.yaml startBlocks are set to the correct deploy blocks; flag the Studio sync config for follow-up."
 
-## Bonus checks (observed this session, under webpack — partial)
+## Bonus checks (observed this session)
 
 ### B1. Live Receipt page route
 result: partial
@@ -51,6 +51,19 @@ evidence: "GET http://localhost:3001/call/1 -> HTTP 307 (redirect; not a confirm
 ### B2. New Call page route
 result: partial
 evidence: "GET http://localhost:3001/new -> HTTP 307 (redirect; not a confirmed 200 page render)."
+
+### B3. quote-stance API round-trip (relayer + Fly Postgres) — PASS
+result: pass
+evidence: "After the relayer boot fix, OBSERVED against localhost:8080: POST /api/calls/quote-stance {callId:1,quoteCallId:2,stance:'fading'} -> HTTP 201 {\"ok\":true}; GET /api/calls/quote-stance?parentCallId=1 -> HTTP 200 [{\"id\":2,\"quoteCallId\":2,\"parentCallId\":1,\"stance\":\"fading\",\"timestamp\":1780261622}]. Full write+read through the live relayer and Fly Postgres (SOCIAL-43/45 backend path)."
+
+### B4. notifications mark-read auth gate (CR-01 fix) — PASS
+result: pass
+evidence: "OBSERVED: POST /api/notifications/mark-read (no auth) -> HTTP 401. The Privy session gate from the code-review CR-01 fix rejects unauthenticated mutation. (Note: GET /api/notifications without auth returned 200 — flagged for a later look at read-path gating; not chased this session.)"
+
+### B5. live-state proxy — BLOCKED (local infra)
+result: blocked
+blocked_by: other
+evidence: "GET /api/calls/1/live-state -> HTTP 000 (hang). Relayer log shows the cause is local-only: 'redis_error: connect EPERM' (no local Redis; Upstash REST endpoint not reachable via ioredis locally) causes the route to exhaust Redis retries before the RPC read. Plus the fan-out worker hit Alchemy free-tier's 10-block eth_getLogs cap. Both are local-environment limits, NOT Phase 2 code defects — the route's viem multicall + getCall + WR-09 zero-FFM short-circuit logic is present and correct in source (live-state.ts:238-329). Verify on staging (real Redis + paid RPC)."
 
 ## Summary
 
