@@ -19,6 +19,9 @@
  * Host: Fly.io iad (D-01, D-02) — always-on machine (auto_stop_machines=false)
  */
 
+// MUST be first: loads .env.local in dev before any module reads process.env.
+// No-op in production (env comes from Fly secrets). See lib/load-dev-env.ts.
+import './lib/load-dev-env.js';
 import Fastify, { type FastifyInstance } from 'fastify';
 import cors from '@fastify/cors';
 import { createPublicClient, http } from 'viem';
@@ -158,7 +161,7 @@ export async function buildApp(): Promise<FastifyInstance> {
   // Set up notification fan-out worker dependencies (created lazily at boot)
   const notificationFanoutClient = createPublicClient({
     chain: arbitrumSepolia,
-    transport: http(process.env.RPC_URL_ARBITRUM_SEPOLIA),
+    transport: http(process.env.ARBITRUM_SEPOLIA_RPC_URL),
   });
   const notificationFanoutDb = getDb();
   const notificationSubgraphUrl =
