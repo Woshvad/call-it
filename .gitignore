@@ -19,6 +19,9 @@ build
 .env.production.local
 .env.production
 .env.prod
+# Backups of env files (may contain real secrets) — NEVER commit
+.env*.bak
+*.env.bak
 
 # Foundry build artifacts
 forge-cache
