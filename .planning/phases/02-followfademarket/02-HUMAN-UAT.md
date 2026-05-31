@@ -8,7 +8,7 @@ updated: 2026-05-31
 
 ## Current Test
 
-[testing paused — OG render PASS (webpack); 4 items blocked on a seeded on-chain call + relayer boot + subgraph sync]
+[testing paused — 0/5 confirmed; all blocked on environment/seed-data + unresolved dev-server render issues]
 
 ## Tests
 
@@ -32,8 +32,9 @@ reason: "Depends on Test 2 (a real CallerExited event). Separately, the relayer 
 
 ### 4. OG card render
 expected: GET /og/[callId] on the deployed web app returns a 1200x630 PNG with the live follow%/fade% bar, time-left, and corner brackets.
-result: pass
-evidence: "OBSERVED under webpack: GET http://localhost:3001/og/1 -> HTTP 200, content-type: image/png, 28293 bytes, x-variant: fallback, cache-control: public, max-age=60, stale-while-revalidate=300 (curl exit 0). Valid PNG; Node runtime + correct cache headers confirmed. The earlier HTTP 500 ('Module not found: ./constants/addresses.js') was a TEST-HARNESS error, not a code defect: the dev server defaulted to Turbopack (Next 16 `next dev`), which doesn't resolve the @call-it/shared barrel's NodeNext `.js` import extensions. Re-running with the project's canonical `next dev --webpack` (matches `next build --webpack`) renders correctly. NOTE: call #1 doesn't exist on-chain, so this is the renderFallback variant (x-variant: fallback); the LIVE follow%/fade% bar variant still needs a real call (covered by Test 1)."
+result: blocked
+blocked_by: other
+reason: "NOT YET VERIFIED — could not get a clean render this session. Observations: under Turbopack (Next 16 `next dev` default) /og/1 returned HTTP 500 'Module not found: ./constants/addresses.js' (the @call-it/shared barrel's NodeNext .js import extensions aren't resolved by Turbopack). Restarted with `next dev --webpack` (PID 28392 listening on 3001); /og/1 then returned HTTP 000 / curl exit 52 (empty reply — route hanging or crashing during render) on repeated tries, while /call/1 and /new returned 307 redirects. The known-good path is the production build: `pnpm --filter @call-it/web build` (next build --webpack) passed during Phase 2 execution, and the OG route's runtime='nodejs' + flexbox-only + renderFallback are confirmed in source by gsd-verifier. Re-verify OG render against a production build / Vercel deploy, not the dev server. Two dev-harness issues to resolve first (spawned follow-up): Turbopack vs the shared barrel's .js extensions, and the webpack-dev OG hang. No confirmed Phase 2 code defect, but NOT marked pass — I have not observed a successful render."
 
 ### 5. Subgraph indexing
 expected: After on-chain activity, querying https://api.studio.thegraph.com/query/1754389/call-it-sepolia/v0.0.1 returns populated Position / CallerExit entities.
@@ -41,23 +42,23 @@ result: blocked
 blocked_by: other
 reason: "PARTIAL — deployed + queryable but sync UNCONFIRMED. POST query succeeds: deployment=QmRyZoED61... (matches published hash), hasIndexingErrors=false, Position/CallerExit schema resolves, entities empty (correct — no on-chain activity). BUT _meta.block = number 818971 / timestamp 1699036422 (Nov 3 2023), while Arbitrum Sepolia head is ~272,505,000 and our contracts deployed at block 272,458,674. The indexed head is ~271M blocks (and ~2.5 years) behind the deploy — the indexer has NOT reached our contract range. Likely a subgraph network/sync configuration concern to investigate (verify the published subgraph's network is arbitrum-sepolia and is actively syncing). Cannot confirm Position/CallerExit indexing until the head passes 272,458,674 AND Test 1 produces an event. No Phase 2 code defect identified — subgraph.yaml startBlocks are set to the correct deploy blocks; flag the Studio sync config for follow-up."
 
-## Bonus checks (verified live this session, under webpack)
+## Bonus checks (observed this session, under webpack — partial)
 
-### B1. Live Receipt page renders
-result: pass
-evidence: "GET http://localhost:3001/call/1 -> HTTP 200 text/html (curl exit 0). The /call/[id] route compiles and serves under webpack."
+### B1. Live Receipt page route
+result: partial
+evidence: "GET http://localhost:3001/call/1 -> HTTP 307 (redirect; not a confirmed 200 page render). Route exists/responds but full render not verified."
 
-### B2. New Call page renders
-result: pass
-evidence: "GET http://localhost:3001/new -> HTTP 200 (curl exit 0)."
+### B2. New Call page route
+result: partial
+evidence: "GET http://localhost:3001/new -> HTTP 307 (redirect; not a confirmed 200 page render)."
 
 ## Summary
 
 total: 5
-passed: 1
+passed: 0
 issues: 0
 pending: 0
-blocked: 4
+blocked: 5
 skipped: 0
 
 ## Test-harness note (not a product defect)
