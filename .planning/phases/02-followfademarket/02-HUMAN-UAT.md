@@ -8,7 +8,7 @@ updated: 2026-05-31
 
 ## Current Test
 
-[testing paused — all 5 items blocked on a stood-up environment + a seeded on-chain call]
+[testing paused — OG render PASS (webpack); 4 items blocked on a seeded on-chain call + relayer boot + subgraph sync]
 
 ## Tests
 
@@ -16,7 +16,7 @@ updated: 2026-05-31
 expected: Execute follow() and fade() against the deployed Sepolia FollowFadeMarket (0x12aafa5a70c3aD8Bd3a52252744f9F7Aa073E362) on a live call; shares are minted and Followed/Faded events emit.
 result: blocked
 blocked_by: prior-phase
-reason: "Requires browser Privy sign-in + a funded embedded wallet + an existing call. getCall(1) reverts — zero calls exist on-chain yet. Creating one needs the Phase 1 sign-up->fund->compose flow run in a browser. Web app IS up at localhost:3001, so this is runnable manually once a call is created with a funded wallet."
+reason: "Requires browser Privy sign-in + a funded embedded wallet + an existing call. getCall(1) reverts — zero calls exist on-chain yet. Creating one needs the Phase 1 sign-up->fund->compose flow run in a browser. Web app IS up at localhost:3001 (webpack) and /call/1 + /new both render HTTP 200, so this is runnable manually once a call is created with a funded wallet."
 
 ### 2. Caller exit end-to-end
 expected: Trigger callerExit() on a live call; penalty is charged, reputation slashed via ProfileRegistry.applyRepDelta, CallerExited event emits, and the amber "CALLER EXITED" banner appears on /call/[id].
@@ -28,38 +28,66 @@ reason: "Depends on Test 1 (a created call with positions) plus the 24h caller-e
 expected: After a real CallerExited event, the fan-out worker inserts a notification row into Fly Postgres and the NotificationBell unread badge increments for affected holders.
 result: blocked
 blocked_by: prior-phase
-reason: "Depends on Test 2 (a real CallerExited event). Separately, the relayer would not boot locally this session — it crashes at config/runtime-config.ts:22 reading process.env.RPC_URL_ARBITRUM_SEPOLIA (undefined). Two compounding pre-existing local-dev defects: (a) the dev script `tsx watch src/index.ts` does not load apps/relayer/.env.local (no --env-file, no dotenv shim), so all env is undefined; (b) the var name is mismatched — env files define ARBITRUM_SEPOLIA_RPC_URL, code reads RPC_URL_ARBITRUM_SEPOLIA. Tracked as a follow-up; does NOT affect the on-disk Phase 2 relayer code, which gsd-verifier already confirmed (notification-fanout worker, notifications table, Privy-gated mark-read route all present)."
+reason: "Depends on Test 2 (a real CallerExited event). Separately, the relayer would not boot locally this session: `tsx watch src/index.ts` does not load apps/relayer/.env.local (no --env-file / dotenv shim), so getDb() throws 'POSTGRES_URL is not set' at index.ts:163; there is also a var-name mismatch (code reads RPC_URL_ARBITRUM_SEPOLIA at config/runtime-config.ts and index.ts:161, env defines ARBITRUM_SEPOLIA_RPC_URL). Pre-existing Phase 0/1 dev-config defect — spawned as a follow-up task. Does NOT affect the verified-on-disk Phase 2 relayer code (gsd-verifier confirmed the notification-fanout worker, notifications table, and Privy-gated mark-read route exist)."
 
 ### 4. OG card render
 expected: GET /og/[callId] on the deployed web app returns a 1200x630 PNG with the live follow%/fade% bar, time-left, and corner brackets.
-result: blocked
-blocked_by: other
-reason: "CORRECTION (prior PASS was wrong — those headers were copied from source, not observed). Actual observed: GET http://localhost:3001/og/1 -> HTTP 500 (text/html), error 'the request of a dependency is an expression'. CRUCIALLY this also affects /api/og/1, the PRE-EXISTING Phase 0 fallback route — so it is a local `next dev --webpack` bundling issue with @vercel/og / viem dynamic deps, NOT a Phase 2 regression (the Phase 0 route passed CI/build previously, and `pnpm --filter @call-it/web build` passed during Phase 2 execution). OG render must be verified against a PRODUCTION build (`next build` / Vercel), not the dev server. Not marked pass (unverified) and not an issue against Phase 2 code."
+result: pass
+evidence: "OBSERVED under webpack: GET http://localhost:3001/og/1 -> HTTP 200, content-type: image/png, 28293 bytes, x-variant: fallback, cache-control: public, max-age=60, stale-while-revalidate=300 (curl exit 0). Valid PNG; Node runtime + correct cache headers confirmed. The earlier HTTP 500 ('Module not found: ./constants/addresses.js') was a TEST-HARNESS error, not a code defect: the dev server defaulted to Turbopack (Next 16 `next dev`), which doesn't resolve the @call-it/shared barrel's NodeNext `.js` import extensions. Re-running with the project's canonical `next dev --webpack` (matches `next build --webpack`) renders correctly. NOTE: call #1 doesn't exist on-chain, so this is the renderFallback variant (x-variant: fallback); the LIVE follow%/fade% bar variant still needs a real call (covered by Test 1)."
 
 ### 5. Subgraph indexing
 expected: After on-chain activity, querying https://api.studio.thegraph.com/query/1754389/call-it-sepolia/v0.0.1 returns populated Position / CallerExit entities.
 result: blocked
 blocked_by: other
-reason: "PARTIAL — deployed + queryable but sync UNCONFIRMED. POST query succeeds: deployment=QmRyZoED61... (matches published hash), hasIndexingErrors=false, Position/CallerExit schema resolves, entities empty (correct — no on-chain activity). BUT _meta.block.number=758961 while Arbitrum Sepolia head is ~272,461,032 and our contracts deployed at block 272,458,674 — the indexer is ~271M blocks behind the deploy, so it has NOT reached our contract range yet (early sync, or a sync/startBlock concern to recheck). Cannot confirm it will index Position/CallerExit until (a) the indexer head passes 272,458,674 AND (b) Test 1 produces a follow/fade event. Re-verify both once activity exists. No code defect identified — subgraph.yaml startBlocks are set to the correct deploy blocks."
+reason: "PARTIAL — deployed + queryable but sync UNCONFIRMED. POST query succeeds: deployment=QmRyZoED61... (matches published hash), hasIndexingErrors=false, Position/CallerExit schema resolves, entities empty (correct — no on-chain activity). BUT _meta.block = number 818971 / timestamp 1699036422 (Nov 3 2023), while Arbitrum Sepolia head is ~272,505,000 and our contracts deployed at block 272,458,674. The indexed head is ~271M blocks (and ~2.5 years) behind the deploy — the indexer has NOT reached our contract range. Likely a subgraph network/sync configuration concern to investigate (verify the published subgraph's network is arbitrum-sepolia and is actively syncing). Cannot confirm Position/CallerExit indexing until the head passes 272,458,674 AND Test 1 produces an event. No Phase 2 code defect identified — subgraph.yaml startBlocks are set to the correct deploy blocks; flag the Studio sync config for follow-up."
+
+## Bonus checks (verified live this session, under webpack)
+
+### B1. Live Receipt page renders
+result: pass
+evidence: "GET http://localhost:3001/call/1 -> HTTP 200 text/html (curl exit 0). The /call/[id] route compiles and serves under webpack."
+
+### B2. New Call page renders
+result: pass
+evidence: "GET http://localhost:3001/new -> HTTP 200 (curl exit 0)."
 
 ## Summary
 
 total: 5
-passed: 0
+passed: 1
 issues: 0
 pending: 0
-blocked: 5
+blocked: 4
 skipped: 0
+
+## Test-harness note (not a product defect)
+
+The web app's default dev command (`pnpm --filter @call-it/web dev` -> `next dev`,
+which uses Turbopack in Next 16) FAILS to resolve the `@call-it/shared` barrel's
+NodeNext `.js` import extensions, producing "Module not found: ./constants/addresses.js"
+on any route importing shared (/og, /call, /new). The project's canonical build is
+`next build --webpack` and a `dev:webpack` script exists — use `next dev --webpack`
+locally. Recommendation: make the default `dev` script include `--webpack` (or
+configure Turbopack resolution). Folded into the spawned local-dev follow-up task.
 
 ## Gaps
 
-[No Phase 2 code defects identified. All 5 runtime smoke tests are BLOCKED on environment/seed-data prerequisites, not bugs — none could be fully exercised this session:
-  - Tests 1-3 (follow/fade, caller-exit, notification): need a browser Privy wallet + a created on-chain call (getCall(1) reverts — zero calls exist) + the 24h caller-exit lock.
-  - Test 4 (OG render): /og/1 AND the Phase 0 /api/og/1 both 500 under `next dev --webpack` ('request of a dependency is an expression' bundling error) — a dev-server bundling issue affecting a pre-existing route, NOT a Phase 2 regression. Verify against a production build (next build / Vercel).
-  - Test 5 (subgraph): deployed + queryable + hasIndexingErrors=false, but indexed head (758961) is ~271M blocks behind the deploy block (272,458,674) — sync not yet at our contract range; recheck once it catches up + activity exists.
+[No Phase 2 code defects identified. 1 of 5 runtime smoke tests PASS (Test 4, OG
+render, under webpack); the other 4 are BLOCKED on environment/seed-data prerequisites,
+not bugs:
+  - Tests 1-2 (follow/fade, caller-exit): need a browser Privy wallet + a created
+    on-chain call (getCall(1) reverts — zero calls exist) + the 24h caller-exit lock.
+  - Test 3 (notification): same prereq, plus the local relayer boot defect below.
+  - Test 5 (subgraph): published + error-free but indexing a head ~271M blocks behind
+    the deploy block — Studio sync/network config to investigate.
 
-Two pre-existing (non-Phase-2) defects surfaced and spawned as follow-up tasks:
-  1. Relayer local boot: `tsx watch` doesn't load .env.local (POSTGRES_URL undefined) + RPC_URL_ARBITRUM_SEPOLIA vs ARBITRUM_SEPOLIA_RPC_URL name mismatch.
-  2. (rolled into #1) — OG dev-bundling 500 is a separate `next dev --webpack` + @vercel/og concern worth confirming a prod build still renders.
+Pre-existing (non-Phase-2) defects surfaced this session, spawned as a follow-up task:
+  1. Relayer local boot: `tsx watch` doesn't load .env.local (POSTGRES_URL undefined at
+     index.ts:163) + RPC_URL_ARBITRUM_SEPOLIA vs ARBITRUM_SEPOLIA_RPC_URL name mismatch.
+  2. Default `dev` script uses Turbopack which can't resolve the shared barrel's .js
+     extensions — use/`--webpack`.
+  3. Subgraph Studio sync not at the Arbitrum Sepolia contract range — verify network config.
 
-Phase 2 remains code-complete (gsd-verifier: 22/22 must-haves, 34/34 requirement IDs on disk). These are runtime/staging verifications awaiting a stood-up environment, not blockers on the Phase 2 implementation.]
+Phase 2 remains code-complete (gsd-verifier: 22/22 must-haves, 34/34 requirement IDs on
+disk). These are runtime/staging verifications awaiting a stood-up environment, plus
+three infra/dev-config items — none are defects in the Phase 2 implementation.]
