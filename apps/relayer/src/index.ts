@@ -161,7 +161,12 @@ export async function buildApp(): Promise<FastifyInstance> {
   // Set up notification fan-out worker dependencies (created lazily at boot)
   const notificationFanoutClient = createPublicClient({
     chain: arbitrumSepolia,
-    transport: http(process.env.ARBITRUM_SEPOLIA_RPC_URL),
+    // Production injects RPC_URL_ARBITRUM_SEPOLIA (GCP/Fly secret); local .env.local
+    // uses ARBITRUM_SEPOLIA_RPC_URL (matches foundry/web). Read both so the fan-out
+    // RPC transport is defined in dev AND prod. undefined => viem default public RPC.
+    transport: http(
+      process.env.RPC_URL_ARBITRUM_SEPOLIA ?? process.env.ARBITRUM_SEPOLIA_RPC_URL,
+    ),
   });
   const notificationFanoutDb = getDb();
   const notificationSubgraphUrl =
