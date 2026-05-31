@@ -165,7 +165,7 @@ export const PROFILE_REGISTRY_ADDRESSES: AddressRecord = {
 
 /**
  * FollowFadeMarket contract addresses — populated in Phase 2.
- * Sepolia entry is a PLACEHOLDER until the deferred 02-04 deploy lands.
+ * Sepolia entry is the live deployed address (02-04, 2026-05-30).
  */
 export const FOLLOW_FADE_MARKET_ADDRESSES: AddressRecord = {
   [ARBITRUM_MAINNET_CHAIN_ID]: FOLLOW_FADE_MARKET_ARBITRUM_ONE,
@@ -187,21 +187,23 @@ export const SETTLEMENT_MANAGER_ADDRESSES: AddressRecord = { ...EMPTY_ADDRESSES 
 // ---------------------------------------------------------------------------
 
 /**
- * Subgraph Studio URL for the call-it-sepolia deployment (Arbitrum Sepolia).
+ * Subgraph Studio query URL for the call-it-sepolia deployment (Arbitrum Sepolia).
  *
- * Updated after running: pnpm --filter @call-it/subgraph deploy:sepolia
- * The Studio dashboard shows the query endpoint after a successful deploy.
+ * DEPLOYED 2026-05-30 via `graph deploy call-it-sepolia` (graph-cli 0.98.1).
+ * Studio user id: 1754389. Version label: v0.0.1.
+ * IPFS build hash: QmRyZoED61CDfVVg6BAz6ZairKh1mnY8vRbeydLmfu3xej.
+ * Indexes CallRegistry v2, ProfileRegistry v2, FollowFadeMarket (Phase 2 addresses).
+ * Studio dashboard: https://thegraph.com/studio/subgraph/call-it-sepolia
  *
- * Format: https://api.studio.thegraph.com/query/<user-id>/call-it-sepolia/version/latest
- *
- * PLACEHOLDER: Replace with the actual Studio URL after first Sepolia deploy.
+ * Note: this is the version-pinned endpoint emitted by the deploy. Republishing a
+ * new version label will mint a new URL — update this constant on each redeploy.
  * Also update RELAYER_SUBGRAPH_URL in apps/relayer/.env and .env.production.
  *
  * Requirement: D-27 (Studio key held by relayer only — frontend hits /api/feed proxy)
  * Threat: T-01-67 — schema drift between Phase 0 stubs and Phase 1 real events (closed)
  */
 export const SUBGRAPH_URL_SEPOLIA =
-  'https://api.studio.thegraph.com/query/PLACEHOLDER/call-it-sepolia/version/latest' as const;
+  'https://api.studio.thegraph.com/query/1754389/call-it-sepolia/v0.0.1' as const;
 
 /**
  * Subgraph Decentralized Network URL (Arbitrum One mainnet).
