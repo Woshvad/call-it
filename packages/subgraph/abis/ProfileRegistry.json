@@ -1,95 +1,304 @@
 [
   {
-    "type": "event",
-    "name": "ProfileUpdated",
-    "inputs": [
-      { "type": "address", "name": "user", "indexed": true },
-      { "type": "uint32", "name": "totalCalls", "indexed": false },
-      { "type": "uint16", "name": "settledCalls", "indexed": false }
-    ],
-    "anonymous": false
-  },
-  {
-    "type": "event",
-    "name": "HandleSet",
-    "inputs": [
-      { "type": "address", "name": "user", "indexed": true },
-      { "type": "string", "name": "handle", "indexed": false }
-    ],
-    "anonymous": false
-  },
-  {
-    "type": "event",
-    "name": "SettlementManagerSet",
-    "inputs": [
-      { "type": "address", "name": "newManager", "indexed": true }
-    ],
-    "anonymous": false
-  },
-  {
-    "type": "event",
-    "name": "RelayerSet",
-    "inputs": [
-      { "type": "address", "name": "newRelayer", "indexed": true }
-    ],
-    "anonymous": false
-  },
-  {
-    "type": "event",
-    "name": "SocialLinked",
-    "inputs": [
-      { "type": "address", "name": "user", "indexed": true },
-      { "type": "uint8", "name": "kind", "indexed": false },
-      { "type": "string", "name": "handle", "indexed": false },
-      { "type": "bytes32", "name": "proofHash", "indexed": false }
-    ],
-    "anonymous": false
-  },
-  {
-    "type": "event",
-    "name": "SocialUnlinked",
-    "inputs": [
-      { "type": "address", "name": "user", "indexed": true },
-      { "type": "uint8", "name": "kind", "indexed": false }
-    ],
-    "anonymous": false
+    "type": "constructor",
+    "inputs": [],
+    "stateMutability": "nonpayable"
   },
   {
     "type": "function",
-    "name": "settledCalls",
-    "inputs": [
-      { "type": "address", "name": "user" }
-    ],
+    "name": "MAX_HANDLE_LENGTH",
+    "inputs": [],
     "outputs": [
-      { "type": "uint16", "name": "" }
+      {
+        "name": "",
+        "type": "uint8",
+        "internalType": "uint8"
+      }
     ],
     "stateMutability": "view"
   },
   {
     "type": "function",
+    "name": "acceptOwnership",
+    "inputs": [],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "applyRepDelta",
+    "inputs": [
+      {
+        "name": "user",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "delta",
+        "type": "int256",
+        "internalType": "int256"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "authorizedRepWriters",
+    "inputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "bool",
+        "internalType": "bool"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "displayHandle",
+    "inputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "string",
+        "internalType": "string"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getProfile",
+    "inputs": [
+      {
+        "name": "user",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "tuple",
+        "internalType": "struct ProfileRegistry.Profile",
+        "components": [
+          {
+            "name": "globalRep",
+            "type": "uint128",
+            "internalType": "uint128"
+          },
+          {
+            "name": "lastActiveAt",
+            "type": "uint64",
+            "internalType": "uint64"
+          },
+          {
+            "name": "totalCalls",
+            "type": "uint32",
+            "internalType": "uint32"
+          },
+          {
+            "name": "settledCalls",
+            "type": "uint16",
+            "internalType": "uint16"
+          },
+          {
+            "name": "wins",
+            "type": "uint32",
+            "internalType": "uint32"
+          },
+          {
+            "name": "losses",
+            "type": "uint32",
+            "internalType": "uint32"
+          },
+          {
+            "name": "streak",
+            "type": "uint32",
+            "internalType": "uint32"
+          },
+          {
+            "name": "categoryRep_Majors",
+            "type": "uint32",
+            "internalType": "uint32"
+          },
+          {
+            "name": "categoryRep_DeFi",
+            "type": "uint32",
+            "internalType": "uint32"
+          },
+          {
+            "name": "categoryRep_Other",
+            "type": "uint32",
+            "internalType": "uint32"
+          },
+          {
+            "name": "callerRep",
+            "type": "uint32",
+            "internalType": "uint32"
+          },
+          {
+            "name": "challengerRep",
+            "type": "uint32",
+            "internalType": "uint32"
+          }
+        ]
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "linkFarcaster",
+    "inputs": [
+      {
+        "name": "user",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "handle",
+        "type": "string",
+        "internalType": "string"
+      },
+      {
+        "name": "proofHash",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "linkTwitter",
+    "inputs": [
+      {
+        "name": "user",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "handle",
+        "type": "string",
+        "internalType": "string"
+      },
+      {
+        "name": "proofHash",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "owner",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "pendingOwner",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "profileExists",
+    "inputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "bool",
+        "internalType": "bool"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "relayer",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "renounceOwnership",
+    "inputs": [],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "setAuthorizedRepWriter",
+    "inputs": [
+      {
+        "name": "writer",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "authorized",
+        "type": "bool",
+        "internalType": "bool"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
     "name": "setDisplayHandle",
     "inputs": [
-      { "type": "string", "name": "handle" }
-    ],
-    "outputs": [],
-    "stateMutability": "nonpayable"
-  },
-  {
-    "type": "function",
-    "name": "updateAfterSettlement",
-    "inputs": [
-      { "type": "address", "name": "user" },
-      { "type": "bool", "name": "isWinner" },
-      { "type": "uint8", "name": "category" }
-    ],
-    "outputs": [],
-    "stateMutability": "nonpayable"
-  },
-  {
-    "type": "function",
-    "name": "setSettlementManager",
-    "inputs": [
-      { "type": "address", "name": "newManager" }
+      {
+        "name": "handle",
+        "type": "string",
+        "internalType": "string"
+      }
     ],
     "outputs": [],
     "stateMutability": "nonpayable"
@@ -98,9 +307,352 @@
     "type": "function",
     "name": "setRelayer",
     "inputs": [
-      { "type": "address", "name": "newRelayer" }
+      {
+        "name": "newRelayer",
+        "type": "address",
+        "internalType": "address"
+      }
     ],
     "outputs": [],
     "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "setSettlementManager",
+    "inputs": [
+      {
+        "name": "newManager",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "settledCalls",
+    "inputs": [
+      {
+        "name": "user",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint16",
+        "internalType": "uint16"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "settlementManager",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "transferOwnership",
+    "inputs": [
+      {
+        "name": "newOwner",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "unlinkFarcaster",
+    "inputs": [],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "unlinkTwitter",
+    "inputs": [],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "updateAfterSettlement",
+    "inputs": [
+      {
+        "name": "user",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "",
+        "type": "bool",
+        "internalType": "bool"
+      },
+      {
+        "name": "",
+        "type": "uint8",
+        "internalType": "uint8"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "event",
+    "name": "HandleSet",
+    "inputs": [
+      {
+        "name": "user",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "handle",
+        "type": "string",
+        "indexed": false,
+        "internalType": "string"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "OwnershipTransferStarted",
+    "inputs": [
+      {
+        "name": "previousOwner",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "newOwner",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "OwnershipTransferred",
+    "inputs": [
+      {
+        "name": "previousOwner",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "newOwner",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "ProfileUpdated",
+    "inputs": [
+      {
+        "name": "user",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "totalCalls",
+        "type": "uint32",
+        "indexed": false,
+        "internalType": "uint32"
+      },
+      {
+        "name": "settledCalls",
+        "type": "uint16",
+        "indexed": false,
+        "internalType": "uint16"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "RelayerSet",
+    "inputs": [
+      {
+        "name": "newRelayer",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "RepDeltaApplied",
+    "inputs": [
+      {
+        "name": "user",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "delta",
+        "type": "int256",
+        "indexed": false,
+        "internalType": "int256"
+      },
+      {
+        "name": "newRep",
+        "type": "uint128",
+        "indexed": false,
+        "internalType": "uint128"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "RepWriterSet",
+    "inputs": [
+      {
+        "name": "writer",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "authorized",
+        "type": "bool",
+        "indexed": false,
+        "internalType": "bool"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "SettlementManagerSet",
+    "inputs": [
+      {
+        "name": "newManager",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "SocialLinked",
+    "inputs": [
+      {
+        "name": "user",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "kind",
+        "type": "uint8",
+        "indexed": false,
+        "internalType": "uint8"
+      },
+      {
+        "name": "handle",
+        "type": "string",
+        "indexed": false,
+        "internalType": "string"
+      },
+      {
+        "name": "proofHash",
+        "type": "bytes32",
+        "indexed": false,
+        "internalType": "bytes32"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "SocialUnlinked",
+    "inputs": [
+      {
+        "name": "user",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "kind",
+        "type": "uint8",
+        "indexed": false,
+        "internalType": "uint8"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "error",
+    "name": "HandleTooLong",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "NotAuthorizedWriter",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "NotRelayer",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "NotSettlementManager",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "OwnableInvalidOwner",
+    "inputs": [
+      {
+        "name": "owner",
+        "type": "address",
+        "internalType": "address"
+      }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "OwnableUnauthorizedAccount",
+    "inputs": [
+      {
+        "name": "account",
+        "type": "address",
+        "internalType": "address"
+      }
+    ]
   }
 ]
