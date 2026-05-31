@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: milestone
-status: executing
+status: ready_to_plan
 stopped_at: Completed 02-09-PLAN.md
 last_updated: "2026-05-29T18:41:58.889Z"
 last_activity: 2026-05-29
 progress:
   total_phases: 12
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 24
   completed_plans: 22
-  percent: 92
+  percent: 25
 ---
 
 # Project State
@@ -25,10 +25,10 @@ See: .planning/PROJECT.md (updated 2026-05-21)
 
 ## Current Position
 
-Phase: 02 (followfademarket) — 8/9 plans complete; only 02-06 (subgraph publish) remains
-Plan: 8 of 9 complete (02-01,02,03,04,05,07,08,09). OPEN: 02-06 (subgraph Studio publish — needs Graph deploy key)
-Status: Contracts deployed + verified on Arbitrum Sepolia; DB migrated; code-review fixes applied. Phase NOT marked complete (02-06 open). See "Deferred Live Infra" below.
-Last activity: 2026-05-30 -- 02-04 deployed+verified, 02-05 DB migrated; only 02-06 subgraph publish remains
+Phase: 3
+Plan: Not started
+Status: Ready to plan
+Last activity: 2026-05-31
 
 Progress: [█████████░] 8/9 plans; phase completion blocked on 02-06 subgraph publish
 
@@ -48,7 +48,7 @@ Phase 2 CODE is shipped and tests pass. Live operator actions were deferred (ope
 
 **Velocity:**
 
-- Total plans completed: 0
+- Total plans completed: 9
 - Average duration: —
 - Total execution time: 0 hours
 
@@ -56,7 +56,7 @@ Phase 2 CODE is shipped and tests pass. Live operator actions were deferred (ope
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| - | - | - | - |
+| 02 | 9 | - | - |
 
 **Recent Trend:**
 

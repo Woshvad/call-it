@@ -13,7 +13,7 @@ Call It ships as a person-first onchain social prediction product on Arbitrum ma
 - [x] **Phase 0: Foundation** - Always-live infra: monorepo, multisig prep, IPFS, CDN, subgraph schema, relayer skeleton, monitoring stack, env-var matrix, USDC single source-of-truth, OG fallback variant (completed 2026-05-22)
 - [ ] **Phase 1: Core contracts + auth + frontend skeleton** - CallRegistry + ProfileRegistry contracts, Privy 3-path sign-in, onboarding, paymaster (5 free tx), address book + 24h cooldown, New Call flow, design system, loading skeleton + toast
 - [ ] **Phase 1.5: Social linking (parallel to Phase 2)** - Twitter/Farcaster OAuth proof, relayer-signed `linkTwitter`/`linkFarcaster`, VERIFIED badges, "From your X/Farcaster" feed sections
-- [ ] **Phase 2: FollowFadeMarket** - Single-contract AMM with per-callId sub-state, follow/fade with `minSharesOut` slippage, caller exit (24h lock + decay), follower/fader exit (4h cooldown + 10% slash), Live Receipt page
+- [x] **Phase 2: FollowFadeMarket** - Single-contract AMM with per-callId sub-state, follow/fade with `minSharesOut` slippage, caller exit (24h lock + decay), follower/fader exit (4h cooldown + 10% slash), Live Receipt page (completed 2026-05-31)
 - [ ] **Phase 3: ChallengeEscrow** - 1v1 duel escrow, self-challenge ban, 24h accept window, push-pattern overage refund, Duel King badge, Trending Duel auto-promotion, Duel page
 - [ ] **Phase 4: SettlementManager + 7 oracle paths + Solidity baseline rep delta** - 14-step atomic settle dispatch hub, Pyth pull + multicall, NFT TWAP via Alchemy + KMS-signed relayer, DefiLlama, RPC, Snapshot/Tally, 8 CEX scrapers, dispute window with $5 bond, forceSettle 7d cooldown, Settled Receipt page, in-contract Solidity baseline rep math
 - [ ] **Phase 5: StylusScoreEngine + 48h cutoff** - Rust reputation engine behind Solidity `TransparentUpgradeableProxy`, full-fidelity `compute_rep_change`, 365-day reactivation runbook integrated with Phase 0 alerts, parallel-built `RevertingStylusEngine` test fixture
@@ -232,7 +232,7 @@ Phases execute in numeric order: 0 → 1 → 1.5 (parallel with 2) → 2 → 3 �
 | 0. Foundation | 5/5 | Complete   | 2026-05-22 |
 | 1. Core contracts + auth + frontend skeleton | 0/10 | Planned | - |
 | 1.5. Social linking | 0/TBD | Not started | - |
-| 2. FollowFadeMarket | 0/9 | Planned | - |
+| 2. FollowFadeMarket | 9/9 | Complete | 2026-05-31 |
 | 3. ChallengeEscrow | 0/TBD | Not started | - |
 | 4. SettlementManager + 7 oracle paths + Solidity baseline rep delta | 0/TBD | Not started | - |
 | 5. StylusScoreEngine + 48h cutoff | 0/TBD | Not started | - |
