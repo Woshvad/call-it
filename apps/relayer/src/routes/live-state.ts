@@ -227,7 +227,10 @@ export async function liveStateRoute(
       logger.info({ event: 'live_state_cache_miss', callId: callId.toString() }, 'live-state cache miss — fetching from RPC');
 
       try {
-        const rpcUrl = process.env.RPC_URL_ARBITRUM_SEPOLIA;
+        // Prod injects RPC_URL_ARBITRUM_SEPOLIA (GCP/Fly secret); local .env.local
+        // uses ARBITRUM_SEPOLIA_RPC_URL. Read both (undefined => viem public RPC).
+        const rpcUrl =
+          process.env.RPC_URL_ARBITRUM_SEPOLIA ?? process.env.ARBITRUM_SEPOLIA_RPC_URL;
         const publicClient = createPublicClient({
           chain: arbitrumSepolia,
           transport: http(rpcUrl),

@@ -60,6 +60,7 @@ const arbitrumClient = createPublicClient({
   chain: arbitrumSepolia,
   transport: http(
     process.env.RPC_URL_ARBITRUM_SEPOLIA ??
+    process.env.ARBITRUM_SEPOLIA_RPC_URL ??
     process.env.NEXT_PUBLIC_SUBGRAPH_URL?.replace('/subgraphs', '') ??
     'https://sepolia-rollup.arbitrum.io/rpc'
   ),
