@@ -191,3 +191,84 @@ export const quoteStance = pgTable(
     quoteStanceQuoteIdx: index('quote_stance_quote_idx').on(table.quoteCallId),
   }),
 );
+
+// ---------------------------------------------------------------------------
+// trending_duels  (Phase 3 — D-07)
+// ---------------------------------------------------------------------------
+
+/**
+ * Tracks which 1v1 challenges are currently "trending" for the Duels feed.
+ *
+ * A challenge earns a trending pin when its pot >= $500 USDC or backer count >= 50.
+ * The duel-trending-worker.ts upserts rows on every tick (60s cadence) and
+ * deletes expired pins (trending_until < now()) so only live duels surface.
+ *
+ * Dedup index on challenge_id ensures ON CONFLICT DO UPDATE re-pins without
+ * duplicating the same duel — mirrors the WR-05 notifications idempotency pattern.
+ *
+ * Written by: apps/relayer/src/workers/duel-trending-worker.ts
+ * Read by:    apps/relayer/src/routes/duels.ts (trending_duels WHERE trending_until > now())
+ */
+export const trendingDuels = pgTable(
+  'trending_duels',
+  {
+    id: serial('id').primaryKey(),
+    /** On-chain challengeId from ChallengeEscrow */
+    challengeId: integer('challenge_id').notNull(),
+    /** ISO timestamp when the trending pin expires (set to now() + 4h on each upsert) */
+    trendingUntil: timestamp('trending_until').notNull(),
+    /** Combined pot in USDC micro-units (challengerStake + callerStake) at time of pin */
+    potUsdc: varchar('pot_usdc', { length: 30 }).notNull().default('0'),
+    /** Follow + fade backer count on the parent call at time of pin */
+    backerCount: integer('backer_count').notNull().default(0),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  },
+  (table) => ({
+    /** Dedup key — one row per challengeId; ON CONFLICT DO UPDATE re-pins expiry */
+    trendingDuelsChallengeIdx: uniqueIndex('trending_duels_challenge_id_idx').on(table.challengeId),
+    /** Expiry scan index — DELETE FROM trending_duels WHERE trending_until < now() */
+    trendingDuelsTrendingUntilIdx: index('trending_duels_trending_until_idx').on(table.trendingUntil),
+  }),
+);
+
+// ---------------------------------------------------------------------------
+// duel_kings  (Phase 3 — D-07)
+// ---------------------------------------------------------------------------
+
+/**
+ * Weekly Duel King leaderboard. One row per week (keyed by week_anchor = Monday 00:00 UTC).
+ *
+ * The duel-king-worker.ts runs weekly to elect the Duel King:
+ *   1. Query subgraph for settled challenges in the trailing 7 days.
+ *   2. Group by winner; compute consecutive win streak within the window.
+ *   3. Tie-break: most recent win, then highest pot.
+ *   4. Upsert INTO duel_kings ON CONFLICT (week_anchor) DO UPDATE.
+ *
+ * Phase 4 settlement worker populates real settled-challenge data; until then
+ * the worker produces placeholder output (D-08 decision).
+ *
+ * Written by: apps/relayer/src/workers/duel-king-worker.ts
+ * Read by:    apps/relayer/src/routes/duels.ts (Duel King banner)
+ */
+export const duelKings = pgTable(
+  'duel_kings',
+  {
+    id: serial('id').primaryKey(),
+    /** Ethereum address of this week's Duel King (0x + 40 hex chars) */
+    winnerAddress: varchar('winner_address', { length: 42 }).notNull(),
+    /** Consecutive win streak within trailing 7d window (at time of computation) */
+    winStreak: integer('win_streak').notNull().default(0),
+    /** Highest individual pot won in this week, in USDC micro-units (for tie-break) */
+    highestPotUsdc: varchar('highest_pot_usdc', { length: 30 }).notNull().default('0'),
+    /** Most recent win timestamp for tie-break resolution */
+    lastWinAt: timestamp('last_win_at'),
+    /** Week anchor: Monday 00:00 UTC of the computation week (unique per week) */
+    weekAnchor: timestamp('week_anchor').notNull(),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+  },
+  (table) => ({
+    /** One Duel King per week — ON CONFLICT (week_anchor) DO UPDATE re-elects */
+    duelKingsWeekIdx: uniqueIndex('duel_kings_week_anchor_idx').on(table.weekAnchor),
+  }),
+);
