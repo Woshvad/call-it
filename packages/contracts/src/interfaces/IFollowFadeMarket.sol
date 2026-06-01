@@ -59,6 +59,20 @@ interface IFollowFadeMarket {
         uint256 virtualFadeSeed
     );
 
+    /// @notice Emitted when SettlementManager applies settlement fees. SETTLE-46.
+    event SettlementApplied(
+        uint256 indexed callId,
+        uint8           outcome,
+        uint256         totalPool
+    );
+
+    /// @notice Emitted when a winner claims their payout. SOCIAL-46.
+    event PayoutClaimed(
+        uint256 indexed callId,
+        address indexed recipient,
+        uint256         amount
+    );
+
     // ─── Custom errors ────────────────────────────────────────────────────────
 
     /// @notice Slippage protection: actual shares received < minSharesOut. SOCIAL-05.
@@ -93,6 +107,15 @@ interface IFollowFadeMarket {
 
     /// @notice claimPayout stub: full claim logic wired by Phase 4 SettlementManager.
     error ClaimRequiresSettlement();
+
+    /// @notice applySettlement called again after settlement already applied.
+    error SettlementAlreadyApplied();
+
+    /// @notice claimPayout called with no winning shares for msg.sender.
+    error NoPayoutAvailable();
+
+    /// @notice claimPayout called by an address that already claimed. SOCIAL-47.
+    error AlreadyClaimed();
 
     // ─── Core mutation functions ───────────────────────────────────────────────
 
@@ -134,11 +157,43 @@ interface IFollowFadeMarket {
     ///         Pause carve-out (§10.3): works even when contract is paused.
     function claimPayout(uint256 callId) external;
 
+    /// @notice Set the SettlementManager address. onlyOwner. Phase 4.
+    function setSettlementManager(address newManager) external;
+
+    /// @notice Called by SettlementManager in settle() step 11 to extract fees and
+    ///         finalize pool accounting. onlySettlementManager. Idempotent (reverts
+    ///         SettlementAlreadyApplied on repeat). SETTLE-46/CALL-41.
+    ///
+    ///         Invariant: protocolFeeAmt + creatorFeeAmt transferred to treasury.
+    ///         lpFeeAmt injected into winning reserve. fadeSeedVirtual dissolved to 0.
+    ///         CALL-41: if fadeRealReserve==0 (cold-start), entire followReserve -> treasury.
+    ///
+    /// @param callId         The call being settled.
+    /// @param outcome        ICallRegistry.Outcome (1=CallerWon, 2=CallerLost).
+    /// @param protocolFeeAmt 1.0% of totalPool (pre-computed by SettlementManager).
+    /// @param creatorFeeAmt  0.4% of pool or callerVolumeAtExit for exited callers.
+    /// @param lpFeeAmt       0.3% of totalPool; routed to winning reserve.
+    function applySettlement(
+        uint256 callId,
+        uint8   outcome,
+        uint256 protocolFeeAmt,
+        uint256 creatorFeeAmt,
+        uint256 lpFeeAmt
+    ) external;
+
+    /// @notice Real fade USDC = fadeReserve - fadeSeedVirtual. CALL-41 / REP-14.
+    ///         Returns 0 when no real faders (cold-start scenario).
+    function getFadeRealReserve(uint256 callId) external view returns (uint256);
+
     // ─── View functions ───────────────────────────────────────────────────────
 
     /// @notice Total real USDC held across all per-call pools. D-03.
     ///         Uses USDC.balanceOf(address(this)) — never a counter.
     function getTvl() external view returns (uint256);
+
+    /// @notice Snapshot of combined pool volume at caller exit time. SOCIAL-20.
+    ///         Returns 0 if caller has not exited. Used by SettlementManager for Model B creator fee.
+    function callerVolumeAtExit(uint256 callId) external view returns (uint256);
 
     /// @notice Current follow-side reserve (real USDC) for a call. SOCIAL-01.
     function followReserve(uint256 callId) external view returns (uint256);

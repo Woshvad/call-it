@@ -93,6 +93,12 @@ contract FollowFadeMarket is Ownable2Step, ReentrancyGuard, Pausable, IFollowFad
     /// @notice Treasury address for fee routing. MUST NOT be address(this).
     address public treasury;
 
+    /// @notice Phase 4 SettlementManager address. Set by owner via setSettlementManager.
+    address public settlementManager;
+
+    /// @notice Guards against double-extraction of fees. Set to true in applySettlement.
+    mapping(uint256 => bool) public settlementApplied;
+
     // ─── Per-callId pool state (keyed by callId) — Research Pattern 8 ──────────
 
     /// @notice Real follow-side USDC reserve (6 decimals).
@@ -472,13 +478,144 @@ contract FollowFadeMarket is Ownable2Step, ReentrancyGuard, Pausable, IFollowFad
         callerExitedAt[callId] = uint64(block.timestamp);
     }
 
-    // ─── Claim payout (Phase 4 stub) ───────────────────────────────────────────
+    // ─── Settlement Manager modifier ──────────────────────────────────────────
+
+    modifier onlySettlementManager() {
+        require(msg.sender == settlementManager, "not-settlement-manager");
+        _;
+    }
+
+    // ─── Settlement Manager setter ─────────────────────────────────────────────
+
+    /// @notice Set the SettlementManager address. onlyOwner. Phase 4.
+    function setSettlementManager(address newManager) external onlyOwner {
+        require(newManager != address(0), "invalid-manager");
+        settlementManager = newManager;
+    }
+
+    // ─── Phase 4: getFadeRealReserve ───────────────────────────────────────────
+
+    /// @inheritdoc IFollowFadeMarket
+    function getFadeRealReserve(uint256 callId) external view returns (uint256) {
+        uint256 fadeAmt = fadeReserve[callId];
+        uint256 seed    = fadeSeedVirtual[callId];
+        return fadeAmt > seed ? fadeAmt - seed : 0;
+    }
+
+    // ─── Phase 4: applySettlement ──────────────────────────────────────────────
+
+    /// @inheritdoc IFollowFadeMarket
+    /// @dev Phase 4: Called by SettlementManager in settle() step 11.
+    ///      CEI: settlementApplied[callId] = true BEFORE all USDC transfers.
+    ///      CALL-41: if fadeRealReserve == 0, entire followReserve -> treasury.
+    function applySettlement(
+        uint256 callId,
+        uint8   outcome,
+        uint256 protocolFeeAmt,
+        uint256 creatorFeeAmt,
+        uint256 lpFeeAmt
+    ) external onlySettlementManager nonReentrant {
+        // ── Gates ──
+        if (settlementApplied[callId]) revert SettlementAlreadyApplied();
+
+        uint256 fadeReal = fadeReserve[callId] > fadeSeedVirtual[callId]
+            ? fadeReserve[callId] - fadeSeedVirtual[callId]
+            : 0;
+        uint256 totalPool = followReserve[callId] + fadeReal;
+
+        // ── EFFECTS: state writes BEFORE transfers (CEI) ──
+        settlementApplied[callId] = true;
+
+        if (fadeReal == 0) {
+            // CALL-41: empty fade pool (cold-start) -- route entire followReserve to treasury.
+            // Virtual seed never held real USDC; protocol claims the follow pool.
+            uint256 followAmt = followReserve[callId];
+            followReserve[callId] = 0;
+            fadeReserve[callId] = 0;    // dissolve virtual seed entirely
+            fadeSeedVirtual[callId] = 0;
+
+            // ── INTERACTIONS ──
+            if (followAmt > 0) {
+                IERC20(USDC_ARB_NATIVE).safeTransfer(treasury, followAmt);
+            }
+        } else {
+            // Normal path: extract protocol + creator fees; LP fee into winning reserve.
+            // Virtual seed dissolves: fadeSeedVirtual = 0 (accounting-only; no transfer).
+            fadeSeedVirtual[callId] = 0;
+
+            // Route LP fee into the winning reserve (outcome: 1=CallerWon, 2=CallerLost).
+            if (outcome == uint8(1)) { // CallerWon
+                followReserve[callId] += lpFeeAmt;
+            } else { // CallerLost
+                fadeReserve[callId] += lpFeeAmt;
+            }
+
+            // ── INTERACTIONS ──
+            uint256 totalFees = protocolFeeAmt + creatorFeeAmt;
+            if (totalFees > 0) {
+                IERC20(USDC_ARB_NATIVE).safeTransfer(treasury, totalFees);
+            }
+        }
+
+        emit SettlementApplied(callId, outcome, totalPool);
+    }
+
+    // ─── Claim payout (Phase 4 -- real pull-pattern implementation) ───────────
 
     /// @inheritdoc IFollowFadeMarket
     /// @dev Pause carve-out: NOT guarded by whenNotPaused (§10.3).
-    ///      Full implementation in Phase 4 with SettlementManager. SOCIAL-46.
-    function claimPayout(uint256 /*callId*/) external nonReentrant {
-        revert ClaimRequiresSettlement();
+    ///      Pull-pattern: winners call after settlement. CEI enforced. SOCIAL-46.
+    function claimPayout(uint256 callId) external nonReentrant {
+        // ── Gates ──
+        ICallRegistry.Call memory call = callRegistry.getCall(callId);
+
+        // Must be Settled or Disputed (Pitfall 18: claims allowed during dispute window)
+        require(
+            call.status == ICallRegistry.CallStatus.Settled ||
+            call.status == ICallRegistry.CallStatus.Disputed,
+            "call-not-settled"
+        );
+
+        // Idempotency guard (AlreadyClaimed error per test expectation)
+        if (claimed[callId][msg.sender]) revert AlreadyClaimed();
+
+        // Determine winner side (outcome 1=CallerWon, 2=CallerLost)
+        bool callerWon = (call.outcome == ICallRegistry.Outcome.CallerWon);
+
+        uint256 userShares;
+        uint256 totalShares;
+        uint256 winningReserve;
+
+        if (callerWon) {
+            userShares     = followShares[callId][msg.sender];
+            totalShares    = followTotalShares[callId];
+            winningReserve = followReserve[callId];
+        } else {
+            userShares     = fadeShares[callId][msg.sender];
+            totalShares    = fadeTotalShares[callId];
+            // Post-settlement: fadeSeedVirtual is 0; fadeReserve is real.
+            // But use the same safe subtraction in case applySettlement hasn't run yet
+            uint256 fadeReal = fadeReserve[callId] > fadeSeedVirtual[callId]
+                ? fadeReserve[callId] - fadeSeedVirtual[callId]
+                : fadeReserve[callId];
+            winningReserve = fadeReal;
+        }
+
+        if (userShares == 0) revert NoPayoutAvailable();
+        if (totalShares == 0) revert NoPayoutAvailable();
+        if (winningReserve == 0) revert NoPayoutAvailable(); // CALL-41: pool was empty (cold-start)
+
+        // ── EFFECTS: claimed BEFORE transfer (CEI, SOCIAL-47) ──
+        claimed[callId][msg.sender] = true;
+
+        // ── Compute pro-rata payout ──
+        uint256 payout = Math.mulDiv(userShares, winningReserve, totalShares);
+        if (payout == 0) revert NoPayoutAvailable(); // Dust: rounding produced 0
+
+        // ── INTERACTIONS ──
+        IERC20(USDC_ARB_NATIVE).safeTransfer(msg.sender, payout);
+
+        emit PayoutClaimed(callId, msg.sender, payout);
     }
 
     // ─── View functions ────────────────────────────────────────────────────────
