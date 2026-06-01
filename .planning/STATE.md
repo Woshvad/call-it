@@ -4,14 +4,14 @@ milestone: v1.1
 milestone_name: milestone
 status: executing
 stopped_at: Phase 3 UI-SPEC approved
-last_updated: "2026-06-01T13:11:20.647Z"
+last_updated: "2026-06-01T13:31:52.232Z"
 last_activity: 2026-06-01
 progress:
   total_phases: 12
   completed_phases: 3
   total_plans: 31
-  completed_plans: 29
-  percent: 94
+  completed_plans: 30
+  percent: 97
 ---
 
 # Project State
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-05-21)
 ## Current Position
 
 Phase: 03 (challengeescrow) — EXECUTING
-Plan: 4 of 7
+Plan: 5 of 7
 Status: Ready to execute
 Last activity: 2026-06-01
 
-Progress: [█████████░] 94%
+Progress: [██████████] 97%
 
 ## Known Plan Issues — Phase 03 (accepted as-is at planning, 2026-06-01)
 
@@ -119,6 +119,8 @@ Recent decisions affecting current work:
 - [Phase ?]: 02-03: CallerExited ordinal stays at 3 (not 2) — Disputed=2 was added in Phase 1; ABI-stable ordering enforced via NatSpec comment
 - [Phase ?]: 02-03: Outcome enum Pending=0 default; markSettled + callerExitedAt complete Phase 4 authorization surface
 - [Phase ?]: [Phase 02-08]: repDelta hardcoded to -35 in CallerExitModal; Phase 4 will wire computeCallerExitRepDelta exact value
+- [Phase 03-06]: callerMatchingStake = min(callerInputStake, challengerStake) — SOCIAL-31 correct formula; NOT min(x,x) which was the plan-checker Issue #1 bug; corrected in both accept paths (Duel page + Live Receipt)
+- [Phase 03-06]: ChallengeFormModal at apps/web/app/components/ (not colocated in duel/) for 03-07 Duels tab reuse
 - [Phase 02-followfademarket]: ---
 
 phase: 02-followfademarket
@@ -329,6 +331,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-06-01T13:11:09.044Z
+Last session: 2026-06-01T13:31:52.222Z
 Stopped at: Phase 3 UI-SPEC approved
 Resume file: None

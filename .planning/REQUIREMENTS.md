@@ -356,7 +356,7 @@ Requirements for the v1 mainnet release. Each line is an atomic, testable behavi
 - [ ] **UI-08**: Profile page (`/profile/[address]`) renders top header (avatar + handle + verified badges + TOP X% GLOBAL + wallet address + joined date + counts), Connect socials card (own profile, conditional), Global Reputation hero card, Overview/Calls/Duels tabs (§15.4)
 - [ ] **UI-09**: Profile Overview tab renders 5-stat row (Accuracy with benchmark / Calibration / ROI / Contrarian hits / Streak), CATEGORY REPUTATION grid (3 equal-width cards with strongest highlighted), recent calls list with filter chips, most followed by list, notable receipts trophy cards (§15.4)
 - [ ] **UI-10**: Profile Settings exposes edit display handle, connect/disconnect Twitter, connect/disconnect Farcaster, export embedded wallet (§15.4)
-- [ ] **UI-11**: Duel page (`/duel/[id]`) renders "THE MARKET" hero block (asset pair in massive type, question line, 3-stat row: live spread / pot / settles in), two-column duel card (CALLER left yellow-green / VS divider / CHALLENGER right orange) with parallel stat rows, MARKET CONSENSUS bar, Riding sections both sides, "Side with [caller]" / "Side with [challenger]" bottom CTAs (§15.5)
+- [x] **UI-11**: Duel page (`/duel/[id]`) renders "THE MARKET" hero block (asset pair in massive type, question line, 3-stat row: live spread / pot / settles in), two-column duel card (CALLER left yellow-green / VS divider / CHALLENGER right orange) with parallel stat rows, MARKET CONSENSUS bar, Riding sections both sides, "Side with [caller]" / "Side with [challenger]" bottom CTAs (§15.5)
 - [ ] **UI-12**: Leaderboard page (`/leaderboard`) renders "The Tape · Top of book" title, 7d/30d/All-time toggle, #1 Hero card with massive faded "01" watermark, category filter chips (All / Majors / DeFi / Other in v1), leaderboard table with podium treatment for ranks 02/03 (§15.6)
 - [ ] **UI-13**: Leaderboard table columns: # / CALLER (avatar + handle + call count) / REP / ACC / BEST category / Δ 7D sparkline; viewer's own row gets `#1A1A24` background + yellow left border accent (§15.6)
 - [ ] **UI-14**: Settled Receipt page (`/call/[id]` when status == Settled or Disputed) renders 3px page frame with 4px accent corner brackets, sticky caller header (NO wallet address per §15.7), Watch + Share + "Preview share card" button group (§15.7)
@@ -881,7 +881,7 @@ Which phases cover which requirements. Updated during roadmap creation by the ro
 | UI-08 | Phase 1 | Pending |
 | UI-09 | Phase 7 | Pending |
 | UI-10 | Phase 1 | Pending |
-| UI-11 | Phase 3 | Pending |
+| UI-11 | Phase 3 | Complete |
 | UI-12 | Phase 7 | Pending |
 | UI-13 | Phase 7 | Pending |
 | UI-14 | Phase 4 | Pending |
