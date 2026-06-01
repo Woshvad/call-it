@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Binance Announcements - Static Fixture for CEX Scraper Tests</title>
+</head>
+<body>
+  <!-- Static HTML fixture for CEX Binance scraper tests (Pitfall 10, Pitfall 19) -->
+  <!-- This file simulates the structure of a Binance announcement page             -->
+  <!-- Used by: apps/relayer/src/workers/__tests__/cex-binance.test.ts              -->
+
+  <div class="announcement-list">
+
+    <!-- Post 1: Valid standard listing — should be DETECTED by scraper -->
+    <div class="announcement-item" data-testid="standard-listing">
+      <h3 class="announcement-title">
+        Binance Will List TokenX (TKX) with 3-Day BNB Discount Promotion
+      </h3>
+      <time class="announcement-date" datetime="2026-06-01T10:00:00Z">
+        2026-06-01 10:00 UTC
+      </time>
+      <p class="announcement-excerpt">
+        Binance will list TokenX (TKX) and open trading for TKX/BTC, TKX/ETH, and TKX/USDT
+        trading pairs. The deposit function for TKX will open at 2026-06-01 10:00 AM (UTC).
+      </p>
+    </div>
+
+    <!-- Post 2: Innovation Zone listing — should be EXCLUDED by scraper (Pitfall 19) -->
+    <div class="announcement-item" data-testid="innovation-zone-listing">
+      <h3 class="announcement-title">
+        Binance Will List SomeCoin (SMC) in the Innovation Zone
+      </h3>
+      <time class="announcement-date" datetime="2026-06-01T09:00:00Z">
+        2026-06-01 09:00 UTC
+      </time>
+      <p class="announcement-excerpt">
+        Binance will list SomeCoin (SMC) in the Innovation Zone. Users should be aware
+        that tokens listed in the Innovation Zone are subject to higher risk. Seed Tag applied.
+      </p>
+    </div>
+
+    <!-- Post 3: Symbol-only match (no full name) — should return false (multi-signal) -->
+    <div class="announcement-item" data-testid="partial-symbol-only">
+      <h3 class="announcement-title">
+        TKX Trading Competition — Win Up to $10,000 in Prizes
+      </h3>
+      <time class="announcement-date" datetime="2026-05-31T12:00:00Z">
+        2026-05-31 12:00 UTC
+      </time>
+      <p class="announcement-excerpt">
+        Join the TKX trading competition and win prizes. This is NOT a listing announcement.
+        Symbol TKX appears without "TokenX" full name — multi-signal check should reject this.
+      </p>
+    </div>
+
+    <!-- Post 4: Older post (more than 24h ago) — outside lookback window -->
+    <div class="announcement-item" data-testid="old-post">
+      <h3 class="announcement-title">
+        Binance Will List AnotherToken (ATK) in the Innovation Zone
+      </h3>
+      <time class="announcement-date" datetime="2026-05-30T08:00:00Z">
+        2026-05-30 08:00 UTC
+      </time>
+      <p class="announcement-excerpt">
+        This is an older listing announcement, outside the 24h window.
+        Should not be detected if time-window filtering is applied.
+      </p>
+    </div>
+
+  </div>
+
+</body>
+</html>
