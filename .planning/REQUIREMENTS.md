@@ -411,7 +411,7 @@ Requirements for the v1 mainnet release. Each line is an atomic, testable behavi
 - [x] **SHARE-04**: Live State Card (variant 1) — Call It wordmark top-left + Arbitrum logo top-right + center call statement + "by [caller] · X% conviction · stake $XXX" + follow%/fade% progress bar + time-left countdown + corner bracket motif (§16.2)
 - [ ] **SHARE-05**: Settled State Card (variant 2) — Call It wordmark + Arbitrum logo + center outcome word as visual hero (Syne display) + original call statement below + P&L / Rep change / Final / Conviction stats row + caller avatar + handle + current global rep + corner brackets (§16.3)
 - [ ] **SHARE-06**: Outcome word color mapping on cards matches §15.7 — CALLED IT green, LOUD AND WRONG red, CONTRARIAN HIT accent, COLD CALL muted, FADED CORRECTLY accent (§16.3)
-- [ ] **SHARE-07**: Duel Settled Card (variant 3) — two-column hero with winner avatar (~180px) + winner handle + WINS in Syne next to winner's column; loser avatar dimmed to 40%; pot ("Pot: $X,XXX · winner takes all"); rep deltas paired; market + target small text; Call It + Arbitrum branding bottom corners (§16.4)
+- [x] **SHARE-07**: Duel Settled Card (variant 3) — two-column hero with winner avatar (~180px) + winner handle + WINS in Syne next to winner's column; loser avatar dimmed to 40%; pot ("Pot: $X,XXX · winner takes all"); rep deltas paired; market + target small text; Call It + Arbitrum branding bottom corners (§16.4)
 - [ ] **SHARE-08**: Caller Exited Card (variant 4) — "CALLER EXITED" massive amber `#FB923C` hero + caller avatar dimmed + original call statement + stats row (time before exit / stake slashed / reputation impact) + note "Call continues for followers and faders. Settles at [expiry]." + corner brackets; auto-generates on `CallerExited` event (§16.5)
 - [x] **SHARE-09**: Fallback Card (variant 5) "A CALL WAS MADE" — 3px accent border + 4px accent corner brackets all 4 corners + `#09090E` bg + CALL IT wordmark Syne 48px + asymmetric hero "A CALL WAS MADE" Syne 64px + "by @[handle]" + "The receipt is being prepared. Tap to view live." + footer (§16.6)
 - [x] **SHARE-10**: Fallback Card serves when real receipt URL returns 404 (cache not warm) OR settled image hasn't regenerated OR OG service is fully down; CDN cache 60 seconds (§16.6)
@@ -933,7 +933,7 @@ Which phases cover which requirements. Updated during roadmap creation by the ro
 | SHARE-04 | Phase 2 | Complete |
 | SHARE-05 | Phase 4 | Pending |
 | SHARE-06 | Phase 4 | Pending |
-| SHARE-07 | Phase 3 | Pending |
+| SHARE-07 | Phase 3 | Complete |
 | SHARE-08 | Phase 4 | Pending |
 | SHARE-09 | Phase 0 | Complete |
 | SHARE-10 | Phase 0 | Complete |

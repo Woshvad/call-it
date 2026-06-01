@@ -129,7 +129,7 @@ Call It ships as a person-first onchain social prediction product on Arbitrum ma
   - [x] 03-04-PLAN.md — Wave 4: Drizzle schema (trending_duels + duel_kings) + [BLOCKING] 0003_* migration + challenge-escrow.ts real handlers + subgraph.yaml ChallengeEscrow data source + Sepolia Studio redeploy
   - [x] 03-05-PLAN.md — Wave 5: Relayer — GET /api/duels/:id/live-state + GET /api/duels + duel-trending-worker (BullMQ 60s) + duel-king-worker (BullMQ weekly) + challenge notifications wired
   - [x] 03-06-PLAN.md — Wave 6: /duel/[challengeId] page (§15.5 full layout: hero/two-column/consensus/Riding/CTAs) + Challenge form modal (SOCIAL-30 prefill + USDC preflight + proposeChallenge write) + Live Receipt pending challenge block + caller accept/reject
-  - [ ] 03-07-PLAN.md — Wave 6: /og/duel/[challengeId] OG card variant 3 (Node runtime, flexbox, D-11 settled-field stubs) + Duels tab (Active/Trending/Settled sections + filter chips) + ⚔ OPEN badge + TRENDING DUEL pin + Duel King badge placeholder
+  - [x] 03-07-PLAN.md — Wave 6: /og/duel/[challengeId] OG card variant 3 (Node runtime, flexbox, D-11 settled-field stubs) + Duels tab (Active/Trending/Settled sections + filter chips) + ⚔ OPEN badge + TRENDING DUEL pin + Duel King badge placeholder
 **UI hint**: yes
 **Pitfalls mitigated**: 3 (ChallengeEscrow TVL contribution included in canonical aggregation), 15 (no display:grid in OG card or Duel page — flex-only + grep guard), 21 (asymmetric-stake overage push-pattern refund + subgraph unclaimed-overage entity)
 
