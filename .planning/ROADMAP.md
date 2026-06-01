@@ -126,7 +126,7 @@ Call It ships as a person-first onchain social prediction product on Arbitrum ma
   - [x] 03-01-PLAN.md — Wave 1: IChallengeEscrow.sol LOCKED §12.3 interface + CeTestHelper (extends FfmTestHelper) + RED Foundry test matrix (propose/accept/reject/refund/claim/overage/TVL-cap/fuzz) + Vitest challenge-gates parity (D-29)
   - [x] 03-02-PLAN.md — Wave 2: ChallengeEscrow.sol full implementation — GREEN (CEI/pause-carve-outs/push-overage/3-way-TVL-cap/settleDuel-seam); forge test --profile ci exits 0
   - [ ] 03-03-PLAN.md — Wave 3: DeployPhase3.s.sol + [OPERATOR] Sepolia deploy checkpoint + addresses.ts CHALLENGE_ESCROW_ARBITRUM_SEPOLIA
-  - [ ] 03-04-PLAN.md — Wave 4: Drizzle schema (trending_duels + duel_kings) + [BLOCKING] 0003_* migration + challenge-escrow.ts real handlers + subgraph.yaml ChallengeEscrow data source + Sepolia Studio redeploy
+  - [x] 03-04-PLAN.md — Wave 4: Drizzle schema (trending_duels + duel_kings) + [BLOCKING] 0003_* migration + challenge-escrow.ts real handlers + subgraph.yaml ChallengeEscrow data source + Sepolia Studio redeploy
   - [ ] 03-05-PLAN.md — Wave 5: Relayer — GET /api/duels/:id/live-state + GET /api/duels + duel-trending-worker (BullMQ 60s) + duel-king-worker (BullMQ weekly) + challenge notifications wired
   - [ ] 03-06-PLAN.md — Wave 6: /duel/[challengeId] page (§15.5 full layout: hero/two-column/consensus/Riding/CTAs) + Challenge form modal (SOCIAL-30 prefill + USDC preflight + proposeChallenge write) + Live Receipt pending challenge block + caller accept/reject
   - [ ] 03-07-PLAN.md — Wave 6: /og/duel/[challengeId] OG card variant 3 (Node runtime, flexbox, D-11 settled-field stubs) + Duels tab (Active/Trending/Settled sections + filter chips) + ⚔ OPEN badge + TRENDING DUEL pin + Duel King badge placeholder
@@ -240,7 +240,7 @@ Phases execute in numeric order: 0 → 1 → 1.5 (parallel with 2) → 2 → 3 �
 | 1. Core contracts + auth + frontend skeleton | 0/10 | Planned | - |
 | 1.5. Social linking | 0/TBD | Not started | - |
 | 2. FollowFadeMarket | 9/9 | Complete | 2026-05-31 |
-| 3. ChallengeEscrow | 0/7 | Planned | - |
+| 3. ChallengeEscrow | 3/7 | In Progress|  |
 | 4. SettlementManager + 7 oracle paths + Solidity baseline rep delta | 0/TBD | Not started | - |
 | 5. StylusScoreEngine + 48h cutoff | 0/TBD | Not started | - |
 | 6. Safety review + Sepolia ≥48h + multisig promotion | 0/TBD | Not started | - |
