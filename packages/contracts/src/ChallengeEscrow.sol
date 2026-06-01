@@ -279,6 +279,7 @@ contract ChallengeEscrow is Ownable2Step, ReentrancyGuard, Pausable, IChallengeE
     function settleDuel(uint256 challengeId, address winner)
         external
         onlySettlementManager
+        nonReentrant
     {
         Challenge storage ch = _challenges[challengeId];
 
@@ -372,6 +373,7 @@ contract ChallengeEscrow is Ownable2Step, ReentrancyGuard, Pausable, IChallengeE
 
     /// @inheritdoc IChallengeEscrow
     function setSettlementManager(address newManager) external onlyOwner {
+        require(newManager != address(0), "invalid-manager");
         settlementManager = newManager;
         emit SettlementManagerSet(newManager);
     }
