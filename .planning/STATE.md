@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: milestone
-status: ready_to_plan
-stopped_at: Phase 3 complete (closed out); ready to plan Phase 4
-last_updated: "2026-06-01T13:47:52.827Z"
+status: planning
+stopped_at: Phase 4 context gathered
+last_updated: "2026-06-01T17:38:50.996Z"
 last_activity: 2026-06-01
 progress:
   total_phases: 12
-  completed_phases: 5
+  completed_phases: 4
   total_plans: 31
-  completed_plans: 31
-  percent: 42
+  completed_plans: 32
+  percent: 100
 ---
 
 # Project State
@@ -44,6 +44,7 @@ Planning accepted 7 plan-checker issues "as-is"; all were caught + handled at ex
 ## Code Review — Phase 03 (03-REVIEW.md, 2026-06-01)
 
 Standard-depth review of 24 source files: 6 critical / 11 warning / 5 info. **All 6 criticals + IN-05 fixed and verified** (commits `88b2597`→`18aac2a`):
+
 - CR-01 `settleDuel` nonReentrant; CR-02 `setSettlementManager` zero-guard (setter only — deploy-at-zero preserved); CR-03 OG-route ABI field/order; CR-04 duel-page pot = min()*2; CR-05 Duel-King sort DESC; CR-06 subgraph startBlock floor 272458674; IN-05 inline USDC literals → shared constant.
 - Verified: forge 28/28 GREEN, web build 0, relayer no-new-errors, subgraph build 0.
 - **Deferred warnings** (need LOCKED-interface change, subgraph schema change, or new tests): WR-03 (claimOverage error on symmetric), WR-04/06 (subgraph schema fields), WR-05/07..11 (notification status-change fanout, _pushOverage rollback test coverage, etc.). WR-01 was a false positive. See 03-REVIEW.md.
@@ -341,6 +342,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-06-01
-Stopped at: Phase 3 complete (closed out) — deployed live to Sepolia, secured, OG/dev bugs fixed. Ready to plan Phase 4 (SettlementManager).
-Resume file: None
+Last session: 2026-06-01T17:38:50.961Z
+Stopped at: Phase 4 context gathered
+Resume file: .planning/phases/04-settlementmanager-7-oracle-paths-solidity-baseline-rep-delta/04-CONTEXT.md
