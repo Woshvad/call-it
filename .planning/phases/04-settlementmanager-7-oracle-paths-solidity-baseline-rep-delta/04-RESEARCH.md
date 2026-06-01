@@ -890,29 +890,29 @@ For shared math functions (rep delta, fee split, P&L calculation), maintain matc
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **Tally API key provisioning**
+1. **Tally API key provisioning** (RESOLVED: tally-adapter logs warning + returns ambiguous if absent; operator provisions; T-04-06-05)
    - What we know: Tally GraphQL endpoint `https://api.tally.xyz/query` requires an API key (free tier sufficient)
    - What's unclear: Is the key already provisioned in GCP Secret Manager?
    - Recommendation: Check `gcloud secrets list | grep tally`; create if absent before Governance adapter plan
 
-2. **Pyth auth token timeline**
+2. **Pyth auth token timeline** (RESOLVED: PYTH_API_KEY env slot added; no action until 2026-07-31)
    - What we know: Auth required after 2026-07-31 (1 month after Phase 4 research)
    - What's unclear: Will Phase 4 execution complete before July 31?
    - Recommendation: Add `PYTH_API_KEY` env var slot to relayer config now even if token not yet required; register at https://pyth.network/developers
 
-3. **Playwright Chromium in Railway container**
+3. **Playwright Chromium in Railway container** (RESOLVED: scraper returns ambiguous on browser-launch failure; OPS runbook + T-04-06-04)
    - What we know: CEX scrapers require Playwright chromium headless
    - What's unclear: Whether the current Railway Dockerfile includes chromium
    - Recommendation: `pnpm playwright install chromium` in Dockerfile + Playwright's own `playwright/node:chromium` base image as reference
 
-4. **Dispute reversal USDC availability**
+4. **Dispute reversal USDC availability** (RESOLVED: SETTLE-35: post-claim disputes not honored in v1; OPS-15)
    - What we know: `resolveDispute` reversal must re-distribute USDC from old-winner → new-winner
    - What's unclear: If some winners already called `claimPayout` before dispute resolved, the reversal pool is smaller
    - Recommendation: Reversal applies to REMAINING unclaimed pool only (SETTLE-35 "post-claim disputes not honored in v1"). Document explicitly in OPS-15 runbook.
 
-5. **SettlementManager ETH balance for Pyth fees**
+5. **SettlementManager ETH balance for Pyth fees** (RESOLVED: 0.1 ETH funded at deploy in DeployPhase4.s.sol; OPS-15 top-up)
    - What we know: `updatePriceFeeds{value: fee}(...)` requires ETH in SettlementManager
    - What's unclear: How ETH gets into SettlementManager at deploy time
    - Recommendation: `DeployPhase4.s.sol` sends 0.1 ETH from deployer to SettlementManager; add `receive() external payable {}`. Relayer monitors and tops up.
@@ -927,7 +927,7 @@ For shared math functions (rep delta, fee split, P&L calculation), maintain matc
 | A2 | DefiLlama free tier `api.llama.fi` returns sufficient data for all TVL/volume/fees event subtypes | DefiLlama adapter | Medium — verify specific protocol slugs exist at plan time; some older protocols may lack data |
 | A3 | Alchemy `getNFTSales` on Ethereum mainnet returns enough data for the 6 allowlisted collections | NFT TWAP adapter | Low — CryptoPunks/BAYC/Pudgy have high volume |
 | A4 | Phase 5 Stylus `IStylusScoreEngine` interface has `compute_rep_change(uint128 currentRep, uint8 conviction, uint8 consensusPct, bool isWinner, uint256 baseValue) external view returns (int32)` | Rep baseline / try-catch seam | Medium — Phase 5 must match this exact signature; confirm before Phase 5 |
-| A5 | `callRegistry.activeDuplicateHashes` mapping is accessible for clearing in step 12 | 14-step settle | Low — it's `public` in CallRegistry |
+| A5 | RESOLVED — `activeDuplicateHashes` is a `public` mapping but `public` only generates a read-only getter; external contracts cannot write to it. Clearing it from SettlementManager requires a dedicated `clearDuplicateHash(bytes32 h) onlySettlementManager` seam added to CallRegistry.sol (the minimal additive seam, mirroring `markSettled`), shipped in source and live at the mainnet 7.5 deploy; step 12 is try/catch-guarded so settlement completes on the current Sepolia CallRegistry which predates the seam. | 14-step settle | RESOLVED (seam added to source in Phase 4) |
 | A6 | BullMQ `Worker` processes jobs in order of delay completion | Settlement watcher | Low — BullMQ guarantees this |
 
 ---
