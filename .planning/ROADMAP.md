@@ -122,9 +122,16 @@ Call It ships as a person-first onchain social prediction product on Arbitrum ma
   4. Duel page (`/duel/[id]`) renders THE MARKET hero block (asset pair massive type + question line + 3-stat live spread / pot / settles-in), two-column duel card (CALLER yellow-green / VS divider / CHALLENGER orange) with parallel stat rows, MARKET CONSENSUS bar, Riding sections both sides, and "Side with [X]" bottom CTAs.
   5. Trending Duel auto-promotion pins duels with combined pot ≥ $500 USDC OR ≥50 "Riding" backers to top of global feed for 4 hours with "TRENDING DUEL" label; Duel King badge displays on the single user with the highest 7-day duel win streak (refreshed weekly) on profile, leaderboard row, feed call cards, and receipt cards; Duels tab in feed shows Active (pot desc) / Trending (pinned) / Recently settled (7d) with filter chips.
   6. Duel Settled OG card (variant 3) renders the two-avatar layout with winner highlighted and loser dimmed to 40% opacity, WINS in Syne next to the winner's column, pot ("Pot: $X,XXX · winner takes all"), paired rep deltas, market + target small text, Call It + Arbitrum branding bottom corners.
-**Plans**: TBD
+**Plans**: 7 plans across 6 waves
+  - [ ] 03-01-PLAN.md — Wave 1: IChallengeEscrow.sol LOCKED §12.3 interface + CeTestHelper (extends FfmTestHelper) + RED Foundry test matrix (propose/accept/reject/refund/claim/overage/TVL-cap/fuzz) + Vitest challenge-gates parity (D-29)
+  - [ ] 03-02-PLAN.md — Wave 2: ChallengeEscrow.sol full implementation — GREEN (CEI/pause-carve-outs/push-overage/3-way-TVL-cap/settleDuel-seam); forge test --profile ci exits 0
+  - [ ] 03-03-PLAN.md — Wave 3: DeployPhase3.s.sol + [OPERATOR] Sepolia deploy checkpoint + addresses.ts CHALLENGE_ESCROW_ARBITRUM_SEPOLIA
+  - [ ] 03-04-PLAN.md — Wave 4: Drizzle schema (trending_duels + duel_kings) + [BLOCKING] 0003_* migration + challenge-escrow.ts real handlers + subgraph.yaml ChallengeEscrow data source + Sepolia Studio redeploy
+  - [ ] 03-05-PLAN.md — Wave 5: Relayer — GET /api/duels/:id/live-state + GET /api/duels + duel-trending-worker (BullMQ 60s) + duel-king-worker (BullMQ weekly) + challenge notifications wired
+  - [ ] 03-06-PLAN.md — Wave 6: /duel/[challengeId] page (§15.5 full layout: hero/two-column/consensus/Riding/CTAs) + Challenge form modal (SOCIAL-30 prefill + USDC preflight + proposeChallenge write) + Live Receipt pending challenge block + caller accept/reject
+  - [ ] 03-07-PLAN.md — Wave 6: /og/duel/[challengeId] OG card variant 3 (Node runtime, flexbox, D-11 settled-field stubs) + Duels tab (Active/Trending/Settled sections + filter chips) + ⚔ OPEN badge + TRENDING DUEL pin + Duel King badge placeholder
 **UI hint**: yes
-**Pitfalls mitigated**: 3 (ChallengeEscrow TVL contribution included in canonical aggregation), 21 (asymmetric-stake overage push-pattern refund + subgraph unclaimed-overage entity)
+**Pitfalls mitigated**: 3 (ChallengeEscrow TVL contribution included in canonical aggregation), 15 (no display:grid in OG card or Duel page — flex-only + grep guard), 21 (asymmetric-stake overage push-pattern refund + subgraph unclaimed-overage entity)
 
 ### Phase 4: SettlementManager + 7 oracle paths + Solidity baseline rep delta
 **Goal**: The 14-step atomic settle dispatch hub lands. Per (marketType, eventSubtype), SettlementManager routes to the correct oracle adapter: Pyth (pull model with `bytes[] pythUpdateData` multicall + ETH fee), Alchemy NFT API (24h relayer-computed TWAP with ≥12 observations), DefiLlama (TVL / volume / fees / APRs), direct RPC (on-chain metrics + liquidation events), Snapshot (off-chain governance), Tally (on-chain governance), and 8 Playwright CEX scrapers with per-exchange selectors + Innovation Zone exclusion fixtures. KMS-signed relayer attestations land via EIP-712 with chainId binding. Dispute window opens for ambiguous reads ($5 USDC bond, max 3 counter-claims, owner-resolved in v1 with public commitment log). `forceSettle` escape hatch unlocks 7 days post-expiry. Solidity baseline reputation delta is shipped in-contract (NOT as a Phase 5 fallback per Delta 3) so the 48h Stylus cutoff becomes a mechanical `upgradeTo(...)`. Settled Receipt page renders all variants. Critical-path steps 4, 5, 7 (Compose, Publish, Settlement) all close here.
@@ -233,7 +240,7 @@ Phases execute in numeric order: 0 → 1 → 1.5 (parallel with 2) → 2 → 3 �
 | 1. Core contracts + auth + frontend skeleton | 0/10 | Planned | - |
 | 1.5. Social linking | 0/TBD | Not started | - |
 | 2. FollowFadeMarket | 9/9 | Complete | 2026-05-31 |
-| 3. ChallengeEscrow | 0/TBD | Not started | - |
+| 3. ChallengeEscrow | 0/7 | Planned | - |
 | 4. SettlementManager + 7 oracle paths + Solidity baseline rep delta | 0/TBD | Not started | - |
 | 5. StylusScoreEngine + 48h cutoff | 0/TBD | Not started | - |
 | 6. Safety review + Sepolia ≥48h + multisig promotion | 0/TBD | Not started | - |
