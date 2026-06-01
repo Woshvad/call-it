@@ -53,14 +53,14 @@ completed: 2026-06-01
 
 # Phase 4 Plan 05: SettlementManager Subgraph Real Handlers Summary
 
-**Real AssemblyScript handlers for all 7 SettlementManager events — CallSettled/DisputeRaised/DisputeResolved/CallForceSettled/SettlementDelayed/RepCalculated/RepCalculatedFallback — replacing Phase-0 stub; graph codegen + build pass; stopped at Studio redeploy checkpoint**
+**Real AssemblyScript handlers for all 7 SettlementManager events — CallSettled/DisputeRaised/DisputeResolved/CallForceSettled/SettlementDelayed/RepCalculated/RepCalculatedFallback — replacing Phase-0 stub; graph codegen + build pass; deployed to Studio as v0.4.0 (indexing, hasIndexingErrors=false)**
 
 ## Performance
 
 - **Duration:** 2 min
 - **Started:** 2026-06-01T22:20:25Z
 - **Completed:** 2026-06-01T22:22:42Z
-- **Tasks:** 1 of 2 (stopped at checkpoint)
+- **Tasks:** 2 of 2 (Studio redeploy complete)
 - **Files modified:** 1
 
 ## Accomplishments
@@ -109,19 +109,16 @@ No new network endpoints or trust boundaries introduced. This plan only modifies
 - T-04-05-03: `handleRepCalculatedFallback` creates queryable entity + RepEvent with `fallback=true`
 - T-04-05-04: `call.status='Disputed'` appears exactly once (in `handleDisputeRaised`) — grep-verified single source
 
-## User Setup Required
+## Studio Deploy — COMPLETE
 
-**graph deploy checkpoint** — awaiting operator Studio deploy:
+**graph deploy checkpoint RESOLVED** — deployed by orchestrator on operator's behalf:
 
-```
-cd packages/subgraph && graph deploy --studio call-it-sepolia
-```
-
-Version to deploy: v0.4.0 (next after current v0.3.0 in Studio)
-Subgraph slug: `call-it-sepolia`
-Expected endpoint: `https://api.studio.thegraph.com/query/1754389/call-it-sepolia/v0.4.0`
-
-After deploy, update `NEXT_PUBLIC_SUBGRAPH_URL` in `.env` if the endpoint version changes.
+- Auth + deploy: `graph auth <SUBGRAPH_STUDIO_DEPLOY_KEY>` then `graph deploy --node https://api.studio.thegraph.com/deploy/ call-it-sepolia -l v0.4.0`
+- Version: **v0.4.0** (auth exit 0, deploy exit 0)
+- Build CID: `QmNZ8LJBjqR9SustvNeRKWcG6tgQVRmuygfpioWe8C9kjP`
+- Query endpoint: `https://api.studio.thegraph.com/query/1754389/call-it-sepolia/v0.4.0`
+- Health (`_meta`): block 272458666, **hasIndexingErrors=false** (syncing from CallRegistry startBlock toward SM deploy block 272912513)
+- `NEXT_PUBLIC_SUBGRAPH_URL` in `.env` bumped v0.3.0 → v0.4.0 (gitignored; operational change, not committed)
 
 ## Next Phase Readiness
 
