@@ -24,6 +24,7 @@
     "@logtail/pino": "^0.5.0",
     "@noble/curves": "^1.8.0",
     "@privy-io/server-auth": "^1.32.5",
+    "@pythnetwork/hermes-client": "3.1.0",
     "@safe-global/api-kit": "^4.0.0",
     "@safe-global/protocol-kit": "^7.0.0",
     "bullmq": "^5.0.0",
