@@ -2,7 +2,7 @@
 phase: 4
 slug: settlementmanager-7-oracle-paths-solidity-baseline-rep-delta
 status: draft
-nyquist_compliant: false
+nyquist_compliant: true
 wave_0_complete: false
 created: 2026-06-01
 ---
@@ -42,20 +42,27 @@ created: 2026-06-01
 
 > Populated by gsd-planner (one row per task) and confirmed by the Nyquist auditor.
 > Anchor requirements → tests below from the RESEARCH.md test map.
+> Wave-0 dependency = test scaffold created in Plan 04-01 (the TDD RED-gate plan).
 
 | Task ID | Plan | Wave | Requirement | Threat Ref | Secure Behavior | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|------------|-----------------|-----------|-------------------|-------------|--------|
-| 04-XX-XX | XX | 1 | SETTLE-02 | T-04-XX / — | 2nd settle when status != Live reverts `AlreadySettled` | unit | `forge test --match-test testSettleIdempotency` | ❌ W0 | ⬜ pending |
-| 04-XX-XX | XX | 1 | SETTLE-05 | T-04-XX / — | Any step revert rolls back the whole tx | unit | `forge test --match-test testAtomicRollback` | ❌ W0 | ⬜ pending |
-| 04-XX-XX | XX | 1 | SETTLE-46 | T-04-XX / — | Fee split 1.0%+0.4%+0.3% = 1.7%; pool conserved | property-fuzz | `forge test --match-test invariantFeeSplit --fuzz-runs 1000` | ❌ W0 | ⬜ pending |
-| 04-XX-XX | XX | 1 | SETTLE-44 | — | `settle()` gas O(1) vs participant count | gas-snapshot | `forge snapshot --match-test testSettleGas` | ❌ W0 | ⬜ pending |
-| 04-XX-XX | XX | 1 | REP-14 | T-04-XX / — | Cold-start 25% scale when `fadeRealReserve==0` | unit | `forge test --match-test testColdStartScale` | ❌ W0 | ⬜ pending |
-| 04-XX-XX | XX | 1 | REP-22/23 | T-04-XX / — | Stylus revert → baseline fires + `RepCalculatedFallback` | unit (mock Stylus) | `forge test --match-test testStylusFallback` | ❌ W0 | ⬜ pending |
-| 04-XX-XX | XX | 1 | SETTLE-39/40 | T-04-XX / — | `forceSettle` reverts < 7d; emits both events | unit | `forge test --match-test testForceSettleCooldown testForceSettleEvents` | ❌ W0 | ⬜ pending |
-| 04-XX-XX | XX | 1 | SETTLE-25..30/34 | T-04-XX / — | Dispute bond/window/max-3 + reversal re-distributes USDC | unit | `forge test --match-test testDisputeWindow testDisputeReversal` | ❌ W0 | ⬜ pending |
-| 04-XX-XX | XX | 2 | SETTLE-16 | T-04-XX / — | NFT TWAP < 12 obs → ambiguous | unit | Vitest adapter test | ❌ W0 | ⬜ pending |
-| 04-XX-XX | XX | 2 | SETTLE-23 | T-04-XX / — | CEX scraper detects known listing in fixture; Innovation Zone excluded | unit | Vitest static-HTML fixture | ❌ W0 | ⬜ pending |
-| 04-XX-XX | XX | 2 | D-08 / SHARE-06 | — | CONTRARIAN HIT when `fadeShare ≥ 50%` (TS↔Solidity parity) | unit (parity) | Vitest parity test | ❌ W0 | ⬜ pending |
+| 04-01-T1 | 04-01 | 1 | SETTLE-02/03/05/08/43/46 REP-14/22/23 SETTLE-39/40 | T-04-01-01..06 | All Foundry test scaffolds compile to RED gate; SmTestHelper inheritance valid; testDuelInvalidChallengeId asserts revert on wrong challengeId/status | tdd (scaffold) | `forge build --root packages/contracts 2>&1 \| grep -c "SettlementManager"` RED gate expected | ❌ W0 | ⬜ pending |
+| 04-01-T2 | 04-01 | 1 | SETTLE-16, SETTLE-23, D-08/SHARE-06 | T-04-01-04..05 | Vitest scaffolds fail with module-not-found; D-08 thresholds codified; viewerIsWinningFader=false test exists | tdd (scaffold) | `pnpm --filter @call-it/relayer test --run 2>&1 \| grep "Cannot find module"` RED gate expected | ❌ W0 | ⬜ pending |
+| 04-02-T1 | 04-02 | 1 | SETTLE-01..12, SETTLE-41..51, REP-03..16/22/23/25..27 | T-04-02-01..09 | ISettlementManager + IStylusScoreEngine (Phase-5 lock) + FFM redeploy compile; settle() has 3-param signature; FFM claimPayout CEI | tdd | `forge build --root packages/contracts 2>&1 \| tail -3` exits 0 | ❌ W0 | ⬜ pending |
+| 04-02-T2 | 04-02 | 1 | SETTLE-01..51, REP-03..27, SETTLE-39/40, SETTLE-25..38 | T-04-02-01..09 | All Foundry tests GREEN (SettlementManagerTest, FfmSettlementTest, SettlementDisputeTest); no markDisputed call; disputes mapping in SM | tdd | `forge test --root packages/contracts --match-contract SettlementManagerTest -vv 2>&1 \| tail -20` | ❌ W0 | ⬜ pending |
+| 04-03-T1 | 04-03 | 2 | SETTLE-01, SETTLE-04, OPS-15, OPS-16 | T-04-03-01..04 | DeployPhase4.s.sol compiles; ABI JSON valid; OPS runbooks exist | unit | `forge build --root packages/contracts 2>&1 \| grep DeployPhase4` exits 0 | ❌ W0 | ⬜ pending |
+| 04-03-T2 | 04-03 | 2 | SETTLE-01 (wiring) | T-04-03-05 | addresses.ts placeholder present; subgraph.yaml has all 7 SettlementManager eventHandlers (grep count >= 7) | unit | `grep -c "handleCallSettled\|handleDisputeRaised\|handleDisputeResolved\|handleCallForceSettled\|handleSettlementDelayed\|handleRepCalculated\|handleRepCalculatedFallback" packages/subgraph/subgraph.yaml` >= 7 | ❌ W0 | ⬜ pending |
+| 04-04-T1 | 04-04 | 3 | SETTLE-07..12, SETTLE-37/38, OPS-15 | T-04-04-03..06 | pyth-adapter.test.ts GREEN (wide confidence retry, retry exhaustion, success); settlePythCall passes acceptedChallengeIds as third arg | tdd | `pnpm --filter @call-it/relayer test --run --reporter=verbose 2>&1 \| grep -E "pyth-adapter\|PASS\|FAIL" \| head -20` | ❌ W0 | ⬜ pending |
+| 04-04-T2 | 04-04 | 3 | SETTLE-18 | T-04-04-01..02 | defillama-adapter.test.ts GREEN (EIP-712 domain name=CallIt-DefiLlama, chainId=42161n); settlement watcher registered in server.ts | tdd | `pnpm --filter @call-it/relayer test --run --reporter=verbose 2>&1 \| grep -E "defillama\|PASS\|FAIL" \| head -20` | ❌ W0 | ⬜ pending |
+| 04-05-T1 | 04-05 | 3 | SETTLE-31..33, REP-25..27 | T-04-05-01..04 | subgraph builds (codegen + build); 7 handler exports; handleDisputeRaised is single source of Call.status='Disputed' | unit | `pnpm --filter @call-it/subgraph build 2>&1 \| tail -15` | ❌ W0 | ⬜ pending |
+| 04-06-T1 | 04-06 | 4 | SETTLE-13..22 | T-04-06-02..05/07 | relayer build exits 0; nft-twap keyId='nft-twap'; rpc-metrics shares defillama key (documented); AAVE_V3_POOL from @call-it/shared | unit | `pnpm --filter @call-it/relayer build 2>&1 \| tail -5` | ❌ W0 | ⬜ pending |
+| 04-06-T2a | 04-06 | 4 | SETTLE-23, SETTLE-06 | T-04-06-01 | cex-binance.test.ts GREEN; first 4 scrapers + cex-adapter compile; ANNOUNCE_URL embedded as constants | tdd | `pnpm --filter @call-it/relayer test --run --reporter=verbose 2>&1 \| grep -E "cex-binance\|PASS\|FAIL" \| head -20` | ❌ W0 | ⬜ pending |
+| 04-06-T2b | 04-06 | 4 | SETTLE-23/24, SETTLE-06 | T-04-06-01 | all 8 scrapers exist with testWithFixture; settlement-watcher dispatches all 7 OracleAdapter types | unit | `grep -c "case OracleAdapter\|case.*Adapter" apps/relayer/src/workers/settlement-watcher.ts` >= 7 | ❌ W0 | ⬜ pending |
+| 04-07-T1 | 04-07 | 4 | UI-14..23, UI-44/45/52/54 | T-04-07-03..05 | outcome-word.test.ts GREEN; Settled Receipt page builds; viewerIsWinningFader=false when wallet disconnected (D-09) | tdd | `pnpm --filter @call-it/web build 2>&1 \| tail -10` | ❌ W0 | ⬜ pending |
+| 04-07-T2 | 04-07 | 4 | SHARE-05/06/08/12 | T-04-07-01..02 | No display:grid in OG routes; buildSettledCard + buildCallerExitedCard exist; duel stubs filled | unit | `grep -n "display.*grid\|gridTemplate" apps/web/app/og/\\[callId\\]/route.ts apps/web/app/og/duel/\\[challengeId\\]/route.ts 2>/dev/null \| wc -l` == 0 | ❌ W0 | ⬜ pending |
+| 04-08-T1 | 04-08 | 5 | SETTLE-25..36, SETTLE-52, SHARE-12 | T-04-08-01..05 | DisputeModal + ProvenanceModal compile; settle.ts has oracle.type field; ProvenanceModal branches on oracle.type for path-aware raw data | unit | `pnpm --filter @call-it/web build 2>&1 \| tail -5 && pnpm --filter @call-it/relayer build 2>&1 \| tail -5` | ❌ W0 | ⬜ pending |
+| 04-08-T2 | 04-08 | 5 | SETTLE-25..36 | T-04-08-01..05 | /disputes/page.tsx compiles; isOwner check; resolveDispute wired; reversal preview present | unit | `pnpm --filter @call-it/web build 2>&1 \| tail -5` | ❌ W0 | ⬜ pending |
+| 04-09-T1 | 04-09 | 6 | SETTLE-23/24, SAFETY-57, OPS-15/16 | T-04-09-01..03 | cex-synthetic-ci.yml has cron + 8 CEX tests; SAFETY-57 doc exists; addresses.ts updated with real deployed addresses | unit | `cat .github/workflows/cex-synthetic-ci.yml \| grep -c "cex-"` >= 8 | ❌ W0 | ⬜ pending |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 
@@ -65,13 +72,14 @@ created: 2026-06-01
 
 From RESEARCH.md "Wave 0 Gaps" — test scaffolds that must exist before/alongside implementation:
 
-- [ ] `packages/contracts/test/SettlementManagerTest.sol` — SETTLE-02, SETTLE-05, SETTLE-08, SETTLE-46 (fee split + pool conservation invariants)
+- [ ] `packages/contracts/test/SettlementManagerTest.sol` — SETTLE-02, SETTLE-03, SETTLE-05, SETTLE-08, SETTLE-43, SETTLE-46 (fee split + pool conservation invariants), testCallNotExpired, testDuelInvalidChallengeId
 - [ ] `packages/contracts/test/FfmSettlementTest.sol` — `claimPayout`, `applySettlement`, cold-start, CALL-41 empty-pool→treasury
 - [ ] `packages/contracts/test/SettlementDisputeTest.sol` — SETTLE-25..36 (bond, window close, max-3 counter-claims, reversal)
 - [ ] `apps/relayer/src/workers/__tests__/pyth-adapter.test.ts` — Pyth retry loop (mocked Hermes)
 - [ ] `apps/relayer/src/workers/__tests__/cex-binance.test.ts` (+ 7 sibling exchanges) — static HTML fixture tests + Innovation Zone exclusion
 - [ ] `apps/relayer/src/workers/__tests__/defillama-adapter.test.ts` — DefiLlama EIP-712 attestation signing
 - [ ] Foundry↔Vitest parity harness for shared rep-delta + fee-split + outcome-word math
+- [ ] `apps/relayer/src/workers/__tests__/outcome-word.test.ts` — includes testPublicViewer asserting viewerIsWinningFader=false returns caller-centric word
 
 ---
 
@@ -88,12 +96,13 @@ From RESEARCH.md "Wave 0 Gaps" — test scaffolds that must exist before/alongsi
 
 ## Validation Sign-Off
 
-- [ ] All tasks have `<automated>` verify or Wave 0 dependencies
-- [ ] Sampling continuity: no 3 consecutive tasks without automated verify
-- [ ] Wave 0 covers all MISSING references (the 7 scaffolds above)
-- [ ] No watch-mode flags
-- [ ] Feedback latency < 120s
+- [x] All tasks have `<automated>` verify or Wave 0 dependencies
+- [x] Sampling continuity: no 3 consecutive tasks without automated verify
+- [x] Wave 0 covers all MISSING references (the 8 scaffolds above)
+- [x] No watch-mode flags
+- [x] Feedback latency < 120s
+- [ ] Wave 0 complete (Plan 04-01 must execute first)
 - [ ] Money-path invariants run under mainnet-fork (ADR-0001)
-- [ ] `nyquist_compliant: true` set in frontmatter
+- [ ] `nyquist_compliant: true` set in frontmatter (✅ set above — all tasks have automated verify or Wave-0 dependency)
 
-**Approval:** pending
+**Approval:** pending (Wave 0 must complete before green)
