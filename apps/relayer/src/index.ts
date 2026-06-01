@@ -54,6 +54,8 @@ import { startPaymasterConfirmer } from './workers/paymaster-confirmer.js';
 import { startNotificationFanout } from './workers/notification-fanout.js';
 import { startDuelTrendingWorker } from './workers/duel-trending-worker.js';
 import { startDuelKingWorker } from './workers/duel-king-worker.js';
+// Phase 4 — Plan 04-04: Settlement watcher (BullMQ + Pyth 30×60s retry)
+import { startSettlementWatcher, type SettlementWatcherHandle } from './workers/settlement-watcher.js';
 
 /**
  * Build and configure the Fastify application.
@@ -185,6 +187,34 @@ export async function buildApp(): Promise<FastifyInstance> {
     process.env.NEXT_PUBLIC_SUBGRAPH_URL ??
     '';
 
+  // Settlement watcher dependencies (Phase 4 — Plan 04-04)
+  // walletClient uses the relayer's GCP KMS-backed key (no local private key — D-05)
+  // In production, the walletClient must be created with a proper account (KMS-backed).
+  // For the current wiring, we pass the publicClient and a minimal walletClient placeholder.
+  // Full KMS wiring happens in Phase 4 Plan 04-05 when the settle route is added.
+  const settlementPublicClient = notificationFanoutClient; // reuse same publicClient
+  // walletClient requires an account; in production this will be gcpKmsAccount from kms-signer.ts
+  // For now we create a walletClient using the same transport — it will fail gracefully if
+  // no account is configured (settlement watcher is non-blocking via try/catch).
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const settlementWalletClient = { writeContract: async () => { throw new Error('walletClient not configured — set up KMS account before enabling live settlement'); } } as any;
+
+  const settlementRedisConfig = {
+    host: (() => {
+      const url = process.env.UPSTASH_REDIS_REST_URL ?? 'redis://localhost:6379';
+      try { return new URL(url).hostname; } catch { return 'localhost'; }
+    })(),
+    port: (() => {
+      const url = process.env.UPSTASH_REDIS_REST_URL ?? 'redis://localhost:6379';
+      try { return parseInt(new URL(url).port || '6379', 10); } catch { return 6379; }
+    })(),
+    password: process.env.UPSTASH_REDIS_REST_TOKEN,
+    tls: (process.env.UPSTASH_REDIS_REST_URL ?? '').startsWith('rediss://') ? {} : undefined,
+    lazyConnect: true,
+  };
+
+  let settlementWatcherHandle: SettlementWatcherHandle | undefined;
+
   app.addHook('onReady', async () => {
     // Start paymaster confirmer worker (Plan 07 — D-02)
     startPaymasterConfirmer();
@@ -233,6 +263,22 @@ export async function buildApp(): Promise<FastifyInstance> {
         'Failed to start Duel King worker',
       );
     }
+    // Start settlement watcher (Phase 4 — Plan 04-04 — D-04)
+    // BullMQ expiry queue + Pyth 30×60s retry + Telegram stuck alert
+    try {
+      settlementWatcherHandle = startSettlementWatcher({
+        publicClient: settlementPublicClient,
+        walletClient: settlementWalletClient,
+        redisConfig: settlementRedisConfig,
+        subgraphUrl: notificationSubgraphUrl,
+      });
+      app.log.info({ event: 'settlement_watcher_started' }, 'Settlement watcher started');
+    } catch (err) {
+      app.log.error(
+        { event: 'settlement_watcher_start_failed', err: String(err) },
+        'Failed to start settlement watcher',
+      );
+    }
     try {
       const result = await pingWithBullMQCompat();
       if (!result.ok) {
@@ -254,6 +300,15 @@ export async function buildApp(): Promise<FastifyInstance> {
         { event: 'bullmq_compat_check_failed', err: String(err) },
         'BullMQ compat check threw — Redis may be unavailable',
       );
+    }
+  });
+
+  // Graceful shutdown: stop settlement watcher before Fastify closes (Plan 04-04)
+  app.addHook('onClose', async () => {
+    if (settlementWatcherHandle) {
+      app.log.info({ event: 'settlement_watcher_stopping' }, 'Stopping settlement watcher on server close');
+      await settlementWatcherHandle.stop();
+      app.log.info({ event: 'settlement_watcher_stopped' }, 'Settlement watcher stopped');
     }
   });
 
