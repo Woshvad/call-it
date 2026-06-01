@@ -90,12 +90,12 @@ contract SettlementManagerTest is SmTestHelper, StdInvariant {
         assertEq(
             IERC20(USDC_ARB_NATIVE).balanceOf(alice),
             aliceBalBefore,
-            "Alice balance changed on failed settle — not atomic"
+            "Alice balance changed on failed settle - not atomic"
         );
         assertEq(
             IERC20(USDC_ARB_NATIVE).balanceOf(treasury),
             treasuryBalBefore,
-            "Treasury balance changed on failed settle — not atomic"
+            "Treasury balance changed on failed settle - not atomic"
         );
     }
 
