@@ -230,18 +230,18 @@ Requirements for the v1 mainnet release. Each line is an atomic, testable behavi
 
 ### Settlement & Oracles (SETTLE)
 
-- [ ] **SETTLE-01**: `settle(callId)` is permissionless — anyone can call (relayer rotation handles gas incentives) (§12.4)
+- [x] **SETTLE-01**: `settle(callId)` is permissionless — anyone can call (relayer rotation handles gas incentives) (§12.4)
 - [x] **SETTLE-02**: `settle` is idempotent — second call when status != Live reverts `AlreadySettled(callId)` cleanly (§12.4, App.A.1)
 - [x] **SETTLE-03**: `settle` reverts `CallNotExpired(expiry, now)` when called before expiry (§12.4)
-- [ ] **SETTLE-04**: `settle` reverts `Paused` under emergency pause — new outcomes cannot be written while paused (§10.3, §12.4)
+- [x] **SETTLE-04**: `settle` reverts `Paused` under emergency pause — new outcomes cannot be written while paused (§10.3, §12.4)
 - [x] **SETTLE-05**: All 14 steps of `settle` execute atomically — any revert rolls back the entire transaction (§12.4)
-- [ ] **SETTLE-06**: SettlementManager dispatches to the correct oracle adapter based on `call.marketType` and `call.eventSubtype` (§12.4)
-- [ ] **SETTLE-07**: Pyth feed reads use `PythUpgradable.getPriceNoOlderThan(priceId, 60)` — 60-second freshness window (avoids single-block MEV) (§13.1)
+- [x] **SETTLE-06**: SettlementManager dispatches to the correct oracle adapter based on `call.marketType` and `call.eventSubtype` (§12.4)
+- [x] **SETTLE-07**: Pyth feed reads use `PythUpgradable.getPriceNoOlderThan(priceId, 60)` — 60-second freshness window (avoids single-block MEV) (§13.1)
 - [x] **SETTLE-08**: Pyth confidence threshold is locked at `confidence × 200 <= price` — confidence interval ≤ 0.5% of price (§13.1, App.A.1)
-- [ ] **SETTLE-09**: On Pyth confidence wide read, settlement emits `SettlementDelayed(callId, "PYTH_CONFIDENCE_WIDE", retryAfter=60s)` and returns early (no full revert) (§12.4 step 5, §13.1)
-- [ ] **SETTLE-10**: Relayer retries Pyth read every 60 seconds for up to 30 attempts (30-minute window) (§13.1, App.A.1)
-- [ ] **SETTLE-11**: After 30 failed retries, settlement falls into the standard 24h dispute window with reason "oracle data ambiguous" (§13.1, §13.7)
-- [ ] **SETTLE-12**: Spread/vs reads load both `assetA` and `assetB` Pyth feeds within the same block; either failing confidence treats the spread as ambiguous (§13.1)
+- [x] **SETTLE-09**: On Pyth confidence wide read, settlement emits `SettlementDelayed(callId, "PYTH_CONFIDENCE_WIDE", retryAfter=60s)` and returns early (no full revert) (§12.4 step 5, §13.1)
+- [x] **SETTLE-10**: Relayer retries Pyth read every 60 seconds for up to 30 attempts (30-minute window) (§13.1, App.A.1)
+- [x] **SETTLE-11**: After 30 failed retries, settlement falls into the standard 24h dispute window with reason "oracle data ambiguous" (§13.1, §13.7)
+- [x] **SETTLE-12**: Spread/vs reads load both `assetA` and `assetB` Pyth feeds within the same block; either failing confidence treats the spread as ambiguous (§13.1)
 - [ ] **SETTLE-13**: NFT floor calls use Alchemy NFT API via off-chain relayer that polls `getNFTSales` + `getFloorPrice` at 5-minute intervals (§13.2)
 - [ ] **SETTLE-14**: Relayer computes 24-hour TWAP floor price off-chain from raw sales/listings data (§13.2)
 - [ ] **SETTLE-15**: Relayer signs the TWAP and submits via `submitNftFloor(callId, twapPriceWei, observationCount, evidenceHash)` to SettlementManager (§13.2)
@@ -270,11 +270,11 @@ Requirements for the v1 mainnet release. Each line is an atomic, testable behavi
 - [ ] **SETTLE-38**: SLA copy surfaced on the receipt page: "Settles within 24h after [expiry]" so users do not panic on ambiguous-read delay (§13.7)
 - [x] **SETTLE-39**: `forceSettle(callId, outcome)` escape hatch is owner-only and gated by `FORCE_SETTLE_COOLDOWN = 7 days` from `call.expiry`; reverts `ForceSettleCooldownActive(unlocksAt)` (§12.4, App.A.1)
 - [x] **SETTLE-40**: `forceSettle` emits BOTH `CallForceSettled(callId, outcome, owner)` AND `CallSettled(callId, outcome, 0)` for loud audit trail (§12.4)
-- [ ] **SETTLE-41**: Settlement step 7 updates caller rep via StylusScoreEngine wrapped in try/catch with Solidity baseline fallback (§12.4, §11.6)
-- [ ] **SETTLE-42**: If caller has exited per §8.7.3, settlement skips rep update for that caller entirely (§12.4 step 7, §8.7.3)
+- [x] **SETTLE-41**: Settlement step 7 updates caller rep via StylusScoreEngine wrapped in try/catch with Solidity baseline fallback (§12.4, §11.6)
+- [x] **SETTLE-42**: If caller has exited per §8.7.3, settlement skips rep update for that caller entirely (§12.4 step 7, §8.7.3)
 - [x] **SETTLE-43**: Settlement step 8 (duels): challenger outcome = inverse of caller outcome; both parties' rep deltas applied at ~1.5× standard movement; ChallengeEscrow status set to Settled with `winner` populated (§12.4, §5.3)
 - [x] **SETTLE-44**: Settlement step 9 (followers/faders): NO per-user rep updates (per §7.6); only mark call as Settled and unlock pull-pattern `claimPayout()`; keeps `settle()` gas O(1) regardless of participant count (§12.4, §7.6)
-- [ ] **SETTLE-45**: Settlement step 10: cold-start adjustment scales caller's delta to 25% before applying if real fade pool was zero (§12.4 step 10, §8.3)
+- [x] **SETTLE-45**: Settlement step 10: cold-start adjustment scales caller's delta to 25% before applying if real fade pool was zero (§12.4 step 10, §8.3)
 - [x] **SETTLE-46**: Settlement step 11: pay protocol fee (1%), creator fee (0.4% × volume-at-exit per Model B or full volume), route LP fee (0.3%) into the winning pool reserve (§8.6, §12.4)
 - [x] **SETTLE-47**: Settlement step 12: clear `activeDuplicateHashes[duplicateHash] = 0` so same call parameters can be reused (§12.4, §6.2)
 - [ ] **SETTLE-48**: Settlement step 14: emit `CallSettled(callId, outcome, priceDelta)` (§12.4, §12.1)
@@ -761,18 +761,18 @@ Which phases cover which requirements. Updated during roadmap creation by the ro
 | REP-27 | Phase 4 | Pending |
 | REP-28 | Phase 1 | Pending |
 | REP-29 | Phase 1 | Pending |
-| SETTLE-01 | Phase 4 | Pending |
+| SETTLE-01 | Phase 4 | Complete |
 | SETTLE-02 | Phase 4 | Complete |
 | SETTLE-03 | Phase 4 | Complete |
-| SETTLE-04 | Phase 4 | Pending |
+| SETTLE-04 | Phase 4 | Complete |
 | SETTLE-05 | Phase 4 | Complete |
-| SETTLE-06 | Phase 4 | Pending |
-| SETTLE-07 | Phase 4 | Pending |
+| SETTLE-06 | Phase 4 | Complete |
+| SETTLE-07 | Phase 4 | Complete |
 | SETTLE-08 | Phase 4 | Complete |
-| SETTLE-09 | Phase 4 | Pending |
-| SETTLE-10 | Phase 4 | Pending |
-| SETTLE-11 | Phase 4 | Pending |
-| SETTLE-12 | Phase 4 | Pending |
+| SETTLE-09 | Phase 4 | Complete |
+| SETTLE-10 | Phase 4 | Complete |
+| SETTLE-11 | Phase 4 | Complete |
+| SETTLE-12 | Phase 4 | Complete |
 | SETTLE-13 | Phase 4 | Pending |
 | SETTLE-14 | Phase 4 | Pending |
 | SETTLE-15 | Phase 4 | Pending |
@@ -801,11 +801,11 @@ Which phases cover which requirements. Updated during roadmap creation by the ro
 | SETTLE-38 | Phase 4 | Pending |
 | SETTLE-39 | Phase 4 | Complete |
 | SETTLE-40 | Phase 4 | Complete |
-| SETTLE-41 | Phase 4 | Pending |
-| SETTLE-42 | Phase 4 | Pending |
+| SETTLE-41 | Phase 4 | Complete |
+| SETTLE-42 | Phase 4 | Complete |
 | SETTLE-43 | Phase 4 | Complete |
 | SETTLE-44 | Phase 4 | Complete |
-| SETTLE-45 | Phase 4 | Pending |
+| SETTLE-45 | Phase 4 | Complete |
 | SETTLE-46 | Phase 4 | Complete |
 | SETTLE-47 | Phase 4 | Complete |
 | SETTLE-48 | Phase 4 | Pending |

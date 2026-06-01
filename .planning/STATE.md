@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: milestone
 status: executing
-stopped_at: Completed 04-01-PLAN.md
-last_updated: "2026-06-01T20:35:02.667Z"
+stopped_at: Completed 04-02-PLAN.md
+last_updated: "2026-06-01T21:04:48.438Z"
 last_activity: 2026-06-01
 progress:
   total_phases: 12
   completed_phases: 4
   total_plans: 40
-  completed_plans: 33
-  percent: 83
+  completed_plans: 34
+  percent: 85
 ---
 
 # Project State
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-05-21)
 ## Current Position
 
 Phase: 04 (settlementmanager-7-oracle-paths-solidity-baseline-rep-delta) — EXECUTING
-Plan: 2 of 9
+Plan: 3 of 9
 Status: Ready to execute
 Last activity: 2026-06-01
 
-Progress: [████████░░] 83%
+Progress: [█████████░] 85%
 
 ## Known Plan Issues — Phase 03 (RESOLVED at execution, 2026-06-01)
 
@@ -107,6 +107,7 @@ All 3 operator actions were run this session (user explicitly authorized "run al
 | Phase 03-challengeescrow P05 | 25min | 2 tasks | 7 files |
 | Phase 03-challengeescrow P07 | 11min | 2 tasks | 2 files |
 | Phase 04 P01 | 12min | 2 tasks | 12 files |
+| Phase 04 P02 | 22min | 2 tasks | 14 files |
 
 ## Accumulated Context
 
@@ -212,6 +213,11 @@ completed: 2026-05-29
 - [Phase ?]: Duel trending backer count falls back to pot-only — followTotalShares absent from subgraph; TODO Phase-7
 - [Phase ?]: D-08 thresholds locked as test-of-record in outcome-word.test.ts — CONTRARIAN HIT when fadeRealShare >= 0.5; COLD CALL when repDelta <= 3
 - [Phase ?]: D-09 public viewer rule: viewerIsWinningFader=false never returns FADED CORRECTLY — Wallet disconnected or no fade position shows caller-centric outcome word only
+- [Phase 04-02]: settle() decomposed into _dispatchOracle+_computeRepDelta+_settleDuels+_finalize sub-functions to avoid Solidity 16-slot stack-too-deep compiler error
+- [Phase 04-02]: updateOutcomeForDispute additive seam added to CallRegistry (beyond clearDuplicateHash) for resolveDispute to update CR outcome after dispute reversal
+- [Phase 04-02]: IPyth.sol created as local interface stub (pyth-sdk-solidity not installed as forge lib) -- sourced from @pythnetwork/pyth-sdk-solidity@4.3.1 spec
+- [Phase 04-02]: IStylusScoreEngine.sol is the authoritative Phase-5 interface lock -- Phase 5 MUST implement compute_rep_change(uint128,uint8,uint8,bool,uint256) returns (int32) exactly
+- [Phase 04-02]: applySettlement CALL-41 cold-start path must zero fadeReserve[callId] (not just fadeSeedVirtual) so getFadeRealReserve returns 0 post-settlement
 
 ## Performance
 
@@ -345,6 +351,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-06-01T20:35:02.649Z
+Last session: 2026-06-01T21:04:48.423Z
 Stopped at: Completed 04-01-PLAN.md
 Resume file: None
