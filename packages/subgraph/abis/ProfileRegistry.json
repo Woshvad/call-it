@@ -163,6 +163,25 @@
   },
   {
     "type": "function",
+    "name": "globalRep",
+    "inputs": [
+      {
+        "name": "user",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint128",
+        "internalType": "uint128"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "linkFarcaster",
     "inputs": [
       {
@@ -398,7 +417,7 @@
         "internalType": "address"
       },
       {
-        "name": "",
+        "name": "isWinner",
         "type": "bool",
         "internalType": "bool"
       },

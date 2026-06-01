@@ -146,6 +146,39 @@
   },
   {
     "type": "function",
+    "name": "applySettlement",
+    "inputs": [
+      {
+        "name": "callId",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "outcome",
+        "type": "uint8",
+        "internalType": "uint8"
+      },
+      {
+        "name": "protocolFeeAmt",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "creatorFeeAmt",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "lpFeeAmt",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
     "name": "callRegistry",
     "inputs": [],
     "outputs": [
@@ -213,7 +246,7 @@
     "name": "claimPayout",
     "inputs": [
       {
-        "name": "",
+        "name": "callId",
         "type": "uint256",
         "internalType": "uint256"
       }
@@ -569,6 +602,25 @@
   },
   {
     "type": "function",
+    "name": "getFadeRealReserve",
+    "inputs": [
+      {
+        "name": "callId",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "getTvl",
     "inputs": [],
     "outputs": [
@@ -671,6 +723,19 @@
   },
   {
     "type": "function",
+    "name": "setSettlementManager",
+    "inputs": [
+      {
+        "name": "newManager",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
     "name": "setTreasury",
     "inputs": [
       {
@@ -681,6 +746,38 @@
     ],
     "outputs": [],
     "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "settlementApplied",
+    "inputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "bool",
+        "internalType": "bool"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "settlementManager",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
   },
   {
     "type": "function",
@@ -873,6 +970,31 @@
   },
   {
     "type": "event",
+    "name": "PayoutClaimed",
+    "inputs": [
+      {
+        "name": "callId",
+        "type": "uint256",
+        "indexed": true,
+        "internalType": "uint256"
+      },
+      {
+        "name": "recipient",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "amount",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
     "name": "PoolInitialized",
     "inputs": [
       {
@@ -935,6 +1057,31 @@
   },
   {
     "type": "event",
+    "name": "SettlementApplied",
+    "inputs": [
+      {
+        "name": "callId",
+        "type": "uint256",
+        "indexed": true,
+        "internalType": "uint256"
+      },
+      {
+        "name": "outcome",
+        "type": "uint8",
+        "indexed": false,
+        "internalType": "uint8"
+      },
+      {
+        "name": "totalPool",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
     "name": "Unpaused",
     "inputs": [
       {
@@ -945,6 +1092,11 @@
       }
     ],
     "anonymous": false
+  },
+  {
+    "type": "error",
+    "name": "AlreadyClaimed",
+    "inputs": []
   },
   {
     "type": "error",
@@ -991,6 +1143,11 @@
   {
     "type": "error",
     "name": "ExpectedPause",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "NoPayoutAvailable",
     "inputs": []
   },
   {
@@ -1050,6 +1207,11 @@
         "internalType": "address"
       }
     ]
+  },
+  {
+    "type": "error",
+    "name": "SettlementAlreadyApplied",
+    "inputs": []
   },
   {
     "type": "error",

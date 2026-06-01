@@ -279,6 +279,19 @@
   },
   {
     "type": "function",
+    "name": "clearDuplicateHash",
+    "inputs": [
+      {
+        "name": "h",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
     "name": "computeCallerExitPenalty",
     "inputs": [
       {
@@ -785,6 +798,24 @@
     "type": "function",
     "name": "unpause",
     "inputs": [],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "updateOutcomeForDispute",
+    "inputs": [
+      {
+        "name": "callId",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "newOutcome",
+        "type": "uint8",
+        "internalType": "enum ICallRegistry.Outcome"
+      }
+    ],
     "outputs": [],
     "stateMutability": "nonpayable"
   },
