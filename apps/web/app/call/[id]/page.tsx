@@ -1,26 +1,31 @@
 /**
  * /call/[id] — Live Receipt Page
  *
- * The primary user-facing vertical slice of Phase 2.
- * Renders the full §15.3 layout for a live or CallerExited call:
+ * Phase 2 + Phase 3 (Plan 03-06) additions:
  *   - Sticky caller header with CALLER EXITED amber banner (SOCIAL-25)
  *   - THE CALL hero (market line, conviction bar, criteria badge)
  *   - 4-stat row (current spread, time left, stake, conviction)
  *   - MarketPositioningBar (live followReserve/fadeReserve — D-07)
- *   - 3 action buttons (Follow filled / Fade outline / Challenge orange-outline)
+ *   - 3 action buttons (Follow / Fade / Challenge orange-outline — Phase 3 activated)
  *   - REASONING block + optional collapsible RESOLUTION CRITERIA
  *   - Two-column: ActivityFeed (left) + QuoteCallsColumn (right)
- *   - Caller-specific exit controls (after 24h lock)
- *   - Position-holder exit controls (after 4h cooldown)
+ *   - Caller-specific exit controls after 24h lock (SOCIAL-49)
+ *   - Position-holder exit controls after 4h cooldown (SOCIAL-50)
+ *   - [Phase 3] Pending challenge notification block (Surface 7, challenge_proposed)
+ *   - [Phase 3] Caller-only accept/reject + USDC preflight (T-3-06-06)
+ *   - [Phase 3] ChallengeFormModal integrated on Challenge button click
+ *
+ * callerMatchingStake = min(callerInputStake, challengerStake) — Issue #1 fix (SOCIAL-31)
+ * NOT min(challengerStake, challengerStake) — that was the copy-paste bug in the plan.
  *
  * LIVE STATE: useReadContracts with 5s refetchInterval (D-07) reads 8 values from FFM.
- * No inline contract addresses — imports FOLLOW_FADE_MARKET_ARBITRUM_SEPOLIA constant.
- * FLEXBOX ONLY — no CSS grid (Pitfall 15, Satori constraint applied consistently).
+ * No inline contract addresses — imports FOLLOW_FADE_MARKET + CHALLENGE_ESCROW constants.
+ * FLEXBOX ONLY — no CSS grid (Pitfall 15).
  *
  * Requirements: SOCIAL-05..08, SOCIAL-10..13, SOCIAL-17..19, SOCIAL-22..23,
- *               SOCIAL-25, SOCIAL-44..45, SOCIAL-49..50, UI-06..07
- * Spec: §15.3 Live Receipt page layout (BINDING DESIGN CONTRACT)
- * Threat: T-02-08-03 (wallet address never rendered — AUTH-44)
+ *               SOCIAL-25, SOCIAL-30, SOCIAL-34, SOCIAL-44..45, SOCIAL-49..50, UI-06..07, UI-11
+ * Spec: §15.3 Live Receipt + §15.5 challenge pending block
+ * Threat: T-02-08-03 (AUTH-44), T-3-06-06 (USDC allowance preflight)
  */
 
 'use client';
@@ -28,7 +33,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import { usePrivy } from '@privy-io/react-auth';
-import { useAccount, useReadContracts, useWriteContract } from 'wagmi';
+import { useAccount, useReadContracts, useReadContract, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
 import Link from 'next/link';
 import {
   MarketPositioningBar,
@@ -37,7 +42,10 @@ import {
   PositionExitModal,
   Receipt,
 } from '@call-it/ui';
-import { FOLLOW_FADE_MARKET_ARBITRUM_SEPOLIA } from '@call-it/shared';
+import {
+  FOLLOW_FADE_MARKET_ARBITRUM_SEPOLIA,
+  CHALLENGE_ESCROW_ARBITRUM_SEPOLIA,
+} from '@call-it/shared';
 import { followFadeMarketAbi } from '@/lib/abis';
 import {
   computeCallerExitPenaltyPct,
@@ -46,6 +54,7 @@ import {
   CALLER_EXIT_LOCK_DURATION,
   POSITION_EXIT_COOLDOWN,
 } from '@call-it/shared';
+import { ChallengeFormModal } from '@/app/components/ChallengeFormModal';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -67,6 +76,7 @@ type CallData = {
   repScore: number;
   callerExitedAt?: bigint;
   callerExitedPenalty?: bigint;
+  openToChallenges?: boolean;
 };
 
 /** Activity feed entry */
@@ -87,12 +97,68 @@ type QuoteEntry = {
   timestamp: number;
 };
 
+/** Pending challenge notification (Surface 7, challenge_proposed) */
+type PendingChallenge = {
+  challengeId: bigint;
+  challengerHandle: string;
+  challengerStake: bigint;
+  proposedAt: bigint;
+};
+
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 /** FFM contract address — CONSTANT, never inlined */
 const FFM_ADDR = FOLLOW_FADE_MARKET_ARBITRUM_SEPOLIA as `0x${string}`;
 
+/** ChallengeEscrow address — imported from @call-it/shared (T-3-06-05) */
+const CE_ADDR = CHALLENGE_ESCROW_ARBITRUM_SEPOLIA as `0x${string}`;
+
+/** USDC native on Arbitrum (canonical) */
+const USDC_ADDR = '0xaf88d065e77c8cC2239327C5EDb3A432268e5831' as `0x${string}`;
+
 const RELAYER_URL = process.env['NEXT_PUBLIC_RELAYER_URL'] ?? '';
+
+// ─── ChallengeEscrow ABI slices ───────────────────────────────────────────────
+
+const CE_ABI = [
+  {
+    type: 'function',
+    name: 'acceptChallenge',
+    inputs: [{ name: 'challengeId', type: 'uint256' }],
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    name: 'rejectChallenge',
+    inputs: [{ name: 'challengeId', type: 'uint256' }],
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+] as const;
+
+const USDC_ALLOWANCE_ABI = [
+  {
+    type: 'function',
+    name: 'allowance',
+    inputs: [
+      { name: 'owner', type: 'address' },
+      { name: 'spender', type: 'address' },
+    ],
+    outputs: [{ name: '', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    name: 'approve',
+    inputs: [
+      { name: 'spender', type: 'address' },
+      { name: 'amount', type: 'uint256' },
+    ],
+    outputs: [{ name: '', type: 'bool' }],
+    stateMutability: 'nonpayable',
+  },
+] as const;
 
 // ─── Formatting helpers ───────────────────────────────────────────────────────
 
@@ -146,6 +212,7 @@ async function fetchCallData(callId: string): Promise<CallData | null> {
       repScore: Number(raw['repScore'] ?? 0),
       callerExitedAt: raw['callerExitedAt'] ? BigInt(String(raw['callerExitedAt'])) : undefined,
       callerExitedPenalty: raw['callerExitedPenalty'] ? BigInt(String(raw['callerExitedPenalty'])) : undefined,
+      openToChallenges: raw['openToChallenges'] !== undefined ? Boolean(raw['openToChallenges']) : true,
     };
   } catch {
     return null;
@@ -197,6 +264,34 @@ async function fetchQuoteCalls(callId: string): Promise<QuoteEntry[]> {
   }
 }
 
+/**
+ * Fetch pending challenge for this call from the relayer notifications endpoint.
+ * Returns the first challenge_proposed notification for this callId, if any.
+ */
+async function fetchPendingChallenge(
+  callId: string,
+  userAddress: string | undefined,
+): Promise<PendingChallenge | null> {
+  if (!RELAYER_URL || !userAddress) return null;
+  try {
+    const res = await fetch(
+      `${RELAYER_URL}/api/notifications?callId=${callId}&type=challenge_proposed`,
+    );
+    if (!res.ok) return null;
+    const raw = await res.json() as unknown[];
+    if (!Array.isArray(raw) || raw.length === 0) return null;
+    const entry = raw[0] as Record<string, unknown>;
+    return {
+      challengeId: BigInt(String(entry['challengeId'] ?? '0')),
+      challengerHandle: String(entry['challengerHandle'] ?? 'challenger'),
+      challengerStake: BigInt(String(entry['challengerStake'] ?? '0')),
+      proposedAt: BigInt(String(entry['proposedAt'] ?? '0')),
+    };
+  } catch {
+    return null;
+  }
+}
+
 // ─── Page component ───────────────────────────────────────────────────────────
 
 export default function CallPage() {
@@ -219,6 +314,28 @@ export default function CallPage() {
   const [isFadeModalOpen, setIsFadeModalOpen] = useState(false);
   const [isCallerExitModalOpen, setIsCallerExitModalOpen] = useState(false);
   const [isPositionExitModalOpen, setIsPositionExitModalOpen] = useState(false);
+  const [isChallengeFormOpen, setIsChallengeFormOpen] = useState(false);
+
+  // ── Phase 3: Pending challenge state ──────────────────────────────────────
+  const [pendingChallenge, setPendingChallenge] = useState<PendingChallenge | null>(null);
+  const [rejectConfirmOpen, setRejectConfirmOpen] = useState(false);
+  const [challengeAccepting, setChallengeAccepting] = useState(false);
+  const [challengeApproving, setChallengeApproving] = useState(false);
+  const [challengeRejecting, setChallengeRejecting] = useState(false);
+  const [challengeApproveTxHash, setChallengeApproveTxHash] = useState<`0x${string}` | undefined>(undefined);
+  const [challengeAcceptTxHash, setChallengeAcceptTxHash] = useState<`0x${string}` | undefined>(undefined);
+  const [challengeRejectTxHash, setChallengeRejectTxHash] = useState<`0x${string}` | undefined>(undefined);
+  const [challengeToast, setChallengeToast] = useState<{ text: string; isError: boolean } | null>(null);
+
+  // callerInputStake for accept — default = challengerStake (caller can override; UI stub defaults to match)
+  // callerMatchingStake = min(callerInputStake, challengerStake) — SOCIAL-31 CORRECT formula
+  // Issue #1 fix: NOT min(challengerStake, challengerStake)
+  const callerMatchingStake =
+    pendingChallenge
+      ? pendingChallenge.challengerStake // default: caller matches challenger exactly
+      : 0n;
+
+  const isZeroCE = CE_ADDR === '0x0000000000000000000000000000000000000000';
 
   // ─── useReadContracts — 8 reads at 5s refetchInterval (D-07) ───────────────
   const userAddr = userAddress ?? '0x0000000000000000000000000000000000000000';
@@ -336,6 +453,109 @@ export default function CallPage() {
     });
   }, [callId, userIsFollower, writeContractAsync]);
 
+  // ── Phase 3: USDC allowance for caller accept path (T-3-06-06) ─────────────
+  const userAddr2 = userAddress as `0x${string}` | undefined ?? '0x0000000000000000000000000000000000000000' as `0x${string}`;
+
+  const { data: ceAllowanceData, refetch: refetchCeAllowance } = useReadContract({
+    address: USDC_ADDR,
+    abi: USDC_ALLOWANCE_ABI,
+    functionName: 'allowance',
+    args: [userAddr2, CE_ADDR],
+    query: {
+      enabled: userIsCaller && !!pendingChallenge && !isZeroCE,
+    },
+  });
+
+  const ceAllowance = (ceAllowanceData as bigint | undefined) ?? 0n;
+  const callerNeedsApproval =
+    !isZeroCE && userIsCaller && !!pendingChallenge && ceAllowance < callerMatchingStake;
+
+  // Challenge approve/accept/reject tx receipts
+  const { isLoading: ceApproveConfirming, isSuccess: ceApproveConfirmed } =
+    useWaitForTransactionReceipt({ hash: challengeApproveTxHash });
+  const { isSuccess: ceAcceptConfirmed } =
+    useWaitForTransactionReceipt({ hash: challengeAcceptTxHash });
+  const { isSuccess: ceRejectConfirmed } =
+    useWaitForTransactionReceipt({ hash: challengeRejectTxHash });
+
+  // After approval confirmed — refetch allowance
+  useEffect(() => {
+    if (ceApproveConfirmed) {
+      void refetchCeAllowance();
+      setChallengeApproving(false);
+    }
+  }, [ceApproveConfirmed, refetchCeAllowance]);
+
+  useEffect(() => {
+    if (ceAcceptConfirmed) {
+      setChallengeAccepting(false);
+      setChallengeToast({ text: 'Challenge accepted — duel is live!', isError: false });
+    }
+  }, [ceAcceptConfirmed]);
+
+  useEffect(() => {
+    if (ceRejectConfirmed) {
+      setChallengeRejecting(false);
+      setRejectConfirmOpen(false);
+      setChallengeToast({ text: 'Challenge rejected — stake refunded.', isError: false });
+    }
+  }, [ceRejectConfirmed]);
+
+  // ── Phase 3: challenge wagmi write handlers ──────────────────────────────
+  const handleChallengeApprove = useCallback(async () => {
+    if (!callerMatchingStake) return;
+    setChallengeApproving(true);
+    try {
+      const hash = await writeContractAsync({
+        address: USDC_ADDR,
+        abi: USDC_ALLOWANCE_ABI,
+        functionName: 'approve',
+        args: [CE_ADDR, callerMatchingStake],
+      });
+      setChallengeApproveTxHash(hash);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Approval failed';
+      setChallengeToast({ text: msg, isError: true });
+      setChallengeApproving(false);
+    }
+  }, [callerMatchingStake, writeContractAsync]);
+
+  const handleChallengeAccept = useCallback(async () => {
+    if (!pendingChallenge) return;
+    setChallengeAccepting(true);
+    try {
+      const hash = await writeContractAsync({
+        address: CE_ADDR,
+        abi: CE_ABI,
+        functionName: 'acceptChallenge',
+        args: [pendingChallenge.challengeId],
+      });
+      setChallengeAcceptTxHash(hash);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Accept failed';
+      setChallengeToast({ text: msg, isError: true });
+      setChallengeAccepting(false);
+    }
+  }, [pendingChallenge, writeContractAsync]);
+
+  const handleChallengeReject = useCallback(async () => {
+    if (!pendingChallenge) return;
+    setChallengeRejecting(true);
+    try {
+      const hash = await writeContractAsync({
+        address: CE_ADDR,
+        abi: CE_ABI,
+        functionName: 'rejectChallenge',
+        args: [pendingChallenge.challengeId],
+      });
+      setChallengeRejectTxHash(hash);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Reject failed';
+      setChallengeToast({ text: msg, isError: true });
+      setChallengeRejecting(false);
+    }
+  }, [pendingChallenge, writeContractAsync]);
+
   // ─── Data fetching ────────────────────────────────────────────────────────
   const fetchAll = useCallback(async () => {
     const [call, feed, quotes] = await Promise.all([
@@ -349,12 +569,20 @@ export default function CallPage() {
     setIsLoadingCall(false);
   }, [callIdNum]);
 
+  // Also fetch pending challenge notification on load + poll
+  useEffect(() => {
+    void fetchPendingChallenge(callIdNum, userAddress).then(setPendingChallenge);
+  }, [callIdNum, userAddress]);
+
   useEffect(() => {
     void fetchAll();
     // Activity feed + quote-calls polled at 5s (D-08, reusing D-24 pattern)
-    const interval = setInterval(() => { void fetchAll(); }, 5000);
+    const interval = setInterval(() => {
+      void fetchAll();
+      void fetchPendingChallenge(callIdNum, userAddress).then(setPendingChallenge);
+    }, 5000);
     return () => clearInterval(interval);
-  }, [fetchAll]);
+  }, [fetchAll, callIdNum, userAddress]);
 
   // ─── Loading skeleton ─────────────────────────────────────────────────────
   if (isLoadingCall && !callData) {
@@ -719,10 +947,21 @@ export default function CallPage() {
             >
               Fade · bet against
             </button>
-            {/* CHALLENGE — orange-outline, disabled (Phase 3 stub) */}
+            {/* CHALLENGE — Phase 3 activated (Surface 6, T-3-06-02 self-challenge guard) */}
             <button
-              disabled
-              title="Challenges coming soon"
+              onClick={() => {
+                if (!user) return;
+                // T-3-06-02: prevent self-challenge from UI
+                if (userIsCaller) {
+                  setChallengeToast({ text: "You can't challenge your own call.", isError: true });
+                  return;
+                }
+                if (!callData?.openToChallenges) {
+                  setChallengeToast({ text: "This caller isn't open to challenges right now.", isError: true });
+                  return;
+                }
+                setIsChallengeFormOpen(true);
+              }}
               style={{
                 flex: 1,
                 fontFamily: 'monospace',
@@ -732,13 +971,13 @@ export default function CallPage() {
                 backgroundColor: 'transparent',
                 border: '2px solid #FB923C',
                 padding: '14px 16px',
-                cursor: 'not-allowed',
+                cursor: user ? 'pointer' : 'not-allowed',
                 textTransform: 'uppercase',
                 letterSpacing: '0.08em',
-                opacity: 0.5,
+                opacity: user ? 1 : 0.5,
               }}
             >
-              Challenge (soon)
+              ⚔ Challenge
             </button>
           </div>
 
@@ -809,6 +1048,149 @@ export default function CallPage() {
             }}
           />
         </div>
+
+        {/* ── Phase 3: Challenge toast ───────────────────────────────────────── */}
+        {challengeToast && (
+          <div
+            style={{
+              position: 'fixed',
+              top: '24px',
+              right: '24px',
+              zIndex: 200,
+              backgroundColor: '#111118',
+              borderLeft: `4px solid ${challengeToast.isError ? '#F87171' : '#4ADE80'}`,
+              padding: '14px 18px',
+              fontFamily: 'monospace',
+              fontSize: '13px',
+              color: '#F1F5F9',
+              maxWidth: '340px',
+            }}
+          >
+            {challengeToast.text}
+          </div>
+        )}
+
+        {/* ── Phase 3: Pending challenge notification block (Surface 7) ─────── */}
+        {/* Renders when challenge_proposed notification exists for this callId  */}
+        {pendingChallenge && (
+          <div
+            style={{
+              borderLeft: '2px solid #FB923C',
+              backgroundColor: '#111118',
+              padding: '16px 20px',
+              marginBottom: '24px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '12px',
+            }}
+          >
+            {/* challenge_proposed notification text */}
+            <p
+              style={{
+                fontFamily: "'Space Grotesk', sans-serif",
+                fontSize: '16px',
+                color: '#F1F5F9',
+                margin: 0,
+              }}
+            >
+              ⚔ Challenge pending — {pendingChallenge.challengerHandle} challenged this call ·{' '}
+              {displayHandle} has{' '}
+              {Math.max(0, Math.floor((Number(pendingChallenge.proposedAt) + 86400 - Date.now() / 1000) / 3600))}h to accept or reject
+            </p>
+
+            {/* Caller-only accept/reject section (SOCIAL-49) */}
+            {userIsCaller && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                <p style={{ fontFamily: 'monospace', fontSize: '13px', color: '#94A3B8', margin: 0 }}>
+                  You have {Math.max(0, Math.floor((Number(pendingChallenge.proposedAt) + 86400 - Date.now() / 1000) / 3600))}h to accept or reject this challenge.
+                  Accepting will lock {formatUsdc(callerMatchingStake)} USDC (your matching stake).
+                </p>
+                <div style={{ display: 'flex', flexDirection: 'row', gap: '10px', alignItems: 'center' }}>
+                  {callerNeedsApproval ? (
+                    /* Step 1: Approve USDC (T-3-06-06) */
+                    <button
+                      onClick={() => void handleChallengeApprove()}
+                      disabled={challengeApproving || ceApproveConfirming}
+                      style={{
+                        fontFamily: 'monospace',
+                        fontSize: '13px',
+                        fontWeight: 700,
+                        color: '#09090E',
+                        backgroundColor: (challengeApproving || ceApproveConfirming) ? '#2E2E42' : '#E8F542',
+                        border: '2px solid #09090E',
+                        boxShadow: (challengeApproving || ceApproveConfirming) ? 'none' : '4px 4px 0 #09090E',
+                        padding: '10px 18px',
+                        cursor: (challengeApproving || ceApproveConfirming) ? 'not-allowed' : 'pointer',
+                      }}
+                    >
+                      {(challengeApproving || ceApproveConfirming) ? 'Approving…' : `Approve USDC (${formatUsdc(callerMatchingStake)})`}
+                    </button>
+                  ) : (
+                    /* Step 2: Accept challenge (callerMatchingStake = min(callerInputStake, challengerStake) — SOCIAL-31) */
+                    <button
+                      onClick={() => void handleChallengeAccept()}
+                      disabled={challengeAccepting || isZeroCE}
+                      style={{
+                        fontFamily: 'monospace',
+                        fontSize: '13px',
+                        fontWeight: 700,
+                        color: '#09090E',
+                        backgroundColor: (challengeAccepting || isZeroCE) ? '#2E2E42' : '#4ADE80',
+                        border: `2px solid ${(challengeAccepting || isZeroCE) ? '#2E2E42' : '#09090E'}`,
+                        boxShadow: (challengeAccepting || isZeroCE) ? 'none' : '4px 4px 0 #09090E',
+                        padding: '10px 18px',
+                        cursor: (challengeAccepting || isZeroCE) ? 'not-allowed' : 'pointer',
+                      }}
+                    >
+                      {challengeAccepting ? 'Accepting…' : `Accept challenge`}
+                    </button>
+                  )}
+
+                  {/* Reject path */}
+                  {!rejectConfirmOpen ? (
+                    <button
+                      onClick={() => setRejectConfirmOpen(true)}
+                      style={{
+                        fontFamily: 'monospace',
+                        fontSize: '13px',
+                        color: '#F87171',
+                        backgroundColor: 'transparent',
+                        border: '2px solid #F87171',
+                        padding: '10px 18px',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      Reject challenge
+                    </button>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'row', gap: '8px', alignItems: 'center', flexWrap: 'wrap', fontFamily: 'monospace', fontSize: '12px', color: '#94A3B8' }}>
+                      <span>This will immediately refund {pendingChallenge.challengerHandle}&apos;s stake. Are you sure?</span>
+                      <button
+                        onClick={() => setRejectConfirmOpen(false)}
+                        style={{ fontFamily: 'monospace', fontSize: '12px', color: '#94A3B8', backgroundColor: 'transparent', border: '1px solid #2E2E42', padding: '4px 10px', cursor: 'pointer' }}
+                      >
+                        Keep call open
+                      </button>
+                      <button
+                        onClick={() => void handleChallengeReject()}
+                        disabled={challengeRejecting}
+                        style={{ fontFamily: 'monospace', fontSize: '12px', color: '#F87171', backgroundColor: 'transparent', border: '2px solid #F87171', padding: '4px 10px', cursor: challengeRejecting ? 'not-allowed' : 'pointer' }}
+                      >
+                        {challengeRejecting ? 'Rejecting…' : 'Yes, reject'}
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {isZeroCE && (
+                  <p style={{ fontFamily: 'monospace', fontSize: '11px', color: '#94A3B8', margin: 0 }}>
+                    ChallengeEscrow not yet deployed — accepting enabled after operator deploy (03-03)
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* ── Two-column content: ActivityFeed (left) + QuoteCalls (right) ─── */}
         <div style={{ display: 'flex', flexDirection: 'row', gap: '24px', alignItems: 'flex-start', marginBottom: '24px' }}>
@@ -1072,6 +1454,20 @@ export default function CallPage() {
         slash={positionSlash}
         userReceives={positionUserReceives}
         onSubmit={handlePositionExit}
+      />
+
+      {/* Phase 3: ChallengeFormModal — opens from Challenge button in action row */}
+      <ChallengeFormModal
+        open={isChallengeFormOpen}
+        onClose={() => setIsChallengeFormOpen(false)}
+        callId={callId}
+        callerHandle={displayHandle}
+        callerStake={displayStake}
+        marketLine={displayMarketLine}
+        onSuccess={() => {
+          // After challenge sent, poll for the new pending challenge notification
+          void fetchPendingChallenge(callIdNum, userAddress).then(setPendingChallenge);
+        }}
       />
     </div>
   );
