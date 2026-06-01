@@ -328,6 +328,7 @@ None yet.
 
 - Operational budget items the spec is silent on (~$175/mo recurring + ~$150-300 upfront): X API Basic tier ($100-200/mo), The Graph publishing GRT (~$100-300 upfront), Pinata ($20/mo), Redis ($5/mo), Better Stack ($25/mo), Pyth update VAA ETH (~$10/day at 1000 settles). Pre-deploy budget approval needed before Phase 6 mainnet promotion.
 - Top 3 inherited risks: Stylus alpha-line crate stability (`openzeppelin-stylus@0.3.0`), X API Basic tier ongoing cost volatility, owner-resolved disputes as governance attack surface (mitigated in v1 via Phase 6 multisig + public dispute log + owner self-exclusion).
+- **🔴 Phase 6 entry blocker — Sepolia staging gate unsatisfiable for money paths.** The mandated USDC `0xaf88d065…e5831` (Arbitrum One) has NO code on Sepolia, so all stake transfers revert there → the spec's "≥48h Sepolia staging gate with seeded calls/follows/settles/duels/disputes" can't run as configured. Decision recorded in **`.planning/decisions/0001-sepolia-staging-usdc.md`**: recommend (c) mainnet-fork for money-path validation (zero contract change) + keep live Sepolia for integration; (b) Circle's official Sepolia USDC `0x75faf114…AA4d` (verified live, 6-dp, faucetable) as the opt-in live-Sepolia path via a chainid-gated USDC + redeploy + security review in Phase 6 (do NOT weaken the mainnet guard); (a) custom mock rejected. Not yet implemented (touches a LOCKED invariant — needs sign-off).
 
 ## Deferred Items
 
