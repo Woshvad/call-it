@@ -57,16 +57,20 @@ const challengeEscrowAbi = [
         name: '',
         type: 'tuple',
         internalType: 'struct IChallengeEscrow.Challenge',
+        // Field names and ORDER must exactly match IChallengeEscrow.Challenge struct
+        // (viem decodes positionally -- wrong order = wrong values, CR-03 fix).
         components: [
           { name: 'callId', type: 'uint256', internalType: 'uint256' },
           { name: 'caller', type: 'address', internalType: 'address' },
           { name: 'challenger', type: 'address', internalType: 'address' },
           { name: 'callerStake', type: 'uint96', internalType: 'uint96' },
           { name: 'challengerStake', type: 'uint96', internalType: 'uint96' },
-          { name: 'status', type: 'uint8', internalType: 'enum IChallengeEscrow.ChallengeStatus' },
+          { name: 'proposedAt', type: 'uint64', internalType: 'uint64' },
           { name: 'winner', type: 'address', internalType: 'address' },
-          { name: 'createdAt', type: 'uint64', internalType: 'uint64' },
-          { name: 'resolvedAt', type: 'uint64', internalType: 'uint64' },
+          { name: 'status', type: 'uint8', internalType: 'enum IChallengeEscrow.ChallengeStatus' },
+          { name: 'callerClaimed', type: 'bool', internalType: 'bool' },
+          { name: 'challengerClaimed', type: 'bool', internalType: 'bool' },
+          { name: 'overageClaimed', type: 'bool', internalType: 'bool' },
         ],
       },
     ],
