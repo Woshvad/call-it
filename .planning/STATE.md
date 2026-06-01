@@ -25,21 +25,28 @@ See: .planning/PROJECT.md (updated 2026-05-21)
 
 ## Current Position
 
-Phase: 03 (challengeescrow) — EXECUTING
-Plan: 6 of 7
-Status: Ready to execute
-Last activity: 2026-06-01
+Phase: 03 (challengeescrow) — CODE COMPLETE, LIVE INFRA DEFERRED
+Plan: 7/7 code shipped; 3 operator actions pending (see "Deferred Live Infra (Phase 3)")
+Status: Code complete + code-review criticals fixed; phase NOT verified-complete until deferred infra closes
+Last activity: 2026-06-01 -- Phase 03 code + review fixes shipped
 
-Progress: [██████████] 100%
+Progress: [██████████] code 100%; live infra deferred
 
-## Known Plan Issues — Phase 03 (accepted as-is at planning, 2026-06-01)
+## Known Plan Issues — Phase 03 (RESOLVED at execution, 2026-06-01)
 
-Planning passed the requirements (22/22) + decision coverage gates. The plan-checker's 2nd pass surfaced 7 quality issues; operator chose **"Proceed as-is"** at the stall gate rather than a 3rd revision. These MUST be caught at execution — execute-phase / executor should fix inline:
+Planning accepted 7 plan-checker issues "as-is"; all were caught + handled at execution:
 
-1. **[BUG — fix on sight] `callerMatchingStake = min(challengerStake, challengerStake)`** in `03-06-PLAN.md` Task 2 (Live Receipt accept path) AND the same wrong formula in `03-02-PLAN.md` Task 1 `<action>` (the `<behavior>` block is correct). Correct form: `min(callerInputStake, challengerStake)` (caller's chosen amount, default = challengerStake). Both args identical drops the caller's input and breaks SOCIAL-31 asymmetric stake. The 03-06 Duel-page Task 1 formula is already correct — mirror it.
-2. **SOCIAL-46/47** (FollowFadeMarket `claimPayout` idempotency + CEI) are listed in 03-01/03-02 frontmatter but Phase 3 adds no covering task — the contract shipped in Phase 2. Treat as a regression-gate: run the existing `forge test --match-test` claimPayout idempotency/CEI tests during 03-01 and confirm green.
-3. **SOCIAL-49/50** (Receipt caller-exit-after-24h / position-exit-after-4h links) are mapped to 03-04/03-05 frontmatter but the actual Phase-3 surface is the 03-06 Live-Receipt pending-challenge/exit block — verify 03-06 delivers the exit-link UI.
-4. **Minor:** 03-VALIDATION.md frontmatter still `nyquist_compliant: false` + TBD task IDs; 03-07 may need `depends_on: [03-06]` if Duels-tab CallCards open the ChallengeFormModal; confirm Phase-2 subgraph `Call` entity exposes `followTotalShares`/`fadeTotalShares` for the 03-05 trending backer-count (else trending falls back to pot-only).
+1. ✅ **RESOLVED** — the `min(challengerStake, challengerStake)` formula bug was fixed on sight in BOTH `ChallengeEscrow.sol:206` (executor flagged + corrected) and the 03-06 accept paths (`min(callerInputStake, challengerStake)` + USDC preflight). 28/28 contract tests confirm asymmetric stakes (SOCIAL-31).
+2. ✅ **RESOLVED** — SOCIAL-46/47 handled as a regression gate: 111 existing Phase-2 contract tests confirmed green during 03-01.
+3. ✅ **RESOLVED** — SOCIAL-49/50 exit links confirmed delivered on the 03-06 Live-Receipt pending-challenge block.
+4. ✅ **RESOLVED** — 03-07 reuses the shared `ChallengeFormModal` from 03-06 (no dep gap); Phase-2 subgraph `Call` entity confirmed to lack `followTotalShares`/`fadeTotalShares` → trending worker falls back to pot-only with a Phase-7 TODO. (03-VALIDATION.md frontmatter nyquist_compliant flag left as a doc-only nicety.)
+
+## Code Review — Phase 03 (03-REVIEW.md, 2026-06-01)
+
+Standard-depth review of 24 source files: 6 critical / 11 warning / 5 info. **All 6 criticals + IN-05 fixed and verified** (commits `88b2597`→`18aac2a`):
+- CR-01 `settleDuel` nonReentrant; CR-02 `setSettlementManager` zero-guard (setter only — deploy-at-zero preserved); CR-03 OG-route ABI field/order; CR-04 duel-page pot = min()*2; CR-05 Duel-King sort DESC; CR-06 subgraph startBlock floor 272458674; IN-05 inline USDC literals → shared constant.
+- Verified: forge 28/28 GREEN, web build 0, relayer no-new-errors, subgraph build 0.
+- **Deferred warnings** (need LOCKED-interface change, subgraph schema change, or new tests): WR-03 (claimOverage error on symmetric), WR-04/06 (subgraph schema fields), WR-05/07..11 (notification status-change fanout, _pushOverage rollback test coverage, etc.). WR-01 was a false positive. See 03-REVIEW.md.
 
 ## Deferred Live Infra (Phase 2 — resume to close)
 
