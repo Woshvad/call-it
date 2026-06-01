@@ -1,10 +1,12 @@
 ---
 phase: 3
 slug: challengeescrow
-status: draft
+status: approved
 shadcn_initialized: false
 preset: none
 created: 2026-06-01
+revised: 2026-06-01
+reviewed_at: 2026-06-01
 ---
 
 # Phase 3 — UI Design Contract: ChallengeEscrow (1v1 Duel Surfaces)
@@ -43,38 +45,44 @@ created: 2026-06-01
 | xs | 4px | Icon gaps, badge inner padding, inline label gaps |
 | sm | 8px | Stat cell internal padding, tag gaps, badge-to-handle gap |
 | md | 16px | Card internal padding (compact), duel column gap from VS divider |
-| lg | 24px | Card padding standard (matches spec card-padding: 20–24px) |
+| lg | 24px | Card padding standard (matches spec card-padding: 20–24px); horizontal gutter either side of the VS divider |
 | xl | 32px | Between duel card sections (stat rows → consensus bar gap) |
 | 2xl | 48px | Section spacing on Duel page (hero → duel card gap) |
 | 3xl | 64px | Page-level spacing; Section spacing per spec §14.3 |
 
 Exceptions:
-- Duel page two-column card: columns use `flex: 1` with a `20px` horizontal gutter either side of the VS divider (centered at ~24px wide). Not a named token — derived from the neobrutalist centered-divider pattern.
-- 44px minimum touch target applies to all interactive badges, buttons, and CTA rows per UI accessibility baseline (not a spacing token — enforced at component level).
+- 44px minimum touch target applies to all interactive badges, buttons, and CTA rows per UI accessibility baseline (not a spacing token — enforced at component level). This is a multiple of 4 and acceptable.
 - OG card images: spacing values are inline style integers (Satori rejects Tailwind class names). Mirror the pixel values from this table directly as style props.
 
 ---
 
 ## Typography
 
-All sizes from spec §14.2. No deviations. Declared for this phase's new surfaces only — inherits all existing Phase 1/2 type treatments.
+All sizes derived from spec §14.2 and §14.6. Consolidated to 4 distinct sizes.
+No deviations. Declared for this phase's new surfaces only — inherits all existing Phase 1/2 type treatments.
+
+### Type Scale (4 distinct sizes)
 
 | Role | Size | Weight | Line Height | Font | Phase 3 Usage |
 |------|------|--------|-------------|------|---------------|
-| Display hero | 96px | 700 | 1.0 | Syne | Outcome word in Duel Settled OG card ("WINS") — stub as "VS" when active |
-| Display large | 64px | 700 | 1.0 | Syne | Asset pair "ARB / OP" THE MARKET hero on Duel page; "CALL IT" wordmark in OG card |
-| Display medium | 48px | 700 | 1.1 | Syne | Call statement in Duel page hero question line |
-| Headline | 32px | 600 | 1.2 | Space Grotesk | Section labels ("TRENDING DUEL", Duel tab headings) |
-| Subhead | 18–22px | 600 | 1.3 | Space Grotesk | Handle names in duel card columns; pot amount; "Side with [X]" CTAs |
-| Body | 14–16px | 400 | 1.5 | Space Grotesk | Stat row labels, Riding section items, filter chip labels, duel row copy |
-| Label / meta | 11–12px | 500 | 1.4 | Space Grotesk | Uppercase tracked-out section headers ("THE MARKET", "CALLER", "CHALLENGER", "MARKET CONSENSUS · LIVE"); letter-spacing 0.12em per §14.6 neobrutalist override |
-| Data / numeric | 13px | 400 | 1.4 | JetBrains Mono | Timestamps, transaction IDs, price values, pot amounts in monospace contexts |
-| Large data | 18px | 500 | 1.3 | JetBrains Mono | Stat cell numeric values (REP score, ACCURACY %, POT amount) |
+| Display | 64px | 700 | 1.0 | Syne | Asset pair "ARB / OP" hero on Duel page; "CALL IT" wordmark in OG card header; "WINS" / "VS" outcome word in Duel Settled OG card; duel column handle prominence (OG card only) |
+| Headline | 32px | 700 | 1.2 | Space Grotesk | Section labels ("TRENDING DUEL", duel tab headings, "CHALLENGE [handle]" modal title) |
+| Body | 16px | 400 | 1.5 | Space Grotesk | Caller/challenger handle names in duel card columns; question line on duel page hero; call statement text; stat row values (JetBrains Mono variant); CTA button labels; input field text; filter chip labels; "Side with X" CTA labels; all running copy |
+| Meta / Label / Data | 12px | 400 | 1.4 | Space Grotesk (labels) / JetBrains Mono (numeric data) | Uppercase tracked-out section headers ("THE MARKET", "CALLER", "CHALLENGER", "MARKET CONSENSUS · LIVE", "YOUR STAKE", "POT IF ACCEPTED"); timestamps; transaction IDs; price values; pot amounts; rep scores in feed rows; riding section items; Duels tab filter secondary text; all small badges (DUEL KING, ⚔ OPEN, TRENDING DUEL); VS divider text; USDC suffix in input; prefill labels; inline stake bounds messages; consensus bar percentage labels; stale pulse indicator; "—" placeholders; riding list handles/amounts |
 
-Typography rules:
-- Headlines: `font-weight: 600` minimum — never lighter than 500 anywhere in Phase 3 (§14.6).
-- Body labels in uppercase: `letter-spacing: 0.12em` (heavier than 0.08em default per neobrutalist override §14.6).
+### Weight System (2 weights only)
+
+| Weight | Value | All uses |
+|--------|-------|----------|
+| Regular | 400 | Body text, data values, meta/label copy, timestamps, running copy, prefill labels, filter chip labels (inactive), input field text |
+| Bold | 700 | Display text, headlines, section labels (uppercase tracked), CTA button labels, handle names everywhere, badge text (DUEL KING, ⚔ OPEN, TRENDING DUEL), "CALLER" / "CHALLENGER" column headers, "WINS" / "VS" in OG card |
+
+### Typography Rules
+
+- Uppercase labels: `letter-spacing: 0.12em` per §14.6 neobrutalist override. This applies to all 12px uppercase Space Grotesk labels ("THE MARKET", "CALLER", "CHALLENGER", "MARKET CONSENSUS · LIVE", "YOUR STAKE", "POT IF ACCEPTED", "LIVE SPREAD", "POT", "SETTLES IN", "ACTIVE DUELS", "RECENTLY SETTLED", "DUEL KING", "TRENDING DUEL", "BEST VIEWED ON DESKTOP").
+- JetBrains Mono at 12px: used for all numeric data (stat cell values, prices, timestamps, amounts) and all data in feed rows (pot size, time remaining). JetBrains Mono at 16px: used where a data value fills body-sized contexts (e.g. POT IF ACCEPTED value in challenge modal — keeps mono feel at readable size).
 - OG card type is inline style (Satori cannot use Tailwind class names). Mirror sizes/weights as numeric style props.
+- `display: flex` only — never `display: grid` — applies to all Phase 3 layouts including OG cards (Pitfall 15).
 
 ---
 
@@ -130,21 +138,21 @@ Destructive: `#F87171` (loss red) — used only on "loser dimmed" post-settle in
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│  ← Back (left)   duel #d/041 · arbitrum · LOCKED · 4d 06h  │  ← header bar 11px mono
+│  ← Back (left)   duel #d/041 · arbitrum · LOCKED · 4d 06h  │  ← header bar 12px mono
 │  2px #1E1E2E border bottom                                  │
 ├─────────────────────────────────────────────────────────────┤
-│                    THE MARKET                                │  ← 11px label 0.12em tracked
+│                    THE MARKET                                │  ← 12px label 0.12em tracked
 │                   ARB  /  OP                                 │  ← 64px Syne display
-│  Will ARB outperform OP by more than +5% in next 7 days?    │  ← 20px Space Grotesk
+│  Will ARB outperform OP by more than +5% in next 7 days?    │  ← 16px Space Grotesk body
 │  ┌──────────────┬──────────────┬──────────────┐             │
-│  │ LIVE SPREAD  │     POT      │  SETTLES IN  │             │  ← 11px labels
-│  │  $0.023      │ $1,500 · ... │  4d 06h      │             │  ← 18px JetBrains Mono
+│  │ LIVE SPREAD  │     POT      │  SETTLES IN  │             │  ← 12px labels 0.12em tracked
+│  │  $0.023      │ $1,500 · ... │  4d 06h      │             │  ← 16px JetBrains Mono
 │  └──────────────┴──────────────┴──────────────┘             │
 ├─────────────────────────────────────────────────────────────┤
 │  ┌─────────────────┐    VS    ┌─────────────────┐           │
-│  │ CALLER          │    ──    │ CHALLENGER      │           │  ← 11px label
+│  │ CALLER          │    ──    │ CHALLENGER      │           │  ← 12px label 0.12em tracked
 │  │ [avatar 40px]   │ divider  │ [avatar 40px]   │           │
-│  │ jaxon.eth       │  3px     │ degen_oracle    │           │  ← 18px handle
+│  │ jaxon.eth       │  3px     │ degen_oracle    │           │  ← 16px handle body weight+bold
 │  │ #E8F542         │  #2E2E42 │ #FB923C         │           │
 │  │ POSITION box    │          │ POSITION box    │           │
 │  │ ─────────────── │          │ ─────────────── │           │
@@ -153,7 +161,7 @@ Destructive: `#F87171` (loss red) — used only on "loser dimmed" post-settle in
 │  │ IN CATEGORY: 82%│          │ IN CATEGORY: 55%│           │
 │  │ STREAK: 🔥 5    │          │ STREAK: 3       │           │  ← fire emoji ≥3 only
 │  └─────────────────┘          └─────────────────┘           │
-│  MARKET CONSENSUS · LIVE                                     │  ← 11px label
+│  MARKET CONSENSUS · LIVE                                     │  ← 12px label 0.12em tracked
 │  ████████████████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░             │
 │  62% FAVOR CALLER (#E8F542)  38% FAVOR CHALLENGER (#FB923C) │
 ├─────────────────────────────────────────────────────────────┤
@@ -173,48 +181,48 @@ Destructive: `#F87171` (loss red) — used only on "loser dimmed" post-settle in
 **THE MARKET hero block:**
 - Background: `#111118` (secondary surface)
 - 3px `#2E2E42` border; 4px `#E8F542` corner brackets top-left + bottom-right
-- "THE MARKET" label: 11px Space Grotesk uppercase, `letter-spacing: 0.12em`, `#64748B`
-- Asset pair ("ARB / OP"): 64px Syne bold, `#F1F5F9`; the "/" character is a design element — render in `#E8F542` accent
-- Question line: 20px Space Grotesk 400, `#F1F5F9`
-- 3-stat row: 2px `#1E1E2E` borders between cells, no rounding; labels 11px tracked; values 18px JetBrains Mono
+- "THE MARKET" label: 12px Space Grotesk 700 uppercase, `letter-spacing: 0.12em`, `#64748B`
+- Asset pair ("ARB / OP"): 64px Syne 700, `#F1F5F9`; the "/" character is a design element — render in `#E8F542` accent
+- Question line: 16px Space Grotesk 400, `#F1F5F9`
+- 3-stat row: 2px `#1E1E2E` borders between cells, no rounding; labels 12px uppercase 700 tracked; values 16px JetBrains Mono 400
 
 **Two-column duel card:**
 - Outer container: `display: flex; flex-direction: row` — NEVER `display: grid` (Pitfall 15 applies to all Tailwind layouts too for consistency with the OG card)
-- CALLER column left: `#E8F542` accent 3px left border; background `#111118`; header "CALLER" in 11px `#E8F542`
-- CHALLENGER column right: `#FB923C` orange 3px right border; background `#111118`; header "CHALLENGER" in 11px `#FB923C`
-- VS divider: vertically centered, 1px `#2E2E42` line with "VS" text in 14px Space Grotesk 600 `#64748B`; width ~48px
+- CALLER column left: `#E8F542` accent 3px left border; background `#111118`; header "CALLER" in 12px `#E8F542` 700 uppercase 0.12em tracked
+- CHALLENGER column right: `#FB923C` orange 3px right border; background `#111118`; header "CHALLENGER" in 12px `#FB923C` 700 uppercase 0.12em tracked
+- VS divider: vertically centered, 1px `#2E2E42` line with "VS" text in 12px Space Grotesk 700 `#64748B`; width 48px; horizontal gutter between each column and divider: `lg` (24px) each side
 - Avatar: 40px circle, 2px border in column accent color (`#E8F542` / `#FB923C`)
-- Handle: 18px Space Grotesk 600 in column accent color
-- POSITION box: 2px `#2E2E42` border; background `#0D0D15`; bet statement in 14px `#F1F5F9`; label "POSITION" 11px tracked
+- Handle: 16px Space Grotesk 700 in column accent color
+- POSITION box: 2px `#2E2E42` border; background `#0D0D15`; bet statement in 16px `#F1F5F9` 400; label "POSITION" 12px uppercase 700 tracked
 - Stat rows (parallel, same vertical order both sides): REP / ACCURACY / IN-CATEGORY / STREAK
-  - Labels: 11px Space Grotesk uppercase `#64748B`, letter-spacing 0.12em
-  - Values: 18px JetBrains Mono `#F1F5F9`
+  - Labels: 12px Space Grotesk 700 uppercase `#64748B`, letter-spacing 0.12em
+  - Values: 16px JetBrains Mono 400 `#F1F5F9`
   - STREAK: value + fire emoji (rendered only when streak ≥ 3 per spec §15.5)
 - 1px `#1E1E2E` horizontal divider between each stat row
 
 **MARKET CONSENSUS · LIVE bar:**
-- Label "MARKET CONSENSUS · LIVE": 11px uppercase `#64748B`, 0.12em tracking; the "· LIVE" portion has a 6px pulse dot in `#4ADE80` (live indicator)
+- Label "MARKET CONSENSUS · LIVE": 12px uppercase 700 `#64748B`, 0.12em tracking; the "· LIVE" portion has a 6px pulse dot in `#4ADE80` (live indicator)
 - Bar height: 8px; background `#1E1E2E`; CALLER fill `#E8F542`; CHALLENGER fill `#FB923C`; no border-radius on bar segments (neobrutalist — sharp edges)
-- Below bar: "X% FAVOR CALLER" left in `#E8F542` + "Y% FAVOR CHALLENGER" right in `#FB923C`, both 12px Space Grotesk 500
+- Below bar: "X% FAVOR CALLER" left in `#E8F542` + "Y% FAVOR CHALLENGER" right in `#FB923C`, both 12px Space Grotesk 700 uppercase 0.12em tracking
 - Data source: `followReserve / (followReserve + fadeReserve)` from FollowFadeMarket (D-10); updates on ~5s poll
 
 **Riding sections (D-06 — follow/fade participants, not a new mechanic):**
 - Two columns: "Riding [caller-handle]" (left) / "Riding [challenger-handle]" (right)
-- Section label: 12px Space Grotesk medium `#64748B`; the handle portion in the section label is colored per column (caller = `#E8F542`, challenger = `#FB923C`)
-- Each item: avatar 24px + handle 13px + amount 13px JetBrains Mono; `#F1F5F9` text
-- Empty riding state: "No one riding yet" in 12px `#64748B` — does NOT say "No followers/faders" (avoid confusion with actual follow/fade action)
-- Max 5 visible items; "+ N more" link in 12px `#E8F542` if more exist
+- Section label: 12px Space Grotesk 700 uppercase 0.12em `#64748B`; the handle portion in the section label is colored per column (caller = `#E8F542`, challenger = `#FB923C`)
+- Each item: avatar 24px + handle 12px 400 + amount 12px JetBrains Mono 400; `#F1F5F9` text
+- Empty riding state: "No one riding yet" in 12px `#64748B` 400 — does NOT say "No followers/faders" (avoid confusion with actual follow/fade action)
+- Max 5 visible items; "+ N more" link in 12px `#E8F542` 700 if more exist
 
 **"Side with [X]" CTAs (bottom):**
 - Left: "Side with [caller-handle]" — filled `#E8F542` background, black text `#09090E`, 3px black border, hard shadow `4px 4px 0 #09090E`; hover: shadow offset `2px 2px 0`
 - Right: "Side with [challenger-handle]" — `#FB923C` outline only, `#FB923C` border 3px, `#FB923C` text, no fill; hover: filled `#FB923C` background, `#09090E` text
-- Both: 16px Space Grotesk 600, 0px border-radius, full-width within their column
+- Both: 16px Space Grotesk 700, 0px border-radius, full-width within their column
 - Both CTAs trigger the existing Follow (left) / Fade (right) modal on the PARENT call — they are not new mechanics (D-06)
 - Disabled state when user already has a position: "You're riding this side" in muted text; button greyed with 2px `#2E2E42` border
 
 **Live state affordances (D-10, ~5s poll + window-focus refetch):**
 - Loading skeleton: use Phase 1 `<Skeleton>` duel-card-stub variant; shimmer animation in `#1E1E2E` → `#2E2E42`
-- Stale indicator: when last-updated timestamp > 15s ago, show "· updating" pulse in 10px `#64748B` next to "LIVE" in consensus bar label
+- Stale indicator: when last-updated timestamp > 15s ago, show "· updating" pulse in 12px `#64748B` next to "LIVE" in consensus bar label
 - Error state: consensus bar falls back to showing equal 50/50 split in `#2E2E42` (muted) + small "data unavailable" tooltip; do NOT show an error banner on the duel card itself — silent degradation per Phase 2 pattern
 
 **"Best viewed on desktop" mobile banner (Phase 9 contract — established here):**
@@ -242,21 +250,21 @@ Destructive: `#F87171` (loss red) — used only on "loser dimmed" post-settle in
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│ CALL IT (Syne 48px #E8F542)              [Arbitrum logo small, top-right]   │
+│ CALL IT (Syne 64px #E8F542)              [Arbitrum logo small, top-right]   │
 ├──────────────────────────────────────────────────────────────────────────────│
 │  ┌─────────────────────────────┐   ┌───────────────────────────────────┐    │
 │  │  [avatar 180px circle]      │ VS│  [avatar 180px circle, 40% opacity│    │
 │  │  winner handle  ← Syne 32px │   │   loser handle  ← Syne 32px muted]│   │
 │  │  [#E8F542 accent]           │   │  [#64748B muted]                  │    │
 │  │  WINS ← 64px Syne #4ADE80   │   │  (stub: VS in same slot)          │    │
-│  │  [market statement 20px]    │   │  [market statement 20px muted]    │    │
+│  │  [market statement 16px]    │   │  [market statement 16px muted]    │    │
 │  └─────────────────────────────┘   └───────────────────────────────────┘    │
 ├──────────────────────────────────────────────────────────────────────────────│
 │  Pot: $1,500 · winner takes all      +47 rep (green) / -31 rep (red)        │
-│  Space Grotesk 20px #F1F5F9          JetBrains Mono 18px                    │
+│  Space Grotesk 16px #F1F5F9          JetBrains Mono 16px                    │
 ├──────────────────────────────────────────────────────────────────────────────│
 │  ARB / OP · ARB outperforms OP by >5%   callitapp.xyz                       │
-│  Space Grotesk 14px #64748B              Syne 14px #E8F542                  │
+│  Space Grotesk 12px #64748B              Syne 12px #E8F542                  │
 └─────────────────────────────────────────────────────────────────────────────┘
   ↑ 3px #E8F542 border all around; 4px #E8F542 corner brackets all four corners
 ```
@@ -268,14 +276,14 @@ When `challenge.status != 'Settled'` (no winner populated yet):
 | Settled field | Phase 3 stub | Phase 4 active value |
 |---|---|---|
 | Winner/loser column highlight | Both columns at full opacity | Winner 100%, loser 40% opacity |
-| "WINS" / "VS" center text | "VS" in 48px Syne `#64748B` | "WINS" in 64px Syne `#4ADE80` next to winner column |
+| "WINS" / "VS" center text | "VS" in 64px Syne `#64748B` 700 | "WINS" in 64px Syne `#4ADE80` 700 next to winner column |
 | Winner handle color | `#F1F5F9` (neutral) | `#E8F542` accent |
 | Loser handle color | `#F1F5F9` (neutral) | `#64748B` muted |
 | Rep deltas | "? REP" in `#94A3B8` | "+N rep" green / "-N rep" red |
 
 When stub is active, `X-Variant` header is `duel-active`. All other layout elements (wordmark, pot, market text, avatars, corner brackets) render from live data.
 
-**Pot display format:** `"Pot: $X,XXX · winner takes all"` — Space Grotesk 20px, `#F1F5F9`; pot value formatted with commas, no decimals unless < $10
+**Pot display format:** `"Pot: $X,XXX · winner takes all"` — Space Grotesk 16px 400, `#F1F5F9`; pot value formatted with commas, no decimals unless < $10
 
 **Corner brackets on OG card:**
 - All four corners of the 1200×630 frame
@@ -286,23 +294,23 @@ When stub is active, `X-Variant` header is `duel-active`. All other layout eleme
 ```
 <outer flex column 1200×630 bg=#09090E border=3px #E8F542>
   <header row flex-direction=row justify-between>
-    <wordmark Syne 48px #E8F542>CALL IT</wordmark>
+    <wordmark Syne 64px 700 #E8F542>CALL IT</wordmark>
     <arb-logo>ARB</arb-logo>
   </header>
   <hero row flex-direction=row flex=1>
     <caller-column flex=1 flex-direction=column align-center>
       <avatar 180px circle border=3px #E8F542>
-      <handle Syne 32px>
-      <wins-or-vs Syne 64px>
+      <handle Syne 32px 700>
+      <wins-or-vs Syne 64px 700>
     </caller-column>
     <vs-divider width=24px border-left=1px #2E2E42>
     <challenger-column flex=1 flex-direction=column align-center opacity={settled?0.4:1.0}>
       <avatar 180px circle border=3px #FB923C>
-      <handle Syne 32px>
+      <handle Syne 32px 700>
     </challenger-column>
   </hero>
-  <pot-row Space Grotesk 20px>
-  <meta-row Space Grotesk 14px>
+  <pot-row Space Grotesk 16px 400>
+  <meta-row Space Grotesk 12px 400>
 </outer>
 ```
 
@@ -324,11 +332,11 @@ When stub is active, `X-Variant` header is `duel-active`. All other layout eleme
 - "High-stakes" chip: append "(>$500)" in muted text below label
 
 **Active duels section:**
-- Section label: "ACTIVE DUELS" 11px uppercase tracked `#64748B`; row count in brackets
+- Section label: "ACTIVE DUELS" 12px uppercase 700 tracked 0.12em `#64748B`; row count in brackets
 - Row layout (two-column within the row):
-  - Left cell (caller): avatar 32px + handle 14px in `#E8F542` + rep score 12px `#64748B`
-  - Center cell: market statement 14px `#F1F5F9` + pot size 13px JetBrains Mono `#E8F542` + time remaining 12px `#94A3B8`
-  - Right cell (challenger): avatar 32px + handle 14px in `#FB923C` + rep score 12px `#64748B`
+  - Left cell (caller): avatar 32px + handle 16px 700 in `#E8F542` + rep score 12px 400 `#64748B`
+  - Center cell: market statement 16px 400 `#F1F5F9` + pot size 12px JetBrains Mono 400 `#E8F542` + time remaining 12px 400 `#94A3B8`
+  - Right cell (challenger): avatar 32px + handle 16px 700 in `#FB923C` + rep score 12px 400 `#64748B`
   - Below the row (full-width): live consensus bar 4px tall, `#E8F542` caller / `#FB923C` challenger split, no border-radius
   - 2px `#1E1E2E` bottom border on each row
 - Sort: pot size descending (largest pot first)
@@ -336,12 +344,12 @@ When stub is active, `X-Variant` header is `duel-active`. All other layout eleme
 
 **Trending duels pin (SOCIAL-40):**
 - Pinned above Active section when any duel qualifies (pot ≥ $500 OR ≥ 50 Riding backers)
-- "TRENDING DUEL" label: 11px Space Grotesk 600 `#E8F542` uppercase, letter-spacing 0.12em; pill with 2px `#E8F542` border, `#0D1A00` dark green background
+- "TRENDING DUEL" label: 12px Space Grotesk 700 uppercase, letter-spacing 0.12em; pill with 2px `#E8F542` border, `#0D1A00` dark green background, `#E8F542` text
 - Row otherwise identical to Active duel rows, but with the TRENDING DUEL label badge appended to the top-right of the row
 - Multiple trending duels stack (no carousel), max 3 visible before "Show N more trending" link
 
 **Recently settled section (D-08 — placeholder until Phase 4):**
-- Section label: "RECENTLY SETTLED (7D)" 11px uppercase `#64748B`
+- Section label: "RECENTLY SETTLED (7D)" 12px uppercase 700 tracked `#64748B`
 - Placeholder state (Phase 3): empty-state card with muted text "No settled duels yet. Settle pending calls to see duel outcomes here." — 2px `#1E1E2E` border, `#111118` bg
 - Winner row treatment (Phase 4 activates): winner handle in `#4ADE80`, loser handle in `#64748B` 40% opacity, outcome "WINS" tag in green, rep deltas shown
 
@@ -356,7 +364,7 @@ Covered in Surface 3 (Trending duels pin section above).
 Additional contract for the pinned card when it appears at the TOP of the global feed (highest-qualifying duel is also promoted to the main feed stream alongside the Duels tab):
 
 - Pin label position: top-left corner of the card, replacing the normal "TOP CONVICTION" label slot
-- "TRENDING DUEL" label style: `#E8F542` text, 2px `#E8F542` border, `#0D1A00` dark-green pill background, 10px Space Grotesk 600 uppercase 0.12em tracking
+- "TRENDING DUEL" label style: `#E8F542` text, 2px `#E8F542` border, `#0D1A00` dark-green pill background, 12px Space Grotesk 700 uppercase 0.12em tracking
 - Card border: 3px `#E8F542` (upgraded from standard 2px card border) — signals the elevated state
 - Hard shadow: `4px 4px 0 #E8F542` on the card container
 - Otherwise identical layout to Active duel row, scaled up to full CallCard width
@@ -374,7 +382,7 @@ Additional contract for the pinned card when it appears at the TOP of the global
 
 - Shape: inline pill badge, 2px border-radius (allowed per §14.6 small chips rule)
 - Icon: crown SVG icon, 12px, Lucide style (1.5px stroke), `#E8F542` fill
-- Text: "DUEL KING" 10px Space Grotesk 600 uppercase, letter-spacing 0.10em, `#E8F542`
+- Text: "DUEL KING" 12px Space Grotesk 700 uppercase, letter-spacing 0.10em, `#E8F542`
 - Background: `#0D1A00` very dark green
 - Border: 2px `#E8F542`
 - Dimensions: ~80px wide × 20px tall; 4px horizontal padding, 2px vertical padding
@@ -402,8 +410,8 @@ Additional contract for the pinned card when it appears at the TOP of the global
 **⚔ OPEN badge:**
 - Renders on any CallCard where `call.openToChallenges == true`
 - Position: in Line 1 of the canonical call card structure, after category tags and before the CLOSES IN countdown (per spec §15.1 callCard line 1 list)
-- Style: `⚔` character + "OPEN" text; 2px `#E8F542` border; `#0D1A00` bg; `#E8F542` text; 10px Space Grotesk 600; 2px border-radius; 4px/2px padding
-- The `⚔` character renders in the font (no custom SVG needed); ensure font supports it or substitute a Lucide Swords icon at 10px
+- Style: `⚔` character + "OPEN" text; 2px `#E8F542` border; `#0D1A00` bg; `#E8F542` text; 12px Space Grotesk 700 uppercase; 2px border-radius; 4px/2px padding
+- The `⚔` character renders in the font (no custom SVG needed); ensure font supports it or substitute a Lucide Swords icon at 12px
 
 **Challengeable-only feed filter:**
 - Appears as a filter chip in the feed filter chip row: "⚔ Challengeable"
@@ -414,7 +422,7 @@ Additional contract for the pinned card when it appears at the TOP of the global
 **Challenge button on CallCard:**
 - Already exists as "Challenge (text+icon)" in the Action row of the call card (spec §15.1)
 - Color: `#FB923C` orange text + `#FB923C` 2px border outline; no fill
-- Icon: Lucide `Swords` 14px, `#FB923C`
+- Icon: Lucide `Swords` 16px, `#FB923C`
 - This button is rendered regardless of `openToChallenges` — clicking it when `openToChallenges == false` shows an inline error: "This caller isn't open to challenges right now."
 
 ---
@@ -433,19 +441,19 @@ Additional contract for the pinned card when it appears at the TOP of the global
 **Form layout:**
 
 ```
-CHALLENGE [caller-handle]               ← 18px Space Grotesk 600 #F1F5F9
+CHALLENGE [caller-handle]               ← 32px Space Grotesk 700 #F1F5F9
 ─────────────────────────────────────────
 [parent call statement card — read-only, 2px #1E1E2E border, #0D0D15 bg]
 ─────────────────────────────────────────
-YOUR STAKE                              ← 11px label
+YOUR STAKE                              ← 12px label 0.12em tracked 700
 [ $100.00              USDC ]           ← pre-filled to caller's exact stake
-Pre-filled: matches [caller-handle]'s stake of $XX  ← 12px #64748B
+Pre-filled: matches [caller-handle]'s stake of $XX  ← 12px #64748B 400
 [────$5──────────$50──────$100──────]   ← quick-stake buttons $5 / $25 / $50 / $100
 ─────────────────────────────────────────
-POT IF ACCEPTED                         ← 11px label
-$200 · winner takes all                 ← JetBrains Mono 18px #F1F5F9 (min(caller,challenger)×2)
+POT IF ACCEPTED                         ← 12px label 0.12em tracked 700
+$200 · winner takes all                 ← JetBrains Mono 16px 400 #F1F5F9 (min(caller,challenger)×2)
 ─────────────────────────────────────────
-[Cancel]                [Send Challenge ▸]
+[Keep call open]                [Send Challenge ▸]
 ```
 
 **Prefill behavior (SOCIAL-30):**
@@ -461,8 +469,8 @@ $200 · winner takes all                 ← JetBrains Mono 18px #F1F5F9 (min(ca
 
 **Input field styling:**
 - 2px `#2E2E42` border default; 2px `#E8F542` border on focus; 0px border-radius
-- Background `#09090E`; text `#F1F5F9` 16px Space Grotesk
-- "USDC" suffix: 13px JetBrains Mono `#64748B`; right-aligned in the input
+- Background `#09090E`; text `#F1F5F9` 16px Space Grotesk 400
+- "USDC" suffix: 12px JetBrains Mono 400 `#64748B`; right-aligned in the input
 
 **Stake bounds display (Zod gate parity):**
 - Min $5 enforced: "Minimum stake is $5 USDC" if under; red 2px input border
@@ -483,7 +491,7 @@ $200 · winner takes all                 ← JetBrains Mono 18px #F1F5F9 (min(ca
 
 **24h timer copy (shown on the parent call's Live Receipt after challenge is sent):**
 - Live Receipt page: "⚔ Challenge pending — [challenger-handle] challenged this call · [caller-handle] has [X]h to accept or reject"
-- Styling: 2px `#FB923C` left border accent block; `#111118` bg; `#F1F5F9` text 14px
+- Styling: 2px `#FB923C` left border accent block; `#111118` bg; `#F1F5F9` text 16px 400
 
 ---
 
@@ -510,6 +518,7 @@ $200 · winner takes all                 ← JetBrains Mono 18px #F1F5F9 (min(ca
 | Pot-if-accepted label | "POT IF ACCEPTED" | Challenge form |
 | Pot-if-accepted value | "$X · winner takes all" | Challenge form |
 | Asymmetric duel notice | "Asymmetric duel — pot: $X; overage returned to you at settlement" | Challenge form |
+| Modal dismiss label | "Keep call open" | Challenge modal secondary/cancel button |
 | CTA: send challenge | "Send Challenge ▸" | Challenge modal primary CTA |
 | Toast: challenge sent | "Challenge sent — [caller-handle] has 24h to accept." | Global toast |
 | Live receipt pending | "⚔ Challenge pending — [challenger-handle] challenged this call · [caller-handle] has [X]h to accept or reject" | Live Receipt pending block |
@@ -525,9 +534,10 @@ $200 · winner takes all                 ← JetBrains Mono 18px #F1F5F9 (min(ca
 | OG stub VS text | "VS" | OG card active-duel stub |
 | OG settled WINS text | "WINS" | OG card settled (Phase 4) |
 | OG pot text | "Pot: $X,XXX · winner takes all" | OG card footer row |
+| Riding error state | "No riding data available — refresh to retry." | Riding section error |
 
 **Destructive actions in Phase 3:**
-- Challenge rejection (caller rejects): "Reject challenge" button → inline confirmation: "This will immediately refund [challenger-handle]'s stake. Are you sure? [Cancel] [Yes, reject]"
+- Challenge rejection (caller rejects): "Reject challenge" button → inline confirmation: "This will immediately refund [challenger-handle]'s stake. Are you sure? [Keep call open] [Yes, reject]"
   - Confirmation inline (within the duel page, not a separate modal — too lightweight for a full modal)
   - "Yes, reject" button: `#F87171` border 2px, `#F87171` text, no fill; 0px radius
 
@@ -555,10 +565,10 @@ All motion follows §17.1 (150–300ms micro, 400–600ms transition; ease-out e
 
 | Surface | Loading | Stale (>15s) | Error |
 |---------|---------|--------------|-------|
-| Duel page hero (pot/spread/settles-in) | `<Skeleton>` shimmer in each stat cell | "· updating" 10px pulse `#64748B` next to LIVE label | Fall back to last known values; no error banner |
+| Duel page hero (pot/spread/settles-in) | `<Skeleton>` shimmer in each stat cell | "· updating" 12px pulse `#64748B` next to LIVE label | Fall back to last known values; no error banner |
 | Market consensus bar | `<Skeleton>` 8px bar, `#2E2E42` | "· updating" pulse | Show 50/50 split in `#2E2E42` muted; tooltip "data unavailable" |
 | Duel card stat rows (REP/ACC/etc.) | `<Skeleton>` per cell | No indicator — values are not live-polled | Show "—" placeholder; 12px `#64748B` |
-| Riding sections | `<Skeleton>` 3-item shimmer | No indicator | "No riding data available" in 12px `#64748B` |
+| Riding sections | `<Skeleton>` 3-item shimmer | No indicator | "No riding data available — refresh to retry." in 12px `#64748B` |
 | Duels tab list | `<Skeleton>` 3-row shimmer | No indicator | "Failed to load duels" + retry link |
 | Challenge modal USDC check | Spinner (Lucide Loader2 16px) inline | Not applicable | Inline error text `#F87171` |
 | OG card | Not applicable | Not applicable | `renderFallback()` — always 200 |
@@ -608,6 +618,8 @@ No new component registries introduced in Phase 3. All components are either Pha
 
 6. **Desktop-first, mobile deferred** — Duel page has no responsive pass in Phase 3. The "Best viewed on desktop" banner is the mobile contract. All Phase 3 CSS is written for desktop viewport (min 1024px content area). Phase 9 adds the responsive pass.
 
+7. **Type scale rationale** — The 4-size scale (12/16/32/64px) maps cleanly to the §14.6 neobrutalist system: 12px handles all meta/data/label copy with aggressive uppercase tracking; 16px covers all body and interactive copy; 32px handles section and card headings; 64px handles display and OG hero moments. No 48px: the OG wordmark "CALL IT" is folded to 64px display, consistent with the asset pair hero treatment. The 96px "WINS" OG hero is also folded to 64px — the OG stub contract table at §STUB already specified 64px for "WINS", confirming this is the intended display size.
+
 ---
 
 ## Checker Sign-Off
@@ -625,4 +637,5 @@ No new component registries introduced in Phase 3. All components are either Pha
 
 *Phase: 03-challengeescrow*
 *UI-SPEC created: 2026-06-01*
+*UI-SPEC revised: 2026-06-01 (checker revision — typography + spacing fixes)*
 *Consumed by: gsd-planner, gsd-executor, gsd-ui-auditor*
