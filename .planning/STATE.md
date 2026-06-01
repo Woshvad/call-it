@@ -4,14 +4,14 @@ milestone: v1.1
 milestone_name: milestone
 status: executing
 stopped_at: Phase 3 UI-SPEC approved
-last_updated: "2026-06-01T12:57:57.836Z"
+last_updated: "2026-06-01T13:11:20.647Z"
 last_activity: 2026-06-01
 progress:
   total_phases: 12
   completed_phases: 3
   total_plans: 31
-  completed_plans: 28
-  percent: 90
+  completed_plans: 29
+  percent: 94
 ---
 
 # Project State
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-05-21)
 ## Current Position
 
 Phase: 03 (challengeescrow) — EXECUTING
-Plan: 3 of 7
+Plan: 4 of 7
 Status: Ready to execute
 Last activity: 2026-06-01
 
-Progress: [█████████░] 90%
+Progress: [█████████░] 94%
 
 ## Known Plan Issues — Phase 03 (accepted as-is at planning, 2026-06-01)
 
@@ -95,6 +95,7 @@ Once all 3 close: fill real address, write 03-03/03-04 SUMMARY.md, then run phas
 | Phase 02-followfademarket P08 | 21min | 3 tasks | 9 files |
 | Phase 02-followfademarket P09 | 11min | 2 tasks | 5 files |
 | Phase 03 P04 | 20min | 2 tasks | 7 files |
+| Phase 03-challengeescrow P05 | 25min | 2 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -193,6 +194,9 @@ completed: 2026-05-29
 # Phase 2 Plan 9: Live OG Card + Notification Bell/Inbox Summary
 
 **Live OG card variant 1 at /og/[callId] (§16.2: follow%/fade% bar, corner brackets, time-left, Node runtime) + NotificationBell/Inbox polling /api/notifications every 30s — closing all 34 Phase 2 requirements**
+
+- [Phase ?]: CHALLENGE_ESCROW_ARBITRUM_SEPOLIA added to shared barrel (Rule 3 auto-fix in 03-05)
+- [Phase ?]: Duel trending backer count falls back to pot-only — followTotalShares absent from subgraph; TODO Phase-7
 
 ## Performance
 
@@ -325,6 +329,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-06-01T12:57:57.821Z
+Last session: 2026-06-01T13:11:09.044Z
 Stopped at: Phase 3 UI-SPEC approved
 Resume file: None
