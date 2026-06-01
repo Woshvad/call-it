@@ -1,0 +1,12 @@
+# Treat font + image binaries as binary so Git never applies text/EOL normalization
+# (which silently corrupted the OG fonts — invalid sfnt signatures — pre-Phase-3).
+*.ttf binary
+*.otf binary
+*.woff binary
+*.woff2 binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.wasm binary
