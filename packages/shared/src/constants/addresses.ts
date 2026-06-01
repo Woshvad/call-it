@@ -98,21 +98,23 @@ export const PROFILE_REGISTRY_ARBITRUM_SEPOLIA =
   '0xAfe239a3606b89Ef65DbBcDb1b87a920052c359E' as const;
 
 /**
- * FollowFadeMarket on Arbitrum Sepolia (Phase 2 deploy).
+ * FollowFadeMarket v2 on Arbitrum Sepolia (Phase 4 redeploy).
  *
- * DEPLOYED 2026-05-30 via DeployPhase2.s.sol. Deploy block: 272458674.
+ * DEPLOYED 2026-06-01 via DeployPhase4.s.sol. Deploy block: 272912507.
+ * v2 adds applySettlement + real claimPayout (Phase 4 settlement wiring).
+ * Supersedes the Phase 2 v1 address (0x12aafa5a70c3aD8Bd3a52252744f9F7Aa073E362).
  * Constructor: (CallRegistry v2, ProfileRegistry v2, treasury 0xDa8c...A4a5).
  *
  * Post-deploy verification (on-chain, all green):
  *   callRegistry()     -> CallRegistry v2                              ✓
  *   profileRegistry()  -> ProfileRegistry v2                          ✓
  *   treasury()         -> 0xDa8c...A4a5                               ✓
- *   (CallRegistry.followFadeMarket() points back here; PR.authorizedRepWriters(FFM)=true)
+ *   settlementManager() -> SettlementManager (Phase 4 wire)           ✓
  *
  * Threat: T-02-04-01 — wrong/zero address routes all FFM reads/writes to nowhere.
  */
 export const FOLLOW_FADE_MARKET_ARBITRUM_SEPOLIA =
-  '0x12aafa5a70c3aD8Bd3a52252744f9F7Aa073E362' as const;
+  '0x185e43526c0acd88AC236197e3Ee7629ebd601CA' as const;
 
 /**
  * FollowFadeMarket on Arbitrum One (mainnet).
@@ -165,13 +167,13 @@ export const CHALLENGE_ESCROW_ARBITRUM_ONE =
 /**
  * SettlementManager on Arbitrum Sepolia (Phase 4 deploy).
  *
- * DEPLOYED via DeployPhase4.s.sol — update address post-deploy. Placeholder until operator
- * runs `forge script script/DeployPhase4.s.sol:DeployPhase4 --rpc-url arbitrum_sepolia --broadcast`.
+ * DEPLOYED 2026-06-01 via DeployPhase4.s.sol. Deploy block: 272912513.
+ * Funded with 0.05 ETH for Pyth VAA fees at deploy time (PYTH_ETH_BUDGET; see deviation note).
  *
  * Constructor: (CallRegistry, FollowFadeMarket v2, ChallengeEscrow, ProfileRegistry,
  *               USDC_ARB_NATIVE, treasury, PYTH_ARBITRUM_SEPOLIA).
  *
- * Post-deploy verification (on-chain, all green):
+ * Post-deploy verification (on-chain, all green — 12/12 assertions passed):
  *   sm.callRegistry()              -> CallRegistry v2                    ✓
  *   sm.followFadeMarket()          -> FollowFadeMarket v2                ✓
  *   CR.settlementManager()         -> this address                       ✓
@@ -179,15 +181,12 @@ export const CHALLENGE_ESCROW_ARBITRUM_ONE =
  *   CE.settlementManager()         -> this address                       ✓
  *   PR.settlementManager()         -> this address                       ✓
  *   PR.authorizedRepWriters(this)  -> true                               ✓
- *   SM ETH balance                 -> >= 0.1 ETH                         ✓
+ *   SM ETH balance                 -> 0.05 ETH                          ✓
  *
  * Threat: T-04-03-01 — wrong address wired prevents settlement; post-deploy assertions mitigate.
  */
-// v2 deployed in Phase 4 (adds applySettlement + real claimPayout) — update to new address post-deploy
-// The old address 0x12aafa5a70c3aD8Bd3a52252744f9F7Aa073E362 is superseded by the Phase 4 redeploy.
-// TODO: update FOLLOW_FADE_MARKET_ARBITRUM_SEPOLIA constant below to new FFM v2 address post-deploy
 export const SETTLEMENT_MANAGER_ARBITRUM_SEPOLIA =
-  '0x0000000000000000000000000000000000000000' as const; // TODO: update post-deploy (DeployPhase4.s.sol)
+  '0xAc37a0e4A3e575EF21684c28a5b820dB44654595' as const;
 
 /**
  * SettlementManager on Arbitrum One (mainnet).

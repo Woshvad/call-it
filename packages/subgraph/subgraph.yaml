@@ -104,12 +104,12 @@ dataSources:
     network: arbitrum-sepolia
     source:
       # Phase 4 REDEPLOY: FollowFadeMarket v2 adds applySettlement + real claimPayout.
-      # Update address to new v2 address after Phase 4 deploy (DeployPhase4.s.sol console output).
-      # TODO: update address + startBlock post-deploy
+      # DEPLOYED 2026-06-01 via DeployPhase4.s.sol. Block: 272912507.
+      # Supersedes Phase 2 v1 address (0x12aafa5a70c3aD8Bd3a52252744f9F7Aa073E362, block 272458674).
       # Matches FOLLOW_FADE_MARKET_ARBITRUM_SEPOLIA in packages/shared/src/constants/addresses.ts.
-      address: "0x12aafa5a70c3aD8Bd3a52252744f9F7Aa073E362"
+      address: "0x185e43526c0acd88AC236197e3Ee7629ebd601CA"
       abi: FollowFadeMarket
-      startBlock: 272458674
+      startBlock: 272912507
     mapping:
       kind: ethereum/events
       apiVersion: 0.0.9
@@ -178,13 +178,12 @@ dataSources:
     name: SettlementManager
     network: arbitrum-sepolia
     source:
-      # Phase 4: SettlementManager placeholder — update address + startBlock after deploy.
-      # Run DeployPhase4.s.sol and copy the DEPLOYMENT SUMMARY console output here.
-      # TODO: update address + startBlock post-deploy (DeployPhase4.s.sol REQUIRED NEXT STEPS)
+      # Phase 4: SettlementManager deployed 2026-06-01 via DeployPhase4.s.sol. Block: 272912513.
+      # Funded 0.05 ETH for Pyth VAA fees at deploy.
       # Matches SETTLEMENT_MANAGER_ARBITRUM_SEPOLIA in packages/shared/src/constants/addresses.ts.
-      address: "0x0000000000000000000000000000000000000000"  # placeholder — update post-deploy
+      address: "0xAc37a0e4A3e575EF21684c28a5b820dB44654595"
       abi: SettlementManager
-      startBlock: 0   # placeholder — update to deploy block post-deploy
+      startBlock: 272912513
     mapping:
       kind: ethereum/events
       apiVersion: 0.0.9
