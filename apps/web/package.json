@@ -9,7 +9,7 @@
     "build": "next build --webpack",
     "start": "next start",
     "lint": "echo 'No lint configured for web yet — Phase 1+ adds ESLint'",
-    "test": "vitest run tests/og-unit.test.ts",
+    "test": "vitest run",
     "test:ast": "vitest run tests/privy-provider-order.ast.test.ts",
     "test:e2e:signin": "playwright test tests/signin.spec.ts",
     "test:og-fallback": "playwright test tests/og-fallback.spec.ts",
