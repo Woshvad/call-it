@@ -222,9 +222,9 @@ Requirements for the v1 mainnet release. Each line is an atomic, testable behavi
 - [x] **REP-22**: SettlementManager wraps the Stylus call in try/catch; on Stylus revert, falls back to a Solidity baseline `_solidityBaselineRepDelta(...)` at lower fidelity (linear confidence scaling, fixed contrarian multiplier 1.0, no high-conviction asymmetry) (§11.6, §12.4)
 - [x] **REP-23**: On runtime fallback path, settlement still completes and `RepCalculatedFallback(callId, user, baselineDelta, lowLevelError)` event fires for operator investigation (§11.6, §12.4)
 - [ ] **REP-24**: Build-time fallback: if Rust + Stylus path is not working by 48 hours before demo, swap to Solidity baseline implementation in the same proxy slot at full fidelity (§11.6, App.A.1)
-- [ ] **REP-25**: `RepCalculated(callId, user, currentRep, conviction, consensusPct, isWinner, baseValue, delta)` event is emitted with full inputs for debuggability (§12.4, App.A.1)
-- [ ] **REP-26**: SettlementManager calls `profileRegistry.updateAfterSettlement(user, category, isCaller, isWinner, repDelta)` for each settled caller (§12.4, §12.5)
-- [ ] **REP-27**: Duel settlement applies rep deltas to BOTH caller and challenger at ~1.5× the standard rep movement (§5.3, §12.4)
+- [x] **REP-25**: `RepCalculated(callId, user, currentRep, conviction, consensusPct, isWinner, baseValue, delta)` event is emitted with full inputs for debuggability (§12.4, App.A.1)
+- [x] **REP-26**: SettlementManager calls `profileRegistry.updateAfterSettlement(user, category, isCaller, isWinner, repDelta)` for each settled caller (§12.4, §12.5)
+- [x] **REP-27**: Duel settlement applies rep deltas to BOTH caller and challenger at ~1.5× the standard rep movement (§5.3, §12.4)
 - [ ] **REP-28**: NFT calls map to the Majors category for reputation purposes (§7.5, §13.2)
 - [ ] **REP-29**: Spread/vs calls default to the DeFi or Majors category per the §7.5 assignment rules (§7.5)
 
@@ -260,9 +260,9 @@ Requirements for the v1 mainnet release. Each line is an atomic, testable behavi
 - [x] **SETTLE-28**: If disputer loses, bond is forfeited to protocol treasury (§8.10, §13.8)
 - [x] **SETTLE-29**: A single call can have at most 3 counter-claims (`MAX_COUNTER_CLAIMS = 3`); reverts `CounterClaimLimitReached(limit)` (§13.8, §12.4)
 - [x] **SETTLE-30**: `raiseDispute` reverts `DisputeWindowClosed(closedAt)` after the 24h window (§12.4)
-- [ ] **SETTLE-31**: First dispute against a Settled call transitions status to Disputed (§12.4)
-- [ ] **SETTLE-32**: `DisputeRaised(callId, challenger, evidenceHash)` event is emitted; evidence is off-chain content-addressed (e.g., IPFS) (§12.4)
-- [ ] **SETTLE-33**: `resolveDispute(callId, finalOutcome)` is owner-only in v1 (`NotOwner` revert) (§13.7, §12.4)
+- [x] **SETTLE-31**: First dispute against a Settled call transitions status to Disputed (§12.4)
+- [x] **SETTLE-32**: `DisputeRaised(callId, challenger, evidenceHash)` event is emitted; evidence is off-chain content-addressed (e.g., IPFS) (§12.4)
+- [x] **SETTLE-33**: `resolveDispute(callId, finalOutcome)` is owner-only in v1 (`NotOwner` revert) (§13.7, §12.4)
 - [x] **SETTLE-34**: If `finalOutcome != call.outcome`, dispute resolution reverses settlement — reverses rep deltas and re-distributes pool USDC from old-winner to new-winner (§12.4)
 - [ ] **SETTLE-35**: Post-claim disputes are not honored in v1 — the 24h window is shorter than typical claim activity to keep this rare (§12.4)
 - [ ] **SETTLE-36**: `DisputeResolved(callId, finalOutcome, resolver)` event is emitted on resolution (§12.4)
@@ -756,9 +756,9 @@ Which phases cover which requirements. Updated during roadmap creation by the ro
 | REP-22 | Phase 4 | Complete |
 | REP-23 | Phase 4 | Complete |
 | REP-24 | Phase 5 | Pending |
-| REP-25 | Phase 4 | Pending |
-| REP-26 | Phase 4 | Pending |
-| REP-27 | Phase 4 | Pending |
+| REP-25 | Phase 4 | Complete |
+| REP-26 | Phase 4 | Complete |
+| REP-27 | Phase 4 | Complete |
 | REP-28 | Phase 1 | Pending |
 | REP-29 | Phase 1 | Pending |
 | SETTLE-01 | Phase 4 | Complete |
@@ -791,9 +791,9 @@ Which phases cover which requirements. Updated during roadmap creation by the ro
 | SETTLE-28 | Phase 4 | Complete |
 | SETTLE-29 | Phase 4 | Complete |
 | SETTLE-30 | Phase 4 | Complete |
-| SETTLE-31 | Phase 4 | Pending |
-| SETTLE-32 | Phase 4 | Pending |
-| SETTLE-33 | Phase 4 | Pending |
+| SETTLE-31 | Phase 4 | Complete |
+| SETTLE-32 | Phase 4 | Complete |
+| SETTLE-33 | Phase 4 | Complete |
 | SETTLE-34 | Phase 4 | Complete |
 | SETTLE-35 | Phase 4 | Pending |
 | SETTLE-36 | Phase 4 | Pending |
