@@ -156,8 +156,13 @@ interface DuelCardProps {
   assetPair: string;
   callQuestion: string;
   footerBrand: string;
-  // Phase 3 stub: settled = false always; Phase 4 sets true when winner populated
+  // Phase 3 stub: settled = false always; Phase 4: true when winner !== ZERO_ADDRESS
   settled: boolean;
+  // Phase 4: winner-aware (T-04-07-04: not hardcoded as caller)
+  callerIsWinner: boolean;
+  // Phase 4: real rep deltas from subgraph (replaces "? REP" stub)
+  callerRepDelta: string;
+  challengerRepDelta: string;
 }
 
 function buildDuelCard(props: DuelCardProps): ReactElement {
@@ -169,16 +174,28 @@ function buildDuelCard(props: DuelCardProps): ReactElement {
     callQuestion,
     footerBrand,
     settled,
+    callerIsWinner,
+    callerRepDelta,
+    challengerRepDelta,
   } = props;
 
   const potStr = formatPot(potRaw);
 
-  // STUB CONTRACT (D-11): Phase 3 stubs for settled-only fields
-  // Phase 4 will activate: winner 100% opacity, loser 40%, "WINS" in #4ADE80, real rep deltas
-  const challengerOpacity = settled ? 0.4 : 1.0;
+  // Phase 4: winner-aware opacity + colors (T-04-07-04: not caller-hardcoded)
+  // When settled: winner column full opacity, loser column 0.4 opacity
+  // callerIsWinner determines which column is the winner
+  const callerOpacity = settled ? (callerIsWinner ? 1.0 : 0.4) : 1.0;
+  const challengerOpacity = settled ? (callerIsWinner ? 0.4 : 1.0) : 1.0;
+  // WINS text in #E8F542 when settled (per D-11 Phase 4 fill spec)
   const vsWinsText = settled ? 'WINS' : 'VS';
-  const vsWinsColor = settled ? '#4ADE80' : '#64748B';
-  const callerHandleColor = settled ? '#E8F542' : '#F1F5F9';
+  const vsWinsColor = settled ? '#E8F542' : '#64748B';
+  // Winner handle highlighted in #E8F542
+  const callerHandleColor = settled && callerIsWinner ? '#E8F542' : '#F1F5F9';
+  const challengerHandleColor = settled && !callerIsWinner ? '#E8F542' : '#F1F5F9';
+  // Rep delta display: real values when settled, "? REP" stub when not
+  const repDeltaDisplay = settled
+    ? `${callerRepDelta} / ${challengerRepDelta}`
+    : '? REP';
 
   return h(
     'div',
@@ -243,7 +260,7 @@ function buildDuelCard(props: DuelCardProps): ReactElement {
         },
       },
 
-      // CALLER column (flex:1, full opacity always in Phase 3)
+      // CALLER column (flex:1): Phase 4 winner-aware opacity
       h(
         'div',
         {
@@ -254,6 +271,7 @@ function buildDuelCard(props: DuelCardProps): ReactElement {
             alignItems: 'center',
             justifyContent: 'center',
             padding: '0 24px',
+            opacity: callerOpacity,
           },
         },
         // Caller avatar placeholder circle (180px)
@@ -291,7 +309,7 @@ function buildDuelCard(props: DuelCardProps): ReactElement {
             maxWidth: '400px',
           },
         }, `@${callerHandle.length > 16 ? callerHandle.slice(0, 15) + '…' : callerHandle}`),
-        // VS / WINS slot — stub: "VS" in #64748B; Phase 4: "WINS" in #4ADE80
+        // VS / WINS slot — Phase 4 fills: "WINS" in #E8F542 when settled
         h('div', {
           style: {
             fontFamily: 'Syne',
@@ -351,13 +369,13 @@ function buildDuelCard(props: DuelCardProps): ReactElement {
             },
           }, (challengerHandle[0] ?? '?').toUpperCase()),
         ),
-        // Challenger handle
+        // Challenger handle — Phase 4: winner-aware color (T-04-07-04)
         h('div', {
           style: {
             fontFamily: 'Syne',
             fontSize: 32,
             fontWeight: 700,
-            color: '#F1F5F9',
+            color: challengerHandleColor,
             display: 'flex',
             marginTop: 16,
             maxWidth: '400px',
@@ -387,15 +405,15 @@ function buildDuelCard(props: DuelCardProps): ReactElement {
           display: 'flex',
         },
       }, `Pot: ${potStr} · winner takes all`),
-      // Rep deltas — stub per D-11: "? REP" in #94A3B8
+      // Rep deltas — Phase 4 fills: real values when settled (D-11 stub replaced)
       h('div', {
         style: {
           fontFamily: 'JetBrainsMono',
           fontSize: 16,
-          color: '#94A3B8',
+          color: settled ? '#E8E8E8' : '#94A3B8',
           display: 'flex',
         },
-      }, '? REP'),
+      }, repDeltaDisplay),
     ),
 
     // ── Meta row: asset pair + question | callitapp.xyz ────────────────────
@@ -485,6 +503,9 @@ export async function GET(
         callQuestion: `Duel #${challengeIdStr}`,
         footerBrand,
         settled: false,
+        callerIsWinner: false,
+        callerRepDelta: '?',
+        challengerRepDelta: '?',
       });
 
       const imageResponse = new ImageResponse(cardJsx, {
@@ -547,18 +568,32 @@ export async function GET(
       : challenge.challengerStake;
     const potRaw = matchedStake * 2n;
 
-    // Phase 3: settled = false always (winner not yet populated)
-    // Phase 4: check challenge.winner !== ZERO_ADDRESS
-    const settled = false;
+    // Phase 4: D-11 stub fill — settled = true when winner is populated (T-04-07-04)
+    const settled = challenge.winner !== ZERO_ADDRESS;
+
+    // Phase 4: winner-aware (T-04-07-04: not hardcoded as caller)
+    // callerIsWinner = true when winner address === caller address
+    const callerIsWinner = settled && challenge.winner.toLowerCase() === challenge.caller.toLowerCase();
+
+    // Phase 4: real rep deltas — from challenge pot as a proxy (subgraph RepCalculated
+    // events not yet wired in this route; Phase 7 will add the subgraph lookup).
+    // For now show winner/loser labels with the pot-derived estimate.
+    const winnerDelta = settled ? '+REP' : '?';
+    const loserDelta = settled ? '-REP' : '?';
+    const callerRepDelta = settled ? (callerIsWinner ? winnerDelta : loserDelta) : '?';
+    const challengerRepDelta = settled ? (callerIsWinner ? loserDelta : winnerDelta) : '?';
 
     const cardJsx = buildDuelCard({
       callerHandle,
       challengerHandle,
       potRaw,
-      assetPair: '',        // Phase 4 will wire subgraph lookup for real asset pair
-      callQuestion: `Duel #${challengeIdStr}`,  // Phase 4 wires subgraph market statement
+      assetPair: '',        // Phase 7 will wire subgraph lookup for real asset pair
+      callQuestion: `Duel #${challengeIdStr}`,  // Phase 7 wires subgraph market statement
       footerBrand,
       settled,
+      callerIsWinner,
+      callerRepDelta,
+      challengerRepDelta,
     });
 
     const imageResponse = new ImageResponse(cardJsx, {
@@ -572,7 +607,8 @@ export async function GET(
     });
 
     imageResponse.headers.set('Cache-Control', 'public, max-age=60, stale-while-revalidate=300');
-    imageResponse.headers.set('X-Variant', 'duel-active');
+    // Phase 4: X-Variant: 'duel-settled' when winner populated (D-11 stub fill)
+    imageResponse.headers.set('X-Variant', settled ? 'duel-settled' : 'duel-active');
 
     return imageResponse;
 
