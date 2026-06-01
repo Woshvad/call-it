@@ -247,7 +247,7 @@ Requirements for the v1 mainnet release. Each line is an atomic, testable behavi
 - [ ] **SETTLE-15**: Relayer signs the TWAP and submits via `submitNftFloor(callId, twapPriceWei, observationCount, evidenceHash)` to SettlementManager (§13.2)
 - [x] **SETTLE-16**: NFT TWAP reads with fewer than 12 observations in the 24h window are treated as ambiguous and routed to the dispute window (§13.2, App.A.1)
 - [ ] **SETTLE-17**: TWAP signing key is held in the same multisig as the rest of the relayer authority (§13.2, §10.7)
-- [ ] **SETTLE-18**: DefiLlama integration covers protocol TVL, chain TVL, 7d/30d volume, 7d/30d fees, 7d revenue, supply APR, borrow APR, staking APR via off-chain relayer that signs data points and submits onchain (§13.3)
+- [x] **SETTLE-18**: DefiLlama integration covers protocol TVL, chain TVL, 7d/30d volume, 7d/30d fees, 7d revenue, supply APR, borrow APR, staking APR via off-chain relayer that signs data points and submits onchain (§13.3)
 - [ ] **SETTLE-19**: Direct RPC queries serve On-chain Metric subtype (active addresses, gas burned, validator count) and Liquidation events via relayer (§13.4)
 - [ ] **SETTLE-20**: For event-driven On-chain resolutions (e.g., liquidation > $50M in window), relayer watches the relevant contract events and triggers settlement as soon as a qualifying event occurs (§13.4)
 - [ ] **SETTLE-21**: Snapshot oracle reads off-chain proposal state via Snapshot API at the deadline (§13.5)
@@ -266,8 +266,8 @@ Requirements for the v1 mainnet release. Each line is an atomic, testable behavi
 - [x] **SETTLE-34**: If `finalOutcome != call.outcome`, dispute resolution reverses settlement — reverses rep deltas and re-distributes pool USDC from old-winner to new-winner (§12.4)
 - [ ] **SETTLE-35**: Post-claim disputes are not honored in v1 — the 24h window is shorter than typical claim activity to keep this rare (§12.4)
 - [ ] **SETTLE-36**: `DisputeResolved(callId, finalOutcome, resolver)` event is emitted on resolution (§12.4)
-- [ ] **SETTLE-37**: Worst-case settlement SLA: 24h 30m maximum from `call.expiry` to final Settled state under normal flow (Pyth retries + dispute window) (§13.1, §13.7, App.A.1)
-- [ ] **SETTLE-38**: SLA copy surfaced on the receipt page: "Settles within 24h after [expiry]" so users do not panic on ambiguous-read delay (§13.7)
+- [x] **SETTLE-37**: Worst-case settlement SLA: 24h 30m maximum from `call.expiry` to final Settled state under normal flow (Pyth retries + dispute window) (§13.1, §13.7, App.A.1)
+- [x] **SETTLE-38**: SLA copy surfaced on the receipt page: "Settles within 24h after [expiry]" so users do not panic on ambiguous-read delay (§13.7)
 - [x] **SETTLE-39**: `forceSettle(callId, outcome)` escape hatch is owner-only and gated by `FORCE_SETTLE_COOLDOWN = 7 days` from `call.expiry`; reverts `ForceSettleCooldownActive(unlocksAt)` (§12.4, App.A.1)
 - [x] **SETTLE-40**: `forceSettle` emits BOTH `CallForceSettled(callId, outcome, owner)` AND `CallSettled(callId, outcome, 0)` for loud audit trail (§12.4)
 - [x] **SETTLE-41**: Settlement step 7 updates caller rep via StylusScoreEngine wrapped in try/catch with Solidity baseline fallback (§12.4, §11.6)
@@ -778,7 +778,7 @@ Which phases cover which requirements. Updated during roadmap creation by the ro
 | SETTLE-15 | Phase 4 | Pending |
 | SETTLE-16 | Phase 4 | Complete |
 | SETTLE-17 | Phase 4 | Pending |
-| SETTLE-18 | Phase 4 | Pending |
+| SETTLE-18 | Phase 4 | Complete |
 | SETTLE-19 | Phase 4 | Pending |
 | SETTLE-20 | Phase 4 | Pending |
 | SETTLE-21 | Phase 4 | Pending |
@@ -797,8 +797,8 @@ Which phases cover which requirements. Updated during roadmap creation by the ro
 | SETTLE-34 | Phase 4 | Complete |
 | SETTLE-35 | Phase 4 | Pending |
 | SETTLE-36 | Phase 4 | Pending |
-| SETTLE-37 | Phase 4 | Pending |
-| SETTLE-38 | Phase 4 | Pending |
+| SETTLE-37 | Phase 4 | Complete |
+| SETTLE-38 | Phase 4 | Complete |
 | SETTLE-39 | Phase 4 | Complete |
 | SETTLE-40 | Phase 4 | Complete |
 | SETTLE-41 | Phase 4 | Complete |
