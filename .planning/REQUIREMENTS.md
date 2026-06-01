@@ -242,18 +242,18 @@ Requirements for the v1 mainnet release. Each line is an atomic, testable behavi
 - [x] **SETTLE-10**: Relayer retries Pyth read every 60 seconds for up to 30 attempts (30-minute window) (§13.1, App.A.1)
 - [x] **SETTLE-11**: After 30 failed retries, settlement falls into the standard 24h dispute window with reason "oracle data ambiguous" (§13.1, §13.7)
 - [x] **SETTLE-12**: Spread/vs reads load both `assetA` and `assetB` Pyth feeds within the same block; either failing confidence treats the spread as ambiguous (§13.1)
-- [ ] **SETTLE-13**: NFT floor calls use Alchemy NFT API via off-chain relayer that polls `getNFTSales` + `getFloorPrice` at 5-minute intervals (§13.2)
-- [ ] **SETTLE-14**: Relayer computes 24-hour TWAP floor price off-chain from raw sales/listings data (§13.2)
-- [ ] **SETTLE-15**: Relayer signs the TWAP and submits via `submitNftFloor(callId, twapPriceWei, observationCount, evidenceHash)` to SettlementManager (§13.2)
+- [x] **SETTLE-13**: NFT floor calls use Alchemy NFT API via off-chain relayer that polls `getNFTSales` + `getFloorPrice` at 5-minute intervals (§13.2)
+- [x] **SETTLE-14**: Relayer computes 24-hour TWAP floor price off-chain from raw sales/listings data (§13.2)
+- [x] **SETTLE-15**: Relayer signs the TWAP and submits via `submitNftFloor(callId, twapPriceWei, observationCount, evidenceHash)` to SettlementManager (§13.2)
 - [x] **SETTLE-16**: NFT TWAP reads with fewer than 12 observations in the 24h window are treated as ambiguous and routed to the dispute window (§13.2, App.A.1)
-- [ ] **SETTLE-17**: TWAP signing key is held in the same multisig as the rest of the relayer authority (§13.2, §10.7)
+- [x] **SETTLE-17**: TWAP signing key is held in the same multisig as the rest of the relayer authority (§13.2, §10.7)
 - [x] **SETTLE-18**: DefiLlama integration covers protocol TVL, chain TVL, 7d/30d volume, 7d/30d fees, 7d revenue, supply APR, borrow APR, staking APR via off-chain relayer that signs data points and submits onchain (§13.3)
-- [ ] **SETTLE-19**: Direct RPC queries serve On-chain Metric subtype (active addresses, gas burned, validator count) and Liquidation events via relayer (§13.4)
-- [ ] **SETTLE-20**: For event-driven On-chain resolutions (e.g., liquidation > $50M in window), relayer watches the relevant contract events and triggers settlement as soon as a qualifying event occurs (§13.4)
-- [ ] **SETTLE-21**: Snapshot oracle reads off-chain proposal state via Snapshot API at the deadline (§13.5)
-- [ ] **SETTLE-22**: Tally oracle reads on-chain governance proposal state directly via governance contract interface (§13.5)
+- [x] **SETTLE-19**: Direct RPC queries serve On-chain Metric subtype (active addresses, gas burned, validator count) and Liquidation events via relayer (§13.4)
+- [x] **SETTLE-20**: For event-driven On-chain resolutions (e.g., liquidation > $50M in window), relayer watches the relevant contract events and triggers settlement as soon as a qualifying event occurs (§13.4)
+- [x] **SETTLE-21**: Snapshot oracle reads off-chain proposal state via Snapshot API at the deadline (§13.5)
+- [x] **SETTLE-22**: Tally oracle reads on-chain governance proposal state directly via governance contract interface (§13.5)
 - [x] **SETTLE-23**: CEX listing scrapers monitor announcement pages of all 8 exchanges (Binance, Coinbase, OKX, Bybit, Kraken, Bitget, KuCoin, Upbit); relayer submits signed proof on-chain when a matching listing is detected (§13.6)
-- [ ] **SETTLE-24**: All non-Pyth relayer-signed reads use a single retry at +5 minutes; if both fail, treated as ambiguous (§13.7)
+- [x] **SETTLE-24**: All non-Pyth relayer-signed reads use a single retry at +5 minutes; if both fail, treated as ambiguous (§13.7)
 - [x] **SETTLE-25**: After ambiguous-data detection, a 24-hour dispute window opens (`DISPUTE_WINDOW = 24 hours`); any user can submit a counter-claim with a $5 USDC bond and evidence (§13.7, §13.8, §12.4)
 - [x] **SETTLE-26**: Dispute bond is exactly $5 USDC per submission (§8.10, §13.8, §12.4)
 - [x] **SETTLE-27**: If disputer wins (counter-claim accepted), bond is returned + $2 USDC reward from treasury (§8.10, §13.8, §12.4)
@@ -773,18 +773,18 @@ Which phases cover which requirements. Updated during roadmap creation by the ro
 | SETTLE-10 | Phase 4 | Complete |
 | SETTLE-11 | Phase 4 | Complete |
 | SETTLE-12 | Phase 4 | Complete |
-| SETTLE-13 | Phase 4 | Pending |
-| SETTLE-14 | Phase 4 | Pending |
-| SETTLE-15 | Phase 4 | Pending |
+| SETTLE-13 | Phase 4 | Complete |
+| SETTLE-14 | Phase 4 | Complete |
+| SETTLE-15 | Phase 4 | Complete |
 | SETTLE-16 | Phase 4 | Complete |
-| SETTLE-17 | Phase 4 | Pending |
+| SETTLE-17 | Phase 4 | Complete |
 | SETTLE-18 | Phase 4 | Complete |
-| SETTLE-19 | Phase 4 | Pending |
-| SETTLE-20 | Phase 4 | Pending |
-| SETTLE-21 | Phase 4 | Pending |
-| SETTLE-22 | Phase 4 | Pending |
+| SETTLE-19 | Phase 4 | Complete |
+| SETTLE-20 | Phase 4 | Complete |
+| SETTLE-21 | Phase 4 | Complete |
+| SETTLE-22 | Phase 4 | Complete |
 | SETTLE-23 | Phase 4 | Complete |
-| SETTLE-24 | Phase 4 | Pending |
+| SETTLE-24 | Phase 4 | Complete |
 | SETTLE-25 | Phase 4 | Complete |
 | SETTLE-26 | Phase 4 | Complete |
 | SETTLE-27 | Phase 4 | Complete |

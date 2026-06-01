@@ -151,7 +151,7 @@ Call It ships as a person-first onchain social prediction product on Arbitrum ma
   - [x] 04-03-PLAN.md — Wave 2: DeployPhase4.s.sol + SettlementManager.json ABI + OPS-15/OPS-16 runbooks + addresses.ts + subgraph.yaml prep + [OPERATOR] Sepolia deploy
   - [x] 04-04-PLAN.md — Wave 3: Pyth adapter (HermesClient + ETH fee budget) + settlement watcher (BullMQ 30x60s retry) + DefiLlama KMS-attestation adapter (proves rail generalizes)
   - [x] 04-05-PLAN.md — Wave 3: Subgraph real handlers (7 events; replaces Phase-0 stub) + subgraph.yaml address update + [OPERATOR] Studio redeploy
-  - [ ] 04-06-PLAN.md — Wave 4: NFT TWAP + RPC metrics + Snapshot + Tally adapters + 8 CEX Playwright scrapers + Innovation Zone exclusion + settlement-watcher dispatch completion
+  - [x] 04-06-PLAN.md — Wave 4: NFT TWAP + RPC metrics + Snapshot + Tally adapters + 8 CEX Playwright scrapers + Innovation Zone exclusion + settlement-watcher dispatch completion
   - [ ] 04-07-PLAN.md — Wave 4: Settled Receipt page (outcome hero 96px Syne + stamp shadow animation + FINAL POSITIONS + provenance line) + Settled OG variants 2+4 + Duel OG variant-3 settled fill
   - [ ] 04-08-PLAN.md — Wave 5: Dispute modal (IPFS upload + bond) + Provenance proof modal (D-10 oracle URL/tx/raw data/EIP-712 sig) + /disputes/ public log + owner resolve admin with reversal preview
   - [ ] 04-09-PLAN.md — Wave 6: CEX weekly CI cron + SAFETY-57 doc + addresses.ts finalization + end-to-end verification checkpoint

@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: milestone
 status: executing
-stopped_at: Completed 04-04-PLAN.md
-last_updated: "2026-06-01T22:24:12.080Z"
+stopped_at: Completed 04-06-PLAN.md
+last_updated: "2026-06-01T22:59:05.571Z"
 last_activity: 2026-06-01
 progress:
   total_phases: 12
   completed_phases: 4
   total_plans: 40
-  completed_plans: 37
-  percent: 93
+  completed_plans: 38
+  percent: 95
 ---
 
 # Project State
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-05-21)
 ## Current Position
 
 Phase: 04 (settlementmanager-7-oracle-paths-solidity-baseline-rep-delta) — EXECUTING
-Plan: 6 of 9
+Plan: 7 of 9
 Status: Ready to execute
 Last activity: 2026-06-01
 
-Progress: [█████████░] 93%
+Progress: [██████████] 95%
 
 ## Known Plan Issues — Phase 03 (RESOLVED at execution, 2026-06-01)
 
@@ -110,6 +110,7 @@ All 3 operator actions were run this session (user explicitly authorized "run al
 | Phase 04 P02 | 22min | 2 tasks | 14 files |
 | Phase 04 P03 | 9min | 3 tasks | 8 files |
 | Phase 04 P04-04 | 21min | 2 tasks | 8 files |
+| Phase 04 P06 | 21min | 3 tasks | 19 files |
 
 ## Accumulated Context
 
@@ -221,6 +222,7 @@ completed: 2026-05-29
 - [Phase 04-02]: IStylusScoreEngine.sol is the authoritative Phase-5 interface lock -- Phase 5 MUST implement compute_rep_change(uint128,uint8,uint8,bool,uint256) returns (int32) exactly
 - [Phase 04-02]: applySettlement CALL-41 cold-start path must zero fadeReserve[callId] (not just fadeSeedVirtual) so getFadeRealReserve returns 0 post-settlement
 - [Phase ?]: PYTH_ETH_BUDGET lowered 0.1->0.05 ETH at deploy: deployer balance 0.0887 ETH insufficient; SM funded 0.05 ETH; OPS-15 covers top-up
+- [Phase 04]: rpc-metrics-adapter intentionally shares defillama KMS key — Both produce numeric off-chain attestations; different domain prevents cross-type replay
 
 ## Performance
 
@@ -354,6 +356,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-06-01T22:24:12.065Z
-Stopped at: Completed 04-04-PLAN.md
+Last session: 2026-06-01T22:58:35.079Z
+Stopped at: Completed 04-06-PLAN.md
 Resume file: None
