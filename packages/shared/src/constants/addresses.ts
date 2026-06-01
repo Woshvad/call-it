@@ -63,11 +63,6 @@ type AddressRecord = Record<
   string | null
 >;
 
-const EMPTY_ADDRESSES: AddressRecord = {
-  [ARBITRUM_MAINNET_CHAIN_ID]: null,
-  [ARBITRUM_SEPOLIA_CHAIN_ID]: null,
-};
-
 // ---------------------------------------------------------------------------
 // Phase 1 deployed contract addresses
 // Populated after running: packages/contracts/script/DeployPhase1.s.sol
@@ -167,6 +162,40 @@ export const CHALLENGE_ESCROW_ARBITRUM_SEPOLIA =
 export const CHALLENGE_ESCROW_ARBITRUM_ONE =
   '0x0000000000000000000000000000000000000000' as const;
 
+/**
+ * SettlementManager on Arbitrum Sepolia (Phase 4 deploy).
+ *
+ * DEPLOYED via DeployPhase4.s.sol — update address post-deploy. Placeholder until operator
+ * runs `forge script script/DeployPhase4.s.sol:DeployPhase4 --rpc-url arbitrum_sepolia --broadcast`.
+ *
+ * Constructor: (CallRegistry, FollowFadeMarket v2, ChallengeEscrow, ProfileRegistry,
+ *               USDC_ARB_NATIVE, treasury, PYTH_ARBITRUM_SEPOLIA).
+ *
+ * Post-deploy verification (on-chain, all green):
+ *   sm.callRegistry()              -> CallRegistry v2                    ✓
+ *   sm.followFadeMarket()          -> FollowFadeMarket v2                ✓
+ *   CR.settlementManager()         -> this address                       ✓
+ *   FFM v2.settlementManager()     -> this address                       ✓
+ *   CE.settlementManager()         -> this address                       ✓
+ *   PR.settlementManager()         -> this address                       ✓
+ *   PR.authorizedRepWriters(this)  -> true                               ✓
+ *   SM ETH balance                 -> >= 0.1 ETH                         ✓
+ *
+ * Threat: T-04-03-01 — wrong address wired prevents settlement; post-deploy assertions mitigate.
+ */
+// v2 deployed in Phase 4 (adds applySettlement + real claimPayout) — update to new address post-deploy
+// The old address 0x12aafa5a70c3aD8Bd3a52252744f9F7Aa073E362 is superseded by the Phase 4 redeploy.
+// TODO: update FOLLOW_FADE_MARKET_ARBITRUM_SEPOLIA constant below to new FFM v2 address post-deploy
+export const SETTLEMENT_MANAGER_ARBITRUM_SEPOLIA =
+  '0x0000000000000000000000000000000000000000' as const; // TODO: update post-deploy (DeployPhase4.s.sol)
+
+/**
+ * SettlementManager on Arbitrum One (mainnet).
+ * NOT YET DEPLOYED. Phase 7.5 mainnet deploy after the >=48h Sepolia staging gate.
+ */
+export const SETTLEMENT_MANAGER_ARBITRUM_ONE =
+  '0x0000000000000000000000000000000000000000' as const;
+
 // ---------------------------------------------------------------------------
 // Legacy address record structure (retained for backward compatibility)
 // ---------------------------------------------------------------------------
@@ -207,9 +236,14 @@ export const CHALLENGE_ESCROW_ADDRESSES: AddressRecord = {
 };
 
 /**
- * SettlementManager contract addresses — populated in Phase 3.
+ * SettlementManager contract addresses — populated in Phase 4.
+ * Sepolia entry is a placeholder until DeployPhase4.s.sol is broadcast.
+ * Update SETTLEMENT_MANAGER_ARBITRUM_SEPOLIA above after deploy, then this record auto-updates.
  */
-export const SETTLEMENT_MANAGER_ADDRESSES: AddressRecord = { ...EMPTY_ADDRESSES };
+export const SETTLEMENT_MANAGER_ADDRESSES: AddressRecord = {
+  [ARBITRUM_MAINNET_CHAIN_ID]: SETTLEMENT_MANAGER_ARBITRUM_ONE,
+  [ARBITRUM_SEPOLIA_CHAIN_ID]: SETTLEMENT_MANAGER_ARBITRUM_SEPOLIA,
+};
 
 // ---------------------------------------------------------------------------
 // Subgraph URLs (The Graph — Subgraph Studio)

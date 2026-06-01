@@ -103,7 +103,9 @@ dataSources:
     name: FollowFadeMarket
     network: arbitrum-sepolia
     source:
-      # Phase 2: Deployed FollowFadeMarket on Arbitrum Sepolia (2026-05-30, DeployPhase2.s.sol).
+      # Phase 4 REDEPLOY: FollowFadeMarket v2 adds applySettlement + real claimPayout.
+      # Update address to new v2 address after Phase 4 deploy (DeployPhase4.s.sol console output).
+      # TODO: update address + startBlock post-deploy
       # Matches FOLLOW_FADE_MARKET_ARBITRUM_SEPOLIA in packages/shared/src/constants/addresses.ts.
       address: "0x12aafa5a70c3aD8Bd3a52252744f9F7Aa073E362"
       abi: FollowFadeMarket
@@ -176,14 +178,19 @@ dataSources:
     name: SettlementManager
     network: arbitrum-sepolia
     source:
-      # Phase 4 placeholder — address populated when SettlementManager deploys.
-      address: "0x0000000000000000000000000000000000000000"
+      # Phase 4: SettlementManager placeholder — update address + startBlock after deploy.
+      # Run DeployPhase4.s.sol and copy the DEPLOYMENT SUMMARY console output here.
+      # TODO: update address + startBlock post-deploy (DeployPhase4.s.sol REQUIRED NEXT STEPS)
+      # Matches SETTLEMENT_MANAGER_ARBITRUM_SEPOLIA in packages/shared/src/constants/addresses.ts.
+      address: "0x0000000000000000000000000000000000000000"  # placeholder — update post-deploy
       abi: SettlementManager
-      startBlock: 1
+      startBlock: 0   # placeholder — update to deploy block post-deploy
     mapping:
       kind: ethereum/events
       apiVersion: 0.0.9
       language: wasm/assemblyscript
+      # Pitfall E: NO blockHandlers — Phase 0 stub removed; only eventHandlers here.
+      # Plan 04-05 fills the real handler bodies in settlement-manager.ts.
       file: ./src/settlement-manager.ts
       entities:
         - Settlement
@@ -198,5 +205,18 @@ dataSources:
       abis:
         - name: SettlementManager
           file: ./abis/SettlementManager.json
-      blockHandlers:
-        - handler: handleBlock
+      eventHandlers:
+        - event: CallSettled(indexed uint256,uint8,int256)
+          handler: handleCallSettled
+        - event: DisputeRaised(indexed uint256,indexed address,bytes32)
+          handler: handleDisputeRaised
+        - event: DisputeResolved(indexed uint256,uint8,indexed address)
+          handler: handleDisputeResolved
+        - event: CallForceSettled(indexed uint256,uint8)
+          handler: handleCallForceSettled
+        - event: SettlementDelayed(indexed uint256,string,uint256)
+          handler: handleSettlementDelayed
+        - event: RepCalculated(indexed uint256,indexed address,uint128,uint8,uint8,bool,uint256,int256)
+          handler: handleRepCalculated
+        - event: RepCalculatedFallback(indexed uint256,indexed address,int256,bytes)
+          handler: handleRepCalculatedFallback
