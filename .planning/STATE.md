@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: milestone
 status: executing
-stopped_at: Completed 04-01-PLAN.md
-last_updated: "2026-06-01T21:20:39.182Z"
+stopped_at: Completed 04-03-PLAN.md
+last_updated: "2026-06-01T21:45:10.520Z"
 last_activity: 2026-06-01
 progress:
   total_phases: 12
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-05-21)
 ## Current Position
 
 Phase: 04 (settlementmanager-7-oracle-paths-solidity-baseline-rep-delta) — EXECUTING
-Plan: 3 of 9
+Plan: 4 of 9
 Status: Ready to execute
 Last activity: 2026-06-01
 
-Progress: [█████████░] 85%
+Progress: [█████████░] 88%
 
 ## Known Plan Issues — Phase 03 (RESOLVED at execution, 2026-06-01)
 
@@ -108,6 +108,7 @@ All 3 operator actions were run this session (user explicitly authorized "run al
 | Phase 03-challengeescrow P07 | 11min | 2 tasks | 2 files |
 | Phase 04 P01 | 12min | 2 tasks | 12 files |
 | Phase 04 P02 | 22min | 2 tasks | 14 files |
+| Phase 04 P03 | 9min | 3 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -218,6 +219,7 @@ completed: 2026-05-29
 - [Phase 04-02]: IPyth.sol created as local interface stub (pyth-sdk-solidity not installed as forge lib) -- sourced from @pythnetwork/pyth-sdk-solidity@4.3.1 spec
 - [Phase 04-02]: IStylusScoreEngine.sol is the authoritative Phase-5 interface lock -- Phase 5 MUST implement compute_rep_change(uint128,uint8,uint8,bool,uint256) returns (int32) exactly
 - [Phase 04-02]: applySettlement CALL-41 cold-start path must zero fadeReserve[callId] (not just fadeSeedVirtual) so getFadeRealReserve returns 0 post-settlement
+- [Phase ?]: PYTH_ETH_BUDGET lowered 0.1->0.05 ETH at deploy: deployer balance 0.0887 ETH insufficient; SM funded 0.05 ETH; OPS-15 covers top-up
 
 ## Performance
 
@@ -351,6 +353,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-06-01T21:20:39.168Z
-Stopped at: Completed 04-01-PLAN.md
+Last session: 2026-06-01T21:45:10.500Z
+Stopped at: Completed 04-03-PLAN.md
 Resume file: None
