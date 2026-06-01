@@ -58,17 +58,17 @@ Phase 2 CODE is shipped and tests pass. Live operator actions were deferred (ope
    - FollowFadeMarket:   `0x12aafa5a70c3aD8Bd3a52252744f9F7Aa073E362` (block 272458674)
    - addresses.ts + subgraph.yaml updated to these v2 addresses; 02-04-SUMMARY.md written. (`--verify` skipped — no Arbiscan key; verify later with forge verify-contract.)
 2. **02-05 — Fly Postgres migration** — ✅ **DONE (2026-05-30).** Applied BOTH migrations (`0001_even_vertigo` tables + `0002_rich_blur` WR-05 unique index) to Fly Postgres `call-it-pg-sepolia` via `db:migrate` through a `fly proxy 5433:5432` tunnel. Verified live: `notifications` + `quote_stance` tables exist; `notifications_user_event_call_idx` present and UNIQUE. Plan 02-05 closed (02-05-SUMMARY.md). Local note: `.env.local` POSTGRES_URL repointed to `127.0.0.1:5433` (5432 was occupied locally); backup at `.env.local.bak`.
-3. **02-06 — Subgraph Studio publish** — ◆ OPEN (only remaining Phase 2 plan). subgraph.yaml now points at the deployed v2 addresses + startBlocks; `graph build` validates clean. Remaining: set `SUBGRAPH_STUDIO_DEPLOY_KEY`, then `cd packages/subgraph && graph auth $KEY && pnpm run build && pnpm run deploy:sepolia`; then write 02-06-SUMMARY.md → Phase 2 done (9/9) → run phase verification.
+3. **02-06 — Subgraph Studio publish** — ✅ **DONE (2026-06-01).** Published `call-it-sepolia` v0.3.0 to The Graph Studio (includes Phase 2 entities + Phase 3 ChallengeEscrow handlers). Query endpoint: `https://api.studio.thegraph.com/query/1754389/call-it-sepolia/v0.3.0`. `NEXT_PUBLIC_SUBGRAPH_URL` in `.env` updated to match. Phase 2 now 9/9 — run Phase 2 verification when convenient. (Closed together with the Phase 3 subgraph publish below.)
 
-## Deferred Live Infra (Phase 3 — operator actions, resume to close)
+## Deferred Live Infra (Phase 3 — ✅ ALL CLOSED 2026-06-01)
 
-Phase 3 CODE is being written/shipped this session against placeholder addresses (operator chose "continue code, defer live infra" at the 03-03 deploy gate, 2026-06-01). The 3 genuine operator-only actions are deferred:
+All 3 operator actions were run this session (user explicitly authorized "run all 3 live actions"):
 
-1. **03-03 Task 2 — ChallengeEscrow Arbitrum Sepolia deploy** — ◆ OPEN. `DeployPhase3.s.sol` is ready + compiles (commit `a823af0`). Run `cd packages/contracts && forge script script/DeployPhase3.s.sol:DeployPhase3 --rpc-url "$ARBITRUM_SEPOLIA_RPC_URL" --broadcast --sig "run()" -vvvv` with the Phase-2 deployer key. Record `address=0x… block=…`.
-2. **03-03 Task 3 — addresses.ts real value** — ◆ OPEN (placeholder shipped). `CHALLENGE_ESCROW_ARBITRUM_SEPOLIA` is currently `0x0…0` in `packages/shared/src/constants/addresses.ts`. After deploy, replace with the real address + record deploy block + on-chain assertions (mirror FOLLOW_FADE_MARKET block). Deploy block also feeds `subgraph.yaml` startBlock.
-3. **03-04 live infra — Fly Postgres Drizzle migration + Subgraph Studio redeploy** — ◆ OPEN. After the schema.ts + subgraph code lands: generate Drizzle migration `0003_*`, apply via `fly proxy 5433:5432` + `pnpm run db:migrate` (Phase 2 02-05 pattern); and (gated on 02-06 / `SUBGRAPH_STUDIO_DEPLOY_KEY`) set the ChallengeEscrow data source startBlock + `graph deploy:sepolia`.
+1. **03-03 Task 2 — ChallengeEscrow Arbitrum Sepolia deploy** — ✅ **DONE.** Deployed at `0x59eb7C8000f0bC4C0e32d2060f304d9b5655bec2`, block **272815420**, tx `0x507d8e265338c87ee8e80281bc496b1fd6b7dff26e2b5fd3de8554183da48748`. On-chain verified: tvlCap=5e9, getTvl=0, settlementManager=0x0 (D-01), callRegistry/followFadeMarket wired. (`--verify` on Arbiscan not yet run — optional, do later with `forge verify-contract`.)
+2. **03-03 Task 3 — addresses.ts real value** — ✅ **DONE.** `CHALLENGE_ESCROW_ARBITRUM_SEPOLIA` = real address; `subgraph.yaml` ChallengeEscrow address + startBlock=272815420 wired (commit `1cb6586`).
+3. **03-04 live infra** — ✅ **DONE.** (a) Drizzle `0003_unusual_nekra.sql` applied to Fly Postgres via `fly proxy 5433:5432` + `drizzle-kit migrate`; live-verified `trending_duels` + `duel_kings` tables + 5 indexes exist. (b) Subgraph `call-it-sepolia` v0.3.0 published to Studio (same publish closed Phase-2 02-06).
 
-Once all 3 close: fill real address, write 03-03/03-04 SUMMARY.md, then run phase verification.
+Remaining nicety: write 03-03/03-04 SUMMARY.md to mark those plans formally complete in the index (currently 03-03 has no SUMMARY → phase shows as not-100% in plan-index). Optional: Arbiscan contract verification.
 
 ## Performance Metrics
 

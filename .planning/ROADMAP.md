@@ -125,7 +125,7 @@ Call It ships as a person-first onchain social prediction product on Arbitrum ma
 **Plans**: 7 plans across 6 waves
   - [x] 03-01-PLAN.md — Wave 1: IChallengeEscrow.sol LOCKED §12.3 interface + CeTestHelper (extends FfmTestHelper) + RED Foundry test matrix (propose/accept/reject/refund/claim/overage/TVL-cap/fuzz) + Vitest challenge-gates parity (D-29)
   - [x] 03-02-PLAN.md — Wave 2: ChallengeEscrow.sol full implementation — GREEN (CEI/pause-carve-outs/push-overage/3-way-TVL-cap/settleDuel-seam); forge test --profile ci exits 0
-  - [ ] 03-03-PLAN.md — Wave 3: DeployPhase3.s.sol + [OPERATOR] Sepolia deploy checkpoint + addresses.ts CHALLENGE_ESCROW_ARBITRUM_SEPOLIA
+  - [x] 03-03-PLAN.md — Wave 3: DeployPhase3.s.sol + [OPERATOR] Sepolia deploy checkpoint + addresses.ts CHALLENGE_ESCROW_ARBITRUM_SEPOLIA
   - [x] 03-04-PLAN.md — Wave 4: Drizzle schema (trending_duels + duel_kings) + [BLOCKING] 0003_* migration + challenge-escrow.ts real handlers + subgraph.yaml ChallengeEscrow data source + Sepolia Studio redeploy
   - [x] 03-05-PLAN.md — Wave 5: Relayer — GET /api/duels/:id/live-state + GET /api/duels + duel-trending-worker (BullMQ 60s) + duel-king-worker (BullMQ weekly) + challenge notifications wired
   - [x] 03-06-PLAN.md — Wave 6: /duel/[challengeId] page (§15.5 full layout: hero/two-column/consensus/Riding/CTAs) + Challenge form modal (SOCIAL-30 prefill + USDC preflight + proposeChallenge write) + Live Receipt pending challenge block + caller accept/reject
