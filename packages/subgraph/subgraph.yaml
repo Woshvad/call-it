@@ -142,8 +142,11 @@ dataSources:
       # CHALLENGE_ESCROW_ARBITRUM_SEPOLIA is currently 0x0...0 in addresses.ts until deploy runs.
       address: "0x0000000000000000000000000000000000000000"
       abi: ChallengeEscrow
-      # TODO: replace with real deploy block from `forge script DeployPhase3` broadcast output.
-      startBlock: 1
+      # TODO: set exact ChallengeEscrow deploy block post-03-03-deploy.
+      # Using Phase-2 FollowFadeMarket deploy block (272458674) as a safe not-before floor.
+      # This prevents scanning from genesis if the operator forgets to update the block.
+      # Replace with the exact ChallengeEscrow deploy block from DeployPhase3.s.sol broadcast output.
+      startBlock: 272458674
     mapping:
       kind: ethereum/events
       apiVersion: 0.0.9
