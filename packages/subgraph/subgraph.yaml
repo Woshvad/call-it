@@ -137,16 +137,12 @@ dataSources:
     name: ChallengeEscrow
     network: arbitrum-sepolia
     source:
-      # Phase 3 placeholder — address populated post-deploy (see STATE.md Deferred Live Infra #2).
-      # TODO: replace with real address from DeployPhase3.s.sol output + update startBlock.
-      # CHALLENGE_ESCROW_ARBITRUM_SEPOLIA is currently 0x0...0 in addresses.ts until deploy runs.
-      address: "0x0000000000000000000000000000000000000000"
+      # Phase 3: Deployed ChallengeEscrow on Arbitrum Sepolia (2026-06-01, DeployPhase3.s.sol).
+      # Matches CHALLENGE_ESCROW_ARBITRUM_SEPOLIA in packages/shared/src/constants/addresses.ts.
+      # Tx: 0x507d8e265338c87ee8e80281bc496b1fd6b7dff26e2b5fd3de8554183da48748.
+      address: "0x59eb7C8000f0bC4C0e32d2060f304d9b5655bec2"
       abi: ChallengeEscrow
-      # TODO: set exact ChallengeEscrow deploy block post-03-03-deploy.
-      # Using Phase-2 FollowFadeMarket deploy block (272458674) as a safe not-before floor.
-      # This prevents scanning from genesis if the operator forgets to update the block.
-      # Replace with the exact ChallengeEscrow deploy block from DeployPhase3.s.sol broadcast output.
-      startBlock: 272458674
+      startBlock: 272815420
     mapping:
       kind: ethereum/events
       apiVersion: 0.0.9

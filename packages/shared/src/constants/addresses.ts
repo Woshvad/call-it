@@ -144,18 +144,21 @@ export const PROFILE_REGISTRY_ARBITRUM_ONE =
 /**
  * ChallengeEscrow on Arbitrum Sepolia (Phase 3 deploy).
  *
- * NOT YET DEPLOYED — placeholder pending the 03-03 operator deploy.
- * DeployPhase3.s.sol is ready: ChallengeEscrow(CallRegistry v2, FollowFadeMarket,
- * USDC native, treasury, tvlCap=5_000_000_000). After broadcast, replace the zero
- * address below with the deployed address and record deploy block + on-chain
- * assertions here (mirror FOLLOW_FADE_MARKET_ARBITRUM_SEPOLIA above). The deploy
- * block also feeds packages/subgraph/subgraph.yaml startBlock (Plan 03-04).
+ * DEPLOYED 2026-06-01 via DeployPhase3.s.sol. Deploy block: 272815420.
+ * Tx: 0x507d8e265338c87ee8e80281bc496b1fd6b7dff26e2b5fd3de8554183da48748.
+ * Constructor: (CallRegistry v2, FollowFadeMarket, USDC native, treasury, tvlCap=5_000_000_000).
  *
- * Threat: T-03-03-01 — wrong/zero address routes all duel reads/writes to nowhere;
- * downstream code MUST guard against the zero address until the real value lands.
+ * Post-deploy verification (on-chain, all green):
+ *   tvlCap()            -> 5000000000                                 ✓
+ *   getTvl()            -> 0                                          ✓
+ *   settlementManager() -> 0x0 (D-01 deploy-at-zero; Phase 4 rotates) ✓
+ *   callRegistry()      -> CallRegistry v2                            ✓
+ *   followFadeMarket()  -> FollowFadeMarket                          ✓
+ *
+ * Threat: T-03-03-01 — wrong/zero address routes all duel reads/writes to nowhere.
  */
 export const CHALLENGE_ESCROW_ARBITRUM_SEPOLIA =
-  '0x0000000000000000000000000000000000000000' as const;
+  '0x59eb7C8000f0bC4C0e32d2060f304d9b5655bec2' as const;
 
 /**
  * ChallengeEscrow on Arbitrum One (mainnet).
