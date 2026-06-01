@@ -8,6 +8,14 @@
  *   3. Bumps statusVersion Redis key for that callId (OG cache-bust — D-09)
  *   4. Fires a P1 Telegram alert (caller_exited_broadcast — SOCIAL-23)
  *
+ * Phase 3 extension — challenge event notifications (SOCIAL-40, SOCIAL-41, SOCIAL-42):
+ *   On each tick, also queries subgraph for new challenge events (ChallengeProposed,
+ *   ChallengeAccepted, ChallengeRejected) created in the last polling window and
+ *   inserts notification rows using ON CONFLICT DO NOTHING for idempotency.
+ *     - ChallengeProposed  → notify the call.caller (they got challenged)
+ *     - ChallengeAccepted  → notify the challenger (their challenge was accepted)
+ *     - ChallengeRejected  → notify the challenger (their challenge was rejected)
+ *
  * NO on-chain loops — all off-chain via subgraph query (gas/DoS safety — D-13).
  *
  * Log events:
@@ -17,6 +25,7 @@
  *   { event: 'notification_fanout_holders_resolved' }
  *   { event: 'notification_fanout_notifications_inserted' }
  *   { event: 'notification_fanout_status_version_bumped' }
+ *   { event: 'notification_fanout_challenge_notifications' }
  *   { event: 'notification_fanout_error' }
  *
  * Security:
@@ -25,7 +34,7 @@
  *   T-02-07-04: statusVersion bump in same tick as notification insert; if Redis
  *     fails, log error — OG card falls back to v=0 (slightly stale but not wrong).
  *
- * Requirements: D-13, D-14, SOCIAL-23, SOCIAL-24
+ * Requirements: D-13, D-14, SOCIAL-23, SOCIAL-24, SOCIAL-40, SOCIAL-41, SOCIAL-42
  */
 
 import type { PublicClient, Address, Log } from 'viem';
@@ -323,6 +332,144 @@ async function processCallerExitedEvent(
   });
 }
 
+// ── Challenge event notification processing (Phase 3 — SOCIAL-40/41/42) ────────
+
+interface SubgraphChallengeEvent {
+  id: string;
+  status: string;
+  call: string;
+  challenger: string;
+  caller: string;
+  proposedAt: string;
+  acceptedAt: string | null;
+}
+
+interface SubgraphChallengeEventsResponse {
+  data?: {
+    challenges?: SubgraphChallengeEvent[];
+  };
+  errors?: Array<{ message: string }>;
+}
+
+/**
+ * Query subgraph for challenges with recent status changes and fan out notifications.
+ *
+ * Uses proposedAt timestamp as a proxy for "recently proposed". To avoid replaying
+ * old events, only challenges proposed/updated in the last 2× polling intervals
+ * (2 × 30s = 60s) are queried — safely wider than one tick but narrow enough to
+ * avoid re-notifying settled old challenges.
+ *
+ * Idempotency: ON CONFLICT DO NOTHING on (user_address, event_type, call_id) unique
+ * index guarantees exactly-once delivery even if the same challenge is returned on
+ * multiple consecutive ticks.
+ *
+ * Non-fatal: errors logged and skipped — does not affect CallerExited fan-out.
+ */
+async function processChallengeNotifications(config: NotificationFanoutConfig): Promise<void> {
+  // Look back 60s to overlap with polling interval safely
+  const cutoffSec = Math.floor((Date.now() - 60_000) / 1000).toString();
+
+  const query = `
+    query GetRecentChallenges($since: String!) {
+      challenges(
+        where: { proposedAt_gt: $since }
+        first: 100
+        orderBy: proposedAt
+        orderDirection: desc
+      ) {
+        id
+        status
+        call
+        challenger
+        caller
+        proposedAt
+        acceptedAt
+      }
+    }
+  `;
+
+  const response = await fetch(config.subgraphUrl, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ query, variables: { since: cutoffSec } }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Subgraph HTTP error: ${response.status} ${response.statusText}`);
+  }
+
+  const json = (await response.json()) as SubgraphChallengeEventsResponse;
+  if (json.errors && json.errors.length > 0) {
+    throw new Error(`Subgraph error: ${json.errors.map((e) => e.message).join(', ')}`);
+  }
+
+  const challenges = json.data?.challenges ?? [];
+  if (challenges.length === 0) return;
+
+  // Build notification rows for each relevant status
+  const rows: {
+    userAddress: string;
+    eventType: 'challenge_proposed' | 'challenge_accepted' | 'challenge_rejected';
+    callId: number;
+    payload: Record<string, unknown>;
+  }[] = [];
+
+  for (const c of challenges) {
+    const callIdNum = parseInt(c.call, 10);
+    if (isNaN(callIdNum)) continue;
+
+    const challengeIdStr = c.id;
+    const payload = { challengeId: challengeIdStr };
+
+    if (c.status === 'Proposed' && c.caller) {
+      // Notify the call.caller — they got challenged
+      rows.push({
+        userAddress: c.caller.toLowerCase(),
+        eventType: 'challenge_proposed',
+        callId: callIdNum,
+        payload,
+      });
+    } else if (c.status === 'Accepted' && c.challenger) {
+      // Notify the challenger — their challenge was accepted
+      rows.push({
+        userAddress: c.challenger.toLowerCase(),
+        eventType: 'challenge_accepted',
+        callId: callIdNum,
+        payload,
+      });
+    } else if (c.status === 'Rejected' && c.challenger) {
+      // Notify the challenger — their challenge was rejected
+      rows.push({
+        userAddress: c.challenger.toLowerCase(),
+        eventType: 'challenge_rejected',
+        callId: callIdNum,
+        payload,
+      });
+    }
+  }
+
+  if (rows.length === 0) return;
+
+  // Insert with ON CONFLICT DO NOTHING for idempotency (WR-05 pattern)
+  const BATCH_SIZE = 100;
+  let inserted = 0;
+  for (let i = 0; i < rows.length; i += BATCH_SIZE) {
+    const batch = rows.slice(i, i + BATCH_SIZE);
+    await config.db
+      .insert(notifications)
+      .values(batch)
+      .onConflictDoNothing({
+        target: [notifications.userAddress, notifications.eventType, notifications.callId],
+      });
+    inserted += batch.length;
+  }
+
+  logger.info(
+    { event: 'notification_fanout_challenge_notifications', count: inserted, statuses: challenges.map((c) => c.status) },
+    'Challenge notifications fanned out',
+  );
+}
+
 // ── Main export ───────────────────────────────────────────────────────────────
 
 /**
@@ -457,6 +604,22 @@ export function startNotificationFanout(config: NotificationFanoutConfig): Notif
           );
           errors++;
           // Do NOT throw — interval must keep running
+        }
+      }
+
+      // ── Phase 3: Challenge event notifications ────────────────────────────
+      // Query subgraph for new challenges proposed/accepted/rejected since last tick.
+      // Skipped if subgraphUrl is empty (dev without subgraph); errors are non-fatal.
+      if (config.subgraphUrl) {
+        try {
+          await processChallengeNotifications(config);
+        } catch (err) {
+          const message = err instanceof Error ? err.message : String(err);
+          logger.warn(
+            { event: 'notification_fanout_error', error: message, phase: 'challenge_notifications' },
+            'Challenge notification processing failed — will retry next tick',
+          );
+          // Non-fatal — do NOT increment errors that block the worker
         }
       }
     } catch (err) {

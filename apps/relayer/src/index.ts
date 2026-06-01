@@ -47,9 +47,13 @@ import { profileRoute } from './routes/profile.js';
 import { liveStateRoute } from './routes/live-state.js';
 import { quoteStanceRoute } from './routes/quote-stance.js';
 import { notificationsRoute } from './routes/notifications.js';
+import { duelLiveStateRoute } from './routes/duel-live-state.js';
+import { duelsRoute } from './routes/duels.js';
 import { sendAlert } from './workers/alerts.js';
 import { startPaymasterConfirmer } from './workers/paymaster-confirmer.js';
 import { startNotificationFanout } from './workers/notification-fanout.js';
+import { startDuelTrendingWorker } from './workers/duel-trending-worker.js';
+import { startDuelKingWorker } from './workers/duel-king-worker.js';
 
 /**
  * Build and configure the Fastify application.
@@ -153,6 +157,13 @@ export async function buildApp(): Promise<FastifyInstance> {
   await app.register(quoteStanceRoute);
   // Phase 2 — Plan 07: notifications inbox (D-13, D-14 — Privy-gated mark-read)
   await app.register(notificationsRoute);
+  // ── Plan 03-05 routes ─────────────────────────────────────
+  // Phase 3 — Plan 05: duel live-state proxy (ChallengeEscrow RPC reads + 4s Redis cache — T-03-05-01/02)
+  // NOTE: CHALLENGE_ESCROW_ARBITRUM_SEPOLIA is the zero-address placeholder until
+  // the 03-03 operator deploy lands; the route zero-guards and returns deferred:true.
+  await app.register(duelLiveStateRoute);
+  // Phase 3 — Plan 05: duels tab feed (trending_duels Postgres + subgraph merge — SOCIAL-41/48)
+  await app.register(duelsRoute);
   // ─────────────────────────────────────────────────────────
 
   // 5. Boot-time BullMQ compatibility smoke (Pitfall A mitigation)
@@ -191,6 +202,35 @@ export async function buildApp(): Promise<FastifyInstance> {
       app.log.error(
         { event: 'notification_fanout_start_failed', err: String(err) },
         'Failed to start notification fan-out worker',
+      );
+    }
+    // Start duel trending worker (Plan 03-05 — D-07, SOCIAL-41/48)
+    // Runs every 60s; upserts trending_duels rows when pot >= $500 OR backers >= 50.
+    // NOTE: subgraphUrl may return empty results until ChallengeEscrow is deployed (03-03).
+    try {
+      startDuelTrendingWorker({
+        subgraphUrl: notificationSubgraphUrl,
+        db: notificationFanoutDb,
+        intervalMs: 60_000,
+      });
+    } catch (err) {
+      app.log.error(
+        { event: 'duel_trending_worker_start_failed', err: String(err) },
+        'Failed to start duel trending worker',
+      );
+    }
+    // Start Duel King worker (Plan 03-05 — SOCIAL-48)
+    // Runs weekly; elects Duel King from settled challenges (placeholder until Phase 4).
+    try {
+      startDuelKingWorker({
+        subgraphUrl: notificationSubgraphUrl,
+        db: notificationFanoutDb,
+        intervalMs: 7 * 24 * 3600 * 1000,
+      });
+    } catch (err) {
+      app.log.error(
+        { event: 'duel_king_worker_start_failed', err: String(err) },
+        'Failed to start Duel King worker',
       );
     }
     try {
