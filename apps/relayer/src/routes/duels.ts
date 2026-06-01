@@ -36,7 +36,7 @@ import { getRedis } from '../lib/redis.js';
 import { getLogger } from '../lib/logger.js';
 import { getDb } from '../db/client.js';
 import { trendingDuels, duelKings } from '../db/schema.js';
-import { gt } from 'drizzle-orm';
+import { gt, desc } from 'drizzle-orm';
 
 // ── Cache config ──────────────────────────────────────────────────────────────
 
@@ -287,7 +287,7 @@ export async function duelsRoute(
           const kingRows = await db
             .select()
             .from(duelKings)
-            .orderBy(duelKings.weekAnchor)
+            .orderBy(desc(duelKings.weekAnchor)) // CR-05: DESC so current week first
             .limit(1);
           if (kingRows.length > 0) {
             const king = kingRows[0]!;
