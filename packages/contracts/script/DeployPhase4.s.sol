@@ -41,7 +41,7 @@ pragma solidity =0.8.30;
 //   --rpc-url $ARBITRUM_SEPOLIA_RPC_URL
 //   -> true
 // cast balance <SettlementManager> --rpc-url $ARBITRUM_SEPOLIA_RPC_URL
-//   -> >= 100000000000000000 (0.1 ETH in wei)
+//   -> >= 50000000000000000 (0.05 ETH in wei)
 
 import { Script } from "forge-std/Script.sol";
 import { console } from "forge-std/console.sol";
@@ -98,9 +98,9 @@ contract DeployPhase4 is Script {
     // ─── Deployment parameters ───────────────────────────────────────────────────
 
     /// @notice ETH funded into SettlementManager for Pyth update fees (Pitfall 4).
-    ///         0.1 ETH initial budget. Relayer monitors and tops up when < 0.01 ETH.
+    ///         0.05 ETH initial budget. Relayer monitors and tops up when < 0.01 ETH.
     ///         OPS-15 runbook covers top-up procedure.
-    uint256 public constant PYTH_ETH_BUDGET = 0.1 ether;
+    uint256 public constant PYTH_ETH_BUDGET = 0.05 ether;
 
     function run() external {
         // Load deployer key from environment.
@@ -175,11 +175,11 @@ contract DeployPhase4 is Script {
 
         // ─── 5. Fund SettlementManager with ETH for Pyth fees ───────────────────
         // Pyth pull-oracle requires ETH to pay for VAA update fees (Pitfall 4).
-        // Initial budget: 0.1 ETH (covers ~100-200 settlements depending on gas price).
+        // Initial budget: 0.05 ETH (covers ~50-100 settlements depending on gas price).
         // Relayer monitors balance; OPS-15 covers top-up when < 0.01 ETH.
         // SM's receive() accepts ETH top-ups.
         payable(address(sm)).transfer(PYTH_ETH_BUDGET);
-        console.log("Funded SettlementManager with 0.1 ETH for Pyth update fees");
+        console.log("Funded SettlementManager with 0.05 ETH for Pyth update fees");
 
         vm.stopBroadcast();
 
@@ -254,10 +254,10 @@ contract DeployPhase4 is Script {
             "DeployPhase4: PR.authorizedRepWriters(SM) != true"
         );
 
-        // Assert SM has ETH budget (0.1 ETH funded in step 5)
+        // Assert SM has ETH budget (0.05 ETH funded in step 5)
         require(
             address(sm).balance >= PYTH_ETH_BUDGET,
-            "DeployPhase4: SM ETH balance < 0.1 ether"
+            "DeployPhase4: SM ETH balance < 0.05 ether"
         );
 
         // ─── Deployment Summary ──────────────────────────────────────────────────
@@ -276,7 +276,7 @@ contract DeployPhase4 is Script {
         console.log("  CE.settlementManager()    -> SM address                             [OK]");
         console.log("  PR.settlementManager()    -> SM address                             [OK]");
         console.log("  PR.authorizedRepWriters() -> true                                   [OK]");
-        console.log("  SM ETH balance            -> 0.1 ether                             [OK]");
+        console.log("  SM ETH balance            -> 0.05 ether                            [OK]");
         console.log("---");
         console.log("REQUIRED NEXT STEPS:");
         console.log("1. Update packages/shared/src/constants/addresses.ts:");
