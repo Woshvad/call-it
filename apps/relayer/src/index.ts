@@ -56,6 +56,9 @@ import { startDuelTrendingWorker } from './workers/duel-trending-worker.js';
 import { startDuelKingWorker } from './workers/duel-king-worker.js';
 // Phase 4 — Plan 04-04: Settlement watcher (BullMQ + Pyth 30×60s retry)
 import { startSettlementWatcher, type SettlementWatcherHandle } from './workers/settlement-watcher.js';
+// Phase 4 — Plan 04-08: Settlement provenance + dispute routes (D-10, D-06/07)
+import { settleRoute } from './routes/settle.js';
+import { disputesRoute } from './routes/disputes.js';
 
 /**
  * Build and configure the Fastify application.
@@ -166,6 +169,11 @@ export async function buildApp(): Promise<FastifyInstance> {
   await app.register(duelLiveStateRoute);
   // Phase 3 — Plan 05: duels tab feed (trending_duels Postgres + subgraph merge — SOCIAL-41/48)
   await app.register(duelsRoute);
+  // ── Plan 04-08 routes ─────────────────────────────────────
+  // Phase 4 — Plan 08: settlement provenance (D-10, SETTLE-52)
+  await app.register(settleRoute);
+  // Phase 4 — Plan 08: dispute raise/list/evidence (D-06, D-07)
+  await app.register(disputesRoute);
   // ─────────────────────────────────────────────────────────
 
   // 5. Boot-time BullMQ compatibility smoke (Pitfall A mitigation)

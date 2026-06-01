@@ -23,6 +23,16 @@
  *   - Provenance line: "SETTLED FROM {oracleHost} at {timestamp} UTC · view oracle proof ↗"
  *   - FINAL POSITIONS: flex-direction:row (NOT grid), two columns capped 20/side, sorted P&L desc
  *
+ * Phase 4 (Plan 04-08) additions:
+ *   - DisputeModal: amber neobrutalist modal, IPFS evidence upload via Pinata,
+ *     $5 USDC bond preflight (inline approve), raiseDispute writeContract (D-06)
+ *   - ProvenanceModal: accent neobrutalist modal, oracle URL + Arbiscan tx hash,
+ *     path-aware raw oracle data per oracle.type (Pyth=price+conf+publishTime,
+ *     attestation paths=payload JSON, CEX=announcement), EIP-712 sig truncated
+ *     with chainId 42161 label, copy-to-clipboard (D-10, SETTLE-52)
+ *   - Dispute CTA: "Dispute this settlement" shown when status==Settled + within 24h window
+ *   - Dispute window / MAX_COUNTER_CLAIMS enforcement
+ *
  * callerMatchingStake = min(callerInputStake, challengerStake) — Issue #1 fix (SOCIAL-31)
  * NOT min(challengerStake, challengerStake) — that was the copy-paste bug in the plan.
  *
@@ -60,6 +70,7 @@ import {
 import {
   FOLLOW_FADE_MARKET_ARBITRUM_SEPOLIA,
   CHALLENGE_ESCROW_ARBITRUM_SEPOLIA,
+  SETTLEMENT_MANAGER_ARBITRUM_SEPOLIA,
   USDC_ARB_NATIVE,
 } from '@call-it/shared';
 import { getOutcomeWordResult } from '@/lib/outcome-word';
@@ -140,6 +151,53 @@ type PendingChallenge = {
   proposedAt: bigint;
 };
 
+// ─── Provenance types (Phase 4 D-10, SETTLE-52) ──────────────────────────────
+
+type OracleType = 'pyth' | 'nft-twap' | 'defillama' | 'rpc-metrics' | 'snapshot' | 'tally' | 'cex';
+
+type RawOracleData =
+  | { pythPrice: string; pythConf: string; pythPublishTime: string }
+  | { attestationPayload: string; evidenceHash?: string; observationCount?: number }
+  | { attestationPayload: string }
+  | { announcementTitle: string; announcementUrl: string; scrapedAt: string }
+  | null;
+
+type ProvenanceData = {
+  oracle: { type: OracleType; url: string; host: string; feedId?: string };
+  txHash: string;
+  settledAt: number | null;
+  rawOracleData: RawOracleData;
+  /** EIP-712 relayer signature (chainId 42161-bound — Pitfall 7) */
+  relayerSignature: string;
+  chainId: 42161;
+};
+
+// ─── Dispute constants (SETTLE-26/27/28) ─────────────────────────────────────
+
+/** Dispute bond in USDC micro-units ($5) */
+const DISPUTE_BOND_USDC = 5_000_000n;
+
+/** Dispute window in seconds (24h) */
+const DISPUTE_WINDOW_SECONDS = 86_400n;
+
+/** Max counter-claims per call (SETTLE-30) */
+const MAX_COUNTER_CLAIMS = 3;
+
+// ─── Settlement Manager ABI slice (raiseDispute) ─────────────────────────────
+
+const SM_ABI = [
+  {
+    type: 'function',
+    name: 'raiseDispute',
+    inputs: [
+      { name: 'callId', type: 'uint256' },
+      { name: 'evidenceHash', type: 'bytes32' },
+    ],
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+] as const;
+
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 /** FFM contract address — CONSTANT, never inlined */
@@ -147,6 +205,9 @@ const FFM_ADDR = FOLLOW_FADE_MARKET_ARBITRUM_SEPOLIA as `0x${string}`;
 
 /** ChallengeEscrow address — imported from @call-it/shared (T-3-06-05) */
 const CE_ADDR = CHALLENGE_ESCROW_ARBITRUM_SEPOLIA as `0x${string}`;
+
+/** SettlementManager address — imported from @call-it/shared (Phase 4) */
+const SM_ADDR = SETTLEMENT_MANAGER_ARBITRUM_SEPOLIA as `0x${string}`;
 
 /** USDC native on Arbitrum (canonical) */
 const USDC_ADDR = USDC_ARB_NATIVE as `0x${string}`; // IN-05: imported from @call-it/shared
@@ -327,6 +388,31 @@ async function fetchQuoteCalls(callId: string): Promise<QuoteEntry[]> {
   }
 }
 
+/** Fetch settlement provenance from relayer (D-10, SETTLE-52). */
+async function fetchProvenanceData(callId: string): Promise<ProvenanceData | null> {
+  if (!RELAYER_URL) return null;
+  try {
+    const res = await fetch(`${RELAYER_URL}/api/settle/${callId}`);
+    if (!res.ok) return null;
+    const raw = await res.json() as Record<string, unknown>;
+    return {
+      oracle: {
+        type: ((raw['oracle'] as Record<string, unknown>)?.['type'] ?? 'pyth') as OracleType,
+        url: String((raw['oracle'] as Record<string, unknown>)?.['url'] ?? ''),
+        host: String((raw['oracle'] as Record<string, unknown>)?.['host'] ?? ''),
+        feedId: (raw['oracle'] as Record<string, unknown>)?.['feedId'] as string | undefined,
+      },
+      txHash: String(raw['txHash'] ?? ''),
+      settledAt: raw['settledAt'] ? Number(raw['settledAt']) : null,
+      rawOracleData: (raw['rawOracleData'] as RawOracleData) ?? null,
+      relayerSignature: String(raw['relayerSignature'] ?? ''),
+      chainId: 42161,
+    };
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Fetch pending challenge for this call from the relayer notifications endpoint.
  * Returns the first challenge_proposed notification for this callId, if any.
@@ -353,6 +439,508 @@ async function fetchPendingChallenge(
   } catch {
     return null;
   }
+}
+
+// ─── DisputeModal (D-06, SETTLE-25..32) ──────────────────────────────────────
+
+type DisputeModalProps = {
+  open: boolean;
+  onClose: () => void;
+  callId: bigint;
+  outcomeWord: string;
+  smAddr: `0x${string}`;
+  usdcAddr: `0x${string}`;
+  relayerUrl: string;
+};
+
+function DisputeModal({ open, onClose, callId, outcomeWord, smAddr, usdcAddr, relayerUrl }: DisputeModalProps) {
+  const { address: userAddress } = useAccount();
+  const { writeContractAsync } = useWriteContract();
+
+  const [evidenceFile, setEvidenceFile] = useState<File | null>(null);
+  const [evidenceCid, setEvidenceCid] = useState<string | null>(null);
+  const [evidenceHash, setEvidenceHash] = useState<`0x${string}` | null>(null);
+  const [uploadingEvidence, setUploadingEvidence] = useState(false);
+  const [note, setNote] = useState('');
+  const [approveTxHash, setApproveTxHash] = useState<`0x${string}` | undefined>(undefined);
+  const [disputeTxHash, setDisputeTxHash] = useState<`0x${string}` | undefined>(undefined);
+  const [isApproving, setIsApproving] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [toast, setToast] = useState<{ text: string; isError: boolean } | null>(null);
+
+  const userAddr = (userAddress as `0x${string}` | undefined) ?? '0x0000000000000000000000000000000000000000' as `0x${string}`;
+  const isSmZero = smAddr === '0x0000000000000000000000000000000000000000';
+
+  // USDC allowance check for $5 bond (SETTLE-26)
+  const { data: allowanceData, refetch: refetchAllowance } = useReadContract({
+    address: usdcAddr,
+    abi: USDC_ALLOWANCE_ABI,
+    functionName: 'allowance',
+    args: [userAddr, smAddr],
+    query: { enabled: open && !isSmZero && !!userAddress },
+  });
+  const currentAllowance = (allowanceData as bigint | undefined) ?? 0n;
+  const needsApproval = !isSmZero && currentAllowance < DISPUTE_BOND_USDC;
+
+  const { isLoading: approveConfirming, isSuccess: approveConfirmed } =
+    useWaitForTransactionReceipt({ hash: approveTxHash });
+  const { isSuccess: disputeConfirmed } =
+    useWaitForTransactionReceipt({ hash: disputeTxHash });
+
+  useEffect(() => {
+    if (approveConfirmed) {
+      void refetchAllowance();
+      setIsApproving(false);
+    }
+  }, [approveConfirmed, refetchAllowance]);
+
+  useEffect(() => {
+    if (disputeConfirmed) {
+      setIsSubmitting(false);
+      setToast({ text: 'Dispute filed — under owner review. Resolves within 24h.', isError: false });
+      setTimeout(() => { setToast(null); onClose(); }, 3000);
+    }
+  }, [disputeConfirmed, onClose]);
+
+  useEffect(() => {
+    if (!open) {
+      setEvidenceFile(null); setEvidenceCid(null); setEvidenceHash(null);
+      setNote(''); setIsApproving(false); setIsSubmitting(false);
+      setApproveTxHash(undefined); setDisputeTxHash(undefined); setToast(null);
+    }
+  }, [open]);
+
+  const handleEvidenceUpload = async (file: File) => {
+    setUploadingEvidence(true);
+    try {
+      const content = await file.arrayBuffer();
+      const base64 = btoa(String.fromCharCode(...new Uint8Array(content)));
+      const res = await fetch(`${relayerUrl}/api/disputes/evidence`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: base64, filename: file.name, mimeType: file.type }),
+      });
+      if (!res.ok) throw new Error(`Upload failed: ${res.status}`);
+      const data = await res.json() as { cid: string; evidenceHash: string };
+      setEvidenceCid(data.cid);
+      setEvidenceHash(data.evidenceHash as `0x${string}`);
+    } catch (err) {
+      setToast({ text: err instanceof Error ? err.message : 'Upload failed', isError: true });
+    } finally {
+      setUploadingEvidence(false);
+    }
+  };
+
+  const handleApprove = async () => {
+    setIsApproving(true);
+    try {
+      const hash = await writeContractAsync({
+        address: usdcAddr,
+        abi: USDC_ALLOWANCE_ABI,
+        functionName: 'approve',
+        args: [smAddr, DISPUTE_BOND_USDC],
+      });
+      setApproveTxHash(hash);
+    } catch (err) {
+      setToast({ text: err instanceof Error ? err.message : 'Approval failed', isError: true });
+      setIsApproving(false);
+    }
+  };
+
+  const handleRaiseDispute = async () => {
+    if (!evidenceHash) return;
+    setIsSubmitting(true);
+    try {
+      const hash = await writeContractAsync({
+        address: smAddr,
+        abi: SM_ABI,
+        functionName: 'raiseDispute',
+        args: [callId, evidenceHash],
+      });
+      setDisputeTxHash(hash);
+    } catch (err) {
+      setToast({ text: err instanceof Error ? err.message : 'Dispute failed', isError: true });
+      setIsSubmitting(false);
+    }
+  };
+
+  if (!open) return null;
+
+  const canSubmit = !!evidenceHash && !needsApproval && !isSubmitting && !isApproving && !approveConfirming && !isSmZero;
+
+  return (
+    <div
+      style={{
+        position: 'fixed', inset: 0, zIndex: 100,
+        backgroundColor: 'rgba(9,9,14,0.8)',
+        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '24px',
+      }}
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      {toast && (
+        <div style={{
+          position: 'fixed', top: '24px', right: '24px', zIndex: 200,
+          backgroundColor: '#111118', borderLeft: `4px solid ${toast.isError ? '#F87171' : '#FB923C'}`,
+          padding: '14px 18px', fontFamily: 'monospace', fontSize: '13px', color: '#F1F5F9', maxWidth: '340px',
+        }}>
+          {toast.text}
+        </div>
+      )}
+      {/* Modal panel — amber neobrutalist (Surface 4) */}
+      <div style={{
+        position: 'relative', backgroundColor: '#111118',
+        border: '3px solid #FB923C', boxShadow: '4px 4px 0 #FB923C',
+        padding: '24px', width: '100%', maxWidth: '480px',
+        display: 'flex', flexDirection: 'column', gap: '20px',
+      }}>
+        {/* Corner brackets — amber (top-left + bottom-right) */}
+        <div style={{ position: 'absolute', top: -2, left: -2, pointerEvents: 'none' }}>
+          <div style={{ width: '16px', height: '4px', backgroundColor: '#FB923C' }} />
+          <div style={{ width: '4px', height: '12px', backgroundColor: '#FB923C' }} />
+        </div>
+        <div style={{ position: 'absolute', bottom: -2, right: -2, pointerEvents: 'none', display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
+          <div style={{ width: '4px', height: '12px', backgroundColor: '#FB923C' }} />
+          <div style={{ width: '16px', height: '4px', backgroundColor: '#FB923C' }} />
+        </div>
+
+        {/* Title + close */}
+        <div style={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          <h2 style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: '28px', fontWeight: 700, color: '#F1F5F9', margin: 0 }}>
+            DISPUTE THIS SETTLEMENT
+          </h2>
+          <button onClick={onClose} style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#64748B', fontSize: '20px', padding: '4px' }}>✕</button>
+        </div>
+
+        {/* Currently settled read-only */}
+        <div style={{ border: '2px solid #1E1E2E', backgroundColor: '#0D0D15', padding: '10px 14px' }}>
+          <div style={{ fontFamily: 'monospace', fontSize: '10px', color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: '4px' }}>
+            Currently settled:
+          </div>
+          <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: '14px', fontWeight: 700, color: '#F1F5F9' }}>{outcomeWord}</span>
+        </div>
+
+        {/* YOUR EVIDENCE upload */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          <label style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: '12px', fontWeight: 700, color: '#F1F5F9', textTransform: 'uppercase', letterSpacing: '0.12em' }}>
+            YOUR EVIDENCE
+          </label>
+          <input
+            type="file"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) { setEvidenceFile(file); void handleEvidenceUpload(file); }
+            }}
+            style={{ fontFamily: 'monospace', fontSize: '12px', color: '#94A3B8', cursor: 'pointer' }}
+          />
+          {uploadingEvidence && (
+            <span style={{ fontFamily: 'monospace', fontSize: '12px', color: '#94A3B8' }}>Uploading to IPFS…</span>
+          )}
+          {evidenceCid && !uploadingEvidence && (
+            <span style={{ fontFamily: 'monospace', fontSize: '12px', color: '#4ADE80' }}>
+              evidence pinned ✓ — {evidenceCid.slice(0, 16)}…
+            </span>
+          )}
+          {!evidenceFile && (
+            <span style={{ fontFamily: 'monospace', fontSize: '11px', color: '#64748B' }}>
+              Evidence required before you can submit.
+            </span>
+          )}
+        </div>
+
+        {/* WHAT'S WRONG — optional note */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          <label style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: '12px', fontWeight: 700, color: '#F1F5F9', textTransform: 'uppercase', letterSpacing: '0.12em' }}>
+            WHAT&apos;S WRONG (optional)
+          </label>
+          <textarea
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            rows={3}
+            style={{
+              fontFamily: "'Space Grotesk', sans-serif", fontSize: '14px', color: '#F1F5F9',
+              backgroundColor: '#09090E', border: '2px solid #2E2E42',
+              padding: '10px', resize: 'vertical', outline: 'none',
+            }}
+            placeholder="Describe what's wrong with this settlement…"
+          />
+        </div>
+
+        {/* DISPUTE BOND */}
+        <div style={{ borderTop: '1px solid #1E1E2E', paddingTop: '16px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+          <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: '12px', fontWeight: 700, color: '#F1F5F9', textTransform: 'uppercase', letterSpacing: '0.12em' }}>
+            DISPUTE BOND
+          </div>
+          <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '13px', color: '#94A3B8' }}>
+            $5.00 USDC · refunded + $2 reward if you win, forfeited if you lose
+          </span>
+        </div>
+
+        {/* USDC preflight — inline approve sub-step */}
+        {needsApproval && !isSmZero && (
+          <div style={{ border: '1px solid #2E2E42', padding: '12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <span style={{ fontFamily: 'monospace', fontSize: '12px', color: '#94A3B8' }}>
+              Approve USDC first — allow $5.00 to SettlementManager
+            </span>
+            <button
+              onClick={() => void handleApprove()}
+              disabled={isApproving || approveConfirming}
+              style={{
+                fontFamily: 'monospace', fontSize: '13px', fontWeight: 700,
+                color: '#09090E',
+                backgroundColor: isApproving || approveConfirming ? '#2E2E42' : '#FB923C',
+                border: `2px solid ${isApproving || approveConfirming ? '#2E2E42' : '#09090E'}`,
+                boxShadow: isApproving || approveConfirming ? 'none' : '4px 4px 0 #09090E',
+                padding: '10px 16px', cursor: isApproving || approveConfirming ? 'not-allowed' : 'pointer',
+              }}
+            >
+              {isApproving || approveConfirming ? 'Approving…' : 'Approve USDC ▸'}
+            </button>
+          </div>
+        )}
+
+        {isSmZero && (
+          <div style={{ fontFamily: 'monospace', fontSize: '12px', color: '#94A3B8', border: '1px solid #2E2E42', padding: '10px' }}>
+            SettlementManager not yet deployed — disputes available after Phase 4 deploy.
+          </div>
+        )}
+
+        {/* Action row */}
+        <div style={{ display: 'flex', flexDirection: 'row', gap: '12px' }}>
+          <button
+            onClick={onClose}
+            style={{
+              flex: 1, fontFamily: "'Space Grotesk', sans-serif", fontSize: '14px', fontWeight: 700,
+              color: '#64748B', backgroundColor: 'transparent', border: '2px solid #2E2E42',
+              padding: '14px', cursor: 'pointer',
+            }}
+          >
+            Cancel
+          </button>
+          <button
+            onClick={() => void handleRaiseDispute()}
+            disabled={!canSubmit}
+            style={{
+              flex: 2, fontFamily: "'Space Grotesk', sans-serif", fontSize: '14px', fontWeight: 700,
+              color: canSubmit ? '#09090E' : '#64748B',
+              backgroundColor: canSubmit ? '#FB923C' : '#2E2E42',
+              border: `3px solid ${canSubmit ? '#09090E' : '#2E2E42'}`,
+              boxShadow: canSubmit ? '4px 4px 0 #09090E' : 'none',
+              padding: '14px', cursor: canSubmit ? 'pointer' : 'not-allowed',
+              display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: '8px',
+            }}
+          >
+            {isSubmitting ? 'Submitting…' : 'Submit dispute · stake $5 ▸'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── ProvenanceModal (D-10, SETTLE-52) ───────────────────────────────────────
+
+type ProvenanceModalProps = {
+  open: boolean;
+  onClose: () => void;
+  provenance: ProvenanceData | null;
+  isLoading: boolean;
+};
+
+/** Truncate a hex string: first 10 chars + '…' + last 8 chars */
+function truncateSig(sig: string): string {
+  if (!sig || sig.length <= 20) return sig;
+  return `${sig.slice(0, 10)}…${sig.slice(-8)}`;
+}
+
+function renderRawOracleData(oracleType: OracleType, rawData: RawOracleData): string {
+  if (!rawData) return 'raw data unavailable';
+  switch (oracleType) {
+    case 'pyth': {
+      const d = rawData as { pythPrice: string; pythConf: string; pythPublishTime: string };
+      return `price: ${d.pythPrice} · confidence: ±${d.pythConf} · publishTime: ${d.pythPublishTime}`;
+    }
+    case 'cex': {
+      const d = rawData as { announcementTitle: string; announcementUrl: string; scrapedAt: string };
+      return `announcementTitle: ${d.announcementTitle}\nsource: ${d.announcementUrl}\nscrapedAt: ${d.scrapedAt}`;
+    }
+    default: {
+      const d = rawData as { attestationPayload: string };
+      try {
+        return JSON.stringify(JSON.parse(d.attestationPayload ?? '{}'), null, 2);
+      } catch {
+        return d.attestationPayload ?? '{}';
+      }
+    }
+  }
+}
+
+function ProvenanceModal({ open, onClose, provenance, isLoading }: ProvenanceModalProps) {
+  const [sigCopied, setSigCopied] = useState(false);
+
+  if (!open) return null;
+
+  const oracleType = provenance?.oracle?.type ?? 'pyth';
+  const oracleUrl = provenance?.oracle?.url ?? '';
+  const feedId = provenance?.oracle?.feedId;
+  const txHash = provenance?.txHash ?? '';
+  const sig = provenance?.relayerSignature ?? '';
+  const truncatedSig = truncateSig(sig);
+  const rawDisplay = provenance ? renderRawOracleData(oracleType, provenance.rawOracleData) : 'Loading…';
+
+  const handleCopySig = () => {
+    if (!sig) return;
+    void navigator.clipboard.writeText(sig).then(() => {
+      setSigCopied(true);
+      setTimeout(() => setSigCopied(false), 2000);
+    });
+  };
+
+  return (
+    <div
+      style={{
+        position: 'fixed', inset: 0, zIndex: 100,
+        backgroundColor: 'rgba(9,9,14,0.8)',
+        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '24px',
+      }}
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      {/* Modal panel — accent neobrutalist (Surface 5) */}
+      <div style={{
+        position: 'relative', backgroundColor: '#111118',
+        border: '3px solid #E8F542', boxShadow: '4px 4px 0 #E8F542',
+        padding: '24px', width: '100%', maxWidth: '560px',
+        display: 'flex', flexDirection: 'column', gap: '20px',
+        maxHeight: '85vh', overflowY: 'auto',
+      }}>
+        {/* Corner brackets — accent (top-left + bottom-right) */}
+        <div style={{ position: 'absolute', top: -2, left: -2, pointerEvents: 'none' }}>
+          <div style={{ width: '16px', height: '4px', backgroundColor: '#E8F542' }} />
+          <div style={{ width: '4px', height: '12px', backgroundColor: '#E8F542' }} />
+        </div>
+        <div style={{ position: 'absolute', bottom: -2, right: -2, pointerEvents: 'none', display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
+          <div style={{ width: '4px', height: '12px', backgroundColor: '#E8F542' }} />
+          <div style={{ width: '16px', height: '4px', backgroundColor: '#E8F542' }} />
+        </div>
+
+        {/* Title + close */}
+        <div style={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          <h2 style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: '28px', fontWeight: 700, color: '#F1F5F9', margin: 0 }}>
+            ORACLE PROOF
+          </h2>
+          <button onClick={onClose} style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#64748B', fontSize: '20px', padding: '4px' }}>✕</button>
+        </div>
+
+        {isLoading ? (
+          <div style={{ fontFamily: 'monospace', fontSize: '14px', color: '#94A3B8', padding: '24px 0', textAlign: 'center' }}>
+            Loading provenance data…
+          </div>
+        ) : (
+          <>
+            {/* ORACLE SOURCE */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              <span style={{ fontFamily: 'monospace', fontSize: '11px', fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.12em' }}>
+                ORACLE SOURCE
+              </span>
+              <a
+                href={oracleUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: '16px', color: '#F1F5F9', textDecoration: 'none' }}
+              >
+                {provenance?.oracle?.host ?? 'oracle'}{feedId ? ` · ${feedId.slice(0, 12)}…` : ''} ↗
+              </a>
+            </div>
+
+            {/* SETTLEMENT TX */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              <span style={{ fontFamily: 'monospace', fontSize: '11px', fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.12em' }}>
+                SETTLEMENT TX
+              </span>
+              {txHash ? (
+                <a
+                  href={`https://arbiscan.io/tx/${txHash}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '12px', color: '#E8F542', textDecoration: 'none' }}
+                >
+                  {txHash.slice(0, 10)}…{txHash.slice(-8)} ↗
+                </a>
+              ) : (
+                <span style={{ fontFamily: 'monospace', fontSize: '12px', color: '#64748B' }}>—</span>
+              )}
+            </div>
+
+            {/* RAW ORACLE DATA — path-aware per oracle.type */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              <span style={{ fontFamily: 'monospace', fontSize: '11px', fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.12em' }}>
+                RAW ORACLE DATA
+              </span>
+              <div style={{
+                backgroundColor: '#0D0D18', border: '2px solid #1E1E2E',
+                padding: '12px', overflowX: 'auto',
+              }}>
+                <pre style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '12px', color: '#B4B4C8', margin: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
+                  {/* path-aware raw data: branch on oracle.type */}
+                  {oracleType === 'pyth' && provenance?.rawOracleData ? (() => {
+                    const d = provenance.rawOracleData as { pythPrice?: string; pythConf?: string; pythPublishTime?: string };
+                    return `price: ${d.pythPrice ?? '—'}\nconfidence: ±${d.pythConf ?? '—'}\npublishTime: ${d.pythPublishTime ?? '—'}`;
+                  })() : oracleType === 'cex' && provenance?.rawOracleData ? (() => {
+                    const d = provenance.rawOracleData as { announcementTitle?: string; announcementUrl?: string; scrapedAt?: string };
+                    return `announcementTitle: ${d.announcementTitle ?? '—'}\nsource: ${d.announcementUrl ?? '—'}\nscrapedAt: ${d.scrapedAt ?? '—'}`;
+                  })() : provenance?.rawOracleData ? (() => {
+                    const d = provenance.rawOracleData as { attestationPayload?: string };
+                    try { return JSON.stringify(JSON.parse(d.attestationPayload ?? '{}'), null, 2); } catch { return d.attestationPayload ?? '{}'; }
+                  })() : rawDisplay}
+                </pre>
+              </div>
+            </div>
+
+            {/* RELAYER SIGNATURE (EIP-712, chainId 42161-bound — Pitfall 7) */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: '8px' }}>
+                <span style={{ fontFamily: 'monospace', fontSize: '11px', fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.12em' }}>
+                  RELAYER SIGNATURE (EIP-712)
+                </span>
+                <span style={{ fontFamily: 'monospace', fontSize: '10px', color: '#E8F542', border: '1px solid #E8F542', padding: '1px 5px' }}>
+                  chainId 42161
+                </span>
+              </div>
+              {sig ? (
+                <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '12px', color: '#94A3B8' }}>
+                    {/* truncated: first 10 + last 8 chars (SETTLE-52) */}
+                    {truncatedSig}
+                  </span>
+                  <button
+                    onClick={handleCopySig}
+                    style={{ fontFamily: 'monospace', fontSize: '11px', color: sigCopied ? '#4ADE80' : '#64748B', background: 'transparent', border: 'none', cursor: 'pointer', padding: '0 4px' }}
+                  >
+                    {sigCopied ? 'copied ✓' : 'copy'}
+                  </button>
+                </div>
+              ) : (
+                <span style={{ fontFamily: 'monospace', fontSize: '12px', color: '#64748B' }}>— (not available)</span>
+              )}
+            </div>
+          </>
+        )}
+
+        {/* Close */}
+        <div style={{ display: 'flex', flexDirection: 'row', justifyContent: 'flex-end' }}>
+          <button
+            onClick={onClose}
+            style={{
+              fontFamily: "'Space Grotesk', sans-serif", fontSize: '14px', fontWeight: 700,
+              color: '#64748B', backgroundColor: 'transparent', border: '2px solid #2E2E42',
+              padding: '10px 24px', cursor: 'pointer',
+            }}
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 // ─── Page component ───────────────────────────────────────────────────────────
@@ -383,6 +971,12 @@ export default function CallPage() {
   const [isCallerExitModalOpen, setIsCallerExitModalOpen] = useState(false);
   const [isPositionExitModalOpen, setIsPositionExitModalOpen] = useState(false);
   const [isChallengeFormOpen, setIsChallengeFormOpen] = useState(false);
+  // Phase 4 D-06: Dispute modal state
+  const [isDisputeModalOpen, setIsDisputeModalOpen] = useState(false);
+  // Phase 4 D-10: Provenance modal state + data
+  const [isProvenanceModalOpen, setIsProvenanceModalOpen] = useState(false);
+  const [provenanceData, setProvenanceData] = useState<ProvenanceData | null>(null);
+  const [isProvenanceLoading, setIsProvenanceLoading] = useState(false);
 
   // ── Phase 3: Pending challenge state ──────────────────────────────────────
   const [pendingChallenge, setPendingChallenge] = useState<PendingChallenge | null>(null);
@@ -513,6 +1107,17 @@ export default function CallPage() {
 
   // ─── useWriteContract ─────────────────────────────────────────────────────
   const { writeContractAsync } = useWriteContract();
+
+  // Phase 4 D-10: open ProvenanceModal and fetch provenance data
+  const handleOpenProvenance = useCallback(async () => {
+    setIsProvenanceModalOpen(true);
+    if (!provenanceData) {
+      setIsProvenanceLoading(true);
+      const data = await fetchProvenanceData(callIdNum);
+      setProvenanceData(data);
+      setIsProvenanceLoading(false);
+    }
+  }, [callIdNum, provenanceData]);
 
   const handleFollow = useCallback(async (amountIn: bigint, minSharesOut: bigint) => {
     await writeContractAsync({
@@ -754,7 +1359,7 @@ export default function CallPage() {
     const conviction = callData?.conviction ?? 50;
     const settledAt = callData?.settledAt;
     const oracleHost = callData?.oracleHost ?? 'oracle';
-    const oracleTxHash = callData?.oracleTxHash;
+    // oracleTxHash shown via ProvenanceModal (D-10) — not rendered directly on page
     const finalValue = callData?.finalValue ?? '—';
     const targetValue = callData?.targetValue ?? '—';
     const callerPnl = callData?.pnl ?? 0n;
@@ -1037,6 +1642,50 @@ export default function CallPage() {
             </div>
           )}
 
+          {/* ── DISPUTE THIS SETTLEMENT CTA (D-06, SETTLE-25) ──────────────────── */}
+          {/* Show when: status==Settled (not Disputed), within 24h window, counterClaimCount < 3 */}
+          {callData?.status === 'Settled' && (() => {
+            const nowUnix = BigInt(Math.floor(Date.now() / 1000));
+            const windowOpen = callData.settledAt
+              ? (nowUnix - callData.settledAt) < DISPUTE_WINDOW_SECONDS
+              : true;
+            const underLimit = (callData as CallData & { counterClaimCount?: number }).counterClaimCount !== undefined
+              ? ((callData as CallData & { counterClaimCount?: number }).counterClaimCount ?? 0) < MAX_COUNTER_CLAIMS
+              : true;
+            if (!windowOpen) {
+              return (
+                <div style={{ marginBottom: '16px' }}>
+                  <span style={{ fontFamily: 'monospace', fontSize: '12px', color: '#94A3B8' }}>
+                    Dispute window closed.
+                  </span>
+                </div>
+              );
+            }
+            if (!underLimit) {
+              return (
+                <div style={{ marginBottom: '16px' }}>
+                  <span style={{ fontFamily: 'monospace', fontSize: '12px', color: '#94A3B8' }}>
+                    Counter-claim limit reached (3).
+                  </span>
+                </div>
+              );
+            }
+            return (
+              <div style={{ marginBottom: '16px' }}>
+                <button
+                  onClick={() => setIsDisputeModalOpen(true)}
+                  style={{
+                    fontFamily: 'monospace', fontSize: '12px', color: '#FB923C',
+                    backgroundColor: 'transparent', border: '1px solid #FB923C',
+                    padding: '6px 12px', cursor: 'pointer', letterSpacing: '0.06em',
+                  }}
+                >
+                  Dispute this settlement →
+                </button>
+              </div>
+            );
+          })()}
+
           {/* ── PROVENANCE LINE (SETTLE-52 / D-10) ────────────────────────────── */}
           <div style={{
             padding: '12px 16px', border: '1px solid #1E1E2E',
@@ -1057,20 +1706,40 @@ export default function CallPage() {
                 </span>
               </>
             )}
-            {oracleTxHash && (
-              <a
-                href={`https://arbiscan.io/tx/${oracleTxHash}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{ fontFamily: 'monospace', fontSize: '11px', color: '#E8F542', textDecoration: 'none' }}
-              >
-                · view oracle proof ↗
-              </a>
-            )}
+            {/* view oracle proof ↗ — opens ProvenanceModal (D-10) */}
+            <button
+              onClick={() => void handleOpenProvenance()}
+              style={{ fontFamily: 'monospace', fontSize: '11px', color: '#E8F542', textDecoration: 'none', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+            >
+              · view oracle proof ↗
+            </button>
           </div>
 
         </div>
         </div>
+
+        {/* ── DisputeModal (D-06) ────────────────────────────────────────────── */}
+        {isDisputeModalOpen && (
+          <DisputeModal
+            open={isDisputeModalOpen}
+            onClose={() => setIsDisputeModalOpen(false)}
+            callId={callId}
+            outcomeWord={outcomeWord}
+            smAddr={SM_ADDR}
+            usdcAddr={USDC_ADDR}
+            relayerUrl={RELAYER_URL}
+          />
+        )}
+
+        {/* ── ProvenanceModal (D-10) ─────────────────────────────────────────── */}
+        {isProvenanceModalOpen && (
+          <ProvenanceModal
+            open={isProvenanceModalOpen}
+            onClose={() => setIsProvenanceModalOpen(false)}
+            provenance={provenanceData}
+            isLoading={isProvenanceLoading}
+          />
+        )}
       </div>
     );
   }
