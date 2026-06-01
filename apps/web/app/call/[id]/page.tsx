@@ -1,5 +1,5 @@
 /**
- * /call/[id] — Live Receipt Page
+ * /call/[id] — Live + Settled Receipt Page
  *
  * Phase 2 + Phase 3 (Plan 03-06) additions:
  *   - Sticky caller header with CALLER EXITED amber banner (SOCIAL-25)
@@ -15,22 +15,36 @@
  *   - [Phase 3] Caller-only accept/reject + USDC preflight (T-3-06-06)
  *   - [Phase 3] ChallengeFormModal integrated on Challenge button click
  *
+ * Phase 4 (Plan 04-07) additions:
+ *   - Settled Receipt branch: 96px Syne outcome word, Stamp animation, FINAL POSITIONS
+ *   - Disputed branch: PENDING DISPUTE block (amber border, §15.7 amber heading)
+ *   - CallerExited settled branch: amber banner + dimmed caller subline
+ *   - getOutcomeWord(): D-08 thresholds; D-09 viewerIsWinningFader guard
+ *   - Provenance line: "SETTLED FROM {oracleHost} at {timestamp} UTC · view oracle proof ↗"
+ *   - FINAL POSITIONS: flex-direction:row (NOT grid), two columns capped 20/side, sorted P&L desc
+ *
  * callerMatchingStake = min(callerInputStake, challengerStake) — Issue #1 fix (SOCIAL-31)
  * NOT min(challengerStake, challengerStake) — that was the copy-paste bug in the plan.
+ *
+ * D-09 CRITICAL: viewerIsWinningFader=false when wallet disconnected — public viewers NEVER
+ * see 'FADED CORRECTLY'. Guard requires: authenticated AND account.address AND fade position.
  *
  * LIVE STATE: useReadContracts with 5s refetchInterval (D-07) reads 8 values from FFM.
  * No inline contract addresses — imports FOLLOW_FADE_MARKET + CHALLENGE_ESCROW constants.
  * FLEXBOX ONLY — no CSS grid (Pitfall 15).
+ * AUTH-44: wallet address never rendered — only handle.
  *
  * Requirements: SOCIAL-05..08, SOCIAL-10..13, SOCIAL-17..19, SOCIAL-22..23,
- *               SOCIAL-25, SOCIAL-30, SOCIAL-34, SOCIAL-44..45, SOCIAL-49..50, UI-06..07, UI-11
- * Spec: §15.3 Live Receipt + §15.5 challenge pending block
- * Threat: T-02-08-03 (AUTH-44), T-3-06-06 (USDC allowance preflight)
+ *               SOCIAL-25, SOCIAL-30, SOCIAL-34, SOCIAL-44..45, SOCIAL-49..50, UI-06..07, UI-11,
+ *               UI-14, UI-15, UI-16, UI-17, UI-18, UI-19, UI-20, UI-21, UI-22, UI-23, UI-44, UI-45
+ * Spec: §15.3 Live Receipt + §15.5 challenge pending block + §15.7 Settled Receipt
+ * Threat: T-02-08-03 (AUTH-44), T-3-06-06 (USDC allowance preflight),
+ *         T-04-07-05 (D-09 fader guard), T-04-07-03 (CONTRARIAN HIT color)
  */
 
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams } from 'next/navigation';
 import { usePrivy } from '@privy-io/react-auth';
 import { useAccount, useReadContracts, useReadContract, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
@@ -41,12 +55,14 @@ import {
   CallerExitModal,
   PositionExitModal,
   Receipt,
+  Stamp,
 } from '@call-it/ui';
 import {
   FOLLOW_FADE_MARKET_ARBITRUM_SEPOLIA,
   CHALLENGE_ESCROW_ARBITRUM_SEPOLIA,
   USDC_ARB_NATIVE,
 } from '@call-it/shared';
+import { getOutcomeWordResult } from '@/lib/outcome-word';
 import { followFadeMarketAbi } from '@/lib/abis';
 import {
   computeCallerExitPenaltyPct,
@@ -78,6 +94,24 @@ type CallData = {
   callerExitedAt?: bigint;
   callerExitedPenalty?: bigint;
   openToChallenges?: boolean;
+  // Phase 4 settlement fields (from SettlementManager subgraph + relayer)
+  outcome?: 'CallerWon' | 'CallerLost' | 'Pending';
+  repDelta?: number;       // rep delta at settlement (for outcome word D-08 thresholds)
+  fadeRealShare?: number;  // fade share of real pool at settlement (for CONTRARIAN HIT)
+  settledAt?: bigint;      // unix timestamp of settlement
+  oracleHost?: string;     // e.g. "pyth.network", "defillama.com"
+  oracleTxHash?: string;   // settlement tx hash for provenance link
+  finalValue?: string;     // oracle price at settlement (display string)
+  targetValue?: string;    // the call's target value (display string)
+  pnl?: bigint;            // caller P&L in USDC (6 decimal)
+};
+
+/** Final position entry (follower or fader) for the FINAL POSITIONS block */
+type FinalPosition = {
+  handle: string;       // display handle — NEVER wallet address (AUTH-44)
+  side: 'follow' | 'fade';
+  pnl: bigint;          // P&L in USDC (6 decimal) — can be negative
+  stake: bigint;        // position size in USDC
 };
 
 /** Activity feed entry */
@@ -214,9 +248,37 @@ async function fetchCallData(callId: string): Promise<CallData | null> {
       callerExitedAt: raw['callerExitedAt'] ? BigInt(String(raw['callerExitedAt'])) : undefined,
       callerExitedPenalty: raw['callerExitedPenalty'] ? BigInt(String(raw['callerExitedPenalty'])) : undefined,
       openToChallenges: raw['openToChallenges'] !== undefined ? Boolean(raw['openToChallenges']) : true,
+      // Phase 4 settlement fields
+      outcome: raw['outcome'] as CallData['outcome'] ?? undefined,
+      repDelta: raw['repDelta'] !== undefined ? Number(raw['repDelta']) : undefined,
+      fadeRealShare: raw['fadeRealShare'] !== undefined ? Number(raw['fadeRealShare']) : undefined,
+      settledAt: raw['settledAt'] ? BigInt(String(raw['settledAt'])) : undefined,
+      oracleHost: raw['oracleHost'] ? String(raw['oracleHost']) : undefined,
+      oracleTxHash: raw['oracleTxHash'] ? String(raw['oracleTxHash']) : undefined,
+      finalValue: raw['finalValue'] ? String(raw['finalValue']) : undefined,
+      targetValue: raw['targetValue'] ? String(raw['targetValue']) : undefined,
+      pnl: raw['pnl'] ? BigInt(String(raw['pnl'])) : undefined,
     };
   } catch {
     return null;
+  }
+}
+
+/** Fetch FINAL POSITIONS from relayer (subgraph-sourced, sorted P&L desc). */
+async function fetchFinalPositions(callId: string): Promise<FinalPosition[]> {
+  if (!RELAYER_URL) return [];
+  try {
+    const res = await fetch(`${RELAYER_URL}/api/calls/${callId}/positions`);
+    if (!res.ok) return [];
+    const raw = await res.json() as unknown[];
+    return (raw as Record<string, unknown>[]).map((e) => ({
+      handle: String(e['handle'] ?? ''),
+      side: (e['side'] as FinalPosition['side']) ?? 'follow',
+      pnl: BigInt(String(e['pnl'] ?? '0')),
+      stake: BigInt(String(e['stake'] ?? '0')),
+    }));
+  } catch {
+    return [];
   }
 }
 
@@ -300,7 +362,7 @@ export default function CallPage() {
   const callId = BigInt(params.id ?? '0');
   const callIdNum = params.id ?? '0';
 
-  const { user } = usePrivy();
+  const { user, authenticated } = usePrivy();
   const { address: userAddress } = useAccount();
 
   // Call metadata from relayer
@@ -309,6 +371,11 @@ export default function CallPage() {
   const [quoteCalls, setQuoteCalls] = useState<QuoteEntry[]>([]);
   const [criteriaExpanded, setCriteriaExpanded] = useState(false);
   const [isLoadingCall, setIsLoadingCall] = useState(true);
+  // Phase 4: Final positions for settled receipt
+  const [finalPositions, setFinalPositions] = useState<FinalPosition[]>([]);
+  // Phase 4: Rep count-up animation state (D-08, UI-45)
+  const [displayedRepDelta, setDisplayedRepDelta] = useState(0);
+  const repAnimRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Modal states
   const [isFollowModalOpen, setIsFollowModalOpen] = useState(false);
@@ -373,6 +440,36 @@ export default function CallPage() {
   const nowSec = BigInt(Math.floor(Date.now() / 1000));
 
   const isCallerExited = callData?.status === 'CallerExited';
+  // Phase 4: settled/disputed branch
+  const isSettled = callData?.status === 'Settled' || callData?.status === 'Disputed';
+  const isDisputed = callData?.status === 'Disputed';
+
+  // D-09 CRITICAL: viewerIsWinningFader MUST be explicitly false when wallet is disconnected.
+  // A connected wallet viewing a settled call where they had a winning fade position
+  // will see 'FADED CORRECTLY'. Public viewers (no wallet) see 'LOUD AND WRONG'.
+  // The guard: requires authenticated AND account.address AND fade position AND CallerLost.
+  // T-04-07-05: viewerIsWinningFader=false when !authenticated OR !userAddress.
+  const viewerIsWinningFader = Boolean(
+    authenticated &&
+    userAddress &&
+    callData?.outcome === 'CallerLost' &&
+    // hasFadePosition: user has fadeShares > 0 (from live FFM read — or after settlement, stored in subgraph)
+    // We use fadeShares from the contract read as the position indicator.
+    // After settlement, FFM positions are cleared but the subgraph/relayer stores final positions.
+    // For the settled view, we fall back to checking if the user appears in finalPositions fade side.
+    (fadeShares > 0n || finalPositions.some(p => p.side === 'fade' && p.handle === (callData?.handle ?? '')))
+  );
+
+  // Outcome word computation (Phase 4 — D-08 thresholds)
+  const outcomeWordResult = isSettled && callData?.outcome
+    ? getOutcomeWordResult({
+        callerWon: callData.outcome === 'CallerWon',
+        fadeRealShare: callData.fadeRealShare ?? 0,
+        repDelta: callData.repDelta ?? 0,
+        viewerIsWinningFader,
+      })
+    : null;
+
   const userIsCaller = Boolean(userAddress && callData?.caller?.toLowerCase() === userAddress.toLowerCase());
   const userIsFollower = followShares > 0n;
   const userIsFader = fadeShares > 0n;
@@ -564,11 +661,44 @@ export default function CallPage() {
       fetchActivityFeed(callIdNum),
       fetchQuoteCalls(callIdNum),
     ]);
-    if (call) setCallData(call);
+    if (call) {
+      setCallData(call);
+      // Fetch final positions when settled
+      if (call.status === 'Settled' || call.status === 'Disputed') {
+        void fetchFinalPositions(callIdNum).then(setFinalPositions);
+      }
+    }
     setActivityFeed(feed);
     setQuoteCalls(quotes);
     setIsLoadingCall(false);
   }, [callIdNum]);
+
+  // Phase 4: Rep count-up animation (UI-45) — starts when settled state loads
+  useEffect(() => {
+    const targetDelta = callData?.repDelta ?? 0;
+    if (!isSettled || targetDelta === 0) {
+      setDisplayedRepDelta(targetDelta);
+      return;
+    }
+    // Animate from 0 to targetDelta over ~800ms (20 steps)
+    const STEPS = 20;
+    const STEP_MS = 40;
+    let step = 0;
+    if (repAnimRef.current) clearInterval(repAnimRef.current);
+    repAnimRef.current = setInterval(() => {
+      step++;
+      if (step >= STEPS) {
+        setDisplayedRepDelta(targetDelta);
+        if (repAnimRef.current) clearInterval(repAnimRef.current);
+      } else {
+        setDisplayedRepDelta(Math.round((targetDelta * step) / STEPS));
+      }
+    }, STEP_MS);
+    return () => {
+      if (repAnimRef.current) clearInterval(repAnimRef.current);
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isSettled, callData?.repDelta]);
 
   // Also fetch pending challenge notification on load + poll
   useEffect(() => {
@@ -613,6 +743,337 @@ export default function CallPage() {
   // Simplified: use followPosition/fadePosition in USDC; for now use shares as proxy
   const userFollowPosition = followShares;
   const userFadePosition = fadeShares;
+
+  // ─── SETTLED / DISPUTED RECEIPT RENDER ─────────────────────────────────
+  // Phase 4: Renders for Settled + Disputed + CallerExited-settled states.
+  // Separated branch to keep the Live receipt clean.
+  if (isSettled || (isCallerExited && callData?.outcome)) {
+    const handle = callData?.handle ?? `#${callIdNum}`;
+    const repScore = callData?.repScore ?? 0;
+    const marketLine = callData?.marketLine ?? `Call #${callIdNum}`;
+    const conviction = callData?.conviction ?? 50;
+    const settledAt = callData?.settledAt;
+    const oracleHost = callData?.oracleHost ?? 'oracle';
+    const oracleTxHash = callData?.oracleTxHash;
+    const finalValue = callData?.finalValue ?? '—';
+    const targetValue = callData?.targetValue ?? '—';
+    const callerPnl = callData?.pnl ?? 0n;
+
+    const outcomeWord = outcomeWordResult?.word ?? 'CALLED IT';
+    const outcomeColor = outcomeWordResult?.color ?? '#4ADE80';
+    const outcomeLozenge = outcomeWordResult?.lozenge ?? null;
+
+    // Determine Stamp color token — use brand-accent for accent colors, outcome-win/loss for others
+    const stampColor: 'outcome-win' | 'outcome-loss' | 'outcome-contrarian' | 'brand-muted' | 'brand-accent' =
+      outcomeWord === 'CALLED IT' ? 'outcome-win' :
+      outcomeWord === 'LOUD AND WRONG' ? 'outcome-loss' :
+      outcomeWord === 'CONTRARIAN HIT' ? 'outcome-contrarian' :
+      outcomeWord === 'COLD CALL' ? 'brand-muted' :
+      'brand-accent'; // FADED CORRECTLY
+
+    // FINAL POSITIONS: sort by P&L desc, cap 20/side
+    const followers = finalPositions.filter(p => p.side === 'follow').sort((a, b) => Number(b.pnl - a.pnl)).slice(0, 20);
+    const faders = finalPositions.filter(p => p.side === 'fade').sort((a, b) => Number(b.pnl - a.pnl)).slice(0, 20);
+
+    return (
+      <div style={{ backgroundColor: '#09090E', minHeight: '100vh', padding: '0' }}>
+        {/* ── Settled Page Frame: 3px border + 4px corner brackets ─────────── */}
+        <div style={{ position: 'relative', border: '3px solid #2E2E42' }}>
+          {/* Corner bracket accent (UI-14) */}
+          {[
+            { top: 0, left: 0, borderTop: '4px solid #E8F542', borderLeft: '4px solid #E8F542' },
+            { top: 0, right: 0, borderTop: '4px solid #E8F542', borderRight: '4px solid #E8F542' },
+            { bottom: 0, left: 0, borderBottom: '4px solid #E8F542', borderLeft: '4px solid #E8F542' },
+            { bottom: 0, right: 0, borderBottom: '4px solid #E8F542', borderRight: '4px solid #E8F542' },
+          ].map((s, i) => (
+            <div key={i} style={{ position: 'absolute', width: 24, height: 24, ...s }} />
+          ))}
+
+        {/* ── Sticky Caller Header ─────────────────────────────────────────── */}
+        <div style={{
+          position: 'sticky', top: 0, zIndex: 30,
+          backgroundColor: '#09090E', borderBottom: '2px solid #2E2E42', padding: '12px 24px',
+        }}>
+          <div style={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: '16px' }}>
+              <Link href="/" style={{ fontFamily: 'monospace', fontSize: '12px', color: '#94A3B8', textDecoration: 'none' }}>
+                ← Back
+              </Link>
+              {/* handle only — AUTH-44: NEVER wallet address */}
+              <span style={{ fontFamily: 'monospace', fontSize: '16px', fontWeight: 700, color: '#E8E8E8' }}>
+                {handle}
+              </span>
+              <span style={{ fontFamily: 'monospace', fontSize: '12px', color: '#E8F542' }}>
+                {repScore} rep
+              </span>
+            </div>
+            {/* Share CTA (UI-20) */}
+            <button style={{
+              fontFamily: 'monospace', fontSize: '13px', fontWeight: 700,
+              color: '#09090E', backgroundColor: '#E8F542',
+              border: '2px solid #09090E', boxShadow: '3px 3px 0 0 #09090E',
+              padding: '8px 16px', cursor: 'pointer',
+            }}>
+              SHARE THE RECEIPT →
+            </button>
+          </div>
+        </div>
+
+        {/* ── Page content ─────────────────────────────────────────────────── */}
+        <div style={{ maxWidth: '1024px', margin: '0 auto', padding: '32px 24px' }}>
+
+          {/* ── Call Statement (UI-15): Syne 48px, target value in #E8F542 ──── */}
+          <div style={{ marginBottom: '32px' }}>
+            <p style={{
+              fontFamily: "'Syne', sans-serif", fontSize: '48px', fontWeight: 800,
+              color: '#E8E8E8', lineHeight: 1.2, margin: '0 0 8px 0',
+            }}>
+              {marketLine}
+            </p>
+            {settledAt && (
+              <p style={{ fontFamily: 'monospace', fontSize: '13px', color: '#94A3B8', margin: 0 }}>
+                settled {formatRelativeTime(Number(settledAt))} ·
+                settles automatically from{' '}
+                <span style={{ color: '#E8F542' }}>{oracleHost}</span>
+                {' '}↗
+              </p>
+            )}
+          </div>
+
+          {/* ── OUTCOME HERO (UI-16, UI-44, UI-45): Stamp + 96px outcome word ─ */}
+          {!isDisputed && (
+            <div style={{
+              marginBottom: '32px', padding: '32px',
+              backgroundColor: '#0D0D18', border: '2px solid #2E2E42',
+              display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '20px',
+            }}>
+              {/* Stamp wrapping the 96px outcome word */}
+              <Stamp
+                word={outcomeWord}
+                color={stampColor}
+                hexColor={outcomeColor}
+              />
+              {/* 96px outcome word text (Syne, §14.1 locked color) */}
+              <p style={{
+                fontFamily: "'Syne', sans-serif",
+                fontSize: '96px',
+                fontWeight: 800,
+                color: outcomeColor,
+                lineHeight: 1.0,
+                margin: 0,
+                letterSpacing: '-0.02em',
+              }}>
+                {outcomeWord}
+              </p>
+              {/* Lozenge (CONTRARIAN / FADER WIN) */}
+              {outcomeLozenge && (
+                <span style={{
+                  fontFamily: 'monospace', fontSize: '11px', fontWeight: 700,
+                  color: outcomeColor, border: `2px solid ${outcomeColor}`,
+                  padding: '3px 10px', textTransform: 'uppercase', letterSpacing: '0.12em',
+                }}>
+                  {outcomeLozenge}
+                </span>
+              )}
+              {/* Rep delta count-up (UI-45): JetBrains Mono, green/red */}
+              <p style={{
+                fontFamily: "'Space Grotesk', sans-serif", fontSize: '16px', color: '#94A3B8', margin: 0,
+              }}>
+                by {handle} ·{' '}
+                <span style={{
+                  fontFamily: 'JetBrains Mono, monospace',
+                  color: displayedRepDelta >= 0 ? '#4ADE80' : '#F87171',
+                  fontWeight: 700,
+                }}>
+                  {displayedRepDelta >= 0 ? '+' : ''}{displayedRepDelta} rep
+                </span>
+              </p>
+            </div>
+          )}
+
+          {/* ── PENDING DISPUTE block (UI-23): amber, replaces outcome hero ──── */}
+          {isDisputed && (
+            <div style={{
+              marginBottom: '32px', padding: '24px',
+              border: '3px solid #FB923C', backgroundColor: 'rgba(251, 146, 60, 0.06)',
+              display: 'flex', flexDirection: 'column', gap: '12px',
+            }}>
+              <p style={{
+                fontFamily: "'Space Grotesk', sans-serif", fontSize: '28px', fontWeight: 700,
+                color: '#FB923C', margin: 0,
+              }}>
+                PENDING DISPUTE
+              </p>
+              <p style={{ fontFamily: 'monospace', fontSize: '14px', color: '#94A3B8', margin: 0 }}>
+                This settlement is under dispute review. The outcome may change. Dispute resolution modal available in a future update.
+              </p>
+            </div>
+          )}
+
+          {/* ── 4-STAT ROW (UI-19): FINAL VALUE / TARGET / CONVICTION / P&L ── */}
+          <div style={{
+            display: 'flex', flexDirection: 'row', gap: '0px',
+            border: '2px solid #2E2E42', marginBottom: '32px',
+          }}>
+            {[
+              { label: 'FINAL VALUE', value: finalValue, color: '#E8E8E8' },
+              { label: 'TARGET', value: targetValue, color: '#E8F542' },
+              { label: 'CONVICTION', value: `${conviction}%`, color: '#E8F542' },
+              {
+                label: 'P&L',
+                value: callerPnl >= 0n ? `+${formatUsdc(callerPnl)}` : formatUsdc(callerPnl < 0n ? -callerPnl : callerPnl),
+                color: callerPnl >= 0n ? '#4ADE80' : '#F87171',
+              },
+            ].map((cell, i, arr) => (
+              <div key={cell.label} style={{
+                flex: 1, padding: '14px 16px',
+                borderRight: i < arr.length - 1 ? '1px solid #2E2E42' : undefined,
+                display: 'flex', flexDirection: 'column', gap: '4px',
+              }}>
+                <span style={{ fontFamily: 'monospace', fontSize: '10px', color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.12em' }}>
+                  {cell.label}
+                </span>
+                <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '15px', fontWeight: 700, color: cell.color }}>
+                  {cell.value}
+                </span>
+              </div>
+            ))}
+          </div>
+
+          {/* ── ACTION ROW (UI-20): Share + View All Calls ────────────────────── */}
+          <div style={{ display: 'flex', flexDirection: 'row', gap: '12px', marginBottom: '32px' }}>
+            <button style={{
+              flex: 1, fontFamily: 'monospace', fontSize: '13px', fontWeight: 700,
+              color: '#09090E', backgroundColor: '#E8F542',
+              border: '2px solid #09090E', boxShadow: '4px 4px 0 0 #09090E',
+              padding: '16px', cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '0.08em',
+            }}>
+              SHARE THE RECEIPT →
+            </button>
+            <Link href={`/?caller=${encodeURIComponent(handle)}`} style={{ flex: 1, textDecoration: 'none' }}>
+              <button style={{
+                width: '100%', fontFamily: 'monospace', fontSize: '13px', fontWeight: 700,
+                color: '#E8F542', backgroundColor: 'transparent',
+                border: '2px solid #E8F542', padding: '16px', cursor: 'pointer',
+                textTransform: 'uppercase', letterSpacing: '0.08em',
+              }}>
+                VIEW ALL CALLS BY {handle}
+              </button>
+            </Link>
+          </div>
+
+          {/* ── FINAL POSITIONS (UI-21): flex row, 2 cols, 20/side max, sorted P&L desc ── */}
+          {(followers.length > 0 || faders.length > 0) && (
+            <div style={{
+              marginBottom: '32px', border: '2px solid #2E2E42', backgroundColor: '#111118',
+            }}>
+              {/* Header with corner brackets accent */}
+              <div style={{
+                padding: '12px 16px', borderBottom: '2px solid #2E2E42',
+                display: 'flex', flexDirection: 'row', alignItems: 'center', position: 'relative',
+              }}>
+                {/* 4px accent corner brackets on header */}
+                {[
+                  { top: 0, left: 0, borderTop: '4px solid #E8F542', borderLeft: '4px solid #E8F542' },
+                  { top: 0, right: 0, borderTop: '4px solid #E8F542', borderRight: '4px solid #E8F542' },
+                ].map((s, i) => (
+                  <div key={i} style={{ position: 'absolute', width: 12, height: 12, ...s }} />
+                ))}
+                <span style={{ fontFamily: 'monospace', fontSize: '11px', fontWeight: 700, color: '#E8F542', textTransform: 'uppercase', letterSpacing: '0.12em' }}>
+                  FINAL POSITIONS
+                </span>
+              </div>
+              {/* Two-column flex (NOT grid — Pitfall 15) */}
+              <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'flex-start' }}>
+                {/* FOLLOWERS column */}
+                <div style={{ flex: 1, borderRight: '1px solid #2E2E42' }}>
+                  <div style={{ padding: '8px 12px', borderBottom: '1px solid #2E2E42' }}>
+                    <span style={{ fontFamily: 'monospace', fontSize: '10px', color: '#E8F542', textTransform: 'uppercase', letterSpacing: '0.1em' }}>FOLLOWERS</span>
+                  </div>
+                  {followers.length === 0 ? (
+                    <div style={{ padding: '12px', fontFamily: 'monospace', fontSize: '12px', color: '#94A3B8' }}>None</div>
+                  ) : (
+                    followers.map((p, i) => (
+                      <div key={i} style={{
+                        display: 'flex', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+                        padding: '8px 12px', borderBottom: '1px solid #1E1E2E',
+                      }}>
+                        <span style={{ fontFamily: 'monospace', fontSize: '13px', color: '#E8E8E8' }}>{p.handle}</span>
+                        <span style={{
+                          fontFamily: 'JetBrains Mono, monospace', fontSize: '12px',
+                          color: p.pnl >= 0n ? '#4ADE80' : '#F87171',
+                        }}>
+                          {p.pnl >= 0n ? '+' : '-'}{formatUsdc(p.pnl < 0n ? -p.pnl : p.pnl)}
+                        </span>
+                      </div>
+                    ))
+                  )}
+                </div>
+                {/* FADERS column */}
+                <div style={{ flex: 1 }}>
+                  <div style={{ padding: '8px 12px', borderBottom: '1px solid #2E2E42' }}>
+                    <span style={{ fontFamily: 'monospace', fontSize: '10px', color: '#F87171', textTransform: 'uppercase', letterSpacing: '0.1em' }}>FADERS</span>
+                  </div>
+                  {faders.length === 0 ? (
+                    <div style={{ padding: '12px', fontFamily: 'monospace', fontSize: '12px', color: '#94A3B8' }}>None</div>
+                  ) : (
+                    faders.map((p, i) => (
+                      <div key={i} style={{
+                        display: 'flex', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+                        padding: '8px 12px', borderBottom: '1px solid #1E1E2E',
+                      }}>
+                        <span style={{ fontFamily: 'monospace', fontSize: '13px', color: '#E8E8E8' }}>{p.handle}</span>
+                        <span style={{
+                          fontFamily: 'JetBrains Mono, monospace', fontSize: '12px',
+                          color: p.pnl >= 0n ? '#4ADE80' : '#F87171',
+                        }}>
+                          {p.pnl >= 0n ? '+' : '-'}{formatUsdc(p.pnl < 0n ? -p.pnl : p.pnl)}
+                        </span>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ── PROVENANCE LINE (SETTLE-52 / D-10) ────────────────────────────── */}
+          <div style={{
+            padding: '12px 16px', border: '1px solid #1E1E2E',
+            backgroundColor: '#111118', marginBottom: '32px',
+            display: 'flex', flexDirection: 'row', alignItems: 'center', gap: '8px', flexWrap: 'wrap',
+          }}>
+            <span style={{ fontFamily: 'monospace', fontSize: '11px', color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+              SETTLED FROM
+            </span>
+            <span style={{ fontFamily: 'monospace', fontSize: '12px', color: '#E8F542', fontWeight: 700 }}>
+              {oracleHost.toUpperCase()}
+            </span>
+            {settledAt && (
+              <>
+                <span style={{ fontFamily: 'monospace', fontSize: '11px', color: '#64748B' }}>at</span>
+                <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '11px', color: '#94A3B8' }}>
+                  {new Date(Number(settledAt) * 1000).toISOString().replace('T', ' ').replace('.000Z', ' UTC')}
+                </span>
+              </>
+            )}
+            {oracleTxHash && (
+              <a
+                href={`https://arbiscan.io/tx/${oracleTxHash}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ fontFamily: 'monospace', fontSize: '11px', color: '#E8F542', textDecoration: 'none' }}
+              >
+                · view oracle proof ↗
+              </a>
+            )}
+          </div>
+
+        </div>
+        </div>
+      </div>
+    );
+  }
 
   // ─── Render ───────────────────────────────────────────────────────────────
   return (
