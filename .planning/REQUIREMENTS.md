@@ -211,7 +211,7 @@ Requirements for the v1 mainnet release. Each line is an atomic, testable behavi
 - [ ] **REP-11**: Following and fading do NOT affect reputation — only making calls moves rep (§7.6, §12.4)
 - [ ] **REP-12**: All scores freeze on inactivity — no decay, no reset (§7.7)
 - [ ] **REP-13**: There is NO reputation-based gating in v1 — $100 max stake and $5K TVL cap apply equally to all users regardless of rep (§7.8)
-- [ ] **REP-14**: Cold-start adjustment: if a correct call has zero real fade activity (excluding $7 virtual seed), caller's rep `delta` is scaled to 25% before applying (§8.3, §12.4)
+- [x] **REP-14**: Cold-start adjustment: if a correct call has zero real fade activity (excluding $7 virtual seed), caller's rep `delta` is scaled to 25% before applying (§8.3, §12.4)
 - [ ] **REP-15**: Cold-start adjustment does NOT apply to losses — being wrong is wrong regardless of opposition (§8.3)
 - [ ] **REP-16**: "Real fader" threshold is any non-zero real USDC in the fade pool (App.A.1)
 - [ ] **REP-17**: Profile struct stores `globalRep`, `categoryRep[CATEGORY_COUNT]`, `callerRep`, `challengerRep`, `streak`, `totalCalls`, `settledCalls`, `wins`, `losses`, `lastActiveAt` (§12.5)
@@ -219,8 +219,8 @@ Requirements for the v1 mainnet release. Each line is an atomic, testable behavi
 - [ ] **REP-19**: StylusScoreEngine exposes Rust `compute_rep_change(currentRep, conviction, consensusPct, isWinner, baseValue) -> i32` callable via Stylus cross-contract invocation (§11.6, §12.6)
 - [ ] **REP-20**: StylusScoreEngine handles confidence multiplier, contrarian multiplier (winners only), high-conviction 2× asymmetry at conviction ≥85, and floor clamping at 0 (§12.6)
 - [ ] **REP-21**: StylusScoreEngine is deployed behind a minimal transparent proxy with deployer-key admin; upgrades require pause → upgrade → unpause (§10.8, §11.6)
-- [ ] **REP-22**: SettlementManager wraps the Stylus call in try/catch; on Stylus revert, falls back to a Solidity baseline `_solidityBaselineRepDelta(...)` at lower fidelity (linear confidence scaling, fixed contrarian multiplier 1.0, no high-conviction asymmetry) (§11.6, §12.4)
-- [ ] **REP-23**: On runtime fallback path, settlement still completes and `RepCalculatedFallback(callId, user, baselineDelta, lowLevelError)` event fires for operator investigation (§11.6, §12.4)
+- [x] **REP-22**: SettlementManager wraps the Stylus call in try/catch; on Stylus revert, falls back to a Solidity baseline `_solidityBaselineRepDelta(...)` at lower fidelity (linear confidence scaling, fixed contrarian multiplier 1.0, no high-conviction asymmetry) (§11.6, §12.4)
+- [x] **REP-23**: On runtime fallback path, settlement still completes and `RepCalculatedFallback(callId, user, baselineDelta, lowLevelError)` event fires for operator investigation (§11.6, §12.4)
 - [ ] **REP-24**: Build-time fallback: if Rust + Stylus path is not working by 48 hours before demo, swap to Solidity baseline implementation in the same proxy slot at full fidelity (§11.6, App.A.1)
 - [ ] **REP-25**: `RepCalculated(callId, user, currentRep, conviction, consensusPct, isWinner, baseValue, delta)` event is emitted with full inputs for debuggability (§12.4, App.A.1)
 - [ ] **REP-26**: SettlementManager calls `profileRegistry.updateAfterSettlement(user, category, isCaller, isWinner, repDelta)` for each settled caller (§12.4, §12.5)
@@ -231,13 +231,13 @@ Requirements for the v1 mainnet release. Each line is an atomic, testable behavi
 ### Settlement & Oracles (SETTLE)
 
 - [ ] **SETTLE-01**: `settle(callId)` is permissionless — anyone can call (relayer rotation handles gas incentives) (§12.4)
-- [ ] **SETTLE-02**: `settle` is idempotent — second call when status != Live reverts `AlreadySettled(callId)` cleanly (§12.4, App.A.1)
-- [ ] **SETTLE-03**: `settle` reverts `CallNotExpired(expiry, now)` when called before expiry (§12.4)
+- [x] **SETTLE-02**: `settle` is idempotent — second call when status != Live reverts `AlreadySettled(callId)` cleanly (§12.4, App.A.1)
+- [x] **SETTLE-03**: `settle` reverts `CallNotExpired(expiry, now)` when called before expiry (§12.4)
 - [ ] **SETTLE-04**: `settle` reverts `Paused` under emergency pause — new outcomes cannot be written while paused (§10.3, §12.4)
-- [ ] **SETTLE-05**: All 14 steps of `settle` execute atomically — any revert rolls back the entire transaction (§12.4)
+- [x] **SETTLE-05**: All 14 steps of `settle` execute atomically — any revert rolls back the entire transaction (§12.4)
 - [ ] **SETTLE-06**: SettlementManager dispatches to the correct oracle adapter based on `call.marketType` and `call.eventSubtype` (§12.4)
 - [ ] **SETTLE-07**: Pyth feed reads use `PythUpgradable.getPriceNoOlderThan(priceId, 60)` — 60-second freshness window (avoids single-block MEV) (§13.1)
-- [ ] **SETTLE-08**: Pyth confidence threshold is locked at `confidence × 200 <= price` — confidence interval ≤ 0.5% of price (§13.1, App.A.1)
+- [x] **SETTLE-08**: Pyth confidence threshold is locked at `confidence × 200 <= price` — confidence interval ≤ 0.5% of price (§13.1, App.A.1)
 - [ ] **SETTLE-09**: On Pyth confidence wide read, settlement emits `SettlementDelayed(callId, "PYTH_CONFIDENCE_WIDE", retryAfter=60s)` and returns early (no full revert) (§12.4 step 5, §13.1)
 - [ ] **SETTLE-10**: Relayer retries Pyth read every 60 seconds for up to 30 attempts (30-minute window) (§13.1, App.A.1)
 - [ ] **SETTLE-11**: After 30 failed retries, settlement falls into the standard 24h dispute window with reason "oracle data ambiguous" (§13.1, §13.7)
@@ -245,38 +245,38 @@ Requirements for the v1 mainnet release. Each line is an atomic, testable behavi
 - [ ] **SETTLE-13**: NFT floor calls use Alchemy NFT API via off-chain relayer that polls `getNFTSales` + `getFloorPrice` at 5-minute intervals (§13.2)
 - [ ] **SETTLE-14**: Relayer computes 24-hour TWAP floor price off-chain from raw sales/listings data (§13.2)
 - [ ] **SETTLE-15**: Relayer signs the TWAP and submits via `submitNftFloor(callId, twapPriceWei, observationCount, evidenceHash)` to SettlementManager (§13.2)
-- [ ] **SETTLE-16**: NFT TWAP reads with fewer than 12 observations in the 24h window are treated as ambiguous and routed to the dispute window (§13.2, App.A.1)
+- [x] **SETTLE-16**: NFT TWAP reads with fewer than 12 observations in the 24h window are treated as ambiguous and routed to the dispute window (§13.2, App.A.1)
 - [ ] **SETTLE-17**: TWAP signing key is held in the same multisig as the rest of the relayer authority (§13.2, §10.7)
 - [ ] **SETTLE-18**: DefiLlama integration covers protocol TVL, chain TVL, 7d/30d volume, 7d/30d fees, 7d revenue, supply APR, borrow APR, staking APR via off-chain relayer that signs data points and submits onchain (§13.3)
 - [ ] **SETTLE-19**: Direct RPC queries serve On-chain Metric subtype (active addresses, gas burned, validator count) and Liquidation events via relayer (§13.4)
 - [ ] **SETTLE-20**: For event-driven On-chain resolutions (e.g., liquidation > $50M in window), relayer watches the relevant contract events and triggers settlement as soon as a qualifying event occurs (§13.4)
 - [ ] **SETTLE-21**: Snapshot oracle reads off-chain proposal state via Snapshot API at the deadline (§13.5)
 - [ ] **SETTLE-22**: Tally oracle reads on-chain governance proposal state directly via governance contract interface (§13.5)
-- [ ] **SETTLE-23**: CEX listing scrapers monitor announcement pages of all 8 exchanges (Binance, Coinbase, OKX, Bybit, Kraken, Bitget, KuCoin, Upbit); relayer submits signed proof on-chain when a matching listing is detected (§13.6)
+- [x] **SETTLE-23**: CEX listing scrapers monitor announcement pages of all 8 exchanges (Binance, Coinbase, OKX, Bybit, Kraken, Bitget, KuCoin, Upbit); relayer submits signed proof on-chain when a matching listing is detected (§13.6)
 - [ ] **SETTLE-24**: All non-Pyth relayer-signed reads use a single retry at +5 minutes; if both fail, treated as ambiguous (§13.7)
-- [ ] **SETTLE-25**: After ambiguous-data detection, a 24-hour dispute window opens (`DISPUTE_WINDOW = 24 hours`); any user can submit a counter-claim with a $5 USDC bond and evidence (§13.7, §13.8, §12.4)
-- [ ] **SETTLE-26**: Dispute bond is exactly $5 USDC per submission (§8.10, §13.8, §12.4)
-- [ ] **SETTLE-27**: If disputer wins (counter-claim accepted), bond is returned + $2 USDC reward from treasury (§8.10, §13.8, §12.4)
-- [ ] **SETTLE-28**: If disputer loses, bond is forfeited to protocol treasury (§8.10, §13.8)
-- [ ] **SETTLE-29**: A single call can have at most 3 counter-claims (`MAX_COUNTER_CLAIMS = 3`); reverts `CounterClaimLimitReached(limit)` (§13.8, §12.4)
-- [ ] **SETTLE-30**: `raiseDispute` reverts `DisputeWindowClosed(closedAt)` after the 24h window (§12.4)
+- [x] **SETTLE-25**: After ambiguous-data detection, a 24-hour dispute window opens (`DISPUTE_WINDOW = 24 hours`); any user can submit a counter-claim with a $5 USDC bond and evidence (§13.7, §13.8, §12.4)
+- [x] **SETTLE-26**: Dispute bond is exactly $5 USDC per submission (§8.10, §13.8, §12.4)
+- [x] **SETTLE-27**: If disputer wins (counter-claim accepted), bond is returned + $2 USDC reward from treasury (§8.10, §13.8, §12.4)
+- [x] **SETTLE-28**: If disputer loses, bond is forfeited to protocol treasury (§8.10, §13.8)
+- [x] **SETTLE-29**: A single call can have at most 3 counter-claims (`MAX_COUNTER_CLAIMS = 3`); reverts `CounterClaimLimitReached(limit)` (§13.8, §12.4)
+- [x] **SETTLE-30**: `raiseDispute` reverts `DisputeWindowClosed(closedAt)` after the 24h window (§12.4)
 - [ ] **SETTLE-31**: First dispute against a Settled call transitions status to Disputed (§12.4)
 - [ ] **SETTLE-32**: `DisputeRaised(callId, challenger, evidenceHash)` event is emitted; evidence is off-chain content-addressed (e.g., IPFS) (§12.4)
 - [ ] **SETTLE-33**: `resolveDispute(callId, finalOutcome)` is owner-only in v1 (`NotOwner` revert) (§13.7, §12.4)
-- [ ] **SETTLE-34**: If `finalOutcome != call.outcome`, dispute resolution reverses settlement — reverses rep deltas and re-distributes pool USDC from old-winner to new-winner (§12.4)
+- [x] **SETTLE-34**: If `finalOutcome != call.outcome`, dispute resolution reverses settlement — reverses rep deltas and re-distributes pool USDC from old-winner to new-winner (§12.4)
 - [ ] **SETTLE-35**: Post-claim disputes are not honored in v1 — the 24h window is shorter than typical claim activity to keep this rare (§12.4)
 - [ ] **SETTLE-36**: `DisputeResolved(callId, finalOutcome, resolver)` event is emitted on resolution (§12.4)
 - [ ] **SETTLE-37**: Worst-case settlement SLA: 24h 30m maximum from `call.expiry` to final Settled state under normal flow (Pyth retries + dispute window) (§13.1, §13.7, App.A.1)
 - [ ] **SETTLE-38**: SLA copy surfaced on the receipt page: "Settles within 24h after [expiry]" so users do not panic on ambiguous-read delay (§13.7)
-- [ ] **SETTLE-39**: `forceSettle(callId, outcome)` escape hatch is owner-only and gated by `FORCE_SETTLE_COOLDOWN = 7 days` from `call.expiry`; reverts `ForceSettleCooldownActive(unlocksAt)` (§12.4, App.A.1)
-- [ ] **SETTLE-40**: `forceSettle` emits BOTH `CallForceSettled(callId, outcome, owner)` AND `CallSettled(callId, outcome, 0)` for loud audit trail (§12.4)
+- [x] **SETTLE-39**: `forceSettle(callId, outcome)` escape hatch is owner-only and gated by `FORCE_SETTLE_COOLDOWN = 7 days` from `call.expiry`; reverts `ForceSettleCooldownActive(unlocksAt)` (§12.4, App.A.1)
+- [x] **SETTLE-40**: `forceSettle` emits BOTH `CallForceSettled(callId, outcome, owner)` AND `CallSettled(callId, outcome, 0)` for loud audit trail (§12.4)
 - [ ] **SETTLE-41**: Settlement step 7 updates caller rep via StylusScoreEngine wrapped in try/catch with Solidity baseline fallback (§12.4, §11.6)
 - [ ] **SETTLE-42**: If caller has exited per §8.7.3, settlement skips rep update for that caller entirely (§12.4 step 7, §8.7.3)
-- [ ] **SETTLE-43**: Settlement step 8 (duels): challenger outcome = inverse of caller outcome; both parties' rep deltas applied at ~1.5× standard movement; ChallengeEscrow status set to Settled with `winner` populated (§12.4, §5.3)
-- [ ] **SETTLE-44**: Settlement step 9 (followers/faders): NO per-user rep updates (per §7.6); only mark call as Settled and unlock pull-pattern `claimPayout()`; keeps `settle()` gas O(1) regardless of participant count (§12.4, §7.6)
+- [x] **SETTLE-43**: Settlement step 8 (duels): challenger outcome = inverse of caller outcome; both parties' rep deltas applied at ~1.5× standard movement; ChallengeEscrow status set to Settled with `winner` populated (§12.4, §5.3)
+- [x] **SETTLE-44**: Settlement step 9 (followers/faders): NO per-user rep updates (per §7.6); only mark call as Settled and unlock pull-pattern `claimPayout()`; keeps `settle()` gas O(1) regardless of participant count (§12.4, §7.6)
 - [ ] **SETTLE-45**: Settlement step 10: cold-start adjustment scales caller's delta to 25% before applying if real fade pool was zero (§12.4 step 10, §8.3)
-- [ ] **SETTLE-46**: Settlement step 11: pay protocol fee (1%), creator fee (0.4% × volume-at-exit per Model B or full volume), route LP fee (0.3%) into the winning pool reserve (§8.6, §12.4)
-- [ ] **SETTLE-47**: Settlement step 12: clear `activeDuplicateHashes[duplicateHash] = 0` so same call parameters can be reused (§12.4, §6.2)
+- [x] **SETTLE-46**: Settlement step 11: pay protocol fee (1%), creator fee (0.4% × volume-at-exit per Model B or full volume), route LP fee (0.3%) into the winning pool reserve (§8.6, §12.4)
+- [x] **SETTLE-47**: Settlement step 12: clear `activeDuplicateHashes[duplicateHash] = 0` so same call parameters can be reused (§12.4, §6.2)
 - [ ] **SETTLE-48**: Settlement step 14: emit `CallSettled(callId, outcome, priceDelta)` (§12.4, §12.1)
 - [ ] **SETTLE-49**: Total settlement extraction is 1.7% — 1.0% protocol + 0.4% creator + 0.3% LP (§8.6, §8.11)
 - [ ] **SETTLE-50**: Creator fee follows Model B for exited callers — `0.4% × callerVolumeAtExit` snapshot, not full settled volume (§8.8, §12.4)
@@ -341,7 +341,7 @@ Requirements for the v1 mainnet release. Each line is an atomic, testable behavi
 - [ ] **SAFETY-54**: Smoke test confirms receipt-link share works on Twitter (passes Twitter Card Validator) (§19.11)
 - [ ] **SAFETY-55**: Smoke test confirms `forceSettle` is NOT callable within cooldown window (reverts `ForceSettleCooldownActive`) (§19.11)
 - [ ] **SAFETY-56**: If any smoke test item fails, contracts are paused immediately and no public announcement is made (§19.11)
-- [ ] **SAFETY-57**: Per-auth-method permission scoping — OAuth methods can view/sign but require 2nd factor for withdrawals over a threshold is a documented v1 limitation (App.A.1)
+- [x] **SAFETY-57**: Per-auth-method permission scoping — OAuth methods can view/sign but require 2nd factor for withdrawals over a threshold is a documented v1 limitation (App.A.1)
 - [x] **SAFETY-58**: Single owner key controls pause / setTvlCap / forceSettle / proxy admin / resolveDispute in v1; documented promotion to multisig before v1.1 or before TVL exceeds $5K (§10.4, §10.8)
 
 ### UI Pages & Shared Components (UI)
@@ -745,7 +745,7 @@ Which phases cover which requirements. Updated during roadmap creation by the ro
 | REP-11 | Phase 4 | Pending |
 | REP-12 | Phase 4 | Pending |
 | REP-13 | Phase 4 | Pending |
-| REP-14 | Phase 4 | Pending |
+| REP-14 | Phase 4 | Complete |
 | REP-15 | Phase 4 | Pending |
 | REP-16 | Phase 4 | Pending |
 | REP-17 | Phase 1 | Pending |
@@ -753,8 +753,8 @@ Which phases cover which requirements. Updated during roadmap creation by the ro
 | REP-19 | Phase 5 | Pending |
 | REP-20 | Phase 5 | Pending |
 | REP-21 | Phase 5 | Pending |
-| REP-22 | Phase 4 | Pending |
-| REP-23 | Phase 4 | Pending |
+| REP-22 | Phase 4 | Complete |
+| REP-23 | Phase 4 | Complete |
 | REP-24 | Phase 5 | Pending |
 | REP-25 | Phase 4 | Pending |
 | REP-26 | Phase 4 | Pending |
@@ -762,13 +762,13 @@ Which phases cover which requirements. Updated during roadmap creation by the ro
 | REP-28 | Phase 1 | Pending |
 | REP-29 | Phase 1 | Pending |
 | SETTLE-01 | Phase 4 | Pending |
-| SETTLE-02 | Phase 4 | Pending |
-| SETTLE-03 | Phase 4 | Pending |
+| SETTLE-02 | Phase 4 | Complete |
+| SETTLE-03 | Phase 4 | Complete |
 | SETTLE-04 | Phase 4 | Pending |
-| SETTLE-05 | Phase 4 | Pending |
+| SETTLE-05 | Phase 4 | Complete |
 | SETTLE-06 | Phase 4 | Pending |
 | SETTLE-07 | Phase 4 | Pending |
-| SETTLE-08 | Phase 4 | Pending |
+| SETTLE-08 | Phase 4 | Complete |
 | SETTLE-09 | Phase 4 | Pending |
 | SETTLE-10 | Phase 4 | Pending |
 | SETTLE-11 | Phase 4 | Pending |
@@ -776,38 +776,38 @@ Which phases cover which requirements. Updated during roadmap creation by the ro
 | SETTLE-13 | Phase 4 | Pending |
 | SETTLE-14 | Phase 4 | Pending |
 | SETTLE-15 | Phase 4 | Pending |
-| SETTLE-16 | Phase 4 | Pending |
+| SETTLE-16 | Phase 4 | Complete |
 | SETTLE-17 | Phase 4 | Pending |
 | SETTLE-18 | Phase 4 | Pending |
 | SETTLE-19 | Phase 4 | Pending |
 | SETTLE-20 | Phase 4 | Pending |
 | SETTLE-21 | Phase 4 | Pending |
 | SETTLE-22 | Phase 4 | Pending |
-| SETTLE-23 | Phase 4 | Pending |
+| SETTLE-23 | Phase 4 | Complete |
 | SETTLE-24 | Phase 4 | Pending |
-| SETTLE-25 | Phase 4 | Pending |
-| SETTLE-26 | Phase 4 | Pending |
-| SETTLE-27 | Phase 4 | Pending |
-| SETTLE-28 | Phase 4 | Pending |
-| SETTLE-29 | Phase 4 | Pending |
-| SETTLE-30 | Phase 4 | Pending |
+| SETTLE-25 | Phase 4 | Complete |
+| SETTLE-26 | Phase 4 | Complete |
+| SETTLE-27 | Phase 4 | Complete |
+| SETTLE-28 | Phase 4 | Complete |
+| SETTLE-29 | Phase 4 | Complete |
+| SETTLE-30 | Phase 4 | Complete |
 | SETTLE-31 | Phase 4 | Pending |
 | SETTLE-32 | Phase 4 | Pending |
 | SETTLE-33 | Phase 4 | Pending |
-| SETTLE-34 | Phase 4 | Pending |
+| SETTLE-34 | Phase 4 | Complete |
 | SETTLE-35 | Phase 4 | Pending |
 | SETTLE-36 | Phase 4 | Pending |
 | SETTLE-37 | Phase 4 | Pending |
 | SETTLE-38 | Phase 4 | Pending |
-| SETTLE-39 | Phase 4 | Pending |
-| SETTLE-40 | Phase 4 | Pending |
+| SETTLE-39 | Phase 4 | Complete |
+| SETTLE-40 | Phase 4 | Complete |
 | SETTLE-41 | Phase 4 | Pending |
 | SETTLE-42 | Phase 4 | Pending |
-| SETTLE-43 | Phase 4 | Pending |
-| SETTLE-44 | Phase 4 | Pending |
+| SETTLE-43 | Phase 4 | Complete |
+| SETTLE-44 | Phase 4 | Complete |
 | SETTLE-45 | Phase 4 | Pending |
-| SETTLE-46 | Phase 4 | Pending |
-| SETTLE-47 | Phase 4 | Pending |
+| SETTLE-46 | Phase 4 | Complete |
+| SETTLE-47 | Phase 4 | Complete |
 | SETTLE-48 | Phase 4 | Pending |
 | SETTLE-49 | Phase 4 | Pending |
 | SETTLE-50 | Phase 4 | Pending |
@@ -869,7 +869,7 @@ Which phases cover which requirements. Updated during roadmap creation by the ro
 | SAFETY-54 | Phase 7.5 | Pending |
 | SAFETY-55 | Phase 7.5 | Pending |
 | SAFETY-56 | Phase 7.5 | Pending |
-| SAFETY-57 | Phase 4 | Pending |
+| SAFETY-57 | Phase 4 | Complete |
 | SAFETY-58 | Phase 0 | Complete |
 | UI-01 | Phase 1 | Pending |
 | UI-02 | Phase 1 | Pending |

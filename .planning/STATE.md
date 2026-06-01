@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: milestone
 status: executing
-stopped_at: Phase 4 UI-SPEC approved
-last_updated: "2026-06-01T19:57:33.085Z"
-last_activity: 2026-06-01 -- Phase 04 planning complete
+stopped_at: Completed 04-01-PLAN.md
+last_updated: "2026-06-01T20:35:02.667Z"
+last_activity: 2026-06-01
 progress:
   total_phases: 12
   completed_phases: 4
   total_plans: 40
-  completed_plans: 32
-  percent: 80
+  completed_plans: 33
+  percent: 83
 ---
 
 # Project State
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-21)
 
 **Core value:** Every call is permanent, public, and tied to identity. The receipt — created, settled, and shared — must be unfakeable, undeletable, and visually unmistakable.
-**Current focus:** Phase 4 — SettlementManager (Phases 0–3 complete)
+**Current focus:** Phase 04 — settlementmanager-7-oracle-paths-solidity-baseline-rep-delta
 
 ## Current Position
 
-Phase: 4
-Plan: Not started
+Phase: 04 (settlementmanager-7-oracle-paths-solidity-baseline-rep-delta) — EXECUTING
+Plan: 2 of 9
 Status: Ready to execute
-Last activity: 2026-06-01 -- Phase 04 planning complete
+Last activity: 2026-06-01
 
-Progress: [████░░░░░░] 5/12 phases (42%) — Phases 0–3 complete + live on Sepolia; next: Phase 4 SettlementManager
+Progress: [████████░░] 83%
 
 ## Known Plan Issues — Phase 03 (RESOLVED at execution, 2026-06-01)
 
@@ -106,6 +106,7 @@ All 3 operator actions were run this session (user explicitly authorized "run al
 | Phase 03 P04 | 20min | 2 tasks | 7 files |
 | Phase 03-challengeescrow P05 | 25min | 2 tasks | 7 files |
 | Phase 03-challengeescrow P07 | 11min | 2 tasks | 2 files |
+| Phase 04 P01 | 12min | 2 tasks | 12 files |
 
 ## Accumulated Context
 
@@ -209,6 +210,8 @@ completed: 2026-05-29
 
 - [Phase ?]: CHALLENGE_ESCROW_ARBITRUM_SEPOLIA added to shared barrel (Rule 3 auto-fix in 03-05)
 - [Phase ?]: Duel trending backer count falls back to pot-only — followTotalShares absent from subgraph; TODO Phase-7
+- [Phase ?]: D-08 thresholds locked as test-of-record in outcome-word.test.ts — CONTRARIAN HIT when fadeRealShare >= 0.5; COLD CALL when repDelta <= 3
+- [Phase ?]: D-09 public viewer rule: viewerIsWinningFader=false never returns FADED CORRECTLY — Wallet disconnected or no fade position shows caller-centric outcome word only
 
 ## Performance
 
@@ -342,6 +345,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-06-01T18:01:05.872Z
-Stopped at: Phase 4 UI-SPEC approved
-Resume file: .planning/phases/04-settlementmanager-7-oracle-paths-solidity-baseline-rep-delta/04-UI-SPEC.md
+Last session: 2026-06-01T20:35:02.649Z
+Stopped at: Completed 04-01-PLAN.md
+Resume file: None
