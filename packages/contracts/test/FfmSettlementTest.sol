@@ -41,10 +41,10 @@ contract FfmSettlementTest is SmTestHelper {
 
         // Bob fades the call
         vm.prank(bob);
-        ffm.fade(callId, 10e6);
+        ffm.fade(callId, 10e6, 0);
 
         vm.warp(block.timestamp + 2);
-        sm.settle(callId, new bytes[](0));
+        sm.settle(callId, new bytes[](0), new uint256[](0));
 
         // Determine who won to pick the correct claimant
         ICallRegistry.Call memory call = registry.getCall(callId);
@@ -74,8 +74,8 @@ contract FfmSettlementTest is SmTestHelper {
         uint256 callId = _seedPool(alice, 50e6, uint64(block.timestamp + 1));
         vm.warp(block.timestamp + 2);
 
-        // First settle — calls applySettlement internally
-        sm.settle(callId, new bytes[](0));
+        // First settle -- calls applySettlement internally
+        sm.settle(callId, new bytes[](0), new uint256[](0));
 
         // Direct second call to applySettlement must revert
         // (SettlementManager calls it internally; here we verify the guard)
@@ -83,7 +83,7 @@ contract FfmSettlementTest is SmTestHelper {
         vm.expectRevert(abi.encodeWithSignature("SettlementAlreadyApplied()"));
         ffm.applySettlement(
             callId,
-            ICallRegistry.Outcome.CallerWon,
+            uint8(ICallRegistry.Outcome.CallerWon),
             uint256(50e6) * 100 / 10_000,  // 1.0% protocol fee
             uint256(50e6) * 40  / 10_000,  // 0.4% creator fee
             uint256(50e6) * 30  / 10_000   // 0.3% LP fee
@@ -103,7 +103,7 @@ contract FfmSettlementTest is SmTestHelper {
         uint256 treasuryBalBefore = IERC20(USDC_ARB_NATIVE).balanceOf(treasury);
 
         vm.warp(block.timestamp + 2);
-        sm.settle(callId, new bytes[](0));
+        sm.settle(callId, new bytes[](0), new uint256[](0));
 
         uint256 treasuryBalAfter = IERC20(USDC_ARB_NATIVE).balanceOf(treasury);
 
@@ -142,17 +142,17 @@ contract FfmSettlementTest is SmTestHelper {
         usdc.approve(address(ffm), type(uint256).max);
 
         vm.prank(bob);
-        ffm.fade(callId, 10e6);
+        ffm.fade(callId, 10e6, 0);
 
         vm.prank(charlie);
-        ffm.fade(callId, 20e6);
+        ffm.fade(callId, 20e6, 0);
 
         // Record shares before settle
         uint256 bobShares     = ffm.fadeShares(callId, bob);
         uint256 totalShares   = ffm.fadeTotalShares(callId);
 
         vm.warp(block.timestamp + 2);
-        sm.settle(callId, new bytes[](0));
+        sm.settle(callId, new bytes[](0), new uint256[](0));
 
         // Determine if faders won
         ICallRegistry.Call memory call = registry.getCall(callId);

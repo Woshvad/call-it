@@ -141,6 +141,12 @@ contract ProfileRegistry is Ownable2Step, IProfileRegistry {
         return _profiles[user].settledCalls;
     }
 
+    /// @inheritdoc IProfileRegistry
+    /// @dev Returns 0 for uninitialized users. Read by SettlementManager for rep delta computation.
+    function globalRep(address user) external view returns (uint128) {
+        return _profiles[user].globalRep;
+    }
+
     /// @notice Returns the full Profile struct for a user.
     ///         Returns a zero-initialized struct for uninitialized users.
     function getProfile(address user) external view returns (Profile memory) {
@@ -210,14 +216,20 @@ contract ProfileRegistry is Ownable2Step, IProfileRegistry {
     // ─── SettlementManager-only mutations ────────────────────────────────────
 
     /// @inheritdoc IProfileRegistry
-    /// @dev Phase 2: auth guard updated to use authorizedRepWriters (D-04).
-    ///      Phase 4 wires actual rep delta math here.
-    function updateAfterSettlement(address user, bool /*isWinner*/, uint8 /*category*/) external {
+    /// @dev Phase 4: real implementation -- increments settledCalls/wins/losses counters.
+    ///      Rep delta is applied separately via applyRepDelta (SettlementManager step 8).
+    ///      updateAfterSettlement handles stats counters only (REP stats, not globalRep).
+    function updateAfterSettlement(address user, bool isWinner, uint8 /*category*/) external {
         if (!authorizedRepWriters[msg.sender]) revert NotAuthorizedWriter();
-        // Phase 4 will implement full logic:
-        // _profiles[user].settledCalls += 1;
-        // if (isWinner) _profiles[user].wins += 1; else _profiles[user].losses += 1;
-        // Phase 5 Stylus engine computes globalRep delta.
+        _initIfNeeded(user);
+        // Phase 4: fill stats counters
+        _profiles[user].settledCalls += 1;
+        if (isWinner) {
+            _profiles[user].wins += 1;
+        } else {
+            _profiles[user].losses += 1;
+        }
+        _profiles[user].lastActiveAt = uint64(block.timestamp);
         emit ProfileUpdated(user, _profiles[user].totalCalls, _profiles[user].settledCalls);
     }
 

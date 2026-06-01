@@ -23,6 +23,7 @@ pragma solidity =0.8.30;
 import { Test } from "forge-std/Test.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { ICallRegistry } from "../src/interfaces/ICallRegistry.sol";
+import { IProfileRegistry } from "../src/interfaces/IProfileRegistry.sol";
 import { ISettlementManager } from "../src/interfaces/ISettlementManager.sol"; // <-- RED GATE
 import { CallRegistry } from "../src/CallRegistry.sol";
 import { ProfileRegistry } from "../src/ProfileRegistry.sol";
@@ -167,7 +168,7 @@ contract SettlementManagerForkTest is Test {
 
         // Bob fades
         vm.prank(bob);
-        ffm.fade(callId, 20e6);
+        ffm.fade(callId, 20e6, 0);
 
         uint256 treasuryBalBefore = IERC20(USDC_ARB_NATIVE).balanceOf(treasury);
 
@@ -177,7 +178,7 @@ contract SettlementManagerForkTest is Test {
         // NOTE: Pyth requires a valid updateData VAA in production;
         //       in fork tests with warp, getPriceNoOlderThan may revert with stale price.
         //       The test verifies the USDC money-path works correctly when settle completes.
-        try sm.settle(callId, new bytes[](0)) {
+        try sm.settle(callId, new bytes[](0), new uint256[](0)) {
             // Settlement completed — verify fees in treasury
             uint256 treasuryBalAfter = IERC20(USDC_ARB_NATIVE).balanceOf(treasury);
             assertGt(
@@ -217,11 +218,11 @@ contract SettlementManagerForkTest is Test {
 
         // Bob fades the call
         vm.prank(bob);
-        ffm.fade(callId, 20e6);
+        ffm.fade(callId, 20e6, 0);
 
         vm.warp(block.timestamp + 2);
 
-        try sm.settle(callId, new bytes[](0)) {
+        try sm.settle(callId, new bytes[](0), new uint256[](0)) {
             // Settle succeeded — try to claim
             ICallRegistry.Call memory call = registry.getCall(callId);
             address winner = call.outcome == ICallRegistry.Outcome.CallerWon ? alice : bob;

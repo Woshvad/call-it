@@ -95,5 +95,30 @@ abstract contract SmTestHelper is CeTestHelper {
 
         vm.prank(challenger);
         usdc.approve(address(sm), type(uint256).max);
+
+        // Step 7: set up default Pyth mocks so unit tests don't require VAA data.
+        // testPythConfidenceGate and testAtomicRollback override these as needed.
+        // Default: price=4000e8, conf=1 (narrow confidence), expo=-8
+        // This makes the Pyth gate pass and outcome = CallerWon (price 4000 > target 3000).
+        vm.mockCall(
+            pyth,
+            abi.encodeWithSignature("getUpdateFee(bytes[])"),
+            abi.encode(uint256(0))
+        );
+        vm.mockCall(
+            pyth,
+            abi.encodeWithSignature("updatePriceFeeds(bytes[])"),
+            abi.encode()
+        );
+        vm.mockCall(
+            pyth,
+            abi.encodeWithSignature("getPriceNoOlderThan(bytes32,uint256)"),
+            abi.encode(
+                int64(4000_0000_0000),  // price: 4000 * 10^8 = 400000000000
+                uint64(100),            // conf: 100 -- narrow (100*200=20000 < 400000000000)
+                int32(-8),              // expo: -8
+                uint256(block.timestamp)
+            )
+        );
     }
 }

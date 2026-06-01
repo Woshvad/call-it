@@ -437,6 +437,25 @@ contract CallRegistry is Ownable2Step, ReentrancyGuard, Pausable, ICallRegistry 
         _calls[callId].callerExitedAt = uint64(block.timestamp); // SOCIAL-21: snapshot exit timestamp
     }
 
+    /// @notice Called by SettlementManager.resolveDispute() to update outcome after dispute reversal.
+    ///         Additive seam (Phase 4 source; deployed on mainnet CallRegistry in Phase 7.5).
+    ///         Unlike markSettled, this allows updating an already-Settled call's outcome.
+    function updateOutcomeForDispute(uint256 callId, Outcome newOutcome) external {
+        if (msg.sender != settlementManager) revert NotSettlementManager();
+        require(callId != 0 && callId < _calls.length, "bad-callId");
+        require(_calls[callId].status == CallStatus.Settled, "not-settled");
+        _calls[callId].outcome = newOutcome;
+    }
+
+    /// @notice Called by SettlementManager to clear the activeDuplicateHashes entry for a call.
+    ///         Additive seam (Phase 4 source; deployed on mainnet CallRegistry in Phase 7.5).
+    ///         SettlementManager step 12 wraps this call in try/catch so settlement completes
+    ///         on the current Sepolia CallRegistry which predates this seam. SETTLE-47.
+    function clearDuplicateHash(bytes32 h) external {
+        if (msg.sender != settlementManager) revert NotSettlementManager();
+        activeDuplicateHashes[h] = 0;
+    }
+
     /// @inheritdoc ICallRegistry
     /// @notice Called by SettlementManager to mark a call as Settled with outcome. D-02.
     function markSettled(uint256 callId, Outcome outcome) external {

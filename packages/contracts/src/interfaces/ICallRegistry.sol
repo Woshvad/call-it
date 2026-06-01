@@ -228,6 +228,19 @@ interface ICallRegistry {
     ///         Reverts NotSettlementManager if msg.sender != settlementManager.
     function markSettled(uint256 callId, Outcome outcome) external;
 
+    /// @notice Called by SettlementManager.resolveDispute() to update the outcome after dispute reversal.
+    ///         Additive seam (Phase 4 source; Phase 7.5 mainnet CallRegistry deployment).
+    ///         Unlike markSettled, allows updating an already-Settled call's outcome.
+    function updateOutcomeForDispute(uint256 callId, Outcome newOutcome) external;
+
+    /// @notice Additive seam (Phase 4 source; Phase 7.5 mainnet CallRegistry deployment).
+    ///         Called by SettlementManager step 12 to clear the duplicate-hash dedup guard
+    ///         after settlement so the same (asset, target, expiry-day) params can be re-used.
+    ///         SettlementManager wraps this call in try/catch so settlement completes on
+    ///         the current Sepolia CallRegistry which predates this seam. SETTLE-47.
+    ///         Reverts NotSettlementManager if msg.sender != settlementManager.
+    function clearDuplicateHash(bytes32 h) external;
+
     /// @notice Pause createCall. SAFETY-04.
     function pause() external;
 

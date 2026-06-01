@@ -44,11 +44,11 @@ contract SettlementManagerTest is SmTestHelper, StdInvariant {
         vm.warp(block.timestamp + 2);
 
         // First settle — succeeds (implementation in Plan 04-02)
-        sm.settle(callId, new bytes[](0));
+        sm.settle(callId, new bytes[](0), new uint256[](0));
 
         // Second settle — must revert AlreadySettled (SETTLE-02)
         vm.expectRevert(ISettlementManager.AlreadySettled.selector);
-        sm.settle(callId, new bytes[](0));
+        sm.settle(callId, new bytes[](0), new uint256[](0));
     }
 
     // ─── testCallNotExpired (SETTLE-03) ──────────────────────────────────────
@@ -60,7 +60,7 @@ contract SettlementManagerTest is SmTestHelper, StdInvariant {
 
         // Settle before expiry — must revert CallNotExpired (SETTLE-03)
         vm.expectRevert(ISettlementManager.CallNotExpired.selector);
-        sm.settle(callId, new bytes[](0));
+        sm.settle(callId, new bytes[](0), new uint256[](0));
     }
 
     // ─── testAtomicRollback (SETTLE-05) ──────────────────────────────────────
@@ -84,7 +84,7 @@ contract SettlementManagerTest is SmTestHelper, StdInvariant {
 
         // settle() must revert entirely (SETTLE-05)
         vm.expectRevert();
-        sm.settle(callId, new bytes[](0));
+        sm.settle(callId, new bytes[](0), new uint256[](0));
 
         // Balances must be unchanged — full rollback
         assertEq(
@@ -135,7 +135,7 @@ contract SettlementManagerTest is SmTestHelper, StdInvariant {
         emit ISettlementManager.SettlementDelayed(callId, "PYTH_CONFIDENCE_WIDE", block.timestamp + 60);
 
         // settle() must NOT revert — it returns early (SETTLE-08)
-        sm.settle(callId, new bytes[](0));
+        sm.settle(callId, new bytes[](0), new uint256[](0));
 
         // Outcome must remain Pending
         ICallRegistry.Call memory call = registry.getCall(callId);
@@ -162,13 +162,13 @@ contract SettlementManagerTest is SmTestHelper, StdInvariant {
             vm.prank(follower);
             usdc.approve(address(ffm), type(uint256).max);
             vm.prank(follower);
-            ffm.follow(callId, 5e6); // $5 follow position
+            ffm.follow(callId, 5e6, 0); // $5 follow position (minSharesOut=0)
         }
 
         vm.warp(block.timestamp + 2);
 
         uint256 gasBefore = gasleft();
-        sm.settle(callId, new bytes[](0));
+        sm.settle(callId, new bytes[](0), new uint256[](0));
         uint256 gasUsed = gasBefore - gasleft();
 
         // O(1) settlement: should be < 200_000 gas regardless of pool size
@@ -192,13 +192,13 @@ contract SettlementManagerTest is SmTestHelper, StdInvariant {
         );
 
         // Get caller's rep before settle
-        uint256 repBefore = profileRegistry.getProfile(alice).repScore;
+        uint256 repBefore = uint256(profileRegistry.getProfile(alice).globalRep);
 
-        sm.settle(callId, new bytes[](0));
+        sm.settle(callId, new bytes[](0), new uint256[](0));
 
         // RepCalculated event should have delta = 25% of uncapped delta (REP-14)
         // After settle, rep should have changed by exactly 25% of what it would be
-        uint256 repAfter = profileRegistry.getProfile(alice).repScore;
+        uint256 repAfter = uint256(profileRegistry.getProfile(alice).globalRep);
         uint256 repDelta = repAfter - repBefore;
 
         // For conviction=50, _solidityBaselineRepDelta = (10 * 50 * 2) / 100 = 10
@@ -217,23 +217,29 @@ contract SettlementManagerTest is SmTestHelper, StdInvariant {
         uint256 callId = _seedPool(alice, 50e6, uint64(block.timestamp + 1));
         vm.warp(block.timestamp + 2);
 
-        // If StylusScoreEngine address is set, make it revert on compute_rep_change
-        address stylusEngine = sm.stylusScoreEngine();
-        if (stylusEngine != address(0)) {
-            vm.mockCallRevert(
-                stylusEngine,
-                abi.encodeWithSignature(
-                    "compute_rep_change(uint128,uint8,uint8,bool,uint256)"
-                ),
-                "MockStylusRevert"
-            );
-        }
+        // Set a mock stylusScoreEngine address so the try/catch seam fires
+        address mockStylusAddr = makeAddr("mockStylusEngine");
+        vm.prank(owner);
+        sm.setStylusScoreEngine(mockStylusAddr);
 
-        // Expect RepCalculatedFallback event (REP-23) — fires when Stylus reverts
+        // Make the Stylus engine revert on compute_rep_change (simulates Stylus failure)
+        vm.mockCallRevert(
+            mockStylusAddr,
+            abi.encodeWithSignature(
+                "compute_rep_change(uint128,uint8,uint8,bool,uint256)"
+            ),
+            abi.encode("MockStylusRevert")
+        );
+
+        // Expect RepCalculatedFallback event (REP-23) -- fires when Stylus reverts
         vm.expectEmit(true, true, false, false);
         emit ISettlementManager.RepCalculatedFallback(callId, alice, 0, "MockStylusRevert");
 
-        sm.settle(callId, new bytes[](0));
+        sm.settle(callId, new bytes[](0), new uint256[](0));
+
+        // Restore no Stylus engine for other tests
+        vm.prank(owner);
+        sm.setStylusScoreEngine(address(0));
     }
 
     // ─── testForceSettleCooldown (SETTLE-39) ─────────────────────────────────
@@ -262,10 +268,10 @@ contract SettlementManagerTest is SmTestHelper, StdInvariant {
 
         // Both events must fire (SETTLE-40)
         vm.expectEmit(true, false, false, false);
-        emit ISettlementManager.CallForceSettled(callId, owner);
+        emit ISettlementManager.CallForceSettled(callId, uint8(ICallRegistry.Outcome.CallerLost));
 
         vm.expectEmit(true, false, false, false);
-        emit ISettlementManager.CallSettled(callId, ICallRegistry.Outcome.CallerLost, 0);
+        emit ISettlementManager.CallSettled(callId, uint8(ICallRegistry.Outcome.CallerLost), 0);
 
         sm.forceSettle(callId);
     }
@@ -278,29 +284,29 @@ contract SettlementManagerTest is SmTestHelper, StdInvariant {
     ///
     ///         Also tests: challenge.status != Accepted reverts.
     function testDuelInvalidChallengeId() public {
-        // Create two calls
-        uint256 callId1 = _seedPool(alice, 50e6, uint64(block.timestamp + 1));
-        uint256 callId2 = _seedPool(bob,   50e6, uint64(block.timestamp + 1));
+        // Create two calls (different feeds to avoid DuplicateCall revert)
+        uint256 callId1 = _seedPool(alice, 50e6, uint64(block.timestamp + 10));
+        uint256 callId2 = _seedPoolWithFeed(bob, 50e6, BTC_FEED, uint64(block.timestamp + 10));
 
-        // Create a challenge for callId2
+        // Create a challenge for callId2 (not callId1)
         uint256 wrongChallengeId = _proposeChallenge(challenger, callId2, 10e6);
 
-        vm.warp(block.timestamp + 2);
+        // Create a challenge for callId1 in Proposed status (not Accepted)
+        uint256 proposedChallengeId = _proposeChallenge(challenger, callId1, 10e6);
 
-        // Pass wrongChallengeId (belongs to callId2) when settling callId1
+        // Warp past expiry
+        vm.warp(block.timestamp + 11);
+
+        // Test 1: Pass wrongChallengeId (belongs to callId2) when settling callId1
         // Must revert: challenge.callId != callId (SETTLE-43 guard)
         uint256[] memory badIds = new uint256[](1);
         badIds[0] = wrongChallengeId;
-
-        vm.expectRevert(ISettlementManager.InvalidChallengeId.selector);
+        vm.expectRevert(ISettlementManager.InvalidChallengeForCall.selector);
         sm.settle(callId1, new bytes[](0), badIds);
 
-        // Also test: a challenge in non-Accepted status (Proposed, not Accepted)
-        uint256 challengeId = _proposeChallenge(challenger, callId1, 10e6);
-        // Challenge is in Proposed status (not Accepted) — should revert
+        // Test 2: Pass proposedChallengeId (Proposed status, not Accepted) -- should revert
         uint256[] memory proposedIds = new uint256[](1);
-        proposedIds[0] = challengeId;
-
+        proposedIds[0] = proposedChallengeId;
         vm.expectRevert(ISettlementManager.ChallengeNotAccepted.selector);
         sm.settle(callId1, new bytes[](0), proposedIds);
     }
@@ -323,7 +329,7 @@ contract SettlementManagerTest is SmTestHelper, StdInvariant {
         vm.warp(block.timestamp + 2);
 
         // Settle the call
-        sm.settle(callId, new bytes[](0));
+        sm.settle(callId, new bytes[](0), new uint256[](0));
 
         // After settlement:
         // 1. Call should be Settled
@@ -343,8 +349,8 @@ contract SettlementManagerTest is SmTestHelper, StdInvariant {
                 abi.encodeWithSignature("activeDuplicateHashes(bytes32)", dupHash)
             );
             if (success && data.length > 0) {
-                bool isActive = abi.decode(data, (bool));
-                assertFalse(isActive, "activeDuplicateHashes should be cleared after settle (SETTLE-47)");
+                uint256 activeId = abi.decode(data, (uint256));
+                assertEq(activeId, 0, "activeDuplicateHashes should be cleared after settle (SETTLE-47)");
             }
             // If the seam doesn't exist yet (current Sepolia CR), the try/catch in step 12
             // swallows the failure — settlement still completed (verified above).

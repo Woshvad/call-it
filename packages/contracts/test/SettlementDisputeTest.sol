@@ -35,10 +35,10 @@ contract SettlementDisputeTest is SmTestHelper {
 
         // Add bob as a fader so there's a non-trivial pool
         vm.prank(bob);
-        ffm.fade(callId, 20e6);
+        ffm.fade(callId, 20e6, 0);
 
         vm.warp(block.timestamp + 2);
-        sm.settle(callId, new bytes[](0));
+        sm.settle(callId, new bytes[](0), new uint256[](0));
     }
 
     // ─── testDisputeBondTaken (SETTLE-25, SETTLE-26) ─────────────────────────
@@ -58,7 +58,7 @@ contract SettlementDisputeTest is SmTestHelper {
 
         // raiseDispute takes $5 USDC bond (SETTLE-25)
         vm.prank(disputer);
-        sm.raiseDispute(callId, "ipfs://evidence-hash");
+        sm.raiseDispute(callId, bytes32("evidence-hash"));
 
         uint256 smBalAfter       = IERC20(USDC_ARB_NATIVE).balanceOf(address(sm));
         uint256 disputerBalAfter = IERC20(USDC_ARB_NATIVE).balanceOf(disputer);
@@ -93,7 +93,7 @@ contract SettlementDisputeTest is SmTestHelper {
         // Must revert: dispute window is closed (SETTLE-29)
         vm.prank(disputer);
         vm.expectRevert(ISettlementManager.DisputeWindowClosed.selector);
-        sm.raiseDispute(callId, "ipfs://late-evidence");
+        sm.raiseDispute(callId, bytes32("late-evidence"));
     }
 
     // ─── testMaxCounterClaims (SETTLE-30) ────────────────────────────────────
@@ -109,7 +109,7 @@ contract SettlementDisputeTest is SmTestHelper {
         vm.prank(disputer);
         usdc.approve(address(sm), type(uint256).max);
         vm.prank(disputer);
-        sm.raiseDispute(callId, "ipfs://evidence-0");
+        sm.raiseDispute(callId, bytes32("evidence-0"));
 
         // Counter-claim 1
         address counter1 = makeAddr("counter1");
@@ -117,7 +117,7 @@ contract SettlementDisputeTest is SmTestHelper {
         vm.prank(counter1);
         usdc.approve(address(sm), type(uint256).max);
         vm.prank(counter1);
-        sm.counterClaim(callId, "ipfs://counter-1");
+        sm.counterClaim(callId, bytes32("counter-1"));
 
         // Counter-claim 2
         address counter2 = makeAddr("counter2");
@@ -125,7 +125,7 @@ contract SettlementDisputeTest is SmTestHelper {
         vm.prank(counter2);
         usdc.approve(address(sm), type(uint256).max);
         vm.prank(counter2);
-        sm.counterClaim(callId, "ipfs://counter-2");
+        sm.counterClaim(callId, bytes32("counter-2"));
 
         // Counter-claim 3
         address counter3 = makeAddr("counter3");
@@ -133,7 +133,7 @@ contract SettlementDisputeTest is SmTestHelper {
         vm.prank(counter3);
         usdc.approve(address(sm), type(uint256).max);
         vm.prank(counter3);
-        sm.counterClaim(callId, "ipfs://counter-3");
+        sm.counterClaim(callId, bytes32("counter-3"));
 
         // Counter-claim 4 — must revert MaxCounterClaimsReached (SETTLE-30)
         address counter4 = makeAddr("counter4");
@@ -142,7 +142,7 @@ contract SettlementDisputeTest is SmTestHelper {
         usdc.approve(address(sm), type(uint256).max);
         vm.prank(counter4);
         vm.expectRevert(ISettlementManager.MaxCounterClaimsReached.selector);
-        sm.counterClaim(callId, "ipfs://counter-4");
+        sm.counterClaim(callId, bytes32("counter-4"));
     }
 
     // ─── testDisputeReversal (SETTLE-34) ─────────────────────────────────────
@@ -166,19 +166,19 @@ contract SettlementDisputeTest is SmTestHelper {
         vm.prank(disputer);
         usdc.approve(address(sm), type(uint256).max);
         vm.prank(disputer);
-        sm.raiseDispute(callId, "ipfs://dispute-evidence");
+        sm.raiseDispute(callId, bytes32("dispute-evidence"));
 
         // Record balances before reversal
         // old-winner (alice if CallerWon, bob if CallerLost)
         address oldWinner = initialOutcome == ICallRegistry.Outcome.CallerWon ? alice : bob;
         address newWinner = initialOutcome == ICallRegistry.Outcome.CallerWon ? bob : alice;
-        uint256 newWinnerRepBefore = profileRegistry.getProfile(newWinner).repScore;
+        uint256 newWinnerRepBefore = uint256(profileRegistry.getProfile(newWinner).globalRep);
 
         // Owner resolves dispute with reversed outcome (SETTLE-34)
         vm.prank(owner);
-        vm.expectEmit(true, false, false, false);
-        emit ISettlementManager.DisputeResolved(callId, reversedOutcome, owner);
-        sm.resolveDispute(callId, reversedOutcome);
+        vm.expectEmit(true, false, true, false);
+        emit ISettlementManager.DisputeResolved(callId, uint8(reversedOutcome), owner);
+        sm.resolveDispute(callId, uint8(reversedOutcome));
 
         // Post-resolution assertions
         call = registry.getCall(callId);
@@ -189,7 +189,7 @@ contract SettlementDisputeTest is SmTestHelper {
         );
 
         // New winner's rep should have increased (reversal applied)
-        uint256 newWinnerRepAfter = profileRegistry.getProfile(newWinner).repScore;
+        uint256 newWinnerRepAfter = uint256(profileRegistry.getProfile(newWinner).globalRep);
         assertGe(
             newWinnerRepAfter,
             newWinnerRepBefore,

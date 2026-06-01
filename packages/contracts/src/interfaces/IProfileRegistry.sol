@@ -63,6 +63,11 @@ interface IProfileRegistry {
     /// @return The count of settled calls
     function settledCalls(address user) external view returns (uint16);
 
+    /// @notice Returns the global reputation score for a user (uint128; floor=0).
+    ///         Returns 0 for uninitialized users.
+    ///         Read by SettlementManager to compute rep deltas.
+    function globalRep(address user) external view returns (uint128);
+
     // ─── Mutation functions ───────────────────────────────────────────────────
 
     /// @notice Called by SettlementManager after a call is settled.
