@@ -443,8 +443,8 @@ Requirements for the v1 mainnet release. Each line is an atomic, testable behavi
 - [x] **OPS-12**: Telegram bot alerts on `RepCalculatedFallback` firing (Stylus revert investigation trigger) (§11.6)
 - [x] **OPS-13**: Telegram bot alerts on `CallForceSettled` invocation (loud manual override) (§12.4)
 - [x] **OPS-14**: Telegram bot alerts when settlement is stuck >25 min (approaching SLA breach) (§13.7)
-- [ ] **OPS-15**: Settlement-stuck runbook documents `forceSettle` invocation criteria after 7-day cooldown from expiry (§10.7, §12.4)
-- [ ] **OPS-16**: Stylus reactivation runbook documents the 365-day cycle (Stylus contracts require periodic reactivation) (§10.8 implicit, §11.6)
+- [x] **OPS-15**: Settlement-stuck runbook documents `forceSettle` invocation criteria after 7-day cooldown from expiry (§10.7, §12.4)
+- [x] **OPS-16**: Stylus reactivation runbook documents the 365-day cycle (Stylus contracts require periodic reactivation) (§10.8 implicit, §11.6)
 - [x] **OPS-17**: Per-exchange CEX scraper resilience — each of 8 scrapers (Binance, Coinbase, OKX, Bybit, Kraken, Bitget, KuCoin, Upbit) operates independently and reports its own health (§13.6)
 - [x] **OPS-18**: NFT TWAP operator runbook includes a sanity-check script that re-computes TWAP from on-chain transfer logs and flags mismatches (§13.2)
 - [x] **OPS-19**: Relayer signing keys are held in a KMS / secret manager (App.A.1, §13.2)
@@ -962,8 +962,8 @@ Which phases cover which requirements. Updated during roadmap creation by the ro
 | OPS-12 | Phase 0 | Complete |
 | OPS-13 | Phase 0 | Complete |
 | OPS-14 | Phase 0 | Complete |
-| OPS-15 | Phase 4 | Pending |
-| OPS-16 | Phase 4 | Pending |
+| OPS-15 | Phase 4 | Complete |
+| OPS-16 | Phase 4 | Complete |
 | OPS-17 | Phase 0 | Complete |
 | OPS-18 | Phase 0 | Complete |
 | OPS-19 | Phase 0 | Complete |
