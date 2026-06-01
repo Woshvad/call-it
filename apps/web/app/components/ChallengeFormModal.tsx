@@ -19,7 +19,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
-import { CHALLENGE_ESCROW_ARBITRUM_SEPOLIA } from '@call-it/shared';
+import { CHALLENGE_ESCROW_ARBITRUM_SEPOLIA, USDC_ARB_NATIVE } from '@call-it/shared';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -31,7 +31,7 @@ export const CHALLENGE_MAX_STAKE_USDC = 100_000_000n; // $100
 const CE_ADDR = CHALLENGE_ESCROW_ARBITRUM_SEPOLIA as `0x${string}`;
 
 /** USDC native on Arbitrum (canonical) */
-const USDC_ADDR = '0xaf88d065e77c8cC2239327C5EDb3A432268e5831' as `0x${string}`;
+const USDC_ADDR = USDC_ARB_NATIVE as `0x${string}`; // IN-05: imported from @call-it/shared
 
 // ─── Minimal ABIs ─────────────────────────────────────────────────────────────
 

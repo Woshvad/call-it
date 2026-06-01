@@ -28,7 +28,7 @@ import { usePrivy } from '@privy-io/react-auth';
 import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
 import Link from 'next/link';
 import { FollowFadeModal } from '@call-it/ui';
-import { CHALLENGE_ESCROW_ARBITRUM_SEPOLIA } from '@call-it/shared';
+import { CHALLENGE_ESCROW_ARBITRUM_SEPOLIA, USDC_ARB_NATIVE } from '@call-it/shared';
 import { ChallengeFormModal } from '@/app/components/ChallengeFormModal';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -37,7 +37,7 @@ import { ChallengeFormModal } from '@/app/components/ChallengeFormModal';
 const CE_ADDR = CHALLENGE_ESCROW_ARBITRUM_SEPOLIA as `0x${string}`;
 
 /** USDC native on Arbitrum (canonical) */
-const USDC_ADDR = '0xaf88d065e77c8cC2239327C5EDb3A432268e5831' as `0x${string}`;
+const USDC_ADDR = USDC_ARB_NATIVE as `0x${string}`; // IN-05: imported from @call-it/shared
 
 const RELAYER_URL = process.env['NEXT_PUBLIC_RELAYER_URL'] ?? '';
 

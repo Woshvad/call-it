@@ -45,6 +45,7 @@ import {
 import {
   FOLLOW_FADE_MARKET_ARBITRUM_SEPOLIA,
   CHALLENGE_ESCROW_ARBITRUM_SEPOLIA,
+  USDC_ARB_NATIVE,
 } from '@call-it/shared';
 import { followFadeMarketAbi } from '@/lib/abis';
 import {
@@ -114,7 +115,7 @@ const FFM_ADDR = FOLLOW_FADE_MARKET_ARBITRUM_SEPOLIA as `0x${string}`;
 const CE_ADDR = CHALLENGE_ESCROW_ARBITRUM_SEPOLIA as `0x${string}`;
 
 /** USDC native on Arbitrum (canonical) */
-const USDC_ADDR = '0xaf88d065e77c8cC2239327C5EDb3A432268e5831' as `0x${string}`;
+const USDC_ADDR = USDC_ARB_NATIVE as `0x${string}`; // IN-05: imported from @call-it/shared
 
 const RELAYER_URL = process.env['NEXT_PUBLIC_RELAYER_URL'] ?? '';
 
