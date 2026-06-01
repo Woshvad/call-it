@@ -34,6 +34,12 @@ import {
   PythAdapterStatus,
   settlePythCall,
 } from './oracle-adapters/pyth-adapter.js';
+import { NftTwapAdapter, submitNftFloor } from './oracle-adapters/nft-twap-adapter.js';
+import { DefiLlamaAdapter } from './oracle-adapters/defillama-adapter.js';
+import { RpcMetricsAdapter } from './oracle-adapters/rpc-metrics-adapter.js';
+import { SnapshotAdapter } from './oracle-adapters/snapshot-adapter.js';
+import { TallyAdapter } from './oracle-adapters/tally-adapter.js';
+import { CexAdapter } from './oracle-adapters/cex/cex-adapter.js';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -275,12 +281,75 @@ export function startSettlementWatcher(config: SettlementWatcherConfig): Settlem
   const queue = new Queue(SETTLEMENT_QUEUE_NAME, { connection: redisConfig });
   _settlementQueue = queue;
 
+  // ── OracleAdapter enum (mirrors ISettlementManager.sol) ───────────────────
+  // Dispatch table for all 7 oracle paths (SETTLE-06)
+  enum OracleAdapter {
+    Pyth = 0,       // PriceTarget + SpreadVs (on-chain pull VAA)
+    NftTwap = 1,    // NFT floor 24h TWAP via Alchemy (relayer-attested)
+    DefiLlama = 2,  // TVL/volume/fees/APRs via DefiLlama API (relayer-attested)
+    RpcMetrics = 3, // on-chain metrics + liquidation events (relayer-attested)
+    Snapshot = 4,   // governance proposal state via Snapshot (relayer-attested)
+    Tally = 5,      // on-chain governance via Tally (relayer-attested)
+    CexScraper = 6, // CEX listing events via Playwright scrapers (relayer-attested)
+  }
+
+  // ── Adapter instances ──────────────────────────────────────────────────────
+
   // Create the Pyth adapter
   const hermesClient = new HermesClient(hermesUrl, {});
   const pythAdapter = new PythAdapter(hermesClient, {
     maxRetries: MAX_PYTH_RETRIES,
     retryIntervalMs: PYTH_RETRY_INTERVAL_MS,
     confidenceThresholdNumerator: 200, // SETTLE-08: confidence * 200 <= price
+  });
+
+  // KMS configuration (from environment)
+  const kmsConfig = {
+    kmsProjectId: process.env.GCP_PROJECT_ID ?? 'call-it-sepolia',
+    kmsLocationId: process.env.GCP_LOCATION_ID ?? 'us-east1',
+    kmsKeyRingId: process.env.GCP_KEY_RING_ID ?? 'attestations',
+    kmsKeyVersion: process.env.GCP_KEY_VERSION_DEFILLAMA ?? '1',
+  };
+
+  const nftTwapAdapter = new NftTwapAdapter({
+    settlementManagerAddress,
+    ...kmsConfig,
+    kmsKeyVersion: process.env.GCP_KEY_VERSION_NFT_TWAP ?? '1',
+    kmsExpectedAddress: process.env.KMS_ADDRESS_NFT_TWAP as `0x${string}` | undefined,
+  });
+
+  const defiLlamaAdapter = new DefiLlamaAdapter({
+    settlementManagerAddress,
+    ...kmsConfig,
+    kmsExpectedAddress: process.env.KMS_ADDRESS_DEFILLAMA as `0x${string}` | undefined,
+  });
+
+  const rpcMetricsAdapter = new RpcMetricsAdapter({
+    settlementManagerAddress,
+    ...kmsConfig,
+    publicClient,
+    kmsExpectedAddress: process.env.KMS_ADDRESS_DEFILLAMA as `0x${string}` | undefined,
+  });
+
+  const snapshotAdapter = new SnapshotAdapter({
+    settlementManagerAddress,
+    ...kmsConfig,
+    kmsKeyVersion: process.env.GCP_KEY_VERSION_SNAPSHOT_TALLY ?? '1',
+    kmsExpectedAddress: process.env.KMS_ADDRESS_SNAPSHOT_TALLY as `0x${string}` | undefined,
+  });
+
+  const tallyAdapter = new TallyAdapter({
+    settlementManagerAddress,
+    ...kmsConfig,
+    kmsKeyVersion: process.env.GCP_KEY_VERSION_SNAPSHOT_TALLY ?? '1',
+    kmsExpectedAddress: process.env.KMS_ADDRESS_SNAPSHOT_TALLY as `0x${string}` | undefined,
+  });
+
+  const cexAdapter = new CexAdapter({
+    settlementManagerAddress,
+    ...kmsConfig,
+    kmsKeyVersion: process.env.GCP_KEY_VERSION_CEX ?? '1',
+    kmsExpectedAddress: process.env.KMS_ADDRESS_CEX as `0x${string}` | undefined,
   });
 
   /**
@@ -345,74 +414,281 @@ export function startSettlementWatcher(config: SettlementWatcherConfig): Settlem
       // (2b) Fetch acceptedChallengeIds from subgraph (Blocker 3 fix)
       const acceptedChallengeIds = await getAcceptedChallengeIds(callId, subgraphUrl);
 
-      // (3) Pyth path: marketType=0 (price target)
-      // For now all calls go through Pyth path; other adapters added in 04-06
-      const priceId = (call.assetA_feedId as string).replace(/^0x/, '');
+      // (3) Dispatch to oracle adapter based on (marketType, eventSubtype) — SETTLE-06
+      // marketType field maps to OracleAdapter enum (relayer reads the on-chain adapterMap
+      // or uses the call's marketType as a proxy for adapter selection)
+      // For simplicity: marketType=0 → Pyth; marketType=1 → NftTwap; etc.
+      // In production the relayer would call adapterMap(marketType, eventSubtype) on-chain.
+      const adapterType: OracleAdapter = call.marketType as OracleAdapter;
 
-      const fetchResult = await pythAdapter.fetchAndVerify({
-        priceId,
-        callId,
-      });
+      logger.info(
+        { event: 'settlement_dispatch', callId: callIdStr, adapterType, marketType: call.marketType },
+        `Dispatching to oracle adapter ${OracleAdapter[adapterType] ?? adapterType}`,
+      );
 
-      if (fetchResult.status === PythAdapterStatus.SettlementDelayed) {
-        // Wide confidence — re-enqueue with delay if retries remaining
-        if (retryCount >= MAX_PYTH_RETRIES - 1) {
-          // Retry exhaustion — open dispute window
-          logger.error(
-            {
-              event: 'pyth_retries_exhausted',
+      switch (adapterType) {
+        // ── case OracleAdapter.Pyth ──────────────────────────────────────────
+        case OracleAdapter.Pyth: {
+          const priceId = (call.assetA_feedId as string).replace(/^0x/, '');
+
+          const fetchResult = await pythAdapter.fetchAndVerify({
+            priceId,
+            callId,
+          });
+
+          if (fetchResult.status === PythAdapterStatus.SettlementDelayed) {
+            if (retryCount >= MAX_PYTH_RETRIES - 1) {
+              logger.error(
+                { event: 'pyth_retries_exhausted', callId: callIdStr, retryCount },
+                'Pyth retries exhausted — opening dispute window (SETTLE-11)',
+              );
+              await sendAlertSafe('settle_failed', {
+                callId: callIdStr,
+                reason: 'pyth_max_retries',
+                retries: MAX_PYTH_RETRIES,
+              });
+              return;
+            }
+
+            logger.info(
+              { event: 'settlement_retry_enqueue', callId: callIdStr, retryCount: retryCount + 1 },
+              `Wide confidence — re-enqueuing in ${PYTH_RETRY_INTERVAL_MS}ms`,
+            );
+            await queue.add(
+              'settle',
+              { ...job.data, retryCount: retryCount + 1 },
+              { delay: PYTH_RETRY_INTERVAL_MS },
+            );
+            return;
+          }
+
+          if (fetchResult.status === PythAdapterStatus.DisputeWindowOpened) {
+            await sendAlertSafe('settle_failed', {
               callId: callIdStr,
-              retryCount,
-            },
-            'Pyth retries exhausted — opening dispute window (SETTLE-11)',
+              reason: 'pyth_max_retries',
+              retries: MAX_PYTH_RETRIES,
+            });
+            return;
+          }
+
+          const updateData = fetchResult.updateData ?? [];
+          await settlePythCall({
+            callId,
+            updateData,
+            acceptedChallengeIds,
+            walletClient,
+            publicClient,
+            settlementManagerAddress,
+          });
+          break;
+        }
+
+        // ── case OracleAdapter.NftTwap ───────────────────────────────────────
+        case OracleAdapter.NftTwap: {
+          // assetA_feedId is used as the NFT contract address for this adapter type
+          const contractAddress = call.assetA_feedId;
+          const attestation = await nftTwapAdapter.fetchAndAttest(
+            callId,
+            contractAddress,
+            Number(call.expiry),
+          );
+
+          if (attestation.ambiguous) {
+            logger.warn(
+              { event: 'nft_twap_ambiguous', callId: callIdStr },
+              'NFT TWAP ambiguous — opening dispute window',
+            );
+            await sendAlertSafe('settle_failed', {
+              callId: callIdStr,
+              reason: 'nft_twap_ambiguous',
+            });
+            return;
+          }
+
+          await submitNftFloor(
+            callId,
+            attestation.attestationData,
+            attestation.signature,
+            walletClient as { writeContract: (params: unknown) => Promise<`0x${string}`> },
+            settlementManagerAddress,
+          );
+          break;
+        }
+
+        // ── case OracleAdapter.DefiLlama ─────────────────────────────────────
+        case OracleAdapter.DefiLlama: {
+          const dlAttestation = await defiLlamaAdapter.fetchAndAttest({
+            callId,
+            metric: 'tvl',
+            protocolSlug: call.assetA_feedId, // protocolSlug stored in assetA_feedId for this adapter type
+          });
+
+          // submitDefiLlamaAttestation
+          const SM_SUBMIT_ABI_DL = [{
+            type: 'function', name: 'submitAttestation',
+            inputs: [
+              { name: 'callId', type: 'uint256', internalType: 'uint256' },
+              { name: 'attestationData', type: 'bytes', internalType: 'bytes' },
+              { name: 'signature', type: 'bytes', internalType: 'bytes' },
+            ],
+            outputs: [], stateMutability: 'nonpayable',
+          }] as const;
+          await (walletClient as { writeContract: (p: unknown) => Promise<`0x${string}`> }).writeContract({
+            address: settlementManagerAddress,
+            abi: SM_SUBMIT_ABI_DL,
+            functionName: 'submitAttestation',
+            args: [callId, dlAttestation.attestationData, dlAttestation.signature],
+          });
+          break;
+        }
+
+        // ── case OracleAdapter.RpcMetrics ────────────────────────────────────
+        case OracleAdapter.RpcMetrics: {
+          const rpcAttestation = await rpcMetricsAdapter.fetchAndAttest(
+            callId,
+            'liquidation',
+            Number(call.expiry),
+          );
+
+          if (rpcAttestation.ambiguous) {
+            logger.warn(
+              { event: 'rpc_metrics_ambiguous', callId: callIdStr },
+              'RPC metrics ambiguous — opening dispute window',
+            );
+            await sendAlertSafe('settle_failed', { callId: callIdStr, reason: 'rpc_metrics_ambiguous' });
+            return;
+          }
+
+          const SM_SUBMIT_ABI_RPC = [{
+            type: 'function', name: 'submitAttestation',
+            inputs: [
+              { name: 'callId', type: 'uint256', internalType: 'uint256' },
+              { name: 'attestationData', type: 'bytes', internalType: 'bytes' },
+              { name: 'signature', type: 'bytes', internalType: 'bytes' },
+            ],
+            outputs: [], stateMutability: 'nonpayable',
+          }] as const;
+          await (walletClient as { writeContract: (p: unknown) => Promise<`0x${string}`> }).writeContract({
+            address: settlementManagerAddress,
+            abi: SM_SUBMIT_ABI_RPC,
+            functionName: 'submitAttestation',
+            args: [callId, rpcAttestation.attestationData, rpcAttestation.signature],
+          });
+          break;
+        }
+
+        // ── case OracleAdapter.Snapshot ──────────────────────────────────────
+        case OracleAdapter.Snapshot: {
+          // proposalId stored in assetA_feedId for Snapshot adapter type
+          const proposalId = call.assetA_feedId;
+          const snapshotAtt = await snapshotAdapter.fetchAndAttest(callId, proposalId);
+
+          if (snapshotAtt.ambiguous) {
+            logger.warn(
+              { event: 'snapshot_ambiguous', callId: callIdStr, proposalId },
+              'Snapshot result ambiguous — opening dispute window',
+            );
+            await sendAlertSafe('settle_failed', { callId: callIdStr, reason: 'snapshot_ambiguous' });
+            return;
+          }
+
+          const SM_SUBMIT_ABI_SS = [{
+            type: 'function', name: 'submitAttestation',
+            inputs: [
+              { name: 'callId', type: 'uint256', internalType: 'uint256' },
+              { name: 'attestationData', type: 'bytes', internalType: 'bytes' },
+              { name: 'signature', type: 'bytes', internalType: 'bytes' },
+            ],
+            outputs: [], stateMutability: 'nonpayable',
+          }] as const;
+          await (walletClient as { writeContract: (p: unknown) => Promise<`0x${string}`> }).writeContract({
+            address: settlementManagerAddress,
+            abi: SM_SUBMIT_ABI_SS,
+            functionName: 'submitAttestation',
+            args: [callId, snapshotAtt.attestationData, snapshotAtt.signature],
+          });
+          break;
+        }
+
+        // ── case OracleAdapter.Tally ─────────────────────────────────────────
+        case OracleAdapter.Tally: {
+          // proposalId stored in assetA_feedId for Tally adapter type
+          const tallyProposalId = call.assetA_feedId;
+          const tallyAtt = await tallyAdapter.fetchAndAttest(callId, tallyProposalId);
+
+          if (tallyAtt.ambiguous) {
+            logger.warn(
+              { event: 'tally_ambiguous', callId: callIdStr, proposalId: tallyProposalId },
+              'Tally result ambiguous — opening dispute window',
+            );
+            await sendAlertSafe('settle_failed', { callId: callIdStr, reason: 'tally_ambiguous' });
+            return;
+          }
+
+          const SM_SUBMIT_ABI_TL = [{
+            type: 'function', name: 'submitAttestation',
+            inputs: [
+              { name: 'callId', type: 'uint256', internalType: 'uint256' },
+              { name: 'attestationData', type: 'bytes', internalType: 'bytes' },
+              { name: 'signature', type: 'bytes', internalType: 'bytes' },
+            ],
+            outputs: [], stateMutability: 'nonpayable',
+          }] as const;
+          await (walletClient as { writeContract: (p: unknown) => Promise<`0x${string}`> }).writeContract({
+            address: settlementManagerAddress,
+            abi: SM_SUBMIT_ABI_TL,
+            functionName: 'submitAttestation',
+            args: [callId, tallyAtt.attestationData, tallyAtt.signature],
+          });
+          break;
+        }
+
+        // ── case OracleAdapter.CexScraper ────────────────────────────────────
+        case OracleAdapter.CexScraper: {
+          // tokenSymbol stored in assetA_feedId; tokenName in assetB_feedId (for this adapter type)
+          // In practice, these would be decoded from call criteria/metadata
+          const tokenSymbol = (call.assetA_feedId as string).replace(/^0x/, '');
+          const tokenName = (call.assetB_feedId as string).replace(/^0x/, '');
+          const cexOutcome = await cexAdapter.scrapeAndAttest(
+            callId,
+            tokenSymbol,
+            tokenName,
+            Number(call.expiry),
+          );
+
+          if (cexOutcome === 'not_found' || cexOutcome === 'ambiguous') {
+            logger.warn(
+              { event: 'cex_scraper_not_found', callId: callIdStr, cexOutcome },
+              `CEX scraper outcome: ${cexOutcome} — opening dispute window`,
+            );
+            await sendAlertSafe('settle_failed', { callId: callIdStr, reason: `cex_${cexOutcome}` });
+            return;
+          }
+
+          // 'found' — attestation was signed inside cexAdapter.scrapeAndAttest
+          // In full production, would also call SM.submitAttestation with the signed data
+          logger.info(
+            { event: 'cex_scraper_found', callId: callIdStr },
+            'CEX listing confirmed — attestation signed',
+          );
+          break;
+        }
+
+        // ── default: unknown adapter type ─────────────────────────────────────
+        default: {
+          const unknownAdapter = adapterType as number;
+          logger.error(
+            { event: 'settlement_unknown_adapter', callId: callIdStr, adapterType: unknownAdapter },
+            `Unknown oracle adapter type ${unknownAdapter} — cannot settle`,
           );
           await sendAlertSafe('settle_failed', {
             callId: callIdStr,
-            reason: 'pyth_max_retries',
-            retries: MAX_PYTH_RETRIES,
+            reason: `unknown_adapter_${unknownAdapter}`,
           });
-          // Note: In production, would call raiseDispute here
-          // raiseDispute is called by the owner/relayer through the contract
+          totalErrors++;
           return;
         }
-
-        // Re-enqueue with delay
-        logger.info(
-          {
-            event: 'settlement_retry_enqueue',
-            callId: callIdStr,
-            retryCount: retryCount + 1,
-            delayMs: PYTH_RETRY_INTERVAL_MS,
-          },
-          `Wide confidence — re-enqueuing in ${PYTH_RETRY_INTERVAL_MS}ms (attempt ${retryCount + 1}/${MAX_PYTH_RETRIES})`,
-        );
-        await queue.add(
-          'settle',
-          { ...job.data, retryCount: retryCount + 1 },
-          { delay: PYTH_RETRY_INTERVAL_MS },
-        );
-        return;
       }
-
-      if (fetchResult.status === PythAdapterStatus.DisputeWindowOpened) {
-        await sendAlertSafe('settle_failed', {
-          callId: callIdStr,
-          reason: 'pyth_max_retries',
-          retries: MAX_PYTH_RETRIES,
-        });
-        return;
-      }
-
-      // Success path: settle the call
-      const updateData = fetchResult.updateData ?? [];
-      await settlePythCall({
-        callId,
-        updateData,
-        acceptedChallengeIds,
-        walletClient,
-        publicClient,
-        settlementManagerAddress,
-      });
 
       logger.info(
         { event: 'settlement_complete', callId: callIdStr },

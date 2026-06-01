@@ -16,8 +16,7 @@
  *   - Multi-signal confirm (symbol+name) per scraper (Pitfall 19)
  *   - Innovation Zone exclusion per exchange (Pitfall 19)
  *
- * Task 2a: Binance, Coinbase, OKX, Bybit wired.
- * Task 2b: Kraken, Bitget, KuCoin, Upbit added (TODO stubs here → replaced in Task 2b).
+ * All 8 scrapers wired (Task 2a: Binance, Coinbase, OKX, Bybit; Task 2b: Kraken, Bitget, KuCoin, Upbit).
  *
  * Spec: CALL_IT_SPEC1.md §13.6
  * Requirements: SETTLE-23, SETTLE-24
@@ -34,7 +33,10 @@ import * as binanceScraper from './binance-scraper.js';
 import * as coinbaseScraper from './coinbase-scraper.js';
 import * as okxScraper from './okx-scraper.js';
 import * as bybitScraper from './bybit-scraper.js';
-// TODO: kraken, bitget, kucoin, upbit added in Task 2b
+import * as krakenScraper from './kraken-scraper.js';
+import * as bitgetScraper from './bitget-scraper.js';
+import * as kucoinScraper from './kucoin-scraper.js';
+import * as upbitScraper from './upbit-scraper.js';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -54,14 +56,17 @@ export interface CexAdapterConfig {
 /**
  * INNOVATION_ZONE_EXCLUSION_PATTERNS — per-exchange exclusion patterns.
  * Exported for tests and documentation.
- * Task 2b adds kraken/bitget/kucoin/upbit entries.
+ * All 8 exchanges wired.
  */
 export const INNOVATION_ZONE_EXCLUSION_PATTERNS: Record<string, string[]> = {
   binance: binanceScraper.EXCLUSION_PATTERNS,
   coinbase: coinbaseScraper.EXCLUSION_PATTERNS,
   okx: okxScraper.EXCLUSION_PATTERNS,
   bybit: bybitScraper.EXCLUSION_PATTERNS,
-  // kraken, bitget, kucoin, upbit added in Task 2b
+  kraken: krakenScraper.EXCLUSION_PATTERNS,
+  bitget: bitgetScraper.EXCLUSION_PATTERNS,
+  kucoin: kucoinScraper.EXCLUSION_PATTERNS,
+  upbit: upbitScraper.EXCLUSION_PATTERNS,
 };
 
 // ── Scraper registry ──────────────────────────────────────────────────────────
@@ -71,11 +76,10 @@ const scrapers = {
   coinbase: coinbaseScraper.scrape,
   okx: okxScraper.scrape,
   bybit: bybitScraper.scrape,
-  // TODO: added in Task 2b:
-  // kraken: krakenScraper.scrape,
-  // bitget: bitgetScraper.scrape,
-  // kucoin: kucoinScraper.scrape,
-  // upbit: upbitScraper.scrape,
+  kraken: krakenScraper.scrape,
+  bitget: bitgetScraper.scrape,
+  kucoin: kucoinScraper.scrape,
+  upbit: upbitScraper.scrape,
 } as const;
 
 // ── EIP-712 type definitions ──────────────────────────────────────────────────
@@ -279,6 +283,10 @@ export function getCexTestFixture(exchange: keyof typeof scrapers): (html: strin
     case 'coinbase': return coinbaseScraper.testWithFixture;
     case 'okx': return okxScraper.testWithFixture;
     case 'bybit': return bybitScraper.testWithFixture;
+    case 'kraken': return krakenScraper.testWithFixture;
+    case 'bitget': return bitgetScraper.testWithFixture;
+    case 'kucoin': return kucoinScraper.testWithFixture;
+    case 'upbit': return upbitScraper.testWithFixture;
     default: return () => false;
   }
 }
@@ -290,6 +298,10 @@ export const testWithFixture = {
   coinbase: coinbaseScraper.testWithFixture,
   okx: okxScraper.testWithFixture,
   bybit: bybitScraper.testWithFixture,
+  kraken: krakenScraper.testWithFixture,
+  bitget: bitgetScraper.testWithFixture,
+  kucoin: kucoinScraper.testWithFixture,
+  upbit: upbitScraper.testWithFixture,
 } as const;
 
 // ── Default adapter instance ──────────────────────────────────────────────────
