@@ -172,26 +172,26 @@ Requirements for the v1 mainnet release. Each line is an atomic, testable behavi
 - [x] **SOCIAL-26**: Caller exit applies reputation slash via ProfileRegistry — decay curve `-45 rep day 1 → -10 rep floor` (§8.7.3, §12.1)
 - [x] **SOCIAL-27**: Exited callers receive NO additional reputation change at eventual settlement — they are removed from the call's rep accounting (§8.7.3, §12.4)
 - [x] **SOCIAL-28**: There is no separate "cancel the call" mechanic — only callerExit after lock + normal settlement (§8.7.4)
-- [ ] **SOCIAL-29**: User can Challenge a call via `proposeChallenge(callId, stake)`; reverts `CallerNotOpenToChallenges` when caller toggled off (§5.3, §12.3)
-- [ ] **SOCIAL-30**: Challenge form pre-fills challenger's stake to match the caller's stake exactly; challenger can override (§5.3, §15.5)
-- [ ] **SOCIAL-31**: Asymmetric duels are allowed — pot is `min(callerStake, challengerStake) × 2` plus overage returned to whichever side overcommitted at settlement (§5.3, §12.3)
-- [ ] **SOCIAL-32**: `proposeChallenge` reverts `SelfChallenge` when `msg.sender == call.caller` (no rep farming, no Duel King gaming via puppet wallets) (§12.3, App.A.1)
-- [ ] **SOCIAL-33**: `proposeChallenge` reverts `CallNotChallengeable` if call.status != Live OR `block.timestamp >= call.expiry` (§12.3)
-- [ ] **SOCIAL-34**: Caller has 24h to accept (`CHALLENGE_ACCEPTANCE_WINDOW`); `acceptChallenge` reverts `AcceptanceWindowExpired` after; `claimRefund` returns challenger stake after timeout (§5.3, §12.3)
-- [ ] **SOCIAL-35**: Caller can `rejectChallenge` during the window to refund challenger immediately (§12.3)
-- [ ] **SOCIAL-36**: Challenge stakes are escrowed in ChallengeEscrow; on settlement, winner takes the entire pot minus 1% protocol fee (§5.3, §8.9, §12.3)
+- [x] **SOCIAL-29**: User can Challenge a call via `proposeChallenge(callId, stake)`; reverts `CallerNotOpenToChallenges` when caller toggled off (§5.3, §12.3)
+- [x] **SOCIAL-30**: Challenge form pre-fills challenger's stake to match the caller's stake exactly; challenger can override (§5.3, §15.5)
+- [x] **SOCIAL-31**: Asymmetric duels are allowed — pot is `min(callerStake, challengerStake) × 2` plus overage returned to whichever side overcommitted at settlement (§5.3, §12.3)
+- [x] **SOCIAL-32**: `proposeChallenge` reverts `SelfChallenge` when `msg.sender == call.caller` (no rep farming, no Duel King gaming via puppet wallets) (§12.3, App.A.1)
+- [x] **SOCIAL-33**: `proposeChallenge` reverts `CallNotChallengeable` if call.status != Live OR `block.timestamp >= call.expiry` (§12.3)
+- [x] **SOCIAL-34**: Caller has 24h to accept (`CHALLENGE_ACCEPTANCE_WINDOW`); `acceptChallenge` reverts `AcceptanceWindowExpired` after; `claimRefund` returns challenger stake after timeout (§5.3, §12.3)
+- [x] **SOCIAL-35**: Caller can `rejectChallenge` during the window to refund challenger immediately (§12.3)
+- [x] **SOCIAL-36**: Challenge stakes are escrowed in ChallengeEscrow; on settlement, winner takes the entire pot minus 1% protocol fee (§5.3, §8.9, §12.3)
 - [ ] **SOCIAL-37**: Challenge settlement applies ~1.5× the standard rep movement to both parties (§5.3, §12.4)
-- [ ] **SOCIAL-38**: `claimDuelPayout` is idempotent — reverts `AlreadyClaimed` on second attempt (§12.3)
-- [ ] **SOCIAL-39**: `claimDuelPayout` reverts `NotDuelWinner` for non-winner (§12.3)
+- [x] **SOCIAL-38**: `claimDuelPayout` is idempotent — reverts `AlreadyClaimed` on second attempt (§12.3)
+- [x] **SOCIAL-39**: `claimDuelPayout` reverts `NotDuelWinner` for non-winner (§12.3)
 - [ ] **SOCIAL-40**: Trending Duel auto-promotion — duels with combined pot ≥ $500 USDC OR ≥50 "Riding" backers are pinned to top of global feed for 4 hours with "TRENDING DUEL" label (§5.3, §15.1)
 - [ ] **SOCIAL-41**: Duel King badge displays on the single user with the highest 7-day duel win streak; refreshed weekly; visible on profile, leaderboard row, feed call cards, receipt cards (§5.3)
 - [ ] **SOCIAL-42**: Duels tab in feed shows Active duels (sorted by pot descending), Trending duels pinned, Recently settled duels (last 7 days); filter chips All / Active / Just settled / High-stakes / Trending (§5.3, §15.1)
 - [x] **SOCIAL-43**: User can Quote-call any live call via `/new?quote=[parentCallId]`; quote is stored on CallRegistry with `parent_call_id` reference and renders as a threaded reply (§5.4, §15.10)
 - [x] **SOCIAL-44**: Receipt page Live state shows a live activity feed (left column) with real-time follow/fade entries — avatar, handle, VERIFIED · X badge, amount, relative time, label "updating" with live pulse indicator (§15.3)
 - [x] **SOCIAL-45**: Receipt page Live state shows quote-calls section (right column) with FADING/FOLLOWING tag per quote based on direction (§15.3, §5.4)
-- [ ] **SOCIAL-46**: `claimPayout` requires settlement (`CallNotSettled`), enforces idempotency via `claimed[callId][user]` (`AlreadyClaimed`), reverts `NoPayoutAvailable` for users with no winning shares (§12.2)
-- [ ] **SOCIAL-47**: `claimPayout` follows Checks-Effects-Interactions — marks claimed BEFORE transfer (§12.2)
-- [ ] **SOCIAL-48**: `Followed`, `Faded`, `PayoutClaimed`, `PositionExited`, `ChallengeProposed`, `ChallengeAccepted`, `ChallengeRejected`, `ChallengeRefunded`, `ChallengeSettled` events fire on each action (§12.2, §12.3)
+- [x] **SOCIAL-46**: `claimPayout` requires settlement (`CallNotSettled`), enforces idempotency via `claimed[callId][user]` (`AlreadyClaimed`), reverts `NoPayoutAvailable` for users with no winning shares (§12.2)
+- [x] **SOCIAL-47**: `claimPayout` follows Checks-Effects-Interactions — marks claimed BEFORE transfer (§12.2)
+- [x] **SOCIAL-48**: `Followed`, `Faded`, `PayoutClaimed`, `PositionExited`, `ChallengeProposed`, `ChallengeAccepted`, `ChallengeRejected`, `ChallengeRefunded`, `ChallengeSettled` events fire on each action (§12.2, §12.3)
 - [x] **SOCIAL-49**: Receipt page exposes caller-only "Exit your call · current penalty: [X%]" link after 24h lock; clicking opens confirmation modal with penalty math, return amount, rep impact, public broadcast warning (§15.3, §8.7.2)
 - [x] **SOCIAL-50**: Receipt page exposes position-holder "Exit your position · 10% penalty" link after 4h cooldown; clicking opens confirmation modal with math + confirm button (§15.3, §8.7.1)
 - [ ] **SOCIAL-51**: Duel-settled share card uses two-avatar layout with winner highlighted and loser dimmed to 40% opacity (§5.3, §16.4)
@@ -709,26 +709,26 @@ Which phases cover which requirements. Updated during roadmap creation by the ro
 | SOCIAL-26 | Phase 2 | Complete |
 | SOCIAL-27 | Phase 2 | Complete |
 | SOCIAL-28 | Phase 2 | Complete |
-| SOCIAL-29 | Phase 3 | Pending |
-| SOCIAL-30 | Phase 3 | Pending |
-| SOCIAL-31 | Phase 3 | Pending |
-| SOCIAL-32 | Phase 3 | Pending |
-| SOCIAL-33 | Phase 3 | Pending |
-| SOCIAL-34 | Phase 3 | Pending |
-| SOCIAL-35 | Phase 3 | Pending |
-| SOCIAL-36 | Phase 3 | Pending |
+| SOCIAL-29 | Phase 3 | Complete |
+| SOCIAL-30 | Phase 3 | Complete |
+| SOCIAL-31 | Phase 3 | Complete |
+| SOCIAL-32 | Phase 3 | Complete |
+| SOCIAL-33 | Phase 3 | Complete |
+| SOCIAL-34 | Phase 3 | Complete |
+| SOCIAL-35 | Phase 3 | Complete |
+| SOCIAL-36 | Phase 3 | Complete |
 | SOCIAL-37 | Phase 3 | Pending |
-| SOCIAL-38 | Phase 3 | Pending |
-| SOCIAL-39 | Phase 3 | Pending |
+| SOCIAL-38 | Phase 3 | Complete |
+| SOCIAL-39 | Phase 3 | Complete |
 | SOCIAL-40 | Phase 3 | Pending |
 | SOCIAL-41 | Phase 3 | Pending |
 | SOCIAL-42 | Phase 3 | Pending |
 | SOCIAL-43 | Phase 2 | Complete |
 | SOCIAL-44 | Phase 2 | Complete |
 | SOCIAL-45 | Phase 2 | Complete |
-| SOCIAL-46 | Phase 3 | Pending |
-| SOCIAL-47 | Phase 3 | Pending |
-| SOCIAL-48 | Phase 3 | Pending |
+| SOCIAL-46 | Phase 3 | Complete |
+| SOCIAL-47 | Phase 3 | Complete |
+| SOCIAL-48 | Phase 3 | Complete |
 | SOCIAL-49 | Phase 3 | Complete |
 | SOCIAL-50 | Phase 3 | Complete |
 | SOCIAL-51 | Phase 3 | Pending |

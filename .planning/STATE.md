@@ -4,14 +4,14 @@ milestone: v1.1
 milestone_name: milestone
 status: executing
 stopped_at: Phase 3 UI-SPEC approved
-last_updated: "2026-06-01T10:02:30.570Z"
-last_activity: 2026-06-01 -- Phase 03 planning complete
+last_updated: "2026-06-01T10:39:59.114Z"
+last_activity: 2026-06-01
 progress:
   total_phases: 12
   completed_phases: 3
   total_plans: 31
-  completed_plans: 25
-  percent: 81
+  completed_plans: 26
+  percent: 84
 ---
 
 # Project State
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-21)
 
 **Core value:** Every call is permanent, public, and tied to identity. The receipt — created, settled, and shared — must be unfakeable, undeletable, and visually unmistakable.
-**Current focus:** Phase 02 — followfademarket
+**Current focus:** Phase 03 — challengeescrow
 
 ## Current Position
 
-Phase: 3
-Plan: Not started
+Phase: 03 (challengeescrow) — EXECUTING
+Plan: 2 of 7
 Status: Ready to execute
-Last activity: 2026-06-01 -- Phase 03 planning complete
+Last activity: 2026-06-01
 
-Progress: [█████████░] 8/9 plans; phase completion blocked on 02-06 subgraph publish
+Progress: [████████░░] 84%
 
 ## Known Plan Issues — Phase 03 (accepted as-is at planning, 2026-06-01)
 
@@ -314,6 +314,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-06-01T09:02:10.783Z
+Last session: 2026-06-01T10:39:59.093Z
 Stopped at: Phase 3 UI-SPEC approved
-Resume file: .planning/phases/03-challengeescrow/03-UI-SPEC.md
+Resume file: None
