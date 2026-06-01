@@ -245,6 +245,22 @@ export const SETTLEMENT_MANAGER_ADDRESSES: AddressRecord = {
 };
 
 // ---------------------------------------------------------------------------
+// Aave V3 Pool address (used by rpc-metrics-adapter — pinned, never from call params W11)
+// ---------------------------------------------------------------------------
+
+/**
+ * Aave V3 Pool on Arbitrum One (mainnet).
+ *
+ * Used by rpc-metrics-adapter to query liquidation events via viem getLogs.
+ * MUST be sourced from this pinned constant — never from call parameters.
+ * (W11 fix: if from call params, attacker can point to any contract they control.)
+ *
+ * Source: https://docs.aave.com/developers/deployed-contracts/v3-mainnet/arbitrum
+ */
+export const AAVE_V3_POOL_ARBITRUM_ONE =
+  '0x794a61358D6845594F94dc1DB02A252b5b4814aD' as const;
+
+// ---------------------------------------------------------------------------
 // Subgraph URLs (The Graph — Subgraph Studio)
 // ---------------------------------------------------------------------------
 

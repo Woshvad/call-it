@@ -5,6 +5,7 @@ packages:
 allowBuilds:
   '@reown/appkit': true
   bufferutil: true
+  es5-ext: false
   esbuild: true
   keccak: true
   msgpackr-extract: true
