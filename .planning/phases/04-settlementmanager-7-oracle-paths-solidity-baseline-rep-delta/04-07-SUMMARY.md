@@ -188,3 +188,26 @@ Ready for:
 ---
 *Phase: 04-settlementmanager-7-oracle-paths-solidity-baseline-rep-delta*
 *Completed: 2026-06-01*
+
+## Self-Check: PASSED
+
+- [x] `apps/web/lib/outcome-word.ts` exists on disk — FOUND
+- [x] `apps/web/lib/outcome-word.js` exists on disk — FOUND
+- [x] `apps/web/tests/outcome-word.test.ts` exists on disk — FOUND
+- [x] `packages/ui/src/primitives/Stamp.tsx` exists on disk — FOUND
+- [x] `apps/web/app/call/[id]/page.tsx` exists on disk — FOUND
+- [x] `apps/web/app/og/[callId]/route.ts` exists on disk — FOUND
+- [x] `apps/web/app/og/duel/[challengeId]/route.ts` exists on disk — FOUND
+- [x] `04-07-SUMMARY.md` exists on disk — FOUND
+- [x] Commit `78a1f8a` exists (Task 1) — VERIFIED
+- [x] Commit `7d00f6b` exists (Task 2) — VERIFIED
+- [x] `pnpm --filter @call-it/web exec vitest run outcome-word` — 9/9 PASS (GREEN)
+- [x] `pnpm --filter @call-it/web build` exits 0 — PASS
+- [x] `grep "A855F7\|purple" apps/web/lib/outcome-word.ts` — 0 matches PASS (only in comments)
+- [x] `grep "viewerIsWinningFader = Boolean" apps/web/app/call/[id]/page.tsx` — PASS (auth guard present)
+- [x] `grep "FINAL POSITIONS" apps/web/app/call/[id]/page.tsx` — PASS
+- [x] `grep "96" apps/web/app/call/[id]/page.tsx` — PASS (fontSize 96 in outcome hero)
+- [x] `grep "buildSettledCard" apps/web/app/og/[callId]/route.ts` — PASS
+- [x] `grep "buildCallerExitedCard" apps/web/app/og/[callId]/route.ts` — PASS
+- [x] `grep "callerIsWinner" apps/web/app/og/duel/[challengeId]/route.ts` — PASS
+- [x] No `display: 'grid'` in OG route code (only in comments) — PASS
