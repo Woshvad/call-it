@@ -496,7 +496,14 @@ export default function DuelPage() {
   const displayCallerStake = liveState?.callerStake ?? 0n;
   const displayChallengerStake = liveState?.challengerStake ?? 0n;
   const displayExpiry = liveState?.expiry ?? 0n;
-  const potTotal = displayCallerStake + displayChallengerStake;
+  // CR-04 fix: pot = min(callerStake, challengerStake) * 2 (contract §8.9 prize-pot formula).
+  // In a pre-accept (Proposed) state callerStake is 0n; pot reads as 0 -- shown as 'deferred'.
+  // In an Accepted state both stakes are set; min*2 is the actual prize pot.
+  // displayCallerStake + displayChallengerStake is the raw escrowed total, NOT the pot.
+  const matchedStake = displayCallerStake < displayChallengerStake
+    ? displayCallerStake
+    : displayChallengerStake;
+  const potTotal = matchedStake * 2n;
 
   // ─── Render ───────────────────────────────────────────────────────────────────
   return (
