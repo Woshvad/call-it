@@ -32,9 +32,8 @@ reason: "Behind auth wall (Test 2) + needs seeded duel + relayer running locally
 
 ### 4. Duel Settled OG card (/og/duel/[challengeId])
 expected: Returns a valid PNG, flexbox-only, Phase-4 stubs, renderFallback on error.
-result: issue
-severity: blocker
-reported: "CONFIRMED BUG (pre-existing, not Phase-3-specific): the OG route 500s at runtime — `Error: Unsupported OpenType signature`. ALL THREE bundled fonts are corrupt: apps/web/app/fonts/{Syne-Bold,SpaceGrotesk-Regular,JetBrainsMono-Regular}.ttf have invalid sfnt magic (e8730000 / 4c780000 / a4cf0000 — valid TTF must start 00010000). The git blobs themselves are corrupt (blob == worktree; no .gitattributes). Because renderFallback ALSO uses Satori (needs the same fonts), the route cannot return even the fallback card → no image at all. This breaks every OG card (Phase 2 /og/[callId] live card AND Phase 3 /og/duel/[challengeId]) — the product's core shareable receipt. Never caught because `next build` passes (runtime-only failure). Verified via prod `next start`: GET /og/duel/1 → no PNG, repeated 'failed to pipe response' / 'Unsupported OpenType signature'."
+result: pass
+reported: "FIXED (commit b225007). Root cause was 3 corrupt OG font files (invalid sfnt magic in the committed blobs). Replaced with valid static TTFs (JetBrains Mono Regular from the official repo; Space Grotesk 400 + Syne 700 instanced from the google/fonts variable fonts via fonttools — variable fonts tripped a Satori glyph error, static instances fixed it) + added a root .gitattributes marking fonts binary. Verified via prod `next start`: GET /og/duel/1 → HTTP 200, image/png, valid PNG (37,885b); /og/[callId] → PNG (38,775b); /api/og/fallback → PNG (38,775b). Minor non-fatal: satori logs a 'dynamic font' 400 for a ⬢ glyph not in the bundled fonts — the card still renders; cosmetic only."
 
 ### 5. Challenge propose flow
 expected: Stake pre-fill + $5–$100 bounds + USDC preflight before proposeChallenge.
@@ -63,11 +62,13 @@ reason: "Duel page behind auth wall. Banner code present (source grep + verifier
 ## Summary
 
 total: 8
-passed: 0
-issues: 1
+passed: 1
+issues: 0
 blocked: 7
 pending: 0
 skipped: 0
+
+(Test 4 OG card now PASSES after the font fix. The remaining 7 are environment-blocked, not code defects. The `next dev` 500 from Test 1 is also resolved — shared `.js` fix fc03e8a + dev→webpack 8fe076f — so local dev works; the cold-start smoke still needs a manual relayer boot to fully close.)
 
 ## Environment Findings (blockers for live UAT)
 
@@ -79,7 +80,7 @@ skipped: 0
 
 ```yaml
 - truth: "Duel Settled OG card (/og/duel/[challengeId]) returns a valid PNG"
-  status: failed
+  status: resolved   # fixed in commit b225007 — valid static fonts + .gitattributes; all OG routes return PNG
   reason: "All 3 OG fonts (Syne-Bold, SpaceGrotesk-Regular, JetBrainsMono-Regular .ttf) are corrupt (invalid sfnt magic in the committed git blobs) → Satori throws 'Unsupported OpenType signature'; renderFallback also fails (same fonts) → OG route returns no image. Breaks ALL OG cards (Phase 2 + Phase 3)."
   severity: blocker
   test: 4
