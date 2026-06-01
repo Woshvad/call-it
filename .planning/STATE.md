@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: milestone
-status: planning
+status: executing
 stopped_at: Phase 3 UI-SPEC approved
-last_updated: "2026-06-01T09:02:10.809Z"
-last_activity: 2026-05-31
+last_updated: "2026-06-01T10:02:30.570Z"
+last_activity: 2026-06-01 -- Phase 03 planning complete
 progress:
   total_phases: 12
   completed_phases: 3
-  total_plans: 24
+  total_plans: 31
   completed_plans: 25
-  percent: 100
+  percent: 81
 ---
 
 # Project State
@@ -27,10 +27,19 @@ See: .planning/PROJECT.md (updated 2026-05-21)
 
 Phase: 3
 Plan: Not started
-Status: Ready to plan
-Last activity: 2026-05-31
+Status: Ready to execute
+Last activity: 2026-06-01 -- Phase 03 planning complete
 
 Progress: [█████████░] 8/9 plans; phase completion blocked on 02-06 subgraph publish
+
+## Known Plan Issues — Phase 03 (accepted as-is at planning, 2026-06-01)
+
+Planning passed the requirements (22/22) + decision coverage gates. The plan-checker's 2nd pass surfaced 7 quality issues; operator chose **"Proceed as-is"** at the stall gate rather than a 3rd revision. These MUST be caught at execution — execute-phase / executor should fix inline:
+
+1. **[BUG — fix on sight] `callerMatchingStake = min(challengerStake, challengerStake)`** in `03-06-PLAN.md` Task 2 (Live Receipt accept path) AND the same wrong formula in `03-02-PLAN.md` Task 1 `<action>` (the `<behavior>` block is correct). Correct form: `min(callerInputStake, challengerStake)` (caller's chosen amount, default = challengerStake). Both args identical drops the caller's input and breaks SOCIAL-31 asymmetric stake. The 03-06 Duel-page Task 1 formula is already correct — mirror it.
+2. **SOCIAL-46/47** (FollowFadeMarket `claimPayout` idempotency + CEI) are listed in 03-01/03-02 frontmatter but Phase 3 adds no covering task — the contract shipped in Phase 2. Treat as a regression-gate: run the existing `forge test --match-test` claimPayout idempotency/CEI tests during 03-01 and confirm green.
+3. **SOCIAL-49/50** (Receipt caller-exit-after-24h / position-exit-after-4h links) are mapped to 03-04/03-05 frontmatter but the actual Phase-3 surface is the 03-06 Live-Receipt pending-challenge/exit block — verify 03-06 delivers the exit-link UI.
+4. **Minor:** 03-VALIDATION.md frontmatter still `nyquist_compliant: false` + TBD task IDs; 03-07 may need `depends_on: [03-06]` if Duels-tab CallCards open the ChallengeFormModal; confirm Phase-2 subgraph `Call` entity exposes `followTotalShares`/`fadeTotalShares` for the 03-05 trending backer-count (else trending falls back to pot-only).
 
 ## Deferred Live Infra (Phase 2 — resume to close)
 
