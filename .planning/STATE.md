@@ -53,6 +53,16 @@ Phase 2 CODE is shipped and tests pass. Live operator actions were deferred (ope
 2. **02-05 — Fly Postgres migration** — ✅ **DONE (2026-05-30).** Applied BOTH migrations (`0001_even_vertigo` tables + `0002_rich_blur` WR-05 unique index) to Fly Postgres `call-it-pg-sepolia` via `db:migrate` through a `fly proxy 5433:5432` tunnel. Verified live: `notifications` + `quote_stance` tables exist; `notifications_user_event_call_idx` present and UNIQUE. Plan 02-05 closed (02-05-SUMMARY.md). Local note: `.env.local` POSTGRES_URL repointed to `127.0.0.1:5433` (5432 was occupied locally); backup at `.env.local.bak`.
 3. **02-06 — Subgraph Studio publish** — ◆ OPEN (only remaining Phase 2 plan). subgraph.yaml now points at the deployed v2 addresses + startBlocks; `graph build` validates clean. Remaining: set `SUBGRAPH_STUDIO_DEPLOY_KEY`, then `cd packages/subgraph && graph auth $KEY && pnpm run build && pnpm run deploy:sepolia`; then write 02-06-SUMMARY.md → Phase 2 done (9/9) → run phase verification.
 
+## Deferred Live Infra (Phase 3 — operator actions, resume to close)
+
+Phase 3 CODE is being written/shipped this session against placeholder addresses (operator chose "continue code, defer live infra" at the 03-03 deploy gate, 2026-06-01). The 3 genuine operator-only actions are deferred:
+
+1. **03-03 Task 2 — ChallengeEscrow Arbitrum Sepolia deploy** — ◆ OPEN. `DeployPhase3.s.sol` is ready + compiles (commit `a823af0`). Run `cd packages/contracts && forge script script/DeployPhase3.s.sol:DeployPhase3 --rpc-url "$ARBITRUM_SEPOLIA_RPC_URL" --broadcast --sig "run()" -vvvv` with the Phase-2 deployer key. Record `address=0x… block=…`.
+2. **03-03 Task 3 — addresses.ts real value** — ◆ OPEN (placeholder shipped). `CHALLENGE_ESCROW_ARBITRUM_SEPOLIA` is currently `0x0…0` in `packages/shared/src/constants/addresses.ts`. After deploy, replace with the real address + record deploy block + on-chain assertions (mirror FOLLOW_FADE_MARKET block). Deploy block also feeds `subgraph.yaml` startBlock.
+3. **03-04 live infra — Fly Postgres Drizzle migration + Subgraph Studio redeploy** — ◆ OPEN. After the schema.ts + subgraph code lands: generate Drizzle migration `0003_*`, apply via `fly proxy 5433:5432` + `pnpm run db:migrate` (Phase 2 02-05 pattern); and (gated on 02-06 / `SUBGRAPH_STUDIO_DEPLOY_KEY`) set the ChallengeEscrow data source startBlock + `graph deploy:sepolia`.
+
+Once all 3 close: fill real address, write 03-03/03-04 SUMMARY.md, then run phase verification.
+
 ## Performance Metrics
 
 **Velocity:**

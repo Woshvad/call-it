@@ -141,6 +141,29 @@ export const CALL_REGISTRY_ARBITRUM_ONE =
 export const PROFILE_REGISTRY_ARBITRUM_ONE =
   '0x0000000000000000000000000000000000000000' as const;
 
+/**
+ * ChallengeEscrow on Arbitrum Sepolia (Phase 3 deploy).
+ *
+ * NOT YET DEPLOYED — placeholder pending the 03-03 operator deploy.
+ * DeployPhase3.s.sol is ready: ChallengeEscrow(CallRegistry v2, FollowFadeMarket,
+ * USDC native, treasury, tvlCap=5_000_000_000). After broadcast, replace the zero
+ * address below with the deployed address and record deploy block + on-chain
+ * assertions here (mirror FOLLOW_FADE_MARKET_ARBITRUM_SEPOLIA above). The deploy
+ * block also feeds packages/subgraph/subgraph.yaml startBlock (Plan 03-04).
+ *
+ * Threat: T-03-03-01 — wrong/zero address routes all duel reads/writes to nowhere;
+ * downstream code MUST guard against the zero address until the real value lands.
+ */
+export const CHALLENGE_ESCROW_ARBITRUM_SEPOLIA =
+  '0x0000000000000000000000000000000000000000' as const;
+
+/**
+ * ChallengeEscrow on Arbitrum One (mainnet).
+ * NOT YET DEPLOYED. Phase 7.5 mainnet deploy after the Sepolia staging gate.
+ */
+export const CHALLENGE_ESCROW_ARBITRUM_ONE =
+  '0x0000000000000000000000000000000000000000' as const;
+
 // ---------------------------------------------------------------------------
 // Legacy address record structure (retained for backward compatibility)
 // ---------------------------------------------------------------------------
@@ -173,9 +196,12 @@ export const FOLLOW_FADE_MARKET_ADDRESSES: AddressRecord = {
 };
 
 /**
- * ChallengeEscrow contract addresses — populated in Phase 2.
+ * ChallengeEscrow contract addresses — Sepolia pending the 03-03 deploy.
  */
-export const CHALLENGE_ESCROW_ADDRESSES: AddressRecord = { ...EMPTY_ADDRESSES };
+export const CHALLENGE_ESCROW_ADDRESSES: AddressRecord = {
+  [ARBITRUM_MAINNET_CHAIN_ID]: CHALLENGE_ESCROW_ARBITRUM_ONE,
+  [ARBITRUM_SEPOLIA_CHAIN_ID]: CHALLENGE_ESCROW_ARBITRUM_SEPOLIA,
+};
 
 /**
  * SettlementManager contract addresses — populated in Phase 3.
