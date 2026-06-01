@@ -148,7 +148,7 @@ Challenger Browser                  Caller Browser
 │    └──on fail: record UnclaimedOverage                      │
 │  claimDuelPayout  ──push──►  winner USDC (CEI)              │
 │  claimOverage     ──push──►  overcommitter USDC (fallback)  │
-│  getTvl()         ◄── USDC.balanceOf(address(this))         │
+│  getTvl()         ◄── totalEscrow counter (NOT balanceOf — see Pitfall B) │
 └───────────────┬─────────────────────────────────────────────┘
                 │ events: ChallengeProposed, ChallengeAccepted,
                 │         ChallengeRejected, ChallengeRefunded,
@@ -678,16 +678,13 @@ abstract contract CeTestHelper is FfmTestHelper {
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **`callerStake` locking at `acceptChallenge` — where is it pulled from?**
-   - What we know: The caller accepts a challenge; their matching stake (up to the challenger's stake) must be pulled at `acceptChallenge` time, NOT at `proposeChallenge` time (they haven't agreed yet).
-   - What's clear: `acceptChallenge` calls `safeTransferFrom(caller, address(this), callerStake)` — caller must have approved ChallengeEscrow before accepting.
-   - Planner action: Include an `approve` step in the accept flow; document in the frontend challenge form that accepting requires a USDC approval transaction.
+1. **`callerStake` locking at `acceptChallenge` — where is it pulled from?** RESOLVED.
+   - The caller MUST approve ChallengeEscrow for their matching stake BEFORE calling `acceptChallenge`. The accept flow includes a USDC allowance preflight in the frontend: `callerMatchingStake = min(challenge.challengerStake, callerInput)`. The UI reads `USDC.allowance(caller, CHALLENGE_ESCROW)` and prompts an `approve(CHALLENGE_ESCROW, callerMatchingStake)` step if the allowance is insufficient. Only after approval is confirmed does the Accept CTA submit `acceptChallenge(challengeId)`. This mirrors the Phase 1 /new page preflight pattern and is implemented in plans 03-06 (Duel page accept button) and 03-06 Task 2 (Live Receipt accept section).
 
-2. **`tvlCap` storage in ChallengeEscrow — same as CR's or separate?**
-   - What we know: D-04 says ChallengeEscrow enforces the $5K cap; the cap is a system-wide parameter. CR's `tvlCap` is owner-settable.
-   - Recommendation: ChallengeEscrow reads `callRegistry.tvlCap` as the canonical cap rather than storing its own copy. This avoids the race condition where the owner sets different caps on different contracts. [ASSUMED — planner should confirm]
+2. **`tvlCap` storage in ChallengeEscrow — same as CR's or separate?** RESOLVED.
+   - ChallengeEscrow stores its OWN `tvlCap` (set in constructor). It does NOT read `callRegistry.tvlCap()`. The constructor shape confirms this: `constructor(..., uint256 _tvlCap)` stores `tvlCap = _tvlCap`. This keeps ChallengeEscrow's cap independently owner-adjustable and avoids adding a new read dependency on CallRegistry's storage layout. This matches plan 03-02's constructor pattern.
 
 3. **Subgraph data source `startBlock` for ChallengeEscrow**
    - What we know: Must be the exact Arbitrum Sepolia block number of the ChallengeEscrow deployment (determined during DeployPhase3.s.sol execution).
