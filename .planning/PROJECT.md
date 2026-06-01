@@ -103,6 +103,10 @@ Per spec §4.5 (deferred to v2) and §4.6 (explicitly cut):
 | 3 reputation categories (Majors/DeFi/Other) | Locked per §7.5; reduced from 8 — at hackathon volume eight categories were statistical noise. Append-only enum for v2 expansion | — Pending |
 | Receipts are off-chain OG images, not NFTs | Locked per §18.2; faster to render, easier to iterate, referenced onchain by hash | — Pending |
 | D-06 (Phase 1): 6th-tx-onward gas mechanic | Circle USDC Paymaster on Arbitrum with per-tx EIP-2612 permit replaces user-provided ETH; no ETH ever required. Rationale: eliminates user-friction onboarding step that contradicts the USDC-native value prop. | Locked in Phase 1 — Plans 07/08 implementation. REQUIREMENTS.md AUTH-27 + AUTH-29 amended verbatim. 2026-05-23 |
+| Phases 0–3 complete + live on Arbitrum Sepolia | Foundation, core contracts/auth, FollowFadeMarket, and ChallengeEscrow shipped + deployed. ChallengeEscrow `settleDuel` seam (D-01) is the Phase-4 keystone — SettlementManager plugs in with no redeploy. | ChallengeEscrow `0x59eb7C80…bec2` (block 272815420); subgraph `call-it-sepolia` v0.3.0 live; security audit 36/36. 2026-06-01 |
+| OG fonts were committed corrupt → fixed + `.gitattributes` binary guard | All 3 OG fonts had invalid sfnt signatures (Phase-0 text-transform), silently breaking every OG card at runtime (`next build` passed; only render-testing caught it). The OG receipt is the product's core artifact. | Replaced with valid static TTFs (variable fonts instanced via fonttools); `.gitattributes` marks fonts binary. All OG cards render PNGs. Commit b225007. 2026-06-01 |
+| Sepolia staging-USDC gap → ADR 0001 | Mandated mainnet USDC has no code on Sepolia → all stake transfers revert there → the 48h Sepolia staging gate is unsatisfiable for money paths as configured. | Recommend (c) mainnet-fork for money-path validation + keep live Sepolia for integration; (b) Circle's official Sepolia USDC (`0x75faf114…`) as opt-in via chainid-gated USDC + redeploy + security review in Phase 6 (mainnet guard preserved); reject custom mock. Not implemented (locked invariant). 2026-06-01 |
+| `next dev` → webpack | Turbopack dev 500s on Privy's optional x402/Solana named-import stubs (webpack's `false` stub tolerates them; `build` already uses `--webpack`). | Default `dev` script switched to `next dev --webpack`; turbopack preserved as `dev:turbopack`. Local dev/UAT unblocked. Commit 8fe076f. 2026-06-01 |
 
 ## Evolution
 
@@ -122,4 +126,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-05-21 after initialization*
+*Last updated: 2026-06-01 after Phase 3 (ChallengeEscrow complete; Phases 0–3 done + live on Sepolia)*

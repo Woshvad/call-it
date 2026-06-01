@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: milestone
-status: executing
-stopped_at: Phase 3 UI-SPEC approved
+status: ready_to_plan
+stopped_at: Phase 3 complete (closed out); ready to plan Phase 4
 last_updated: "2026-06-01T13:47:52.827Z"
 last_activity: 2026-06-01
 progress:
   total_phases: 12
-  completed_phases: 3
+  completed_phases: 5
   total_plans: 31
   completed_plans: 31
-  percent: 100
+  percent: 42
 ---
 
 # Project State
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-21)
 
 **Core value:** Every call is permanent, public, and tied to identity. The receipt — created, settled, and shared — must be unfakeable, undeletable, and visually unmistakable.
-**Current focus:** Phase 03 — challengeescrow
+**Current focus:** Phase 4 — SettlementManager (Phases 0–3 complete)
 
 ## Current Position
 
-Phase: 03 (challengeescrow) — CODE COMPLETE, LIVE INFRA DEFERRED
-Plan: 7/7 code shipped; 3 operator actions pending (see "Deferred Live Infra (Phase 3)")
-Status: Code complete + code-review criticals fixed; phase NOT verified-complete until deferred infra closes
-Last activity: 2026-06-01 -- Phase 03 code + review fixes shipped
+Phase: 4
+Plan: Not started
+Status: Ready to plan
+Last activity: 2026-06-01
 
-Progress: [██████████] code 100%; live infra deferred
+Progress: [████░░░░░░] 5/12 phases (42%) — Phases 0–3 complete + live on Sepolia; next: Phase 4 SettlementManager
 
 ## Known Plan Issues — Phase 03 (RESOLVED at execution, 2026-06-01)
 
@@ -68,13 +68,13 @@ All 3 operator actions were run this session (user explicitly authorized "run al
 2. **03-03 Task 3 — addresses.ts real value** — ✅ **DONE.** `CHALLENGE_ESCROW_ARBITRUM_SEPOLIA` = real address; `subgraph.yaml` ChallengeEscrow address + startBlock=272815420 wired (commit `1cb6586`).
 3. **03-04 live infra** — ✅ **DONE.** (a) Drizzle `0003_unusual_nekra.sql` applied to Fly Postgres via `fly proxy 5433:5432` + `drizzle-kit migrate`; live-verified `trending_duels` + `duel_kings` tables + 5 indexes exist. (b) Subgraph `call-it-sepolia` v0.3.0 published to Studio (same publish closed Phase-2 02-06).
 
-Remaining nicety: write 03-03/03-04 SUMMARY.md to mark those plans formally complete in the index (currently 03-03 has no SUMMARY → phase shows as not-100% in plan-index). Optional: Arbiscan contract verification.
+✅ **Phase 3 formally closed (2026-06-01).** All 7 SUMMARYs written; ROADMAP + STATE marked complete via `phase.complete 02` + `03`. UAT/VERIFICATION debt acknowledged (env-deferred items — see 03-VERIFICATION.md "Operator Close-Out"). Also fixed post-execution: `next dev` 500 (shared `.js` `fc03e8a` + dev→webpack `8fe076f`) and corrupt OG fonts (`b225007`, all OG cards render). Sepolia-USDC strategy → ADR 0001. Optional remaining: Arbiscan contract verification (`forge verify-contract`).
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 9
+- Total plans completed: 25
 - Average duration: —
 - Total execution time: 0 hours
 
@@ -83,6 +83,7 @@ Remaining nicety: write 03-03/03-04 SUMMARY.md to mark those plans formally comp
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 02 | 9 | - | - |
+| 03 | 7 | - | - |
 
 **Recent Trend:**
 
@@ -340,6 +341,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-06-01T13:47:52.808Z
-Stopped at: Phase 3 UI-SPEC approved
+Last session: 2026-06-01
+Stopped at: Phase 3 complete (closed out) — deployed live to Sepolia, secured, OG/dev bugs fixed. Ready to plan Phase 4 (SettlementManager).
 Resume file: None

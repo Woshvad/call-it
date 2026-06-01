@@ -1,9 +1,10 @@
 ---
 phase: 03-challengeescrow
 verified: 2026-06-01T14:30:00Z
-status: human_needed
+status: passed
+status_note: "Closed out by operator 2026-06-01. Code goal verified 6/6. OG card (human item 3) since VERIFIED (PNG renders after font fix b225007). Remaining human items accepted as environment-deferred (Privy auth wall + no Sepolia USDC) — see ## Operator Close-Out."
 score: 6/6 success criteria verified (SOCIAL-37 deferred to Phase 4 per D-01)
-overrides_applied: 0
+overrides_applied: 1
 deferred:
   - truth: "Challenge settlement applies ~1.5x the standard rep movement to both parties (SOCIAL-37)"
     addressed_in: "Phase 4"
@@ -231,5 +232,30 @@ Live infra status (STATE.md confirmed CLOSED):
 
 ---
 
+## Operator Close-Out (2026-06-01)
+
+Phase 3 formally closed by operator decision. Status set `human_needed → passed` with the
+following human-verification items accepted as **environment-deferred** (not code defects —
+code goal verified 6/6; see UAT 03-UAT.md):
+
+| Human item | Disposition |
+|---|---|
+| OG variant-3 PNG (item 3) | ✅ **VERIFIED** — `/og/duel/1` renders a valid PNG after the font fix (b225007); `/og/[callId]` + fallback also render. |
+| Duel page layout + colors (item 1) | Accepted-deferred — behind Privy auth wall; needs a wallet/session. Code verified (security audit T-3-06-03, color tokens; goal verifier criterion 4). |
+| MARKET CONSENSUS live bar (item 2) | Accepted-deferred — needs running app + seeded duel + live data. |
+| Challenge propose + caller accept/reject (items 4–5) | Accepted-deferred — needs wallet + USDC; **blocked on Sepolia-USDC** (ADR 0001) since stake transfers revert on Sepolia. |
+| Trending pin + badges in feed (item 6) | Accepted-deferred — behind auth wall + needs subgraph-indexed calls. |
+| Mobile banner (item 7) | Accepted-deferred — behind auth wall; banner code present. |
+
+**Dependencies for the deferred items to become exercisable:**
+- `next dev` now works (shared `.js` fix `fc03e8a` + dev→webpack `8fe076f`) — local UI walkthrough is unblocked once a wallet connects.
+- Live duel money flows need the **Sepolia-USDC decision** (`.planning/decisions/0001-sepolia-staging-usdc.md`).
+- Duel settlement / Duel King / rep deltas / settled OG state need **Phase 4 (SettlementManager)**.
+
+These carry forward as tracked debt (UAT 03-UAT.md, ADR 0001, Phase 4). They do not block Phase 3 completion.
+
+---
+
 _Verified: 2026-06-01T14:30:00Z_
 _Verifier: Claude (gsd-verifier)_
+_Closed out: 2026-06-01 (operator)_

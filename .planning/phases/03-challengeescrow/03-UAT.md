@@ -1,14 +1,15 @@
 ---
-status: partial
+status: accepted
 phase: 03-challengeescrow
 source: [03-01-SUMMARY.md, 03-02-SUMMARY.md, 03-03-SUMMARY.md, 03-04-SUMMARY.md, 03-05-SUMMARY.md, 03-06-SUMMARY.md, 03-07-SUMMARY.md, 03-VERIFICATION.md]
 started: 2026-06-01
 updated: 2026-06-01
+closed_out: 2026-06-01 (operator — accepted env-deferred items)
 ---
 
 ## Current Test
 
-[testing paused — 1 confirmed bug (OG fonts) + remaining items blocked by auth wall / no Sepolia USDC / Privy-turbopack dev]
+[closed out — Test 4 (OG card) PASSES after the font fix; the 7 remaining items are accepted as environment-deferred (Privy auth wall + no Sepolia USDC). Carried as tracked debt: this file + 03-VERIFICATION.md "Operator Close-Out" + ADR 0001 + Phase 4. The `next dev` 500 is also fixed, so the UI walkthrough is runnable once a wallet connects.]
 
 ## Tests
 
