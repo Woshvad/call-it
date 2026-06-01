@@ -9,7 +9,7 @@
  * Requirement: OPS-21, SAFETY-13
  */
 
-import { ARBITRUM_MAINNET_CHAIN_ID, ARBITRUM_SEPOLIA_CHAIN_ID } from './networks.js';
+import { ARBITRUM_MAINNET_CHAIN_ID, ARBITRUM_SEPOLIA_CHAIN_ID } from './networks';
 
 // ---------------------------------------------------------------------------
 // Circle USDC Paymaster (D-04 — post-cap USDC gas, Phase 1)

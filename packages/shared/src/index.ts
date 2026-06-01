@@ -15,11 +15,11 @@
  */
 
 // ── Constants — USDC ──────────────────────────────────────────────────────────
-export { USDC_ARB_NATIVE, USDC_DECIMALS, USDC_E_BRIDGED_DO_NOT_USE } from './constants/usdc.js';
+export { USDC_ARB_NATIVE, USDC_DECIMALS, USDC_E_BRIDGED_DO_NOT_USE } from './constants/usdc';
 
 // ── Constants — networks ──────────────────────────────────────────────────────
-export { ARBITRUM_MAINNET_CHAIN_ID, ARBITRUM_SEPOLIA_CHAIN_ID, NETWORKS } from './constants/networks.js';
-export type { NetworkName, NetworkRecord } from './constants/networks.js';
+export { ARBITRUM_MAINNET_CHAIN_ID, ARBITRUM_SEPOLIA_CHAIN_ID, NETWORKS } from './constants/networks';
+export type { NetworkName, NetworkRecord } from './constants/networks';
 
 // ── Constants — addresses ─────────────────────────────────────────────────────
 export {
@@ -42,7 +42,7 @@ export {
   SETTLEMENT_MANAGER_ADDRESSES,
   SUBGRAPH_URL_SEPOLIA,
   SUBGRAPH_URL_MAINNET,
-} from './constants/addresses.js';
+} from './constants/addresses';
 
 // ── Constants — Pyth feed IDs ─────────────────────────────────────────────────
 export {
@@ -72,7 +72,7 @@ export {
   PYTH_FET_USD,
   PYTH_FEED_IDS,
   PYTH_FEED_IDS_TODO_VERIFY,
-} from './constants/pyth-feed-ids.js';
+} from './constants/pyth-feed-ids';
 
 // ── Constants — fees ──────────────────────────────────────────────────────────
 export {
@@ -88,11 +88,11 @@ export {
   PYTH_CONFIDENCE_MULTIPLIER,
   PYTH_SETTLEMENT_RETRIES,
   PYTH_RETRY_INTERVAL_SECONDS,
-} from './constants/fees.js';
+} from './constants/fees';
 
 // ── Schemas — env config ──────────────────────────────────────────────────────
-export { EnvConfigSchema } from './schemas/env-config.js';
-export type { EnvConfig } from './schemas/env-config.js';
+export { EnvConfigSchema } from './schemas/env-config';
+export type { EnvConfig } from './schemas/env-config';
 
 // ── Types — call ──────────────────────────────────────────────────────────────
 export {
@@ -109,8 +109,8 @@ export {
   CALL_STATUSES,
   CALL_STATUS_TO_UINT,
   UINT_TO_CALL_STATUS,
-} from './types/call.js';
-export type { MarketType, EventSubtype, Category, CallStatus } from './types/call.js';
+} from './types/call';
+export type { MarketType, EventSubtype, Category, CallStatus } from './types/call';
 
 // ── Validation — call gates ───────────────────────────────────────────────────
 export {
@@ -125,12 +125,12 @@ export {
   convictionSchema,
   createCallSchema,
   createCallSchemaStrict,
-} from './validation/call-gates.js';
-export type { CreateCallInput, CreateCallOutput } from './validation/call-gates.js';
+} from './validation/call-gates';
+export type { CreateCallInput, CreateCallOutput } from './validation/call-gates';
 
 // ── Hashing — duplicate hash ──────────────────────────────────────────────────
-export { dayBucketUtc, computeDuplicateHash } from './hashing/duplicate-hash.js';
-export type { DuplicateHashInput } from './hashing/duplicate-hash.js';
+export { dayBucketUtc, computeDuplicateHash } from './hashing/duplicate-hash';
+export type { DuplicateHashInput } from './hashing/duplicate-hash';
 
 // ── Validation — follow-fade-gates (D-29 parity stubs) ────────────────────────
 export {
@@ -149,4 +149,4 @@ export {
   computeCallerExitPenaltyPct,
   computeCallerExitRepDelta,
   computePositionSlashSplit,
-} from './validation/follow-fade-gates.js';
+} from './validation/follow-fade-gates';

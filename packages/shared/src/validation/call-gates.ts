@@ -33,7 +33,7 @@
  */
 
 import { z } from 'zod';
-import { MARKET_TYPES, EVENT_SUBTYPES, CATEGORIES } from '../types/call.js';
+import { MARKET_TYPES, EVENT_SUBTYPES, CATEGORIES } from '../types/call';
 
 // ─── Constants (single source of truth — must match Solidity contract) ────────
 
