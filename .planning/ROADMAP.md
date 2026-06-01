@@ -152,7 +152,7 @@ Call It ships as a person-first onchain social prediction product on Arbitrum ma
   - [x] 04-04-PLAN.md — Wave 3: Pyth adapter (HermesClient + ETH fee budget) + settlement watcher (BullMQ 30x60s retry) + DefiLlama KMS-attestation adapter (proves rail generalizes)
   - [x] 04-05-PLAN.md — Wave 3: Subgraph real handlers (7 events; replaces Phase-0 stub) + subgraph.yaml address update + [OPERATOR] Studio redeploy
   - [x] 04-06-PLAN.md — Wave 4: NFT TWAP + RPC metrics + Snapshot + Tally adapters + 8 CEX Playwright scrapers + Innovation Zone exclusion + settlement-watcher dispatch completion
-  - [ ] 04-07-PLAN.md — Wave 4: Settled Receipt page (outcome hero 96px Syne + stamp shadow animation + FINAL POSITIONS + provenance line) + Settled OG variants 2+4 + Duel OG variant-3 settled fill
+  - [x] 04-07-PLAN.md — Wave 4: Settled Receipt page (outcome hero 96px Syne + stamp shadow animation + FINAL POSITIONS + provenance line) + Settled OG variants 2+4 + Duel OG variant-3 settled fill
   - [ ] 04-08-PLAN.md — Wave 5: Dispute modal (IPFS upload + bond) + Provenance proof modal (D-10 oracle URL/tx/raw data/EIP-712 sig) + /disputes/ public log + owner resolve admin with reversal preview
   - [ ] 04-09-PLAN.md — Wave 6: CEX weekly CI cron + SAFETY-57 doc + addresses.ts finalization + end-to-end verification checkpoint
 **UI hint**: yes
@@ -250,7 +250,7 @@ Phases execute in numeric order: 0 → 1 → 1.5 (parallel with 2) → 2 → 3 �
 | 1.5. Social linking | 0/TBD | Not started | - |
 | 2. FollowFadeMarket | 9/9 | Complete | 2026-05-31 |
 | 3. ChallengeEscrow | 5/7 | In Progress|  |
-| 4. SettlementManager + 7 oracle paths + Solidity baseline rep delta | 4/9 | In Progress|  |
+| 4. SettlementManager + 7 oracle paths + Solidity baseline rep delta | 7/9 | In Progress|  |
 | 5. StylusScoreEngine + 48h cutoff | 0/TBD | Not started | - |
 | 6. Safety review + Sepolia ≥48h + multisig promotion | 0/TBD | Not started | - |
 | 7. OG service final variants + Subgraph final mappings | 0/TBD | Not started | - |

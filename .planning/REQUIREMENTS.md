@@ -359,16 +359,16 @@ Requirements for the v1 mainnet release. Each line is an atomic, testable behavi
 - [x] **UI-11**: Duel page (`/duel/[id]`) renders "THE MARKET" hero block (asset pair in massive type, question line, 3-stat row: live spread / pot / settles in), two-column duel card (CALLER left yellow-green / VS divider / CHALLENGER right orange) with parallel stat rows, MARKET CONSENSUS bar, Riding sections both sides, "Side with [caller]" / "Side with [challenger]" bottom CTAs (§15.5)
 - [ ] **UI-12**: Leaderboard page (`/leaderboard`) renders "The Tape · Top of book" title, 7d/30d/All-time toggle, #1 Hero card with massive faded "01" watermark, category filter chips (All / Majors / DeFi / Other in v1), leaderboard table with podium treatment for ranks 02/03 (§15.6)
 - [ ] **UI-13**: Leaderboard table columns: # / CALLER (avatar + handle + call count) / REP / ACC / BEST category / Δ 7D sparkline; viewer's own row gets `#1A1A24` background + yellow left border accent (§15.6)
-- [ ] **UI-14**: Settled Receipt page (`/call/[id]` when status == Settled or Disputed) renders 3px page frame with 4px accent corner brackets, sticky caller header (NO wallet address per §15.7), Watch + Share + "Preview share card" button group (§15.7)
-- [ ] **UI-15**: Settled Receipt call statement is Syne 48px with target value in accent yellow-green; subline "settled [N] ago · settles automatically from [oracle link]" (§15.7)
-- [ ] **UI-16**: Settled Receipt outcome block is the visual hero — Syne 96px outcome word, 3px-bordered with matching hard offset shadow on `#111118` background, "by [caller] · ±X rep" subline (§15.7)
-- [ ] **UI-17**: Outcome word variants render with locked colors — `CALLED IT` green `#4ADE80` / `LOUD AND WRONG` red `#F87171` / `CONTRARIAN HIT` accent `#E8F542` + CONTRARIAN lozenge / `COLD CALL` muted slate `#94A3B8` / `FADED CORRECTLY` accent + FADER WIN lozenge (§15.7, §16.3)
-- [ ] **UI-18**: Outcome word readability gate — visible at 200px viewport width; if unreadable, design fails QA (§15.7, §16.3)
-- [ ] **UI-19**: Settled Receipt stat row renders FINAL VALUE / TARGET / CONVICTION / P&L cells with 2px subtle border and visible internal dividers; P&L color is green positive / red negative / muted zero (§15.7)
-- [ ] **UI-20**: Settled Receipt action row exposes "[ SHARE THE RECEIPT → ]" (filled accent, 3px black border, hard shadow) and "[ VIEW ALL CALLS BY veda ]" (outline 2px, no shadow); full-width stacked on mobile, side-by-side desktop (§15.7)
-- [ ] **UI-21**: Settled Receipt FINAL POSITIONS block renders with 4px accent corner brackets, two-column followers/faders list sorted by P&L descending, capped at 20 rows per side with "view all" link (§15.7)
-- [ ] **UI-22**: Settled Receipt Caller-Exited variant renders amber banner above outcome block with 3px `#FB923C` border and hard offset shadow; caller's handle in subline at 40% opacity (§15.7)
-- [ ] **UI-23**: Settled Receipt Disputed variant replaces outcome block with "PENDING DISPUTE" amber-styled block; body explains who filed, when, evidence link, owner-review state, 24h SLA reminder (§15.7)
+- [x] **UI-14**: Settled Receipt page (`/call/[id]` when status == Settled or Disputed) renders 3px page frame with 4px accent corner brackets, sticky caller header (NO wallet address per §15.7), Watch + Share + "Preview share card" button group (§15.7)
+- [x] **UI-15**: Settled Receipt call statement is Syne 48px with target value in accent yellow-green; subline "settled [N] ago · settles automatically from [oracle link]" (§15.7)
+- [x] **UI-16**: Settled Receipt outcome block is the visual hero — Syne 96px outcome word, 3px-bordered with matching hard offset shadow on `#111118` background, "by [caller] · ±X rep" subline (§15.7)
+- [x] **UI-17**: Outcome word variants render with locked colors — `CALLED IT` green `#4ADE80` / `LOUD AND WRONG` red `#F87171` / `CONTRARIAN HIT` accent `#E8F542` + CONTRARIAN lozenge / `COLD CALL` muted slate `#94A3B8` / `FADED CORRECTLY` accent + FADER WIN lozenge (§15.7, §16.3)
+- [x] **UI-18**: Outcome word readability gate — visible at 200px viewport width; if unreadable, design fails QA (§15.7, §16.3)
+- [x] **UI-19**: Settled Receipt stat row renders FINAL VALUE / TARGET / CONVICTION / P&L cells with 2px subtle border and visible internal dividers; P&L color is green positive / red negative / muted zero (§15.7)
+- [x] **UI-20**: Settled Receipt action row exposes "[ SHARE THE RECEIPT → ]" (filled accent, 3px black border, hard shadow) and "[ VIEW ALL CALLS BY veda ]" (outline 2px, no shadow); full-width stacked on mobile, side-by-side desktop (§15.7)
+- [x] **UI-21**: Settled Receipt FINAL POSITIONS block renders with 4px accent corner brackets, two-column followers/faders list sorted by P&L descending, capped at 20 rows per side with "view all" link (§15.7)
+- [x] **UI-22**: Settled Receipt Caller-Exited variant renders amber banner above outcome block with 3px `#FB923C` border and hard offset shadow; caller's handle in subline at 40% opacity (§15.7)
+- [x] **UI-23**: Settled Receipt Disputed variant replaces outcome block with "PENDING DISPUTE" amber-styled block; body explains who filed, when, evidence link, owner-review state, 24h SLA reminder (§15.7)
 - [ ] **UI-24**: Sign-in screen (`/signin`) renders 3px `#2E2E42` frame border, 4px accent corner brackets at all 4 viewport corners, centered max-width 480px column, CALL IT wordmark (Syne 64px accent), tagline "Be right in public." (Space Grotesk 24px muted) (§15.8)
 - [ ] **UI-25**: Onboarding flow (`/onboarding`) runs 4 screens (Handle / Connect Socials skippable / Follow-graph opt-in conditional / Tagline commitment) with STEP N OF 4 indicator and 3-screen square progress at top (§15.9)
 - [ ] **UI-26**: Quote Call Composer (`/new?quote=[parentCallId]`) renders parent context card above the standard form with QUOTING label, parent caller info, parent statement italic Syne 20px, stake/conviction/follow/fade row, "settles in / view original" link; no corner brackets on parent card (§15.10)
@@ -389,17 +389,17 @@ Requirements for the v1 mainnet release. Each line is an atomic, testable behavi
 - [ ] **UI-41**: Neobrutalist treatment applies: 2-3px borders, hard offset shadows (`4px 4px 0 [color]`, never blurred), 0-2px corner radius max, 4px corner brackets on weight-carrying blocks (§14.6)
 - [ ] **UI-42**: Corner brackets are 4px stroke in accent yellow-green `#E8F542` on data-significant blocks, `#2E2E42` on secondary; placed at top-left + bottom-right; absence of brackets signals secondary content (§14.6)
 - [ ] **UI-43**: Buttons follow shadow language: idle = flat, hover = `4px 4px 0` offset, active/click = `2px 2px 0` (button "presses down") (§14.6)
-- [ ] **UI-44**: Outcome blocks (settled receipts/duels) have a 3-4px border in the outcome color and a permanent hard offset shadow that "stamps in" on reveal (§14.6, §17.2)
-- [ ] **UI-45**: Stamp animation on outcome reveal — scale `1.2 → 1.0` with overshoot to `0.98 → 1.0`, plus shadow expands from `0 0 0 transparent` to `4px 4px 0 [color]`, total 300ms ease-out; rep delta number counts up with green/red pulse (§15.7, §17.2)
+- [x] **UI-44**: Outcome blocks (settled receipts/duels) have a 3-4px border in the outcome color and a permanent hard offset shadow that "stamps in" on reveal (§14.6, §17.2)
+- [x] **UI-45**: Stamp animation on outcome reveal — scale `1.2 → 1.0` with overshoot to `0.98 → 1.0`, plus shadow expands from `0 0 0 transparent` to `4px 4px 0 [color]`, total 300ms ease-out; rep delta number counts up with green/red pulse (§15.7, §17.2)
 - [ ] **UI-46**: Body labels use heavier letter-spacing in neobrutalist contexts (`0.12em` instead of `0.08em`); headlines never lighter than Space Grotesk weight 500 (§14.6)
 - [ ] **UI-47**: Layouts default to asymmetric where the design permits (settled receipt, sign-in, leaderboard #1 hero) — symmetric layouts feel default (§14.6)
 - [ ] **UI-48**: Mobile responsive treatment applies a 375px breakpoint to 7 critical pages — Feed (§15.1), Receipt Live (§15.3), Profile (§15.4), Settled Receipt (§15.7), Sign-in (§15.8), Onboarding (§15.9), Leaderboard (§15.6) (§19 Phase 9)
 - [ ] **UI-49**: Mobile pattern is single-column layouts, full-width action buttons, left sidebar collapsed behind hamburger (§19 Phase 9)
 - [ ] **UI-50**: Non-critical pages (Duel §15.5, Quote composer §15.10, New Call §15.2) get desktop-only banner "Best viewed on desktop" in v1 (§19 Phase 9)
 - [ ] **UI-51**: Conviction slider fill color interpolates muted → accent as conviction rises; number ticks in real time (§17.2)
-- [ ] **UI-52**: Follow/Fade button press compresses to `scale: 0.97` then springs back; count increments with number flip (§17.2)
+- [x] **UI-52**: Follow/Fade button press compresses to `scale: 0.97` then springs back; count increments with number flip (§17.2)
 - [ ] **UI-53**: Feed cards enter staggered — `translateY: 8px → 0` + `opacity: 0 → 1`, 60ms stagger between cards (§17.2)
-- [ ] **UI-54**: Live odds bar slides smoothly as new positions come in — never jumps (§17.2)
+- [x] **UI-54**: Live odds bar slides smoothly as new positions come in — never jumps (§17.2)
 - [ ] **UI-55**: Page transitions use horizontal slide for tab switches, vertical slide-up for modals — no fade-to-black (§17.2)
 - [ ] **UI-56**: Real-time UI updates use 5-second polling at hackathon launch (WebSocket migration is v1.1) (App.A.1)
 
@@ -409,14 +409,14 @@ Requirements for the v1 mainnet release. Each line is an atomic, testable behavi
 - [ ] **SHARE-02**: OG service is hosted at `api.callitapp.xyz/og/[callId]` (§19 Phase 7)
 - [ ] **SHARE-03**: OG images are cached on CDN and regenerated when call state changes — new follow/fade activity or settlement (§16.1, §19 Phase 7)
 - [x] **SHARE-04**: Live State Card (variant 1) — Call It wordmark top-left + Arbitrum logo top-right + center call statement + "by [caller] · X% conviction · stake $XXX" + follow%/fade% progress bar + time-left countdown + corner bracket motif (§16.2)
-- [ ] **SHARE-05**: Settled State Card (variant 2) — Call It wordmark + Arbitrum logo + center outcome word as visual hero (Syne display) + original call statement below + P&L / Rep change / Final / Conviction stats row + caller avatar + handle + current global rep + corner brackets (§16.3)
-- [ ] **SHARE-06**: Outcome word color mapping on cards matches §15.7 — CALLED IT green, LOUD AND WRONG red, CONTRARIAN HIT accent, COLD CALL muted, FADED CORRECTLY accent (§16.3)
+- [x] **SHARE-05**: Settled State Card (variant 2) — Call It wordmark + Arbitrum logo + center outcome word as visual hero (Syne display) + original call statement below + P&L / Rep change / Final / Conviction stats row + caller avatar + handle + current global rep + corner brackets (§16.3)
+- [x] **SHARE-06**: Outcome word color mapping on cards matches §15.7 — CALLED IT green, LOUD AND WRONG red, CONTRARIAN HIT accent, COLD CALL muted, FADED CORRECTLY accent (§16.3)
 - [x] **SHARE-07**: Duel Settled Card (variant 3) — two-column hero with winner avatar (~180px) + winner handle + WINS in Syne next to winner's column; loser avatar dimmed to 40%; pot ("Pot: $X,XXX · winner takes all"); rep deltas paired; market + target small text; Call It + Arbitrum branding bottom corners (§16.4)
-- [ ] **SHARE-08**: Caller Exited Card (variant 4) — "CALLER EXITED" massive amber `#FB923C` hero + caller avatar dimmed + original call statement + stats row (time before exit / stake slashed / reputation impact) + note "Call continues for followers and faders. Settles at [expiry]." + corner brackets; auto-generates on `CallerExited` event (§16.5)
+- [x] **SHARE-08**: Caller Exited Card (variant 4) — "CALLER EXITED" massive amber `#FB923C` hero + caller avatar dimmed + original call statement + stats row (time before exit / stake slashed / reputation impact) + note "Call continues for followers and faders. Settles at [expiry]." + corner brackets; auto-generates on `CallerExited` event (§16.5)
 - [x] **SHARE-09**: Fallback Card (variant 5) "A CALL WAS MADE" — 3px accent border + 4px accent corner brackets all 4 corners + `#09090E` bg + CALL IT wordmark Syne 48px + asymmetric hero "A CALL WAS MADE" Syne 64px + "by @[handle]" + "The receipt is being prepared. Tap to view live." + footer (§16.6)
 - [x] **SHARE-10**: Fallback Card serves when real receipt URL returns 404 (cache not warm) OR settled image hasn't regenerated OR OG service is fully down; CDN cache 60 seconds (§16.6)
 - [x] **SHARE-11**: Fallback Card renders in <100ms using stripped template that pulls only `[handle]` from URL (§16.6)
-- [ ] **SHARE-12**: 200px-viewport thumbnail readability QA gate runs on every outcome word variant before mainnet announce (§15.7, §16.3, §19.11)
+- [x] **SHARE-12**: 200px-viewport thumbnail readability QA gate runs on every outcome word variant before mainnet announce (§15.7, §16.3, §19.11)
 - [ ] **SHARE-13**: Receipt OG cards must pass the Twitter Card Validator (`cards-dev.twitter.com/validator`) smoke test before mainnet announcement (§19.11)
 - [ ] **SHARE-14**: Receipt page server-renders OpenGraph meta tags referencing the OG card URL (§18.2, §19 Phase 7)
 - [ ] **SHARE-15**: Share button on receipt page generates Twitter intent URL (verified to pass Twitter Card Validator) (§15.7, §19.11)
@@ -884,16 +884,16 @@ Which phases cover which requirements. Updated during roadmap creation by the ro
 | UI-11 | Phase 3 | Complete |
 | UI-12 | Phase 7 | Pending |
 | UI-13 | Phase 7 | Pending |
-| UI-14 | Phase 4 | Pending |
-| UI-15 | Phase 4 | Pending |
-| UI-16 | Phase 4 | Pending |
-| UI-17 | Phase 4 | Pending |
-| UI-18 | Phase 4 | Pending |
-| UI-19 | Phase 4 | Pending |
-| UI-20 | Phase 4 | Pending |
-| UI-21 | Phase 4 | Pending |
-| UI-22 | Phase 4 | Pending |
-| UI-23 | Phase 4 | Pending |
+| UI-14 | Phase 4 | Complete |
+| UI-15 | Phase 4 | Complete |
+| UI-16 | Phase 4 | Complete |
+| UI-17 | Phase 4 | Complete |
+| UI-18 | Phase 4 | Complete |
+| UI-19 | Phase 4 | Complete |
+| UI-20 | Phase 4 | Complete |
+| UI-21 | Phase 4 | Complete |
+| UI-22 | Phase 4 | Complete |
+| UI-23 | Phase 4 | Complete |
 | UI-24 | Phase 1 | Pending |
 | UI-25 | Phase 1 | Pending |
 | UI-26 | Phase 7 | Pending |
@@ -914,31 +914,31 @@ Which phases cover which requirements. Updated during roadmap creation by the ro
 | UI-41 | Phase 1 | Pending |
 | UI-42 | Phase 1 | Pending |
 | UI-43 | Phase 1 | Pending |
-| UI-44 | Phase 4 | Pending |
-| UI-45 | Phase 4 | Pending |
+| UI-44 | Phase 4 | Complete |
+| UI-45 | Phase 4 | Complete |
 | UI-46 | Phase 1 | Pending |
 | UI-47 | Phase 1 | Pending |
 | UI-48 | Phase 9 | Pending |
 | UI-49 | Phase 9 | Pending |
 | UI-50 | Phase 9 | Pending |
 | UI-51 | Phase 1 | Pending |
-| UI-52 | Phase 4 | Pending |
+| UI-52 | Phase 4 | Complete |
 | UI-53 | Phase 1 | Pending |
-| UI-54 | Phase 4 | Pending |
+| UI-54 | Phase 4 | Complete |
 | UI-55 | Phase 1 | Pending |
 | UI-56 | Phase 1 | Pending |
 | SHARE-01 | Phase 7 | Pending |
 | SHARE-02 | Phase 7 | Pending |
 | SHARE-03 | Phase 7 | Pending |
 | SHARE-04 | Phase 2 | Complete |
-| SHARE-05 | Phase 4 | Pending |
-| SHARE-06 | Phase 4 | Pending |
+| SHARE-05 | Phase 4 | Complete |
+| SHARE-06 | Phase 4 | Complete |
 | SHARE-07 | Phase 3 | Complete |
-| SHARE-08 | Phase 4 | Pending |
+| SHARE-08 | Phase 4 | Complete |
 | SHARE-09 | Phase 0 | Complete |
 | SHARE-10 | Phase 0 | Complete |
 | SHARE-11 | Phase 0 | Complete |
-| SHARE-12 | Phase 4 | Pending |
+| SHARE-12 | Phase 4 | Complete |
 | SHARE-13 | Phase 7 | Pending |
 | SHARE-14 | Phase 7 | Pending |
 | SHARE-15 | Phase 7 | Pending |
