@@ -137,9 +137,12 @@ dataSources:
     name: ChallengeEscrow
     network: arbitrum-sepolia
     source:
-      # Phase 3 placeholder — address populated when ChallengeEscrow deploys.
+      # Phase 3 placeholder — address populated post-deploy (see STATE.md Deferred Live Infra #2).
+      # TODO: replace with real address from DeployPhase3.s.sol output + update startBlock.
+      # CHALLENGE_ESCROW_ARBITRUM_SEPOLIA is currently 0x0...0 in addresses.ts until deploy runs.
       address: "0x0000000000000000000000000000000000000000"
       abi: ChallengeEscrow
+      # TODO: replace with real deploy block from `forge script DeployPhase3` broadcast output.
       startBlock: 1
     mapping:
       kind: ethereum/events
@@ -154,8 +157,22 @@ dataSources:
       abis:
         - name: ChallengeEscrow
           file: ./abis/ChallengeEscrow.json
-      blockHandlers:
-        - handler: handleBlock
+      # Pitfall E: blockHandlers removed — Phase 0 stub is gone; only event handlers here.
+      eventHandlers:
+        - event: ChallengeProposed(indexed uint256,indexed uint256,indexed address,uint96)
+          handler: handleChallengeProposed
+        - event: ChallengeAccepted(indexed uint256,indexed address,uint96)
+          handler: handleChallengeAccepted
+        - event: ChallengeRejected(indexed uint256,indexed address)
+          handler: handleChallengeRejected
+        - event: ChallengeRefunded(indexed uint256,indexed address,uint96)
+          handler: handleChallengeRefunded
+        - event: ChallengeSettled(indexed uint256,indexed address)
+          handler: handleChallengeSettled
+        - event: PayoutClaimed(indexed uint256,indexed address,uint256,uint256)
+          handler: handlePayoutClaimed
+        - event: UnclaimedOverageCreated(indexed uint256,indexed address,uint256)
+          handler: handleUnclaimedOverageCreated
   - kind: ethereum/contract
     name: SettlementManager
     network: arbitrum-sepolia

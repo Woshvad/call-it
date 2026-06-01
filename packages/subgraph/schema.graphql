@@ -26,7 +26,6 @@ type Call @entity(immutable: false) {
   settledAt: BigInt
   quoteOf: Call
   positions: [Position!]! @derivedFrom(field: "call")
-  challenges: [Challenge!]! @derivedFrom(field: "call")
   quotes: [QuoteCall!]! @derivedFrom(field: "parentCall")
   disputes: [Dispute!]! @derivedFrom(field: "call")
 }
@@ -51,14 +50,17 @@ type Position @entity(immutable: false) {
 
 type Challenge @entity(immutable: false) {
   id: ID!
-  call: Call!
+  call: String!
   challenger: Bytes!
-  stake: BigInt!
+  caller: Bytes!
+  challengerStake: BigInt!
+  callerStake: BigInt!
   status: String!
   winner: Bytes
   proposedAt: BigInt!
   acceptedAt: BigInt
   settledAt: BigInt
+  overageClaimed: Boolean!
 }
 
 type Settlement @entity(immutable: false) {
@@ -110,11 +112,11 @@ type SocialLink @entity(immutable: false) {
 
 type UnclaimedOverage @entity(immutable: false) {
   id: ID!
-  challenge: Challenge!
+  challengeId: BigInt!
   beneficiary: Bytes!
   amount: BigInt!
   claimed: Boolean!
-  createdAt: BigInt!
+  timestamp: BigInt!
 }
 
 type CategoryRep @entity(immutable: false) {
@@ -203,10 +205,11 @@ type PositionExit @entity(immutable: true) {
 
 type ChallengePayout @entity(immutable: true) {
   id: ID!
-  challenge: Challenge!
+  challengeId: BigInt!
   winner: Bytes!
-  amount: BigInt!
-  paidAt: BigInt!
+  payout: BigInt!
+  protocolFee: BigInt!
+  timestamp: BigInt!
 }
 
 type DisputeResolution @entity(immutable: true) {
