@@ -264,8 +264,8 @@ Requirements for the v1 mainnet release. Each line is an atomic, testable behavi
 - [x] **SETTLE-32**: `DisputeRaised(callId, challenger, evidenceHash)` event is emitted; evidence is off-chain content-addressed (e.g., IPFS) (§12.4)
 - [x] **SETTLE-33**: `resolveDispute(callId, finalOutcome)` is owner-only in v1 (`NotOwner` revert) (§13.7, §12.4)
 - [x] **SETTLE-34**: If `finalOutcome != call.outcome`, dispute resolution reverses settlement — reverses rep deltas and re-distributes pool USDC from old-winner to new-winner (§12.4)
-- [ ] **SETTLE-35**: Post-claim disputes are not honored in v1 — the 24h window is shorter than typical claim activity to keep this rare (§12.4)
-- [ ] **SETTLE-36**: `DisputeResolved(callId, finalOutcome, resolver)` event is emitted on resolution (§12.4)
+- [x] **SETTLE-35**: Post-claim disputes are not honored in v1 — the 24h window is shorter than typical claim activity to keep this rare (§12.4)
+- [x] **SETTLE-36**: `DisputeResolved(callId, finalOutcome, resolver)` event is emitted on resolution (§12.4)
 - [x] **SETTLE-37**: Worst-case settlement SLA: 24h 30m maximum from `call.expiry` to final Settled state under normal flow (Pyth retries + dispute window) (§13.1, §13.7, App.A.1)
 - [x] **SETTLE-38**: SLA copy surfaced on the receipt page: "Settles within 24h after [expiry]" so users do not panic on ambiguous-read delay (§13.7)
 - [x] **SETTLE-39**: `forceSettle(callId, outcome)` escape hatch is owner-only and gated by `FORCE_SETTLE_COOLDOWN = 7 days` from `call.expiry`; reverts `ForceSettleCooldownActive(unlocksAt)` (§12.4, App.A.1)
@@ -281,7 +281,7 @@ Requirements for the v1 mainnet release. Each line is an atomic, testable behavi
 - [ ] **SETTLE-49**: Total settlement extraction is 1.7% — 1.0% protocol + 0.4% creator + 0.3% LP (§8.6, §8.11)
 - [ ] **SETTLE-50**: Creator fee follows Model B for exited callers — `0.4% × callerVolumeAtExit` snapshot, not full settled volume (§8.8, §12.4)
 - [ ] **SETTLE-51**: Challenge settlement charges 1% protocol fee on the total pot; no creator fee, no LP fee (§8.9, §12.3)
-- [ ] **SETTLE-52**: Settlement provenance is exposed on the settled receipt — line "SETTLED FROM [oracle URL] at [timestamp] UTC · view oracle proof ↗" with modal showing tx hash, raw data, signed relayer attestation (§15.7)
+- [x] **SETTLE-52**: Settlement provenance is exposed on the settled receipt — line "SETTLED FROM [oracle URL] at [timestamp] UTC · view oracle proof ↗" with modal showing tx hash, raw data, signed relayer attestation (§15.7)
 
 ### Mainnet Safety (SAFETY)
 
@@ -795,8 +795,8 @@ Which phases cover which requirements. Updated during roadmap creation by the ro
 | SETTLE-32 | Phase 4 | Complete |
 | SETTLE-33 | Phase 4 | Complete |
 | SETTLE-34 | Phase 4 | Complete |
-| SETTLE-35 | Phase 4 | Pending |
-| SETTLE-36 | Phase 4 | Pending |
+| SETTLE-35 | Phase 4 | Complete |
+| SETTLE-36 | Phase 4 | Complete |
 | SETTLE-37 | Phase 4 | Complete |
 | SETTLE-38 | Phase 4 | Complete |
 | SETTLE-39 | Phase 4 | Complete |
@@ -812,7 +812,7 @@ Which phases cover which requirements. Updated during roadmap creation by the ro
 | SETTLE-49 | Phase 4 | Pending |
 | SETTLE-50 | Phase 4 | Pending |
 | SETTLE-51 | Phase 4 | Pending |
-| SETTLE-52 | Phase 4 | Pending |
+| SETTLE-52 | Phase 4 | Complete |
 | SAFETY-01 | Phase 1 | Pending |
 | SAFETY-02 | Phase 6 | Pending |
 | SAFETY-03 | Phase 6 | Pending |

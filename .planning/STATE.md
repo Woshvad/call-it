@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: milestone
 status: executing
-stopped_at: Completed 04-06-PLAN.md
-last_updated: "2026-06-01T23:24:54.369Z"
-last_activity: 2026-06-01
+stopped_at: Completed 04-08-PLAN.md
+last_updated: "2026-06-02T00:01:01.351Z"
+last_activity: 2026-06-02
 progress:
   total_phases: 12
   completed_phases: 4
   total_plans: 40
-  completed_plans: 39
-  percent: 98
+  completed_plans: 40
+  percent: 100
 ---
 
 # Project State
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-05-21)
 ## Current Position
 
 Phase: 04 (settlementmanager-7-oracle-paths-solidity-baseline-rep-delta) — EXECUTING
-Plan: 8 of 9
+Plan: 9 of 9
 Status: Ready to execute
-Last activity: 2026-06-01
+Last activity: 2026-06-02
 
-Progress: [██████████] 98%
+Progress: [██████████] 100%
 
 ## Known Plan Issues — Phase 03 (RESOLVED at execution, 2026-06-01)
 
@@ -112,6 +112,7 @@ All 3 operator actions were run this session (user explicitly authorized "run al
 | Phase 04 P04-04 | 21min | 2 tasks | 8 files |
 | Phase 04 P06 | 21min | 3 tasks | 19 files |
 | Phase 04 P07 | 20min | 2 tasks | 7 files |
+| Phase 04-settlementmanager-7-oracle-paths-solidity-baseline-rep-delta P08 | 22min | 2 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -224,6 +225,9 @@ completed: 2026-05-29
 - [Phase 04-02]: applySettlement CALL-41 cold-start path must zero fadeReserve[callId] (not just fadeSeedVirtual) so getFadeRealReserve returns 0 post-settlement
 - [Phase ?]: PYTH_ETH_BUDGET lowered 0.1->0.05 ETH at deploy: deployer balance 0.0887 ETH insufficient; SM funded 0.05 ETH; OPS-15 covers top-up
 - [Phase 04]: rpc-metrics-adapter intentionally shares defillama KMS key — Both produce numeric off-chain attestations; different domain prevents cross-type replay
+- [Phase 04-08]: oracle.type is explicit in ProvenanceResponse (not derivable from oracle.url) — ProvenanceModal branches on this field for path-aware raw data rendering (D-10)
+- [Phase 04-08]: disputes.ts POST /raise is thin relay — raiseDispute is permissionless on-chain; frontend calls SM.raiseDispute directly (SETTLE-01 compatibility)
+- [Phase 04-08]: reversal preview is required before resolveDispute confirm (D-07 gate) — preview fetch fail → confirm DISABLED with "Preview unavailable — cannot resolve safely."
 
 ## Performance
 
@@ -357,6 +361,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-06-01T23:24:54.353Z
-Stopped at: Completed 04-06-PLAN.md
+Last session: 2026-06-02T00:01:01.339Z
+Stopped at: Completed 04-08-PLAN.md
 Resume file: None
