@@ -21,14 +21,16 @@ interface ICallRegistry {
 
     /// @notice Event subtype for Event calls. CALL-03/15/16.
     enum EventSubtype {
-        None,             // 0 — no subtype (used for PriceTarget/SpreadVs)
-        TvlMilestone,     // 1 — TVL threshold event
-        VolumeFees,       // 2 — volume/fees threshold event
-        OnchainMetric,    // 3 — generic on-chain metric event
-        CexListing,       // 4 — CEX listing event (requires criteriaHash)
-        TokenLaunch,      // 5 — token launch event (requires criteriaHash)
-        Governance,       // 6 — governance vote outcome (requires criteriaHash)
-        ProtocolMilestone // 7 — protocol milestone event (requires criteriaHash)
+        None,                 // 0 — no subtype (used for PriceTarget/SpreadVs)
+        TvlMilestone,         // 1 — TVL threshold event
+        VolumeFees,           // 2 — volume/fees threshold event
+        OnchainMetric,        // 3 — generic on-chain metric event
+        CexListing,           // 4 — CEX listing event (requires criteriaHash)
+        TokenLaunch,          // 5 — token launch event (requires criteriaHash)
+        // Governance enum split: supports BOTH Snapshot(4) and Tally(5) oracle adapters via distinct adapterMap keys
+        Governance_Snapshot,  // 6 — NEW: Phase 05.1 Option A enum split (SETTLE-DUAL-GOV)
+        Governance_Tally,     // 7 — NEW: Phase 05.1 Option A enum split (SETTLE-DUAL-GOV)
+        ProtocolMilestone     // 8 — renumbered from 7 (Phase 05.1 Option A)
     }
 
     /// @dev Ordinals are stable: Live=0, Settled=1, Disputed=2, CallerExited=3. Do NOT reorder.
