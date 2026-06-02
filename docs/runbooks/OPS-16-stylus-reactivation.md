@@ -126,24 +126,36 @@ This is the spec §11.6 "Stylus build cutoff" escape hatch. The Solidity baselin
 
 ```bash
 # Upgrade the transparent proxy to point at the Solidity baseline
-# SOLIDITY_BASELINE_ADDRESS: the in-contract fallback deployed in Phase 4
-# STYLUS_PROXY_ADMIN: the ProxyAdmin contract from Phase 5 proxy setup
-export SOLIDITY_BASELINE_ADDRESS=<phase-4-deployed-solidity-baseline-address>
-export STYLUS_PROXY_ADMIN=<proxy-admin-address-from-phase-5>
+# SOLIDITY_SCORE_ENGINE_ARBITRUM_SEPOLIA: deployed in Phase 5 via DeployPhase5Stylus.s.sol
+# Source: packages/shared/src/constants/addresses.ts
+#   (populated after Phase 5 Plan 06 deploy — see SOLIDITY_SCORE_ENGINE_ARBITRUM_SEPOLIA)
+# PROXY_ADMIN_ARBITRUM_SEPOLIA: ProxyAdmin contract from Phase 5 proxy setup
+#   (also in packages/shared/src/constants/addresses.ts)
+
+# Option A: One-command upgrade via CutoffFallback.s.sol (recommended — validates via require())
+forge script script/CutoffFallback.s.sol \
+  --rpc-url $ARBITRUM_SEPOLIA_RPC_URL \
+  --broadcast
+
+# Option B: Manual cast send (equivalent to CutoffFallback.s.sol run())
+export SOLIDITY_BASELINE_ADDR=$SOLIDITY_SCORE_ENGINE_ARBITRUM_SEPOLIA
+export PROXY_ADMIN_ADDR=$PROXY_ADMIN_ARBITRUM_SEPOLIA
 
 # Using multisig (Phase 6+) via Safe or deployer key (Phase 4-5):
-cast send $STYLUS_PROXY_ADMIN \
-  "upgrade(address,address)" \
+cast send $PROXY_ADMIN_ADDR \
+  "upgradeAndCall(address,address,bytes)" \
   $STYLUS_ENGINE_ADDRESS \
-  $SOLIDITY_BASELINE_ADDRESS \
-  --rpc-url $ARB_ONE_RPC_URL \
+  $SOLIDITY_BASELINE_ADDR \
+  "" \
+  --rpc-url $ARBITRUM_SEPOLIA_RPC_URL \
   --private-key $DEPLOYER_PRIVATE_KEY
 
 # Verify proxy now delegates to Solidity baseline
-cast call $STYLUS_ENGINE_ADDRESS \
-  "implementation()(address)" \
-  --rpc-url $ARB_ONE_RPC_URL
-# Should return SOLIDITY_BASELINE_ADDRESS
+cast call $PROXY_ADMIN_ADDR \
+  "getProxyImplementation(address)(address)" \
+  $STYLUS_ENGINE_ADDRESS \
+  --rpc-url $ARBITRUM_SEPOLIA_RPC_URL
+# Should return SOLIDITY_SCORE_ENGINE_ARBITRUM_SEPOLIA address
 ```
 
 Pitch to investors: "Stylus in production roadmap" -- the Solidity baseline provides functionally identical reputation scoring, just without the Rust/WASM performance characteristics. Phase 5+ restores the full-fidelity engine.
@@ -222,5 +234,6 @@ git add docs/incidents/ && git commit -m "docs(ops): stylus-reactivation $(date 
 ---
 
 *Phase 4 -- Solidity baseline ships in-contract. Stylus engine deploys in Phase 5.*
-*OPS-16 written alongside DeployPhase4.s.sol (plan 04-03).*
-*48h cutoff command: cast send $STYLUS_PROXY_ADMIN "upgrade(address,address)" $STYLUS_ENGINE_ADDRESS $SOLIDITY_BASELINE_ADDRESS*
+*OPS-16 written alongside DeployPhase4.s.sol (plan 04-03). Updated Phase 5 (plan 05-05) to reference CutoffFallback.s.sol and SOLIDITY_SCORE_ENGINE_ARBITRUM_SEPOLIA from addresses.ts.*
+*48h cutoff command: `forge script script/CutoffFallback.s.sol --rpc-url $ARBITRUM_SEPOLIA_RPC_URL --broadcast`*
+*Post-reactivation: run `pnpm tsx scripts/repoint-calendar.ts --stylus-deploy-date $(date +%Y-%m-%d)` to update calendar alerts.*
