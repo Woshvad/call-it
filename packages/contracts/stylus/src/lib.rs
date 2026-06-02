@@ -58,6 +58,13 @@ mod engine {
     /// The SettlementManager calls this engine via:
     ///   try IStylusScoreEngine(stylusAddr).compute_rep_change(...) returns (int32 delta)
     /// On success: RepCalculated event. On revert: falls back to _solidityBaselineRepDelta.
+    ///
+    /// #[entrypoint] is MANDATORY: it marks this as the contract's main struct so the
+    /// Stylus SDK emits the `user_entrypoint` export. Without it, `cargo stylus check`
+    /// fails with "missing an entrypoint" and the optimizer strips the contract to ~86B
+    /// (undeployable). The macro also wires the global allocator + panic handler for the
+    /// no_std wasm32 target.
+    #[entrypoint]
     #[storage]
     pub struct StylusScoreEngine;
 

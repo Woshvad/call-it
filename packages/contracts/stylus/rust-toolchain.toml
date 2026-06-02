@@ -1,0 +1,13 @@
+# Pinned Rust toolchain for the StylusScoreEngine WASM build.
+#
+# cargo-stylus (check/deploy/verify) REQUIRES a specific channel here for
+# reproducible builds — it rejects generic channels like "stable"/"nightly".
+# See: https://rust-lang.github.io/rustup/overrides.html#the-toolchain-file
+#
+# Pinned to the toolchain verified for Phase 5 (rustc 1.96.0, MSVC host).
+# Phase 5 Plan 06 (operator deploy) runs `cargo stylus check/deploy/activate`
+# against this exact channel.
+[toolchain]
+channel = "1.96.0"
+targets = ["wasm32-unknown-unknown"]
+profile = "minimal"
