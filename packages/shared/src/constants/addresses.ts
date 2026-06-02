@@ -303,3 +303,75 @@ export const SUBGRAPH_URL_SEPOLIA =
  * See: 01-CONTEXT.md "Out of scope: Decentralized Network subgraph publish (→ Phase 7)"
  */
 export const SUBGRAPH_URL_MAINNET: string | null = null;
+
+// ---------------------------------------------------------------------------
+// Phase 5 — StylusScoreEngine proxy + supporting contracts (Arbitrum Sepolia)
+// Deployed via DeployPhase5Stylus.s.sol (Plan 05-06 operator deploy).
+// All values are placeholders; FILL AFTER DEPLOY.
+// ---------------------------------------------------------------------------
+
+/**
+ * StylusScoreEngine proxy on Arbitrum Sepolia (Phase 5 deploy).
+ *
+ * FILL AFTER DEPLOY (Phase 5 Plan 06): replace zero address with output of
+ * DeployPhase5Stylus.s.sol "StylusScoreEngine proxy:" console.log line.
+ *
+ * Architecture: TransparentUpgradeableProxy (OZ 5.6.1) -> StylusScoreEngine WASM
+ * (cargo-stylus 0.6.3). SettlementManager.setStylusScoreEngine() points at this address.
+ * 48h cutoff: upgrade proxy to SolidityScoreEngine via CutoffFallback.s.sol (OPS-16).
+ *
+ * Post-deploy verification:
+ *   sm.stylusScoreEngine()       -> this address                       ✓
+ *   proxy.compute_rep_change(100, 50, 50, true, 10)  -> non-zero int32  ✓
+ *
+ * Threat: T-05-04-02 -- wrong SM address wired prevented by post-deploy require() assertion.
+ */
+export const STYLUS_SCORE_ENGINE_PROXY_ARBITRUM_SEPOLIA =
+  '0x0000000000000000000000000000000000000000' as const; // FILL AFTER DEPLOY (Phase 5 Plan 06)
+
+/**
+ * ProxyAdmin on Arbitrum Sepolia (Phase 5 deploy).
+ *
+ * FILL AFTER DEPLOY (Phase 5 Plan 06): replace zero address with output of
+ * DeployPhase5Stylus.s.sol "ProxyAdmin:" console.log line.
+ *
+ * Owner = deployer EOA in Phase 5. Phase 6 promotes to multisig (SAFETY-20).
+ * Use this address to run CutoffFallback.s.sol (PROXY_ADMIN_ADDR constant).
+ *
+ * Post-deploy verification:
+ *   proxyAdmin.owner()           -> deployer address                   ✓
+ */
+export const PROXY_ADMIN_ARBITRUM_SEPOLIA =
+  '0x0000000000000000000000000000000000000000' as const; // FILL AFTER DEPLOY (Phase 5 Plan 06)
+
+/**
+ * SolidityScoreEngine on Arbitrum Sepolia (Phase 5 deploy).
+ *
+ * FILL AFTER DEPLOY (Phase 5 Plan 06): replace zero address with output of
+ * DeployPhase5Stylus.s.sol "SolidityScoreEngine:" console.log line.
+ *
+ * 48h-cutoff fallback contract. Implements IStylusScoreEngine with the same
+ * math as SettlementManager._solidityBaselineRepDelta (REP-24 parity).
+ * Use this address as SOLIDITY_BASELINE_ADDR in CutoffFallback.s.sol (OPS-16).
+ *
+ * Post-deploy verification:
+ *   solidityEngine.compute_rep_change(0, 50, 0, true, 10)  -> 10          ✓
+ */
+export const SOLIDITY_SCORE_ENGINE_ARBITRUM_SEPOLIA =
+  '0x0000000000000000000000000000000000000000' as const; // FILL AFTER DEPLOY (Phase 5 Plan 06)
+
+/**
+ * RevertingStylusEngine on Arbitrum Sepolia (Phase 5 deploy).
+ *
+ * FILL AFTER DEPLOY (Phase 5 Plan 06): replace zero address with output of
+ * DeployPhase5Stylus.s.sol "RevertingStylusEngine:" console.log line.
+ *
+ * Phase 6 SAFETY-42 drill fixture. Intentionally reverts on compute_rep_change.
+ * Used to verify SettlementManager try/catch fallback fires RepCalculatedFallback event.
+ * Wire this address via setStylusScoreEngine() in Phase 6 drill, then restore proxy.
+ *
+ * Post-deploy verification:
+ *   revertingEngine.compute_rep_change(...)  -> reverts                  ✓
+ */
+export const REVERTING_STYLUS_ENGINE_ARBITRUM_SEPOLIA =
+  '0x0000000000000000000000000000000000000000' as const; // FILL AFTER DEPLOY (Phase 5 Plan 06)
