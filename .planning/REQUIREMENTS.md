@@ -218,7 +218,7 @@ Requirements for the v1 mainnet release. Each line is an atomic, testable behavi
 - [ ] **REP-18**: `settledCalls` count is read by `createCall` to enforce the §6.3 high-conviction floor (§6.3, §12.5)
 - [x] **REP-19**: StylusScoreEngine exposes Rust `compute_rep_change(currentRep, conviction, consensusPct, isWinner, baseValue) -> i32` callable via Stylus cross-contract invocation (§11.6, §12.6)
 - [x] **REP-20**: StylusScoreEngine handles confidence multiplier, contrarian multiplier (winners only), high-conviction 2× asymmetry at conviction ≥85, and floor clamping at 0 (§12.6)
-- [ ] **REP-21**: StylusScoreEngine is deployed behind a minimal transparent proxy with deployer-key admin; upgrades require pause → upgrade → unpause (§10.8, §11.6)
+- [x] **REP-21**: StylusScoreEngine is deployed behind a minimal transparent proxy with deployer-key admin; upgrades require pause → upgrade → unpause (§10.8, §11.6)
 - [x] **REP-22**: SettlementManager wraps the Stylus call in try/catch; on Stylus revert, falls back to a Solidity baseline `_solidityBaselineRepDelta(...)` at lower fidelity (linear confidence scaling, fixed contrarian multiplier 1.0, no high-conviction asymmetry) (§11.6, §12.4)
 - [x] **REP-23**: On runtime fallback path, settlement still completes and `RepCalculatedFallback(callId, user, baselineDelta, lowLevelError)` event fires for operator investigation (§11.6, §12.4)
 - [x] **REP-24**: Build-time fallback: if Rust + Stylus path is not working by 48 hours before demo, swap to Solidity baseline implementation in the same proxy slot at full fidelity (§11.6, App.A.1)
@@ -752,7 +752,7 @@ Which phases cover which requirements. Updated during roadmap creation by the ro
 | REP-18 | Phase 1 | Pending |
 | REP-19 | Phase 5 | Complete |
 | REP-20 | Phase 5 | Complete |
-| REP-21 | Phase 5 | Pending |
+| REP-21 | Phase 5 | Complete |
 | REP-22 | Phase 4 | Complete |
 | REP-23 | Phase 4 | Complete |
 | REP-24 | Phase 5 | Complete |
