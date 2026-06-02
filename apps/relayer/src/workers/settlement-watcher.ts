@@ -34,12 +34,15 @@ import {
   PythAdapterStatus,
   settlePythCall,
 } from './oracle-adapters/pyth-adapter.js';
-import { NftTwapAdapter, submitNftFloor } from './oracle-adapters/nft-twap-adapter.js';
+import { NftTwapAdapter } from './oracle-adapters/nft-twap-adapter.js';
 import { DefiLlamaAdapter } from './oracle-adapters/defillama-adapter.js';
 import { RpcMetricsAdapter } from './oracle-adapters/rpc-metrics-adapter.js';
 import { SnapshotAdapter } from './oracle-adapters/snapshot-adapter.js';
 import { TallyAdapter } from './oracle-adapters/tally-adapter.js';
 import { CexAdapter } from './oracle-adapters/cex/cex-adapter.js';
+import {
+  SUBMIT_ATTESTATION_ABI,
+} from './oracle-adapters/oracle-attestation.js';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -57,34 +60,59 @@ const SETTLEMENT_QUEUE_NAME = 'settlement';
 
 // ── Minimal ABIs ──────────────────────────────────────────────────────────────
 
+/**
+ * Canonical 19-field Call struct ABI — mirrors ICallRegistry.sol:130-157 exactly.
+ * Field names and types must match the deployed contract; any drift causes wrong ABI decode.
+ */
 const CALL_REGISTRY_ABI = [
   {
     type: 'function',
     name: 'getCall',
-    inputs: [{ name: 'callId', type: 'uint256', internalType: 'uint256' }],
+    inputs: [{ name: 'callId', type: 'uint256' }],
     outputs: [
       {
         name: '',
         type: 'tuple',
-        internalType: 'struct ICallRegistry.Call',
         components: [
-          { name: 'caller', type: 'address', internalType: 'address' },
-          { name: 'marketType', type: 'uint8', internalType: 'uint8' },
-          { name: 'eventSubtype', type: 'uint8', internalType: 'uint8' },
-          { name: 'assetA_feedId', type: 'bytes32', internalType: 'bytes32' },
-          { name: 'assetB_feedId', type: 'bytes32', internalType: 'bytes32' },
-          { name: 'stake', type: 'uint256', internalType: 'uint256' },
-          { name: 'conviction', type: 'uint8', internalType: 'uint8' },
-          { name: 'expiry', type: 'uint256', internalType: 'uint256' },
-          { name: 'createdAt', type: 'uint256', internalType: 'uint256' },
-          { name: 'status', type: 'uint8', internalType: 'uint8' },
-          { name: 'outcome', type: 'uint8', internalType: 'uint8' },
-          { name: 'callerExitedAt', type: 'uint256', internalType: 'uint256' },
-          { name: 'category', type: 'uint8', internalType: 'uint8' },
-          { name: 'criteriaHash', type: 'bytes32', internalType: 'bytes32' },
+          { name: 'caller',           type: 'address' },
+          { name: 'stake',            type: 'uint96'  },
+          { name: 'virtualFadeSeed', type: 'uint96'  },
+          { name: 'createdAt',        type: 'uint64'  },
+          { name: 'expiry',           type: 'uint64'  },
+          { name: 'marketType',       type: 'uint8'   },
+          { name: 'eventSubtype',     type: 'uint8'   },
+          { name: 'category',         type: 'uint8'   },
+          { name: 'status',           type: 'uint8'   },
+          { name: 'conviction',       type: 'uint8'   },
+          { name: 'openToChallenges', type: 'bool'    },
+          { name: 'callerExitedAt',   type: 'uint64'  },
+          { name: 'outcome',          type: 'uint8'   },
+          { name: 'duplicateHash',    type: 'bytes32' },
+          { name: 'criteriaHash',     type: 'bytes32' },
+          { name: 'assetA',           type: 'uint256' },
+          { name: 'assetB',           type: 'uint256' },
+          { name: 'targetValue',      type: 'uint256' },
+          { name: 'parentCallId',     type: 'uint256' },
         ],
       },
     ],
+    stateMutability: 'view',
+  },
+] as const;
+
+/**
+ * adapterMap public mapping getter — derived from SettlementManager.sol:119-120.
+ * adapterMap[marketType][eventSubtype] -> OracleAdapter enum value (uint8).
+ */
+const ADAPTER_MAP_ABI = [
+  {
+    type: 'function',
+    name: 'adapterMap',
+    inputs: [
+      { name: '', type: 'uint8' },
+      { name: '', type: 'uint8' },
+    ],
+    outputs: [{ name: '', type: 'uint8' }],
     stateMutability: 'view',
   },
 ] as const;
@@ -350,6 +378,8 @@ export function startSettlementWatcher(config: SettlementWatcherConfig): Settlem
     ...kmsConfig,
     kmsKeyVersion: process.env.GCP_KEY_VERSION_CEX ?? '1',
     kmsExpectedAddress: process.env.KMS_ADDRESS_CEX as `0x${string}` | undefined,
+    // walletClient wired so scrapeAndAttest calls SM.submitAttestation internally (Pitfall 6 fix)
+    walletClient: walletClient as { writeContract: (params: unknown) => Promise<`0x${string}`> },
   });
 
   /**
@@ -386,13 +416,24 @@ export function startSettlementWatcher(config: SettlementWatcherConfig): Settlem
       // (1) Fetch call details from CallRegistry
       let call: {
         caller: Address;
+        stake: bigint;
+        virtualFadeSeed: bigint;
+        createdAt: bigint;
+        expiry: bigint;
         marketType: number;
         eventSubtype: number;
-        assetA_feedId: `0x${string}`;
-        assetB_feedId: `0x${string}`;
-        stake: bigint;
-        expiry: bigint;
+        category: number;
         status: number;
+        conviction: number;
+        openToChallenges: boolean;
+        callerExitedAt: bigint;
+        outcome: number;
+        duplicateHash: `0x${string}`;
+        criteriaHash: `0x${string}`;
+        assetA: bigint;
+        assetB: bigint;
+        targetValue: bigint;
+        parentCallId: bigint;
       };
       try {
         call = await publicClient.readContract({
@@ -414,22 +455,26 @@ export function startSettlementWatcher(config: SettlementWatcherConfig): Settlem
       // (2b) Fetch acceptedChallengeIds from subgraph (Blocker 3 fix)
       const acceptedChallengeIds = await getAcceptedChallengeIds(callId, subgraphUrl);
 
-      // (3) Dispatch to oracle adapter based on (marketType, eventSubtype) — SETTLE-06
-      // marketType field maps to OracleAdapter enum (relayer reads the on-chain adapterMap
-      // or uses the call's marketType as a proxy for adapter selection)
-      // For simplicity: marketType=0 → Pyth; marketType=1 → NftTwap; etc.
-      // In production the relayer would call adapterMap(marketType, eventSubtype) on-chain.
-      const adapterType: OracleAdapter = call.marketType as OracleAdapter;
+      // (3) Dispatch to oracle adapter based on on-chain adapterMap(marketType, eventSubtype) — SETTLE-06
+      // Reads the authoritative mapping from the deployed SettlementManager.
+      // Default = OracleAdapter.Pyth(0) for unmapped slots.
+      const adapterType: number = Number(await publicClient.readContract({
+        address: settlementManagerAddress,
+        abi: ADAPTER_MAP_ABI,
+        functionName: 'adapterMap',
+        args: [call.marketType, call.eventSubtype],
+      }));
 
       logger.info(
-        { event: 'settlement_dispatch', callId: callIdStr, adapterType, marketType: call.marketType },
-        `Dispatching to oracle adapter ${OracleAdapter[adapterType] ?? adapterType}`,
+        { event: 'settlement_dispatch', callId: callIdStr, adapterType, marketType: call.marketType, eventSubtype: call.eventSubtype },
+        `Dispatching to oracle adapter ${adapterType}`,
       );
 
       switch (adapterType) {
-        // ── case OracleAdapter.Pyth ──────────────────────────────────────────
+        // ── case 0: Pyth ──────────────────────────────────────────────────────
         case OracleAdapter.Pyth: {
-          const priceId = (call.assetA_feedId as string).replace(/^0x/, '');
+          // assetA encodes the Pyth feedId as uint256(bytes32(feedId))
+          const priceId = call.assetA.toString(16).padStart(64, '0');
 
           const fetchResult = await pythAdapter.fetchAndVerify({
             priceId,
@@ -483,10 +528,10 @@ export function startSettlementWatcher(config: SettlementWatcherConfig): Settlem
           break;
         }
 
-        // ── case OracleAdapter.NftTwap ───────────────────────────────────────
+        // ── case 1: NftTwap ──────────────────────────────────────────────────
         case OracleAdapter.NftTwap: {
-          // assetA_feedId is used as the NFT contract address for this adapter type
-          const contractAddress = call.assetA_feedId;
+          // assetA encodes the NFT contract address as uint256(address(nftContract))
+          const contractAddress = ('0x' + call.assetA.toString(16).padStart(40, '0').slice(-40)) as `0x${string}`;
           const attestation = await nftTwapAdapter.fetchAndAttest(
             callId,
             contractAddress,
@@ -505,49 +550,41 @@ export function startSettlementWatcher(config: SettlementWatcherConfig): Settlem
             return;
           }
 
-          await submitNftFloor(
-            callId,
-            attestation.attestationData,
-            attestation.signature,
-            walletClient as { writeContract: (params: unknown) => Promise<`0x${string}`> },
-            settlementManagerAddress,
-          );
+          await (walletClient as { writeContract: (params: unknown) => Promise<`0x${string}`> }).writeContract({
+            address: settlementManagerAddress,
+            abi: SUBMIT_ATTESTATION_ABI,
+            functionName: 'submitAttestation',
+            args: [callId, attestation.attestationData, attestation.signature],
+          });
           break;
         }
 
-        // ── case OracleAdapter.DefiLlama ─────────────────────────────────────
+        // ── case 2: DefiLlama ─────────────────────────────────────────────────
         case OracleAdapter.DefiLlama: {
+          // assetA encodes the protocolSlug identifier (stored as uint256 via criteria store)
           const dlAttestation = await defiLlamaAdapter.fetchAndAttest({
             callId,
             metric: 'tvl',
-            protocolSlug: call.assetA_feedId, // protocolSlug stored in assetA_feedId for this adapter type
+            protocolSlug: call.assetA.toString(16), // decoded from assetA field
+            targetValue: call.targetValue,
           });
 
-          // submitDefiLlamaAttestation
-          const SM_SUBMIT_ABI_DL = [{
-            type: 'function', name: 'submitAttestation',
-            inputs: [
-              { name: 'callId', type: 'uint256', internalType: 'uint256' },
-              { name: 'attestationData', type: 'bytes', internalType: 'bytes' },
-              { name: 'signature', type: 'bytes', internalType: 'bytes' },
-            ],
-            outputs: [], stateMutability: 'nonpayable',
-          }] as const;
           await (walletClient as { writeContract: (p: unknown) => Promise<`0x${string}`> }).writeContract({
             address: settlementManagerAddress,
-            abi: SM_SUBMIT_ABI_DL,
+            abi: SUBMIT_ATTESTATION_ABI,
             functionName: 'submitAttestation',
             args: [callId, dlAttestation.attestationData, dlAttestation.signature],
           });
           break;
         }
 
-        // ── case OracleAdapter.RpcMetrics ────────────────────────────────────
+        // ── case 3: RpcMetrics ────────────────────────────────────────────────
         case OracleAdapter.RpcMetrics: {
           const rpcAttestation = await rpcMetricsAdapter.fetchAndAttest(
             callId,
             'liquidation',
             Number(call.expiry),
+            call.targetValue,
           );
 
           if (rpcAttestation.ambiguous) {
@@ -559,28 +596,19 @@ export function startSettlementWatcher(config: SettlementWatcherConfig): Settlem
             return;
           }
 
-          const SM_SUBMIT_ABI_RPC = [{
-            type: 'function', name: 'submitAttestation',
-            inputs: [
-              { name: 'callId', type: 'uint256', internalType: 'uint256' },
-              { name: 'attestationData', type: 'bytes', internalType: 'bytes' },
-              { name: 'signature', type: 'bytes', internalType: 'bytes' },
-            ],
-            outputs: [], stateMutability: 'nonpayable',
-          }] as const;
           await (walletClient as { writeContract: (p: unknown) => Promise<`0x${string}`> }).writeContract({
             address: settlementManagerAddress,
-            abi: SM_SUBMIT_ABI_RPC,
+            abi: SUBMIT_ATTESTATION_ABI,
             functionName: 'submitAttestation',
             args: [callId, rpcAttestation.attestationData, rpcAttestation.signature],
           });
           break;
         }
 
-        // ── case OracleAdapter.Snapshot ──────────────────────────────────────
+        // ── case 4: Snapshot ──────────────────────────────────────────────────
         case OracleAdapter.Snapshot: {
-          // proposalId stored in assetA_feedId for Snapshot adapter type
-          const proposalId = call.assetA_feedId;
+          // assetA encodes the Snapshot proposalId as uint256(bytes32(proposalId))
+          const proposalId = '0x' + call.assetA.toString(16).padStart(64, '0');
           const snapshotAtt = await snapshotAdapter.fetchAndAttest(callId, proposalId);
 
           if (snapshotAtt.ambiguous) {
@@ -592,28 +620,19 @@ export function startSettlementWatcher(config: SettlementWatcherConfig): Settlem
             return;
           }
 
-          const SM_SUBMIT_ABI_SS = [{
-            type: 'function', name: 'submitAttestation',
-            inputs: [
-              { name: 'callId', type: 'uint256', internalType: 'uint256' },
-              { name: 'attestationData', type: 'bytes', internalType: 'bytes' },
-              { name: 'signature', type: 'bytes', internalType: 'bytes' },
-            ],
-            outputs: [], stateMutability: 'nonpayable',
-          }] as const;
           await (walletClient as { writeContract: (p: unknown) => Promise<`0x${string}`> }).writeContract({
             address: settlementManagerAddress,
-            abi: SM_SUBMIT_ABI_SS,
+            abi: SUBMIT_ATTESTATION_ABI,
             functionName: 'submitAttestation',
             args: [callId, snapshotAtt.attestationData, snapshotAtt.signature],
           });
           break;
         }
 
-        // ── case OracleAdapter.Tally ─────────────────────────────────────────
+        // ── case 5: Tally ─────────────────────────────────────────────────────
         case OracleAdapter.Tally: {
-          // proposalId stored in assetA_feedId for Tally adapter type
-          const tallyProposalId = call.assetA_feedId;
+          // assetA encodes the Tally proposalId as uint256 (on-chain proposalId is already uint256)
+          const tallyProposalId = call.assetA.toString();
           const tallyAtt = await tallyAdapter.fetchAndAttest(callId, tallyProposalId);
 
           if (tallyAtt.ambiguous) {
@@ -625,30 +644,20 @@ export function startSettlementWatcher(config: SettlementWatcherConfig): Settlem
             return;
           }
 
-          const SM_SUBMIT_ABI_TL = [{
-            type: 'function', name: 'submitAttestation',
-            inputs: [
-              { name: 'callId', type: 'uint256', internalType: 'uint256' },
-              { name: 'attestationData', type: 'bytes', internalType: 'bytes' },
-              { name: 'signature', type: 'bytes', internalType: 'bytes' },
-            ],
-            outputs: [], stateMutability: 'nonpayable',
-          }] as const;
           await (walletClient as { writeContract: (p: unknown) => Promise<`0x${string}`> }).writeContract({
             address: settlementManagerAddress,
-            abi: SM_SUBMIT_ABI_TL,
+            abi: SUBMIT_ATTESTATION_ABI,
             functionName: 'submitAttestation',
             args: [callId, tallyAtt.attestationData, tallyAtt.signature],
           });
           break;
         }
 
-        // ── case OracleAdapter.CexScraper ────────────────────────────────────
+        // ── case 6: CexScraper ────────────────────────────────────────────────
         case OracleAdapter.CexScraper: {
-          // tokenSymbol stored in assetA_feedId; tokenName in assetB_feedId (for this adapter type)
-          // In practice, these would be decoded from call criteria/metadata
-          const tokenSymbol = (call.assetA_feedId as string).replace(/^0x/, '');
-          const tokenName = (call.assetB_feedId as string).replace(/^0x/, '');
+          // assetA encodes the tokenSymbol; assetB encodes the tokenName (as uint256 from bytes)
+          const tokenSymbol = call.assetA.toString(16);
+          const tokenName = call.assetB.toString(16);
           const cexOutcome = await cexAdapter.scrapeAndAttest(
             callId,
             tokenSymbol,
@@ -656,7 +665,7 @@ export function startSettlementWatcher(config: SettlementWatcherConfig): Settlem
             Number(call.expiry),
           );
 
-          if (cexOutcome === 'not_found' || cexOutcome === 'ambiguous') {
+          if (typeof cexOutcome === 'string' && (cexOutcome === 'not_found' || cexOutcome === 'ambiguous')) {
             logger.warn(
               { event: 'cex_scraper_not_found', callId: callIdStr, cexOutcome },
               `CEX scraper outcome: ${cexOutcome} — opening dispute window`,
@@ -665,18 +674,25 @@ export function startSettlementWatcher(config: SettlementWatcherConfig): Settlem
             return;
           }
 
-          // 'found' — attestation was signed inside cexAdapter.scrapeAndAttest
-          // In full production, would also call SM.submitAttestation with the signed data
-          logger.info(
-            { event: 'cex_scraper_found', callId: callIdStr },
-            'CEX listing confirmed — attestation signed',
-          );
+          // 'found' — scrapeAndAttest now calls SM.submitAttestation internally (Pitfall 6 fix)
+          if (typeof cexOutcome === 'object' && cexOutcome.status === 'found') {
+            // Internal submission already done inside cex-adapter.scrapeAndAttest
+            logger.info(
+              { event: 'cex_scraper_found', callId: callIdStr },
+              'CEX listing confirmed — attestation signed and submitted',
+            );
+          } else if (typeof cexOutcome === 'string' && cexOutcome === 'found') {
+            logger.info(
+              { event: 'cex_scraper_found', callId: callIdStr },
+              'CEX listing confirmed — attestation signed and submitted',
+            );
+          }
           break;
         }
 
         // ── default: unknown adapter type ─────────────────────────────────────
         default: {
-          const unknownAdapter = adapterType as number;
+          const unknownAdapter = adapterType;
           logger.error(
             { event: 'settlement_unknown_adapter', callId: callIdStr, adapterType: unknownAdapter },
             `Unknown oracle adapter type ${unknownAdapter} — cannot settle`,
