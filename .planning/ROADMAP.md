@@ -168,7 +168,14 @@ Call It ships as a person-first onchain social prediction product on Arbitrum ma
   2. `compute_rep_change(currentRep, conviction, consensusPct, isWinner, baseValue) -> i32` handles confidence multiplier, contrarian multiplier (winners only), high-conviction 2× asymmetry at conviction ≥85, floor clamping at 0; cross-contract call from SettlementManager step 7 succeeds via type-safe `#[public]` trait; `RepCalculated(callId, user, currentRep, conviction, consensusPct, isWinner, baseValue, delta)` event fires with full inputs for debuggability.
   3. `RevertingStylusEngine` test fixture is built in parallel — same proxy slot, intentionally reverts on `compute_rep_change` — and deploys cleanly to Sepolia (drill is run in Phase 6, not here, but the fixture must compile and be ready).
   4. 48h-before-demo cutoff decision rule is documented and pre-staged: Solidity baseline (already in-contract from Phase 4) becomes the proxy target via `cast send proxy "upgradeTo(address)" $SOLIDITY_BASELINE_ADDR` — single mechanical command, tested on Sepolia, no panicked rewrite path; calendar reminders fire 72h, 48h, 24h before the demo to force the go/no-go call.
-**Plans**: TBD
+**Plans**: 7 plans across 5 waves
+  - [ ] 05-01-PLAN.md — Wave 1: RED test scaffold (Rust math.rs stub + test_math.rs D-2 worked examples + SolidityScoreEngine.t.sol + selector CI gate)
+  - [ ] 05-02-PLAN.md — Wave 2: GREEN Rust engine (full D-2 math in math.rs + lib.rs #[selector] + #[storage] + #[public])
+  - [ ] 05-03-PLAN.md — Wave 2: Solidity contracts (SolidityScoreEngine.sol baseline + RevertingStylusEngine.sol drill fixture)
+  - [ ] 05-04-PLAN.md — Wave 3: Deploy scripts (DeployPhase5Stylus.s.sol + CutoffFallback.s.sol + addresses.ts stubs)
+  - [ ] 05-05-PLAN.md — Wave 3: Relayer extension (deactivation-watcher demo-cutoff alerts + Test 5 + OPS-16 runbook)
+  - [ ] 05-06-PLAN.md — Wave 4: [OPERATOR] Sepolia deploy + activation + SM wiring + integration verification
+  - [ ] 05-07-PLAN.md — Wave 5: [OPERATOR] Cutoff round-trip rehearsal + Phase 5 success criteria audit
 **Pitfalls mitigated**: 2 (RevertingStylusEngine fixture built here, drill in Phase 6), 5 (48h cutoff path is mechanical not panicked), 17 (Stylus reactivation runbook + Telegram alerts wired to deploy date)
 
 ### Phase 6: Safety review + Sepolia ≥48h + multisig promotion
@@ -251,7 +258,7 @@ Phases execute in numeric order: 0 → 1 → 1.5 (parallel with 2) → 2 → 3 �
 | 2. FollowFadeMarket | 9/9 | Complete | 2026-05-31 |
 | 3. ChallengeEscrow | 5/7 | In Progress|  |
 | 4. SettlementManager + 7 oracle paths + Solidity baseline rep delta | 9/9 | Complete | 2026-06-02 |
-| 5. StylusScoreEngine + 48h cutoff | 0/TBD | Not started | - |
+| 5. StylusScoreEngine + 48h cutoff | 0/7 | In Progress | - |
 | 6. Safety review + Sepolia ≥48h + multisig promotion | 0/TBD | Not started | - |
 | 7. OG service final variants + Subgraph final mappings | 0/TBD | Not started | - |
 | 7.5. Mainnet deploy gate | 0/TBD | Not started | - |
