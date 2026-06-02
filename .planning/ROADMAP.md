@@ -170,7 +170,7 @@ Call It ships as a person-first onchain social prediction product on Arbitrum ma
   4. 48h-before-demo cutoff decision rule is documented and pre-staged: Solidity baseline (already in-contract from Phase 4) becomes the proxy target via `cast send proxy "upgradeTo(address)" $SOLIDITY_BASELINE_ADDR` — single mechanical command, tested on Sepolia, no panicked rewrite path; calendar reminders fire 72h, 48h, 24h before the demo to force the go/no-go call.
 **Plans**: 7 plans across 5 waves
   - [x] 05-01-PLAN.md — Wave 1: RED test scaffold (Rust math.rs stub + test_math.rs D-2 worked examples + SolidityScoreEngine.t.sol + selector CI gate)
-  - [ ] 05-02-PLAN.md — Wave 2: GREEN Rust engine (full D-2 math in math.rs + lib.rs #[selector] + #[storage] + #[public])
+  - [x] 05-02-PLAN.md — Wave 2: GREEN Rust engine (full D-2 math in math.rs + lib.rs #[selector] + #[storage] + #[public])
   - [ ] 05-03-PLAN.md — Wave 2: Solidity contracts (SolidityScoreEngine.sol baseline + RevertingStylusEngine.sol drill fixture)
   - [ ] 05-04-PLAN.md — Wave 3: Deploy scripts (DeployPhase5Stylus.s.sol + CutoffFallback.s.sol + addresses.ts stubs)
   - [ ] 05-05-PLAN.md — Wave 3: Relayer extension (deactivation-watcher demo-cutoff alerts + Test 5 + OPS-16 runbook)
