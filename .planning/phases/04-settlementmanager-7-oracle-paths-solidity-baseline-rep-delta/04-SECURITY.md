@@ -1,8 +1,8 @@
 ---
 phase: 04-settlementmanager-7-oracle-paths-solidity-baseline-rep-delta
 slug: settlementmanager-7-oracle-paths-solidity-baseline-rep-delta
-status: draft
-threats_open: 3
+status: verified
+threats_open: 0
 asvs_level: 1
 created: 2026-06-02
 ---
@@ -21,12 +21,22 @@ created: 2026-06-02
 
 ## Verdict
 
-**OPEN_THREATS — 3 BLOCKERS.** 47 of 50 declared mitigations verified present in code (CLOSED).
-3 threats OPEN: the on-chain relayer-attestation verification rail (`submitAttestation` +
-`ECDSA.recover` + per-type expected-signer registry) declared in PLAN 04-02 / 04-04 **does not
-exist** in `SettlementManager.sol`. This breaks the spoofing/replay mitigations for all 6
-non-Pyth oracle paths (NFT-TWAP, DefiLlama, RpcMetrics, Snapshot, Tally, CEX). The Pyth demo
-spine is fully implemented and verified on-chain and is NOT affected.
+**SECURED — all 50 mitigations CLOSED (0 BLOCKERS).** Re-audit 2026-06-02 (Wave A/B gap
+closure). The 3 previously-OPEN threats (T-04-02-03, T-04-04-01, T-04-04-02) are now CLOSED:
+the on-chain relayer-attestation verification rail (`submitAttestation` + EIP-712 +
+`ECDSA.recover` + per-type expected-signer registry) IS NOW IMPLEMENTED and verified in source
+and by passing Foundry + Vitest tests. The earlier 47 CLOSED threats were re-confirmed present
+(no regression observed). The Pyth demo spine remains fully implemented and unaffected.
+
+**Re-audit method (independence):** verified in source, not by implementer claim. Read
+`SettlementManager.sol`, `ISettlementManager.sol`, `SettlementAttestationTest.sol`, and the
+relayer byte-contract `oracle-attestation.ts`; ran the test suites and report real counts below.
+
+**Key correction vs prior register:** the prior register assumed a hardcoded `chainId=42161`
+domain. The implemented rail uses OZ `EIP712("CallIt-Oracle","1")`, which binds the REAL
+`block.chainid` + `address(this)` into the domain separator — this is CORRECT and STRONGER
+than a hardcoded constant (a hardcoded 42161 would have failed `ECDSA.recover` on Sepolia /
+chainId 421614). Cross-chain/cross-contract replay protection is therefore genuinely enforced.
 
 ---
 
@@ -35,7 +45,7 @@ spine is fully implemented and verified on-chain and is NOT affected.
 | Boundary | Description | Data Crossing |
 |----------|-------------|---------------|
 | External → `settle()` | Permissionless; any caller. Idempotency guard is primary defense | callId, Pyth VAA bytes, acceptedChallengeIds |
-| Relayer → `submitAttestation()` | **DECLARED** KMS-signed EIP-712, ecrecover per-type signer | attestation bytes + signature — **boundary NOT enforced on-chain (see OPEN T-04-02-03)** |
+| Relayer → `submitAttestation()` | KMS-signed EIP-712, `ECDSA.recover` per-type signer — **ENFORCED on-chain** (`SettlementManager.sol:543-617`); domain binds `block.chainid` + `address(this)` | attestation bytes + signature — invalid sig / wrong signer / wrong domain / cross-type all revert `InvalidAttestation()` |
 | FFM USDC → SettlementManager | `applySettlement` gated by `onlySettlementManager` | fee amounts (protocol/creator/LP) |
 | USDC → `claimPayout` winners | Pull-pattern; CEI enforced; nonReentrant | pro-rata payout |
 | Caller-supplied `acceptedChallengeIds` → `settle()` | On-chain `ce.getChallenge()` validation: callId match + Accepted status | challenge IDs (untrusted input) |
@@ -59,7 +69,7 @@ spine is fully implemented and verified on-chain and is NOT affected.
 | T-04-01-06 | Tampering | testDuelInvalidChallengeId | mitigate | `_settleDuels` reverts on callId mismatch/non-Accepted `SettlementManager.sol:302-303`; testDuelInvalidChallengeId GREEN | closed |
 | T-04-02-01 | Tampering | settle() double-invocation | mitigate | Step 1 idempotency: status!=Live/CallerExited→revert AlreadySettled `SettlementManager.sol:194-197`; testSettleIdempotency GREEN | closed |
 | T-04-02-02 | Tampering | claimPayout reentrancy | mitigate | `nonReentrant` (FFM `:568`) + CEI claimed→transfer (`:609`<`:616`); testClaimPayoutCEI GREEN | closed |
-| **T-04-02-03** | **Spoofing** | **Fake relayer attestation** | **mitigate** | **DECLARED: submitAttestation + ECDSA.recover + per-type expected-signer registry + EIP-712 verify. ABSENT — no submitAttestation fn, no ECDSA import, no signer registry, `_attestationReady` never written in `SettlementManager.sol`. See OPEN.** | **OPEN** |
+| T-04-02-03 | Spoofing | Fake relayer attestation | mitigate | `submitAttestation` (`SettlementManager.sol:543`) decodes `(callId,oracleType,outcome,priceDelta,timestamp)`, binds payload callId to param (`:558`), rejects non-definitive outcome (`:561-564`) and Pyth/out-of-range type (`:568-571`), calls `_checkAttestationSignature` → `ECDSA.recover(_hashTypedDataV4(structHash), sig)` vs `attestationSigner[oracleType]` (`:615-616`); writes `_attestedOutcome`/`_attestedPriceDelta`/`_attestationReady` (`:580-582`); reverts `InvalidAttestation()` on mismatch. Declared in `ISettlementManager.sol:218`. Tests `testAttestationWrongSignerReverts`, `testAttestationHappyPathSettles`, `testAttestationCallIdMismatchReverts`, `testAttestationPendingOutcomeReverts` GREEN (12/12). | closed |
 | T-04-02-04 | Repudiation | forceSettle silent use | mitigate | `FORCE_SETTLE_COOLDOWN=7 days` `:67`; cooldown check `:371`; dual-event emit `:397-398`; testForceSettleCooldown+Events GREEN | closed |
 | T-04-02-05 | Tampering | Empty-pool virtual seed payout | mitigate | CALL-41: `fadeReal==0`→entire followReserve to treasury `FollowFadeMarket.sol:529-540`; testEmptyPoolToTreasury GREEN | closed |
 | T-04-02-06 | Elevation | delegatecall to user-controlled addr | mitigate | Non-upgradeable; grep `delegatecall` over `packages/contracts/src/` = 0 matches; SAFETY-57 note `SettlementManager.sol:17-19` | closed |
@@ -71,8 +81,8 @@ spine is fully implemented and verified on-chain and is NOT affected.
 | T-04-03-03 | Repudiation | forceSettle without public commitment | mitigate | OPS-15 mandates 24h public commitment on /disputes/; `/disputes/page.tsx:388` shows deadline | closed |
 | T-04-03-04 | Repudiation | Stylus reactivation missed | mitigate | OPS-16 runbook + T-30d/15d/7d/1d Telegram alerts; 48h cutoff command documented | closed |
 | T-04-03-05 | Info Disclosure | subgraph.yaml missing eventHandlers | mitigate | 7-handler grep gate; `settlement-manager.ts` exports 7 handlers (lines 109/137/163/197/227/249/294) | closed |
-| **T-04-04-01** | **Spoofing** | **Compromised defillama key (per-type separation)** | **mitigate** | **Off-chain key separation present (`kms-signer.ts:43-48` 5 keys). On-chain enforcement ABSENT — no ecrecover/signer registry consumes the attestation. Blast-radius control is moot without on-chain verification. See OPEN.** | **OPEN** |
-| **T-04-04-02** | **Repudiation** | **Cross-chain EIP-712 replay** | **mitigate** | **Off-chain domain chainId=42161n + verifyingContract present. DECLARED "on-chain ecrecover verifies" — ABSENT in `SettlementManager.sol`. No on-chain replay/chainId enforcement exists. See OPEN.** | **OPEN** |
+| T-04-04-01 | Spoofing | Compromised per-type KMS key blast-radius | mitigate | On-chain per-type signer check NOW present: `attestationSigner` is `mapping(uint8 oracleType => address)` (`SettlementManager.sol:156`), owner-set via `setAttestationSigner` (`:633-637`), and `_checkAttestationSignature` requires `signer == attestationSigner[oracleType]` (`:616`) — a compromised type-key cannot forge another type's attestation. `_checkAdapterBinding` (`:589-593`) additionally ties `oracleType` to the call's configured `adapterMap` entry. Off-chain key separation (`kms-signer.ts` 5 keys) now backed by on-chain enforcement. Test `testAttestationCrossTypeReverts` GREEN. | closed |
+| T-04-04-02 | Repudiation | Cross-chain / cross-domain EIP-712 replay | mitigate | Contract inherits OZ `EIP712("CallIt-Oracle","1")` (`SettlementManager.sol:63,176`); `_checkAttestationSignature` recovers over `_hashTypedDataV4(structHash)` (`:615`), whose domain separator binds the REAL `block.chainid` + `address(this)` (STRONGER than the prior register's assumed hardcoded 42161 — that would have broken on Sepolia/421614). An attestation signed for another chain or contract recovers a different address and reverts `InvalidAttestation()`. Relayer byte-contract `oracle-attestation.ts` passes the deployment chainId (never hardcoded). Tests `testAttestationReplayWrongDomainReverts` (Foundry) + "real viem signature recovers to signer" (Vitest) GREEN. | closed |
 | T-04-04-03 | DoS | SettlementManager ETH exhausted | mitigate | `pyth-adapter.ts` getBalance check + `eth_balance_low` alert before settle; OPS-15 | closed |
 | T-04-04-04 | DoS | Pyth Hermes unavailable | mitigate | 30×60s retry in `settlement-watcher.ts`; exhaustion→dispute; Telegram alert | closed |
 | T-04-04-05 | Info Disclosure | KMS private key exposure | mitigate | `gcpKmsAccount` — key never leaves GCP KMS; remote `asymmetricSign` only `kms-signer.ts:101-140` | closed |
@@ -107,32 +117,62 @@ spine is fully implemented and verified on-chain and is NOT affected.
 
 ---
 
-## Open Threats (BLOCKERS)
+## Gap-Closure Record (Wave A/B) — 3 BLOCKERS now CLOSED
 
-| Threat ID | Category | Mitigation Expected | Reality in Code |
-|-----------|----------|---------------------|-----------------|
-| T-04-02-03 | Spoofing | `submitAttestation(callId, attestationData, signature)` performing `ECDSA.recover(_hashTypedDataV4(hash), sig) == expectedSignerForType`, with an owner-registered per-attestation-type expected-signer registry and EIP-712 domain (chainId=42161, verifyingContract) — per PLAN 04-02 Task 2 behavior block | `SettlementManager.sol` has NO `submitAttestation` function, NO `ECDSA` import, NO `_hashTypedDataV4`/EIP712 base, NO expected-signer registry. The `_attestedOutcome`/`_attestationReady` mappings (`:138-139`) are declared `private` and are NEVER written anywhere. `ISettlementManager.sol` does not declare `submitAttestation`. `error InvalidAttestation()` is declared (`:139`) but never used. |
-| T-04-04-01 | Spoofing | On-chain verification that limits a compromised per-type KMS key's blast radius (the contract must actually check the signer per attestation type) | Off-chain key separation exists (`kms-signer.ts` 5 keys). On-chain there is nothing that verifies any attestation signer, so per-type isolation provides no on-chain guarantee for this phase. |
-| T-04-04-02 | Repudiation | "EIP-712 domain chainId=42161n + verifyingContract; attestation from one chain rejected on another" enforced **on-chain via ecrecover** | The off-chain signer binds chainId+verifyingContract, but `SettlementManager.sol` never recovers or checks the signature, so cross-chain replay protection is not enforced on-chain. |
+Re-audit 2026-06-02 verified the on-chain relayer-attestation verification rail is now present.
+All 3 previously-OPEN threats are CLOSED. Evidence verified independently in source + tests
+(not by implementer claim).
 
-### Shared root cause & blast radius
+| Threat ID | Category | What was missing (prior audit) | What is now present (this re-audit) |
+|-----------|----------|--------------------------------|-------------------------------------|
+| T-04-02-03 | Spoofing | No `submitAttestation`, no `ECDSA` import, no EIP712 base, no signer registry; `_attestedOutcome`/`_attestationReady` never written | `submitAttestation` (`SettlementManager.sol:543-585`) + `_checkAttestationSignature` (`:597-617`) `ECDSA.recover(_hashTypedDataV4(structHash), sig)` vs `attestationSigner[oracleType]`; writes `_attestedOutcome`/`_attestationReady`/`_attestedPriceDelta` (`:580-582`); declared in `ISettlementManager.sol:218`; `InvalidAttestation()` now used on every failure branch |
+| T-04-04-01 | Spoofing | No on-chain per-type signer check; off-chain key separation had no on-chain guarantee | `attestationSigner` per-type registry (`:156`), owner-set (`:633-637`), enforced `signer == attestationSigner[oracleType]` (`:616`); `_checkAdapterBinding` (`:589-593`) binds `oracleType` to the call's `adapterMap` entry — one compromised type-key cannot forge another type |
+| T-04-04-02 | Repudiation | Contract never recovered/checked the signature; no on-chain chainId/contract binding | OZ `EIP712("CallIt-Oracle","1")` inherited (`:63,176`); domain separator binds real `block.chainid` + `address(this)`; wrong-domain signature recovers a different address → revert. STRONGER than the prior register's assumed hardcoded 42161 (which would have failed on Sepolia/421614) |
 
-All 3 OPEN threats stem from one missing component: **the on-chain relayer-attestation verification rail for the 6 non-Pyth oracle paths was never implemented.** Consequences:
+### The mis-settle correctness fix (safety of the rail)
 
-1. The relayer's `submitDefiLlamaAttestation` / `submitNftFloor` call `walletClient.writeContract({ functionName: 'submitAttestation', ... })` against the SettlementManager address (`defillama-adapter.ts:432-437`, `nft-twap-adapter.ts:365-388`). Since the contract has no such function/selector, these on-chain calls would **revert**.
-2. Because `_attestationReady[callId]` is never set, `_dispatchOracle` (`SettlementManager.sol:234-241`) falls through to `return (CallerLost, 0)` for **every** non-Pyth call. Non-Pyth markets cannot settle to a correct outcome on-chain.
-3. The declared spoofing/replay defenses (T-04-02-03, T-04-04-01, T-04-04-02) are not present where the threat model places them (on-chain).
+The prior `_dispatchOracle` fall-through to `(CallerLost, 0)` for unattested non-Pyth calls is
+**GONE**. `_dispatchOracle` (`SettlementManager.sol:240-261`) now: routes Pyth to `_settlePyth`;
+for non-Pyth, if `_attestationReady[callId]` returns the attested outcome (`:252-253`), else
+emits `SettlementDelayed("attestation-pending")` and returns `(Pending, 0)` (`:259-260`).
+`settle()` returns without state change on `Pending` (`:223-225`). A missing attestation now
+DEFERS (safe) instead of mis-settling. Regression guard `testUnattestedNonPythDefers` GREEN.
 
-### Scope NOT affected (verified working)
+### Test evidence (real counts — run this re-audit, 2026-06-02)
 
-- **Pyth path** (the demo spine, D-01): fully implemented and verified on-chain — confidence gate `confidence*200<=price` (`SettlementManager.sol:579`), ETH fee pre-pay (`:564-570`), price-vs-target compare (`:584-594`). All Foundry tests GREEN.
-- **Dispute custody, fee math, CEI, idempotency, duel validation, USDC gate, no-delegatecall** — all CLOSED with passing tests.
+- `forge test --match-path test/SettlementAttestationTest.sol` → **12 passed, 0 failed, 0 skipped.**
+  Covers: happy-path CallerWon + CallerLost; wrong-signer reject; wrong-domain/replay reject;
+  cross-type reject; pending-outcome reject; callId-mismatch reject; Pyth-type reject; owner guard;
+  invalid-type guard; event emission; and `testUnattestedNonPythDefers` (defer regression guard).
+- `forge test --match-contract SettlementManager` → **13 passed, 0 failed** (unit). The 1 reported
+  failure is `SettlementManagerForkTest::setUp()` aborting on missing env var `ARB_ONE_RPC_URL`
+  (no mainnet RPC in this sandbox) — an environment-config issue, NOT a code defect, and outside
+  the scope of these 3 threats.
+- `pnpm --filter @call-it/relayer test --run oracle-attestation` → **12 passed, 0 failed.** Pins the
+  relayer byte-contract to the contract: identical typehash field list, domain `CallIt-Oracle`/`1`,
+  ABI decode tuple, and a real-viem-signature-recovers-to-signer test (off-chain mirror of on-chain
+  `ECDSA.recover`). Asserts chainId is the deployment chain (`421614`), never a hardcoded `42161`.
 
-### Required action
+### Scope confirmed unaffected (no regression observed)
 
-Implement on-chain `submitAttestation` in `SettlementManager.sol` (and declare it in `ISettlementManager.sol`) with: EIP712 domain (name per attestation type or a single domain with a type discriminator, chainId=42161, verifyingContract=address(this)), `ECDSA.recover`, an owner-settable per-type expected-signer registry, set `_attestedOutcome`/`_attestationReady`, and revert `InvalidAttestation()` on mismatch. Add a Foundry test (e.g. `testAttestationSpoofRejected`, `testAttestationCrossChainReplayRejected`). Then re-run `/gsd-secure-phase`.
+- Pyth path (`_settlePyth` `:681-718`): confidence gate `conf*200<=price` (`:702`), ETH fee pre-pay
+  (`:687-693`), price-vs-target compare (`:709-717`) — unchanged, tests GREEN.
+- Dispute custody, fee math, CEI, idempotency, duel validation, USDC gate, no-delegatecall — the 47
+  prior-CLOSED threats re-confirmed; no regression seen while reading.
 
-**Deployment guidance:** Until fixed, only Pyth-adapter markets are safe to settle on Sepolia. Do NOT route any non-Pyth (NFT-TWAP/DefiLlama/RpcMetrics/Snapshot/Tally/CEX) market to production settlement — they will either revert on `submitAttestation` or mis-settle to CallerLost. If non-Pyth demo is required before the fix, gate it behind explicit operator awareness.
+### Residual operational follow-ups (NOT blockers; functional, not spoofing/replay)
+
+Per the re-audit scope note, these are FUNCTIONAL completeness items that cause a revert/defer
+(safe), never a forged or mis-settled outcome — they do NOT re-open T-04-02-03/04-04-01/04-04-02:
+
+1. Owner must call `setAttestationSigner(oracleType, kmsAddress)` for each non-Pyth oracle type
+   before that path can settle (until set, `attestationSigner[type]==address(0)` → all attestations
+   for that type revert `InvalidAttestation()` — safe-closed, not forgeable).
+2. `adapterMap` must be configured in the deploy script and the 6 non-Pyth adapters rewired onto
+   `oracle-attestation.ts` (tracked separately as relayer functional work). An unconfigured map
+   causes `_dispatchOracle` to DEFER (`Pending`), never a mis-settle.
+3. Sepolia 48h staging gate (CLAUDE.md) should include at least one non-Pyth attestation-path
+   end-to-end run before mainnet.
 
 ---
 
@@ -153,7 +193,7 @@ declared threat IDs:
 
 | Risk ID | Threat Ref | Rationale | Accepted By | Date |
 |---------|------------|-----------|-------------|------|
-| AR-04-01 | T-04-06-06 | RPC-metrics oracle adapter reuses the `defillama` GCP KMS key (no dedicated `GCP_KEY_VERSION_RPC_METRICS`). **Verified SOUND:** `rpc-metrics-adapter.ts:311` uses a DISTINCT EIP-712 domain `name='CallIt-RpcMetrics'` (vs `CallIt-DefiLlama`) despite the shared signing key (`:292`), which prevents cross-type replay between the two attestation types. Blast radius if `defillama` key compromised = DefiLlama + RpcMetrics attestations only; NFT-TWAP, CEX, Snapshot/Tally keys remain isolated. Operational overhead of 7 separate KMS key versions is disproportionate to Phase 4 risk (Sepolia staging, $5,000 TVL cap). Phase 6 pre-mainnet review re-assesses. Documented in `docs/adr/SAFETY-57-oauth-permission-scoping.md` (SAFETY-58 section). *NOTE: the cross-type-replay protection this AR relies on only becomes operative once the on-chain `submitAttestation` verification is implemented (see OPEN T-04-02-03); today the entire attestation rail is un-verified on-chain.* | ADR SAFETY-57 (Phase 1.5 owner) | 2026-06-02 |
+| AR-04-01 | T-04-06-06 | RPC-metrics oracle adapter reuses the `defillama` GCP KMS key (no dedicated `GCP_KEY_VERSION_RPC_METRICS`). **Verified SOUND (re-audit 2026-06-02):** cross-type replay between DefiLlama and RpcMetrics is now prevented ON-CHAIN by the unified attestation rail — the signed `OracleAttestation` struct binds `oracleType` (DefiLlama=2 vs RpcMetrics=3), the contract enforces `signer == attestationSigner[oracleType]` (`SettlementManager.sol:616`) AND `_checkAdapterBinding` ties `oracleType` to the call's configured `adapterMap` entry (`:589-593`). A DefiLlama-signed payload cannot be replayed as an RpcMetrics attestation even though the KMS key is shared, because the `oracleType` field is part of the signed digest and is re-validated against the call's adapter. (NOTE: the prior per-adapter `name='CallIt-RpcMetrics'` distinct-domain mechanism is superseded by the single `CallIt-Oracle` domain + per-type signer + adapter-binding in `oracle-attestation.ts`; the protection holds and is now on-chain-enforced rather than relying on off-chain domain naming.) Blast radius if `defillama` key compromised = DefiLlama + RpcMetrics attestations only; NFT-TWAP, CEX, Snapshot/Tally signers remain isolated. Operational overhead of separate KMS key versions is disproportionate to Phase 4 risk (Sepolia staging, $5,000 TVL cap). Phase 6 pre-mainnet review re-assesses. Documented in `docs/adr/SAFETY-57-oauth-permission-scoping.md`. | ADR SAFETY-57 (Phase 1.5 owner) | 2026-06-02 |
 | AR-04-02 | T-04-09-02 | `follows.read` OAuth scope NOT provisioned in Phase 4 — least-privilege `tweet.read users.read` only; "From your X" follow-graph feed is a Phase 1.5 feature behind a flag; no follow-graph data fetched or stored; no write/DM scopes ever granted; each OAuth proof chain-ID bound. The risk is the ABSENCE of a feature, not a code defect. Documented in `docs/adr/SAFETY-57-oauth-permission-scoping.md`. | ADR SAFETY-57 (Phase 1.5 owner) | 2026-06-02 |
 
 *Accepted risks do not resurface in future audit runs.*
@@ -174,6 +214,7 @@ declared threat IDs:
 | Audit Date | Threats Total | Closed | Open | Run By |
 |------------|---------------|--------|------|--------|
 | 2026-06-02 | 50 | 47 | 3 | gsd-security-auditor (Opus 4.8) |
+| 2026-06-02 (re-audit, VERIFY-MITIGATIONS) | 50 | 50 | 0 | gsd-security-auditor (Opus 4.8 1M) — Wave A/B gap closure verified in source + tests; T-04-02-03, T-04-04-01, T-04-04-02 CLOSED |
 
 ---
 
@@ -181,8 +222,12 @@ declared threat IDs:
 
 - [x] All threats have a disposition (mitigate / accept / transfer)
 - [x] Accepted risks documented in Accepted Risks Log (AR-04-01, AR-04-02)
-- [ ] `threats_open: 0` confirmed — **NOT MET (3 open: T-04-02-03, T-04-04-01, T-04-04-02)**
-- [ ] `status: verified` set in frontmatter — **blocked on open threats**
+- [x] `threats_open: 0` confirmed — **MET (re-audit 2026-06-02: T-04-02-03, T-04-04-01, T-04-04-02 CLOSED)**
+- [x] `status: verified` set in frontmatter
 
-**Approval:** pending — 3 BLOCKERS must be resolved (on-chain `submitAttestation` attestation
-verification rail) or formally accepted as risk before this phase ships non-Pyth settlement.
+**Approval:** SECURED. All 50 declared mitigations verified present in code. The on-chain
+relayer-attestation verification rail (`submitAttestation` + EIP-712 + `ECDSA.recover` +
+per-type signer registry + adapter-binding + defer-on-missing-attestation) is implemented and
+GREEN across Foundry (12/12 attestation + 13/13 SettlementManager unit) and Vitest (12/12
+relayer byte-contract). Phase may ship non-Pyth settlement once `setAttestationSigner` is set
+per oracle type and `adapterMap` is configured (operational steps; both fail safe-closed/defer).
