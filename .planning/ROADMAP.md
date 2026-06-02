@@ -174,8 +174,8 @@ Call It ships as a person-first onchain social prediction product on Arbitrum ma
   - [x] 05-03-PLAN.md — Wave 2: Solidity contracts (SolidityScoreEngine.sol baseline + RevertingStylusEngine.sol drill fixture)
   - [x] 05-04-PLAN.md — Wave 3: Deploy scripts (DeployPhase5Stylus.s.sol + CutoffFallback.s.sol + addresses.ts stubs)
   - [x] 05-05-PLAN.md — Wave 3: Relayer extension (deactivation-watcher demo-cutoff alerts + Test 5 + OPS-16 runbook)
-  - [ ] 05-06-PLAN.md — Wave 4: [OPERATOR] Sepolia deploy + activation + SM wiring + integration verification
-  - [ ] 05-07-PLAN.md — Wave 5: [OPERATOR] Cutoff round-trip rehearsal + Phase 5 success criteria audit
+  - [x] 05-06-PLAN.md — Wave 4: [OPERATOR] Sepolia deploy + activation + SM wiring + integration verification
+  - [x] 05-07-PLAN.md — Wave 5: [OPERATOR] Cutoff round-trip rehearsal + Phase 5 success criteria audit
 **Pitfalls mitigated**: 2 (RevertingStylusEngine fixture built here, drill in Phase 6), 5 (48h cutoff path is mechanical not panicked), 17 (Stylus reactivation runbook + Telegram alerts wired to deploy date)
 
 ### Phase 6: Safety review + Sepolia ≥48h + multisig promotion
