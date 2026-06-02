@@ -3,30 +3,32 @@
  *
  * Reads Tally on-chain governance proposal state via direct GraphQL fetch
  * (no official Tally npm SDK — per CLAUDE.md: "direct fetch via fetch() or graphql-request").
- * Signs the outcome with the snapshot-tally KMS key (same key as snapshot-adapter).
+ * Signs the outcome with the snapshot-tally KMS key via the unified oracle-attestation format.
  *
  * Flow:
  *   1. fetchTallyProposal: fetch to https://api.tally.xyz/query with TALLY_API_KEY header
- *   2. signTallyAttestation: EIP-712 sign with keyId='snapshot-tally'
+ *   2. signOracleAttestation: unified EIP-712 sign with domain='CallIt-Oracle', keyId='snapshot-tally'
  *   3. Return signed attestation for SettlementManager.submitAttestation
  *
- * Security (Pitfall 7):
- *   - EIP-712 domain chainId=42161n (Arbitrum One) — cross-chain replay prevention
- *   - domain.name='CallIt-SnapshotTally' — same domain as snapshot-adapter (both governance)
+ * Security:
+ *   - chainId comes from process.env.CHAIN_ID (421614 on Sepolia, 42161 on mainnet) — never hardcoded
+ *   - domain.name='CallIt-Oracle' — unified domain; on-chain ECDSA.recover verifies correctly
  *   - keyId='snapshot-tally' — per-type KMS key (D-05); shared with snapshot-adapter
- *
- * Open question (RESEARCH.md): TALLY_API_KEY is required; free tier key needed.
- * This adapter logs a warning if TALLY_API_KEY is absent and returns ambiguous.
+ *   - oracleType=OracleType.Tally(5) — bound via _checkAdapterBinding on-chain
  *
  * Spec: CALL_IT_SPEC1.md §13.5
  * Requirements: SETTLE-21, SETTLE-22
  */
 
-import { encodeAbiParameters, parseAbiParameters } from 'viem';
 // NOTE: Import from 3 levels up to match vi.mock('../../../lib/kms-signer.js') test pattern
 import { gcpKmsAccount } from '../../../lib/kms-signer.js';
 import { getLogger } from '../../lib/logger.js';
 import { SETTLEMENT_MANAGER_ARBITRUM_SEPOLIA } from '@call-it/shared';
+import {
+  signOracleAttestation,
+  OracleType,
+  OracleOutcome,
+} from './oracle-attestation.js';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -82,23 +84,6 @@ export interface TallyAdapterConfig {
   /** Tally GraphQL endpoint (default: https://api.tally.xyz/query) */
   tallyEndpoint?: string;
 }
-
-// ── EIP-712 type definitions ──────────────────────────────────────────────────
-
-/**
- * EIP-712 types for Tally attestation.
- * Domain: name='CallIt-SnapshotTally', chainId=42161n (Pitfall 7).
- * Note: domain name shared with snapshot-adapter (both use keyId='snapshot-tally').
- */
-const TALLY_ATTESTATION_TYPES = {
-  TallyAttestation: [
-    { name: 'callId', type: 'uint256' },
-    { name: 'proposalId', type: 'string' },
-    { name: 'outcome', type: 'uint8' },
-    { name: 'timestamp', type: 'uint256' },
-    { name: 'chainId', type: 'uint256' },
-  ],
-} as const;
 
 // ── Outcome mapping ───────────────────────────────────────────────────────────
 
@@ -233,7 +218,7 @@ export async function fetchTallyProposal(
  * TallyAdapter: reads Tally governance proposal state and signs with KMS.
  *
  * KMS key: 'snapshot-tally' (shared with snapshot-adapter — both governance oracles).
- * domain.name='CallIt-SnapshotTally'.
+ * domain.name='CallIt-Oracle' (unified).
  */
 export class TallyAdapter {
   private readonly config: TallyAdapterConfig;
@@ -274,9 +259,9 @@ export class TallyAdapter {
       };
     }
 
-    const outcomeUint = OUTCOME_TO_UINT[tallyResult.outcome];
-    const timestamp = BigInt(Math.floor(Date.now() / 1000));
     const smAddress = this.config.settlementManagerAddress ?? (SETTLEMENT_MANAGER_ARBITRUM_SEPOLIA as `0x${string}`);
+    // chainId MUST come from env — never hardcoded (T-05.1-03-01)
+    const chainId = BigInt(process.env.CHAIN_ID ?? '421614');
 
     const expectedAddress = (
       this.config.kmsExpectedAddress ??
@@ -285,7 +270,6 @@ export class TallyAdapter {
     );
 
     // keyId='snapshot-tally' — same key as snapshot-adapter (both governance oracles, D-05)
-    // domain.name='CallIt-SnapshotTally' — prevents cross-adapter replay (Pitfall 7)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const account = gcpKmsAccount({
       projectId: this.config.kmsProjectId,
@@ -302,40 +286,26 @@ export class TallyAdapter {
         callId: callId.toString(),
         proposalId,
         outcome: tallyResult.outcome,
-        outcomeUint,
+        chainId: chainId.toString(),
       },
-      'Signing Tally attestation with KMS (keyId=snapshot-tally)',
+      'Signing Tally attestation with unified oracle-attestation domain (keyId=snapshot-tally)',
     );
 
-    const domain = {
-      name: 'CallIt-SnapshotTally',
-      version: '1',
-      chainId: 42161n,
+    // Use unified signOracleAttestation — domain='CallIt-Oracle', chainId from env
+    const outcome = tallyResult.outcome === 'CallerWon'
+      ? OracleOutcome.CallerWon
+      : OracleOutcome.CallerLost;
+
+    const result = await signOracleAttestation({
+      account,
+      chainId,
       verifyingContract: smAddress,
-    };
-
-    const message = {
       callId,
-      proposalId,
-      outcome: outcomeUint,
-      timestamp,
-      chainId: 42161n,
-    };
-
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-call
-    const signature = await account.signTypedData({
-      domain,
-      types: TALLY_ATTESTATION_TYPES,
-      primaryType: 'TallyAttestation',
-      message,
+      oracleType: OracleType.Tally,
+      outcome,
+      priceDelta: 0n, // governance: no price delta
+      timestamp: BigInt(Math.floor(Date.now() / 1000)),
     });
-
-    const attestationData = encodeAbiParameters(
-      parseAbiParameters(
-        'uint256 callId, string proposalId, uint8 outcome, uint256 timestamp, uint256 chainId',
-      ),
-      [callId, proposalId, outcomeUint, timestamp, 42161n],
-    );
 
     logger.info(
       {
@@ -350,10 +320,10 @@ export class TallyAdapter {
     return {
       callId,
       proposalId,
-      outcome: outcomeUint,
-      timestamp,
-      signature: signature as `0x${string}`,
-      attestationData,
+      outcome: result.fields.outcome,
+      timestamp: result.fields.timestamp,
+      signature: result.signature,
+      attestationData: result.attestationData,
     };
   }
 }

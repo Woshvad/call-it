@@ -2,27 +2,32 @@
  * Snapshot governance oracle adapter — KMS-attestation rail (D-02).
  *
  * Reads Snapshot proposal state via @snapshot-labs/snapshot.js and signs
- * the outcome with the snapshot-tally KMS key.
+ * the outcome with the snapshot-tally KMS key via the unified oracle-attestation format.
  *
  * Flow:
  *   1. fetchSnapshotProposal: query Snapshot Hub for proposal state
- *   2. signSnapshotAttestation: EIP-712 sign with keyId='snapshot-tally'
+ *   2. signOracleAttestation: unified EIP-712 sign with domain='CallIt-Oracle', keyId='snapshot-tally'
  *   3. Return signed attestation for SettlementManager.submitAttestation
  *
- * Security (Pitfall 7):
- *   - EIP-712 domain chainId=42161n (Arbitrum One) — cross-chain replay prevention
- *   - domain.name='CallIt-SnapshotTally' — cross-adapter replay prevention
+ * Security:
+ *   - chainId comes from process.env.CHAIN_ID (421614 on Sepolia, 42161 on mainnet) — never hardcoded
+ *   - domain.name='CallIt-Oracle' — unified domain; on-chain ECDSA.recover verifies correctly
  *   - keyId='snapshot-tally' — per-type KMS key (D-05); shared with tally-adapter (both governance)
+ *   - oracleType=OracleType.Snapshot(4) — bound via _checkAdapterBinding on-chain
  *
  * Spec: CALL_IT_SPEC1.md §13.5
  * Requirements: SETTLE-21, SETTLE-22
  */
 
-import { encodeAbiParameters, parseAbiParameters } from 'viem';
 // NOTE: Import from 3 levels up to match vi.mock('../../../lib/kms-signer.js') test pattern
 import { gcpKmsAccount } from '../../../lib/kms-signer.js';
 import { getLogger } from '../../lib/logger.js';
 import { SETTLEMENT_MANAGER_ARBITRUM_SEPOLIA } from '@call-it/shared';
+import {
+  signOracleAttestation,
+  OracleType,
+  OracleOutcome,
+} from './oracle-attestation.js';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -64,23 +69,6 @@ export interface SnapshotAdapterConfig {
   /** Snapshot Hub URL (default: https://hub.snapshot.org) */
   hubUrl?: string;
 }
-
-// ── EIP-712 type definitions ──────────────────────────────────────────────────
-
-/**
- * EIP-712 types for Snapshot attestation.
- * Domain: name='CallIt-SnapshotTally', chainId=42161n (Pitfall 7).
- * Note: domain name shared with tally-adapter (both use keyId='snapshot-tally').
- */
-const SNAPSHOT_ATTESTATION_TYPES = {
-  SnapshotAttestation: [
-    { name: 'callId', type: 'uint256' },
-    { name: 'proposalId', type: 'string' },
-    { name: 'outcome', type: 'uint8' },
-    { name: 'timestamp', type: 'uint256' },
-    { name: 'chainId', type: 'uint256' },
-  ],
-} as const;
 
 // ── Outcome mapping ───────────────────────────────────────────────────────────
 
@@ -204,7 +192,7 @@ export async function fetchSnapshotProposal(
  * SnapshotAdapter: reads Snapshot proposal state and signs with KMS.
  *
  * KMS key: 'snapshot-tally' (shared with tally-adapter — both governance oracles).
- * domain.name='CallIt-SnapshotTally'.
+ * domain.name='CallIt-Oracle' (unified).
  */
 export class SnapshotAdapter {
   private readonly config: SnapshotAdapterConfig;
@@ -244,9 +232,9 @@ export class SnapshotAdapter {
       };
     }
 
-    const outcomeUint = OUTCOME_TO_UINT[snapshotResult.outcome];
-    const timestamp = BigInt(Math.floor(Date.now() / 1000));
     const smAddress = this.config.settlementManagerAddress ?? (SETTLEMENT_MANAGER_ARBITRUM_SEPOLIA as `0x${string}`);
+    // chainId MUST come from env — never hardcoded (T-05.1-03-01)
+    const chainId = BigInt(process.env.CHAIN_ID ?? '421614');
 
     const expectedAddress = (
       this.config.kmsExpectedAddress ??
@@ -255,7 +243,6 @@ export class SnapshotAdapter {
     );
 
     // keyId='snapshot-tally' — shared with tally-adapter (both governance oracles, D-05)
-    // domain.name='CallIt-SnapshotTally' — prevents cross-adapter replay (Pitfall 7)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const account = gcpKmsAccount({
       projectId: this.config.kmsProjectId,
@@ -272,40 +259,26 @@ export class SnapshotAdapter {
         callId: callId.toString(),
         proposalId,
         outcome: snapshotResult.outcome,
-        outcomeUint,
+        chainId: chainId.toString(),
       },
-      'Signing Snapshot attestation with KMS (keyId=snapshot-tally)',
+      'Signing Snapshot attestation with unified oracle-attestation domain (keyId=snapshot-tally)',
     );
 
-    const domain = {
-      name: 'CallIt-SnapshotTally',
-      version: '1',
-      chainId: 42161n,
+    // Use unified signOracleAttestation — domain='CallIt-Oracle', chainId from env
+    const outcome = snapshotResult.outcome === 'CallerWon'
+      ? OracleOutcome.CallerWon
+      : OracleOutcome.CallerLost;
+
+    const result = await signOracleAttestation({
+      account,
+      chainId,
       verifyingContract: smAddress,
-    };
-
-    const message = {
       callId,
-      proposalId,
-      outcome: outcomeUint,
-      timestamp,
-      chainId: 42161n,
-    };
-
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-call
-    const signature = await account.signTypedData({
-      domain,
-      types: SNAPSHOT_ATTESTATION_TYPES,
-      primaryType: 'SnapshotAttestation',
-      message,
+      oracleType: OracleType.Snapshot,
+      outcome,
+      priceDelta: 0n, // governance: no price delta
+      timestamp: BigInt(Math.floor(Date.now() / 1000)),
     });
-
-    const attestationData = encodeAbiParameters(
-      parseAbiParameters(
-        'uint256 callId, string proposalId, uint8 outcome, uint256 timestamp, uint256 chainId',
-      ),
-      [callId, proposalId, outcomeUint, timestamp, 42161n],
-    );
 
     logger.info(
       {
@@ -320,10 +293,10 @@ export class SnapshotAdapter {
     return {
       callId,
       proposalId,
-      outcome: outcomeUint,
-      timestamp,
-      signature: signature as `0x${string}`,
-      attestationData,
+      outcome: result.fields.outcome,
+      timestamp: result.fields.timestamp,
+      signature: result.signature,
+      attestationData: result.attestationData,
     };
   }
 }
