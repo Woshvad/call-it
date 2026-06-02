@@ -127,7 +127,15 @@ This is documented in SAFETY-57 ADR under "Related: RPC Metrics KMS Key Blast-Ra
 
 ## Checkpoint: End-to-End Verification
 
-This plan ends with a `checkpoint:human-verify` (the §19.11 smoke test against the live Arbitrum Sepolia deployment). The operator must run the full verification checklist before Phase 4 is formally closed. See the checkpoint output below.
+This plan ends with a `checkpoint:human-verify` (the §19.11 smoke test against the live Arbitrum Sepolia deployment).
+
+**Automated portion — VERIFIED by orchestrator (2026-06-02):**
+- Contracts: 161 non-fork tests PASS; mainnet-fork money paths PASS (`testRealUsdcSettle`, `testRealUsdcClaimPayout` — real USDC, ADR-0001); pragma `=0.8.30`; no raw USDC literals outside the Phase-1 hardcoded gate.
+- On-chain (Sepolia): SM `owner()` = deployer `0xDa8c…A4a5`; CallRegistry + FFM v2 `settlementManager()` both = SM `0xAc37a0e4A3e575EF21684c28a5b820dB44654595`.
+- Relayer vitest 120 GREEN. Web vitest 40 GREEN + `next build` exit 0. Subgraph codegen + build PASS. No actual `display:grid` in OG routes (comments only).
+- Minor finding: the fork test reads env `ARB_ONE_RPC_URL` while the project convention is `ARBITRUM_ONE_RPC_URL`; bridge the name (or rename in the test) so it runs in CI without manual env setup.
+
+**Live portion — PENDING OPERATOR (HUMAN-UAT):** steps 12–19 require a funded Sepolia wallet + browser + a real ~10-min settlement cycle (create a price-target call → auto-settle → Settled Receipt → provenance modal → dispute flow → live OG render). These cannot be automated and must be run by the operator before public announcement.
 
 ## Issues Encountered
 
