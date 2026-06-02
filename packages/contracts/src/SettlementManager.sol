@@ -34,6 +34,8 @@ import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.s
 import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import { Ownable2Step, Ownable } from "@openzeppelin/contracts/access/Ownable2Step.sol";
 import { Pausable } from "@openzeppelin/contracts/utils/Pausable.sol";
+import { EIP712 } from "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
+import { ECDSA } from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import { USDC_ARB_NATIVE } from "./constants/USDC.sol";
 import { ICallRegistry } from "./interfaces/ICallRegistry.sol";
 import { IFollowFadeMarket } from "./interfaces/IFollowFadeMarket.sol";
@@ -57,8 +59,8 @@ import { IPyth } from "./interfaces/IPyth.sol";
 ///           - forceSettle (7-day cooldown from expiry)
 ///           - Dispute status in local disputes[] mapping -- NOT in CallRegistry
 ///
-/// @dev Inherits Ownable2Step, ReentrancyGuard, Pausable, ISettlementManager.
-contract SettlementManager is Ownable2Step, ReentrancyGuard, Pausable, ISettlementManager {
+/// @dev Inherits Ownable2Step, ReentrancyGuard, Pausable, EIP712, ISettlementManager.
+contract SettlementManager is Ownable2Step, ReentrancyGuard, Pausable, EIP712, ISettlementManager {
     using SafeERC20 for IERC20;
 
     // ---- Constants -----------------------------------------------------------
@@ -132,11 +134,26 @@ contract SettlementManager is Ownable2Step, ReentrancyGuard, Pausable, ISettleme
 
     // ---- Attestation state ---------------------------------------------------
 
+    /// @notice EIP-712 struct typehash for the signed oracle attestation payload.
+    ///         SAFETY-57 / T-04-04-01: one struct type, one domain, per-type KMS key separation.
+    bytes32 private constant ORACLE_ATTESTATION_TYPEHASH = keccak256(
+        "OracleAttestation(uint256 callId,uint8 oracleType,uint8 outcome,int256 priceDelta,uint256 timestamp)"
+    );
+
     /// @notice Submitted attestation results for non-Pyth adapters.
     ///         Relayer calls submitAttestation() before settle().
-    ///         Key: callId -> (outcome as uint8, 1-indexed timestamp when submitted)
+    ///         Key: callId -> (outcome as uint8)
     mapping(uint256 => uint8) private _attestedOutcome;
     mapping(uint256 => bool)  private _attestationReady;
+
+    /// @notice Attested price delta (for non-Pyth calls that carry a price diff).
+    ///         Set alongside _attestedOutcome. Passed through to CallSettled priceDelta.
+    mapping(uint256 => int256) private _attestedPriceDelta;
+
+    /// @notice Per-oracle-type KMS signer addresses. oracleType -> expected ECDSA signer.
+    ///         Set by owner via setAttestationSigner(). Limits blast radius if one KMS key
+    ///         is compromised (SAFETY-57, T-04-04-01).
+    mapping(uint8 => address) public attestationSigner;
 
     // ---- Constructor ---------------------------------------------------------
 
@@ -156,7 +173,7 @@ contract SettlementManager is Ownable2Step, ReentrancyGuard, Pausable, ISettleme
         address _usdc,
         address _treasury,
         address _pyth
-    ) Ownable(msg.sender) {
+    ) Ownable(msg.sender) EIP712("CallIt-Oracle", "1") {
         require(_callRegistry    != address(0), "invalid-registry");
         require(_followFadeMarket != address(0), "invalid-ffm");
         require(_challengeEscrow != address(0), "invalid-escrow");
@@ -233,12 +250,14 @@ contract SettlementManager is Ownable2Step, ReentrancyGuard, Pausable, ISettleme
 
         // Non-Pyth: check for pre-submitted attestation
         if (_attestationReady[callId]) {
-            return (ICallRegistry.Outcome(_attestedOutcome[callId]), 0);
+            return (ICallRegistry.Outcome(_attestedOutcome[callId]), _attestedPriceDelta[callId]);
         }
 
-        // Default: CallerLost for unattested non-Pyth calls
-        // (Relayer always calls submitAttestation before settle() in production)
-        return (ICallRegistry.Outcome.CallerLost, 0);
+        // No attestation yet — DEFER. Do NOT mis-settle as CallerLost.
+        // settle() will return without reverting; the call stays Live.
+        // The relayer must submit a valid attestation before settlement can proceed.
+        emit SettlementDelayed(callId, "attestation-pending", block.timestamp);
+        return (ICallRegistry.Outcome.Pending, 0);
     }
 
     /// @dev Steps 7-10: compute rep delta for caller, apply to ProfileRegistry.
@@ -504,6 +523,99 @@ contract SettlementManager is Ownable2Step, ReentrancyGuard, Pausable, ISettleme
         emit DisputeResolved(callId, finalOutcome, msg.sender);
     }
 
+    // ---- Attestation submission ----------------------------------------------
+
+    /// @notice Submit a signed relayer attestation for a non-Pyth oracle settlement.
+    ///         The relayer must call this BEFORE settle() for non-Pyth calls.
+    ///         EIP-712 signed payload: OracleAttestation(callId, oracleType, outcome, priceDelta, timestamp).
+    ///
+    /// @dev Security invariants (SAFETY-57, T-04-04-01):
+    ///      - oracleType is bound to the call's configured adapterMap entry (blast-radius limit)
+    ///      - Only definitive outcomes (CallerWon=1, CallerLost=2) accepted; Pending=0 rejected
+    ///      - Pyth adapter (type 0) cannot use this path -- it has its own on-chain VAA flow
+    ///      - Signature must recover to attestationSigner[oracleType] (per-type KMS key)
+    ///      - callId in payload must match the callId param (prevents payload reuse)
+    ///
+    /// @param callId          The call to attest.
+    /// @param attestationData ABI-encoded (uint256 callId, uint8 oracleType, uint8 outcome,
+    ///                        int256 priceDelta, uint256 timestamp).
+    /// @param signature       65-byte ECDSA signature over the EIP-712 digest.
+    function submitAttestation(
+        uint256 callId,
+        bytes calldata attestationData,
+        bytes calldata signature
+    ) external whenNotPaused {
+        // Decode payload — all 5 fields used for checks + EIP-712 structHash
+        (
+            uint256 aCallId,
+            uint8   oracleType,
+            uint8   outcome,
+            int256  priceDelta,
+            uint256 timestamp
+        ) = abi.decode(attestationData, (uint256, uint8, uint8, int256, uint256));
+
+        // Bind payload callId to param — prevents payload reuse across calls
+        if (aCallId != callId) revert InvalidAttestation();
+
+        // Only definitive outcomes; Pending(0) is ambiguous and must never be attested
+        if (
+            outcome != uint8(ICallRegistry.Outcome.CallerWon) &&
+            outcome != uint8(ICallRegistry.Outcome.CallerLost)
+        ) revert InvalidAttestation();
+
+        // oracleType 0 (Pyth) settles on-chain via VAA — never via attestation
+        // oracleType > CexScraper(6) is out of enum range
+        if (
+            oracleType == uint8(OracleAdapter.Pyth) ||
+            oracleType > uint8(OracleAdapter.CexScraper)
+        ) revert InvalidAttestation();
+
+        // Bind oracleType to this call's configured adapter (SAFETY-57, blast-radius limit)
+        _checkAdapterBinding(callId, oracleType);
+
+        // EIP-712 signature verification
+        _checkAttestationSignature(callId, oracleType, outcome, priceDelta, timestamp, signature);
+
+        // ── EFFECTS ── (write state after all checks — CEI)
+        _attestedOutcome[callId]    = outcome;
+        _attestedPriceDelta[callId] = priceDelta;
+        _attestationReady[callId]   = true;
+
+        emit AttestationSubmitted(callId, oracleType, outcome, priceDelta);
+    }
+
+    /// @dev Check that oracleType matches the configured adapterMap for this call.
+    ///      Extracted to a separate function to avoid "stack too deep" in submitAttestation.
+    function _checkAdapterBinding(uint256 callId, uint8 oracleType) internal view {
+        ICallRegistry.Call memory call = callRegistry.getCall(callId);
+        OracleAdapter configuredAdapter = adapterMap[uint8(call.marketType)][uint8(call.eventSubtype)];
+        if (oracleType != uint8(configuredAdapter)) revert InvalidAttestation();
+    }
+
+    /// @dev EIP-712 signature check for submitAttestation.
+    ///      Extracted to a separate function to avoid "stack too deep" in submitAttestation.
+    function _checkAttestationSignature(
+        uint256 callId,
+        uint8   oracleType,
+        uint8   outcome,
+        int256  priceDelta,
+        uint256 timestamp,
+        bytes calldata signature
+    ) internal view {
+        bytes32 structHash = keccak256(
+            abi.encode(
+                ORACLE_ATTESTATION_TYPEHASH,
+                callId,
+                oracleType,
+                outcome,
+                priceDelta,
+                timestamp
+            )
+        );
+        address signer = ECDSA.recover(_hashTypedDataV4(structHash), signature);
+        if (signer == address(0) || signer != attestationSigner[oracleType]) revert InvalidAttestation();
+    }
+
     // ---- Admin setters -------------------------------------------------------
 
     /// @inheritdoc ISettlementManager
@@ -511,6 +623,17 @@ contract SettlementManager is Ownable2Step, ReentrancyGuard, Pausable, ISettleme
         external onlyOwner
     {
         adapterMap[marketType][eventSubtype] = adapter;
+    }
+
+    /// @notice Owner-only: register the expected ECDSA signer for a given oracle type.
+    ///         Each oracle type has an independent KMS key — compromise of one key
+    ///         cannot forge attestations for a different oracle category (SAFETY-57).
+    /// @param oracleType  OracleAdapter enum value (1..6; 0=Pyth not allowed).
+    /// @param signer      ECDSA public key address of the relayer KMS key for this type.
+    function setAttestationSigner(uint8 oracleType, address signer) external onlyOwner {
+        require(oracleType <= uint8(OracleAdapter.CexScraper), "invalid-oracle-type");
+        attestationSigner[oracleType] = signer;
+        emit AttestationSignerSet(oracleType, signer);
     }
 
     /// @notice Set the Phase 5 Stylus score engine address.

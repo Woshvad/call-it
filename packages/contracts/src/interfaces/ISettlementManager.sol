@@ -54,11 +54,28 @@ interface ISettlementManager {
     /// @notice Settlement completed successfully. SETTLE-01.
     /// @param callId  The settled call ID.
     /// @param outcome ICallRegistry.Outcome enum value (1=CallerWon, 2=CallerLost).
-    /// @param priceDelta Price difference vs target; 0 for non-Pyth adapters.
+    /// @param priceDelta Price difference vs target; 0 for non-Pyth adapters (unless attested).
     event CallSettled(
         uint256 indexed callId,
         uint8           outcome,
         int256          priceDelta
+    );
+
+    /// @notice Relayer submitted a valid signed attestation for a non-Pyth call.
+    ///         Emitted by submitAttestation() after EIP-712 verification passes.
+    ///         callId is now ready for settle() to complete.
+    event AttestationSubmitted(
+        uint256 indexed callId,
+        uint8           oracleType,
+        uint8           outcome,
+        int256          priceDelta
+    );
+
+    /// @notice Owner registered or updated the ECDSA signer for a given oracle type.
+    ///         One signer per oracle category for KMS key separation (SAFETY-57 / T-04-04-01).
+    event AttestationSignerSet(
+        uint8 indexed oracleType,
+        address       signer
     );
 
     /// @notice Dispute raised after settlement. SETTLE-25.
@@ -190,6 +207,24 @@ interface ISettlementManager {
 
     /// @notice Owner-only: set the oracle adapter for a (marketType, eventSubtype) pair.
     function setAdapterMap(uint8 marketType, uint8 eventSubtype, OracleAdapter adapter) external;
+
+    /// @notice Submit a relayer-signed EIP-712 attestation for a non-Pyth oracle call.
+    ///         Must be called by the relayer BEFORE settle() for non-Pyth adapters.
+    ///         Signature must recover to attestationSigner[oracleType] (per-type KMS key).
+    ///         Payload: ABI-encoded (uint256 callId, uint8 oracleType, uint8 outcome,
+    ///                  int256 priceDelta, uint256 timestamp).
+    ///         Domain: EIP712("CallIt-Oracle", "1") with block.chainid + address(this).
+    ///         Note: this ABI matches the relayer's existing submitAttestation call path.
+    function submitAttestation(
+        uint256 callId,
+        bytes calldata attestationData,
+        bytes calldata signature
+    ) external;
+
+    /// @notice Owner-only: register the expected ECDSA signer address for an oracle type.
+    ///         Each oracle type uses an independent KMS key (SAFETY-57 / T-04-04-01).
+    ///         oracleType must be 0..6 (OracleAdapter enum range).
+    function setAttestationSigner(uint8 oracleType, address signer) external;
 
     /// @notice Accept ETH top-ups for the Pyth update fee budget. Pitfall 4.
     receive() external payable;
