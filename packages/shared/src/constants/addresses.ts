@@ -267,11 +267,16 @@ export const AAVE_V3_POOL_ARBITRUM_ONE =
 /**
  * Subgraph Studio query URL for the call-it-sepolia deployment (Arbitrum Sepolia).
  *
- * DEPLOYED 2026-05-30 via `graph deploy call-it-sepolia` (graph-cli 0.98.1).
- * Studio user id: 1754389. Version label: v0.0.1.
- * IPFS build hash: QmRyZoED61CDfVVg6BAz6ZairKh1mnY8vRbeydLmfu3xej.
- * Indexes CallRegistry v2, ProfileRegistry v2, FollowFadeMarket (Phase 2 addresses).
+ * Phase 4 redeploy (v0.4.0, 2026-06-01): adds SettlementManager handlers —
+ * CallSettled, DisputeRaised, DisputeResolved, CallForceSettled, SettlementDelayed,
+ * RepCalculated, RepCalculatedFallback; also adds Phase 3 ChallengeEscrow handlers
+ * (supersedes v0.3.0). Indexes SettlementManager at
+ * 0xAc37a0e4A3e575EF21684c28a5b820dB44654595 (startBlock: 272912513) and
+ * FollowFadeMarket v2 at 0x185e43526c0acd88AC236197e3Ee7629ebd601CA.
+ *
+ * Studio user id: 1754389. Version label: v0.4.0.
  * Studio dashboard: https://thegraph.com/studio/subgraph/call-it-sepolia
+ * hasIndexingErrors: false (verified 2026-06-01).
  *
  * Note: this is the version-pinned endpoint emitted by the deploy. Republishing a
  * new version label will mint a new URL — update this constant on each redeploy.
@@ -279,9 +284,18 @@ export const AAVE_V3_POOL_ARBITRUM_ONE =
  *
  * Requirement: D-27 (Studio key held by relayer only — frontend hits /api/feed proxy)
  * Threat: T-01-67 — schema drift between Phase 0 stubs and Phase 1 real events (closed)
+ *
+ * Post-deploy on-chain assertions (Phase 4 — all passed):
+ *   sm.callRegistry()              -> CallRegistry v2                    ✓
+ *   sm.followFadeMarket()          -> FollowFadeMarket v2                ✓
+ *   CR.settlementManager()         -> 0xAc37a0e4A3e575EF21684c28a5b820dB44654595 ✓
+ *   FFM v2.settlementManager()     -> 0xAc37a0e4A3e575EF21684c28a5b820dB44654595 ✓
+ *   CE.settlementManager()         -> 0xAc37a0e4A3e575EF21684c28a5b820dB44654595 ✓
+ *   PR.settlementManager()         -> 0xAc37a0e4A3e575EF21684c28a5b820dB44654595 ✓
+ *   PR.authorizedRepWriters(sm)    -> true                               ✓
  */
 export const SUBGRAPH_URL_SEPOLIA =
-  'https://api.studio.thegraph.com/query/1754389/call-it-sepolia/v0.0.1' as const;
+  'https://api.studio.thegraph.com/query/1754389/call-it-sepolia/v0.4.0' as const;
 
 /**
  * Subgraph Decentralized Network URL (Arbitrum One mainnet).

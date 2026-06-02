@@ -1,0 +1,113 @@
+name: CEX Scraper Synthetic CI
+
+# Weekly CI cron that runs all 8 CEX scraper testWithFixture functions using
+# static HTML fixtures committed to the repo. Catches selector drift before it
+# silently produces false negatives in production.
+#
+# D-02, Pitfall 10: Each exchange has an isolated scraper module.
+# One broken scraper does NOT cascade to fail the other 7 — each is a separate
+# pnpm test --reporter=verbose run scoped by test name pattern.
+#
+# Pitfall 19 (Innovation Zone exclusion): the binance test asserts that
+# Innovation Zone / Seed Tag / Monitoring Tag posts return detected=false.
+#
+# Requirement: SETTLE-23, SETTLE-24, OPS-15
+
+on:
+  schedule:
+    # Every Monday at 09:00 UTC.
+    # Weekly cadence matches Binance's typical announcement cadence (Mon–Thu).
+    - cron: '0 9 * * 1'
+  workflow_dispatch:
+    # Manual trigger for spot-checks and post-deploy validation.
+    # Usage: gh workflow run cex-synthetic-ci.yml
+
+permissions:
+  contents: read
+
+jobs:
+  cex-synthetic:
+    name: CEX scraper synthetic tests (testWithFixture)
+    runs-on: ubuntu-latest
+
+    # Run all 8 exchanges in parallel; use a matrix so one failure is isolated
+    # to the failing exchange — the other 7 continue.
+    strategy:
+      fail-fast: false
+      matrix:
+        exchange:
+          - name: Binance
+            pattern: cex-binance
+          - name: Coinbase
+            pattern: cex-coinbase
+          - name: OKX
+            pattern: cex-okx
+          - name: Bybit
+            pattern: cex-bybit
+          - name: Kraken
+            pattern: cex-kraken
+          - name: Bitget
+            pattern: cex-bitget
+          - name: KuCoin
+            pattern: cex-kucoin
+          - name: Upbit
+            pattern: cex-upbit
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+
+      - name: Install dependencies (frozen lockfile)
+        run: pnpm install --frozen-lockfile
+
+      # Run the testWithFixture tests for this exchange.
+      # --run: non-watch mode (Vitest default for CI).
+      # --reporter=verbose: full test names in CI log for selector-drift triage.
+      # Pattern scopes to this exchange only — other 7 still run in parallel jobs.
+      - name: Run ${{ matrix.exchange.name }} scraper synthetic test
+        run: |
+          pnpm --filter @call-it/relayer test --run \
+            --reporter=verbose \
+            ${{ matrix.exchange.pattern }}
+        env:
+          # testWithFixture mode: no Playwright browser launch, no external network calls.
+          # The scraper reads the committed static HTML fixture instead.
+          CI: 'true'
+          NODE_ENV: test
+
+      # If this step fails, it means one of the following:
+      #   1. The exchange changed their announcement page HTML structure
+      #      → update the selector in apps/relayer/src/workers/oracle-adapters/cex/<exchange>-scraper.ts
+      #   2. The Innovation Zone / Seed Tag / Monitoring Tag exclusion patterns are stale
+      #      → update INNOVATION_ZONE_EXCLUSION_PATTERNS in the scraper
+      #   3. The static HTML fixture is out of date with the scraper's expected format
+      #      → update apps/relayer/src/workers/__tests__/fixtures/<exchange>-listing.html
+      #
+      # See: apps/relayer/src/workers/oracle-adapters/cex/README.md for triage guide.
+      - name: Summarize result
+        if: always()
+        run: |
+          if [ "${{ job.status }}" = "success" ]; then
+            echo "### ${{ matrix.exchange.name }}: PASS" >> "$GITHUB_STEP_SUMMARY"
+            echo "testWithFixture tests passed — no selector drift detected." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "### ${{ matrix.exchange.name }}: FAIL" >> "$GITHUB_STEP_SUMMARY"
+            echo "Selector drift or Innovation Zone exclusion patterns may be stale." >> "$GITHUB_STEP_SUMMARY"
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "**Triage steps:**" >> "$GITHUB_STEP_SUMMARY"
+            echo "1. Check if ${{ matrix.exchange.name }} changed their announcement page HTML structure" >> "$GITHUB_STEP_SUMMARY"
+            echo "2. Update the selector in \`apps/relayer/src/workers/oracle-adapters/cex/${{ matrix.exchange.pattern }}-scraper.ts\`" >> "$GITHUB_STEP_SUMMARY"
+            echo "3. Update the Innovation Zone exclusion patterns if the test variant fails" >> "$GITHUB_STEP_SUMMARY"
+            echo "4. Update the static HTML fixture if the fixture format has drifted" >> "$GITHUB_STEP_SUMMARY"
+          fi
