@@ -258,7 +258,7 @@ Phases execute in numeric order: 0 → 1 → 1.5 (parallel with 2) → 2 → 3 �
 | 2. FollowFadeMarket | 9/9 | Complete | 2026-05-31 |
 | 3. ChallengeEscrow | 5/7 | In Progress|  |
 | 4. SettlementManager + 7 oracle paths + Solidity baseline rep delta | 9/9 | Complete | 2026-06-02 |
-| 5. StylusScoreEngine + 48h cutoff | 0/7 | In Progress | - |
+| 5. StylusScoreEngine + 48h cutoff | 0/7 | Planned | - |
 | 6. Safety review + Sepolia ≥48h + multisig promotion | 0/TBD | Not started | - |
 | 7. OG service final variants + Subgraph final mappings | 0/TBD | Not started | - |
 | 7.5. Mainnet deploy gate | 0/TBD | Not started | - |
