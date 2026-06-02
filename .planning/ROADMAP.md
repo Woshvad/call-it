@@ -194,7 +194,7 @@ Call It ships as a person-first onchain social prediction product on Arbitrum ma
 Plans:
 - [x] 05.1-01-PLAN.md — Wave 1: ICallRegistry EventSubtype enum split (Option A: Governance_Snapshot=6, Governance_Tally=7, ProtocolMilestone=8) + AdapterMapTest.sol + SETTLE-DUAL-GOV requirement
 - [ ] 05.1-02-PLAN.md — Wave 2: DeployPhase5_1.s.sol — redeploy CR+SM, setAdapterMap x8, setAttestationSigner x6, Sepolia deploy checkpoint
-- [ ] 05.1-03-PLAN.md — Wave 2: Relayer rewire — 19-field CALL_REGISTRY_ABI, on-chain adapterMap dispatch, 6 adapter signOracleAttestation, CEX submitAttestation fix
+- [x] 05.1-03-PLAN.md — Wave 2: Relayer rewire — 19-field CALL_REGISTRY_ABI, on-chain adapterMap dispatch, 6 adapter signOracleAttestation, CEX submitAttestation fix
 - [ ] 05.1-04-PLAN.md — Wave 2: Criteria store — callOracleCriteria Drizzle schema + migration + resolveCriteria/insertCriteria + adapter wiring
 - [ ] 05.1-05-PLAN.md — Wave 3: Redeploy rollup — addresses.ts, subgraph.yaml, subgraph redeploy, relayer env update, Phase 4 test re-pass, live Sepolia smoke
 **Pitfalls mitigated**: 7 (KMS-signed per-type attestations + EIP-712 chainId binding now bound to real `block.chainid`), 18 (ambiguous non-Pyth reads DEFER to the dispute window, never mis-settle)
