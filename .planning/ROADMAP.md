@@ -173,7 +173,7 @@ Call It ships as a person-first onchain social prediction product on Arbitrum ma
   - [x] 05-02-PLAN.md — Wave 2: GREEN Rust engine (full D-2 math in math.rs + lib.rs #[selector] + #[storage] + #[public])
   - [x] 05-03-PLAN.md — Wave 2: Solidity contracts (SolidityScoreEngine.sol baseline + RevertingStylusEngine.sol drill fixture)
   - [ ] 05-04-PLAN.md — Wave 3: Deploy scripts (DeployPhase5Stylus.s.sol + CutoffFallback.s.sol + addresses.ts stubs)
-  - [ ] 05-05-PLAN.md — Wave 3: Relayer extension (deactivation-watcher demo-cutoff alerts + Test 5 + OPS-16 runbook)
+  - [x] 05-05-PLAN.md — Wave 3: Relayer extension (deactivation-watcher demo-cutoff alerts + Test 5 + OPS-16 runbook)
   - [ ] 05-06-PLAN.md — Wave 4: [OPERATOR] Sepolia deploy + activation + SM wiring + integration verification
   - [ ] 05-07-PLAN.md — Wave 5: [OPERATOR] Cutoff round-trip rehearsal + Phase 5 success criteria audit
 **Pitfalls mitigated**: 2 (RevertingStylusEngine fixture built here, drill in Phase 6), 5 (48h cutoff path is mechanical not panicked), 17 (Stylus reactivation runbook + Telegram alerts wired to deploy date)
@@ -258,7 +258,7 @@ Phases execute in numeric order: 0 → 1 → 1.5 (parallel with 2) → 2 → 3 �
 | 2. FollowFadeMarket | 9/9 | Complete | 2026-05-31 |
 | 3. ChallengeEscrow | 5/7 | In Progress|  |
 | 4. SettlementManager + 7 oracle paths + Solidity baseline rep delta | 9/9 | Complete | 2026-06-02 |
-| 5. StylusScoreEngine + 48h cutoff | 3/7 | In Progress|  |
+| 5. StylusScoreEngine + 48h cutoff | 4/7 | In Progress|  |
 | 6. Safety review + Sepolia ≥48h + multisig promotion | 0/TBD | Not started | - |
 | 7. OG service final variants + Subgraph final mappings | 0/TBD | Not started | - |
 | 7.5. Mainnet deploy gate | 0/TBD | Not started | - |
