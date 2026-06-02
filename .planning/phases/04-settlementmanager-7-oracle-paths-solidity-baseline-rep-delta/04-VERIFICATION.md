@@ -1,7 +1,8 @@
 ---
 phase: 04-settlementmanager-7-oracle-paths-solidity-baseline-rep-delta
 verified: 2026-06-02T00:00:00Z
-status: human_needed
+status: verified
+gaps_acknowledged: 2026-06-02
 score: 17/17
 overrides_applied: 0
 human_verification:
@@ -249,6 +250,48 @@ No TBD/FIXME/XXX markers found in Phase 4 source files. No raw USDC literals out
 No gaps found. All 17 must-haves are VERIFIED by static code analysis. The 6 human verification items require live wallet interaction, browser rendering, or external RPC calls and cannot be resolved programmatically.
 
 The OG card stat row placeholder values (`'—'` for P&L, rep delta, final price, target) are explicitly documented as Phase 7 wiring in `apps/web/app/og/[callId]/route.ts` — this is not a gap, it is a documented deferral. The card branches correctly on settlement status and the outcome word renders correctly from on-chain data.
+
+---
+
+## Acknowledged Gaps (Phase-4 Close — 2026-06-02)
+
+Phase 4 is formally closed with the items below explicitly acknowledged as deferred follow-ups
+(same env-deferred-UAT pattern used to close Phase 3). Neither blocks the phase's gate-relevant
+audits, which both PASS post-close:
+- **Security** — `threats_open: 0`, re-verified after the on-chain attestation rail landed
+  (04-SECURITY.md: T-04-02-03 / T-04-04-01 / T-04-04-02 all CLOSED, independent re-audit).
+- **Validation** — 18/18 Nyquist rows GREEN (04-VALIDATION.md): contracts 173/0, relayer 132/0,
+  web 40/0, subgraph build OK.
+
+### A. Live UAT — env-blocked
+The 6 "Human Verification Required" items need a funded Arbitrum Sepolia wallet + browser + a real
+settlement cycle. Item 6 (on-chain wiring) was confirmed by the orchestrator via `cast`
+(04-HUMAN-UAT.md test 6 = passed). Items 1–5 are deferred until a live test session — carried as
+live-infra debt, consistent with the ADR-0001 Sepolia-USDC money-path constraint that has gated
+live money paths since Phase 2.
+
+### B. Non-Pyth oracle functional rail — deferred (FUNCTIONAL, not a safety gap)
+The on-chain attestation verification rail (`submitAttestation` + EIP-712 + `ECDSA.recover` +
+per-type signer registry) is IMPLEMENTED and security-verified, and the unified relayer signing
+format is built + tested (`apps/relayer/src/workers/oracle-adapters/oracle-attestation.ts`, 12/12).
+What remains, to make the 6 non-Pyth paths settle end-to-end, is deferred:
+1. `setAdapterMap` is not called in `DeployPhase4.s.sol` → the live SM maps every market to
+   `Pyth(0)`, so non-Pyth attestations revert until configured. Also needs a product decision on
+   the `Snapshot(4)`-vs-`Tally(5)` collision under `eventSubtype=Governance(6)` (the map allows
+   one oracle per `(marketType, eventSubtype)`).
+2. The 6 adapters + `settlement-watcher.ts` still emit the legacy per-adapter format
+   (`CallIt-*`, hardcoded `chainId=42161`) and decode a fabricated 14-field `Call` ABI; they must
+   be rewired onto `oracle-attestation.ts` (unified domain, `block.chainid`, real 19-field `Call`
+   decode, on-chain `adapterMap` dispatch). NOTE: this supersedes Truth #4's `chainId=42161n`
+   evidence — the deployed contract binds the real `block.chainid` (421614 on Sepolia).
+3. Off-chain call-criteria retrieval for the string identifiers (`protocolSlug`, `proposalId`,
+   `tokenSymbol`) the adapters need but the on-chain `Call` does not carry; plus per-market
+   `targetValue` unit verification against call-creation.
+
+**Safety note:** every gap in (B) resolves to *revert* or *DEFER (Pending)* on-chain — never a
+forged or mis-settled outcome (04-SECURITY.md residual follow-ups 1–3). The Pyth settlement spine
+is fully functional and unaffected. Tracked as a future functional milestone (natural companion to
+Phase 5 or a dedicated non-Pyth-rail phase).
 
 ---
 

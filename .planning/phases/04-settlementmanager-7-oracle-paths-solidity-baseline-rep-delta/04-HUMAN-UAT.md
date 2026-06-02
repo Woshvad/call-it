@@ -1,14 +1,18 @@
 ---
-status: partial
+status: deferred
 phase: 04-settlementmanager-7-oracle-paths-solidity-baseline-rep-delta
 source: [04-VERIFICATION.md]
 started: 2026-06-02T00:31:26Z
-updated: 2026-06-02T00:31:26Z
+updated: 2026-06-02T03:00:00Z
+acknowledged_at_close: 2026-06-02
 ---
 
 ## Current Test
 
-[awaiting human testing — live wallet-driven §19.11 smoke test]
+[acknowledged-deferred at Phase-4 close (2026-06-02) — these 5 live items need a funded
+Arbitrum Sepolia wallet + browser + a real settle cycle; carried as live-infra debt per
+04-VERIFICATION.md "Acknowledged Gaps A". Resume by re-running the live session when a
+funded wallet is available.]
 
 ## Context
 
@@ -23,23 +27,23 @@ Live deployment under test:
 
 ### 1. Live settlement E2E (Pyth demo spine)
 expected: Create a BTC/USD price-target call on Sepolia with a short expiry; after expiry the settlement watcher enqueues and calls settle() (visible as a settle() tx on SettlementManager in Arbiscan); the call transitions to Settled.
-result: [pending]
+result: deferred — env-blocked (funded Sepolia wallet + browser + live settle cycle); acknowledged at Phase-4 close
 
 ### 2. Dispute flow E2E
 expected: On a Settled Receipt, "Dispute this settlement" opens the DisputeModal; approving + posting the $5 USDC bond submits raiseDispute; the dispute appears in /disputes with the 24h owner-commitment.
-result: [pending]
+result: deferred — env-blocked (funded Sepolia wallet + browser + live settle cycle); acknowledged at Phase-4 close
 
 ### 3. Provenance modal content (D-10)
 expected: "view oracle proof ↗" opens the ProvenanceModal showing path-aware raw data (Pyth price + confidence + publishTime), the settle() tx Arbiscan link, and the truncated EIP-712 relayer signature (chainId 42161 label).
-result: [pending]
+result: deferred — env-blocked (funded Sepolia wallet + browser + live settle cycle); acknowledged at Phase-4 close
 
 ### 4. OG card 200px readability QA (SHARE-12 / UI-18)
 expected: The Settled and Caller-Exited OG cards remain legible (outcome word, key figures) when scaled to ~200px width — the social-thumbnail readability gate.
-result: [pending]
+result: deferred — env-blocked (funded Sepolia wallet + browser + live settle cycle); acknowledged at Phase-4 close
 
 ### 5. Live OG render for settled / exited calls
 expected: GET /og/[callId] returns a non-fallback card with header X-Variant: settled and the outcome word visible; ?as=fader renders "FADED CORRECTLY" for a winning fader.
-result: [pending]
+result: deferred — env-blocked (funded Sepolia wallet + browser + live settle cycle); acknowledged at Phase-4 close
 
 ### 6. On-chain wiring confirmation (cast)
 expected: SM owner() = deployer 0xDa8c…A4a5; CallRegistry.settlementManager() and FollowFadeMarket v2.settlementManager() both = SM 0xAc37a0e4A3e575EF21684c28a5b820dB44654595.
@@ -50,8 +54,9 @@ result: passed — verified by orchestrator 2026-06-02 (cast call against Sepoli
 total: 6
 passed: 1
 issues: 0
-pending: 5
+pending: 0
 skipped: 0
 blocked: 0
+deferred: 5
 
 ## Gaps
