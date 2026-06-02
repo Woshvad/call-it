@@ -138,24 +138,28 @@ forge script script/CutoffFallback.s.sol \
   --broadcast
 
 # Option B: Manual cast send (equivalent to CutoffFallback.s.sol run())
-export SOLIDITY_BASELINE_ADDR=$SOLIDITY_SCORE_ENGINE_ARBITRUM_SEPOLIA
+export PROXY_ADDR=$STYLUS_SCORE_ENGINE_PROXY_ARBITRUM_SEPOLIA
 export PROXY_ADMIN_ADDR=$PROXY_ADMIN_ARBITRUM_SEPOLIA
+export SOLIDITY_BASELINE_ADDR=$SOLIDITY_SCORE_ENGINE_ARBITRUM_SEPOLIA
 
-# Using multisig (Phase 6+) via Safe or deployer key (Phase 4-5):
+# Using multisig (Phase 6+) via Safe or deployer key (Phase 4-5).
+# OZ 5.x: upgradeAndCall(ITransparentUpgradeableProxy proxy, address impl, bytes data).
+# FIRST arg is the PROXY address (not the impl); data is 0x (stateless engine, no initialize()).
 cast send $PROXY_ADMIN_ADDR \
   "upgradeAndCall(address,address,bytes)" \
-  $STYLUS_ENGINE_ADDRESS \
+  $PROXY_ADDR \
   $SOLIDITY_BASELINE_ADDR \
-  "" \
+  0x \
   --rpc-url $ARBITRUM_SEPOLIA_RPC_URL \
   --private-key $DEPLOYER_PRIVATE_KEY
 
-# Verify proxy now delegates to Solidity baseline
-cast call $PROXY_ADMIN_ADDR \
-  "getProxyImplementation(address)(address)" \
-  $STYLUS_ENGINE_ADDRESS \
+# Verify proxy now delegates to Solidity baseline.
+# OZ v5 REMOVED ProxyAdmin.getProxyImplementation() -- read the ERC-1967 impl slot directly.
+# impl slot = keccak256("eip1967.proxy.implementation") - 1
+cast storage $PROXY_ADDR \
+  0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc \
   --rpc-url $ARBITRUM_SEPOLIA_RPC_URL
-# Should return SOLIDITY_SCORE_ENGINE_ARBITRUM_SEPOLIA address
+# Lower 20 bytes should equal SOLIDITY_SCORE_ENGINE_ARBITRUM_SEPOLIA
 ```
 
 Pitch to investors: "Stylus in production roadmap" -- the Solidity baseline provides functionally identical reputation scoring, just without the Rust/WASM performance characteristics. Phase 5+ restores the full-fidelity engine.
