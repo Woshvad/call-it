@@ -33,8 +33,8 @@ pragma solidity =0.8.30;
 
 import { Script } from "forge-std/Script.sol";
 import { console } from "forge-std/console.sol";
-import { TransparentUpgradeableProxy } from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 import { ProxyAdmin } from "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
+import { StatelessTransparentProxy } from "../src/StatelessTransparentProxy.sol";
 import { SolidityScoreEngine } from "../src/SolidityScoreEngine.sol";
 import { RevertingStylusEngine } from "../src/RevertingStylusEngine.sol";
 import { SettlementManager } from "../src/SettlementManager.sol";
@@ -91,18 +91,18 @@ contract DeployPhase5Stylus is Script {
         // Used in Phase 6 drill to verify SettlementManager try/catch fallback fires.
         RevertingStylusEngine revertingEngine = new RevertingStylusEngine();
 
-        // --- 3. Deploy ProxyAdmin ------------------------------------------------
-        // Owner = deployer for Phase 5. Phase 6 promotes to multisig (SAFETY-20).
-        // OZ 5.6.1: ProxyAdmin constructor takes initialOwner parameter.
-        ProxyAdmin proxyAdmin = new ProxyAdmin(vm.addr(deployerKey));
-
-        // --- 4. Deploy TransparentUpgradeableProxy pointing at Stylus WASM impl --
-        // initData = "" (engine is stateless, no initialize() needed).
+        // --- 3 & 4. Deploy the StatelessTransparentProxy pointing at the Stylus WASM impl.
+        // OZ 5.x auto-creates the ProxyAdmin INSIDE the proxy constructor (owned by
+        // initialOwner = deployer). Do NOT pre-deploy a ProxyAdmin and pass it -- that
+        // is the OZ 4.x pattern and is wrong here.
+        // StatelessTransparentProxy permits empty init data because the engine is
+        // stateless; stock TransparentUpgradeableProxy would revert with
+        // ERC1967ProxyUninitialized() on OZ 5.6+.
         // Phase 5 impl = Stylus WASM. OPS-16 cutoff = upgrade to solidityEngine.
-        TransparentUpgradeableProxy proxy = new TransparentUpgradeableProxy(
+        // Phase 6 promotes the admin owner to multisig (SAFETY-20).
+        StatelessTransparentProxy proxy = new StatelessTransparentProxy(
             stylusImplAddr,
-            address(proxyAdmin),
-            ""
+            vm.addr(deployerKey)
         );
 
         // --- 5. Wire proxy address into SettlementManager -----------------------
@@ -125,9 +125,15 @@ contract DeployPhase5Stylus is Script {
             "DeployPhase5: SM.stylusScoreEngine() mismatch"
         );
 
-        // Assert ProxyAdmin owner is deployer (Phase 5 invariant before multisig)
+        // OZ 5.x auto-created the ProxyAdmin inside the proxy constructor. Read its
+        // address from the proxy's ERC-1967 admin slot.
+        // adminSlot = bytes32(uint256(keccak256("eip1967.proxy.admin")) - 1)
+        bytes32 adminSlot = 0xb53127684a568b3173ae13b9f8a6016e243e63b6e8ee1178d6a717850b5d6103;
+        address proxyAdminAddr = address(uint160(uint256(vm.load(address(proxy), adminSlot))));
+
+        // Assert the auto-created ProxyAdmin is owned by the deployer (Phase 5 invariant before multisig)
         require(
-            proxyAdmin.owner() == vm.addr(deployerKey),
+            ProxyAdmin(proxyAdminAddr).owner() == vm.addr(deployerKey),
             "DeployPhase5: ProxyAdmin.owner() mismatch"
         );
 
@@ -138,7 +144,7 @@ contract DeployPhase5Stylus is Script {
         console.log("DEPLOYMENT SUMMARY (Arbitrum Sepolia)");
         console.log("SolidityScoreEngine:    ", address(solidityEngine));
         console.log("RevertingStylusEngine:  ", address(revertingEngine));
-        console.log("ProxyAdmin:             ", address(proxyAdmin));
+        console.log("ProxyAdmin (auto-created):", proxyAdminAddr);
         console.log("StylusScoreEngine proxy:", address(proxy));
         console.log("---");
         console.log("REQUIRED NEXT STEPS:");

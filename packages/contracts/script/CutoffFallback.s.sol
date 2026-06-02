@@ -42,9 +42,10 @@ contract CutoffFallback is Script {
     // Populated from addresses.ts after DeployPhase5Stylus.s.sol broadcast.
     // Replace address(0) with real addresses from Plan 06 deployment output.
 
-    address public constant PROXY_ADMIN_ADDR       = address(0); // FILL AFTER DEPLOY
-    address public constant PROXY_ADDR             = address(0); // FILL AFTER DEPLOY
-    address public constant SOLIDITY_BASELINE_ADDR = address(0); // FILL AFTER DEPLOY
+    // Filled from DeployPhase5Stylus.s.sol broadcast output (Arbitrum Sepolia, 2026-06-02).
+    address public constant PROXY_ADMIN_ADDR       = 0xAeA5a279DDF1625490c5F4284eF0D735BB56044a; // auto-created ProxyAdmin (owner = deployer)
+    address public constant PROXY_ADDR             = 0xe7e15980C40db52BFC6dcaBb21B3d90edFB27c14; // StylusScoreEngine proxy
+    address public constant SOLIDITY_BASELINE_ADDR = 0xfD2E6270f915797B1524e13a88BC73960e1D04e5; // SolidityScoreEngine 48h-cutoff fallback
 
     // EIP-1967 implementation storage slot:
     // keccak256("eip1967.proxy.implementation") - 1

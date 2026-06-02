@@ -327,7 +327,7 @@ export const SUBGRAPH_URL_MAINNET: string | null = null;
  * Threat: T-05-04-02 -- wrong SM address wired prevented by post-deploy require() assertion.
  */
 export const STYLUS_SCORE_ENGINE_PROXY_ARBITRUM_SEPOLIA =
-  '0x0000000000000000000000000000000000000000' as const; // FILL AFTER DEPLOY (Phase 5 Plan 06)
+  '0xe7e15980C40db52BFC6dcaBb21B3d90edFB27c14' as const; // Phase 5 Plan 06 deploy (2026-06-02); Stylus WASM impl behind proxy = 0xdbe23df8ff832e09f2d8f52c3ec8a32b3d714755
 
 /**
  * ProxyAdmin on Arbitrum Sepolia (Phase 5 deploy).
@@ -342,7 +342,7 @@ export const STYLUS_SCORE_ENGINE_PROXY_ARBITRUM_SEPOLIA =
  *   proxyAdmin.owner()           -> deployer address                   ✓
  */
 export const PROXY_ADMIN_ARBITRUM_SEPOLIA =
-  '0x0000000000000000000000000000000000000000' as const; // FILL AFTER DEPLOY (Phase 5 Plan 06)
+  '0xAeA5a279DDF1625490c5F4284eF0D735BB56044a' as const; // Phase 5 Plan 06 deploy (2026-06-02); auto-created by OZ 5.x proxy, owner = deployer
 
 /**
  * SolidityScoreEngine on Arbitrum Sepolia (Phase 5 deploy).
@@ -358,7 +358,7 @@ export const PROXY_ADMIN_ARBITRUM_SEPOLIA =
  *   solidityEngine.compute_rep_change(0, 50, 0, true, 10)  -> 10          ✓
  */
 export const SOLIDITY_SCORE_ENGINE_ARBITRUM_SEPOLIA =
-  '0x0000000000000000000000000000000000000000' as const; // FILL AFTER DEPLOY (Phase 5 Plan 06)
+  '0xfD2E6270f915797B1524e13a88BC73960e1D04e5' as const; // Phase 5 Plan 06 deploy (2026-06-02); 48h-cutoff fallback
 
 /**
  * RevertingStylusEngine on Arbitrum Sepolia (Phase 5 deploy).
@@ -374,4 +374,4 @@ export const SOLIDITY_SCORE_ENGINE_ARBITRUM_SEPOLIA =
  *   revertingEngine.compute_rep_change(...)  -> reverts                  ✓
  */
 export const REVERTING_STYLUS_ENGINE_ARBITRUM_SEPOLIA =
-  '0x0000000000000000000000000000000000000000' as const; // FILL AFTER DEPLOY (Phase 5 Plan 06)
+  '0x8492faD7eF45a213E498daaA88986f97Fb22b6e1' as const; // Phase 5 Plan 06 deploy (2026-06-02); Phase 6 SAFETY-42 drill fixture
