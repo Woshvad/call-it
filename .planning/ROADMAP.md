@@ -15,7 +15,7 @@ Call It ships as a person-first onchain social prediction product on Arbitrum ma
 - [ ] **Phase 1.5: Social linking (parallel to Phase 2)** - Twitter/Farcaster OAuth proof, relayer-signed `linkTwitter`/`linkFarcaster`, VERIFIED badges, "From your X/Farcaster" feed sections
 - [x] **Phase 2: FollowFadeMarket** - Single-contract AMM with per-callId sub-state, follow/fade with `minSharesOut` slippage, caller exit (24h lock + decay), follower/fader exit (4h cooldown + 10% slash), Live Receipt page (completed 2026-05-31)
 - [x] **Phase 3: ChallengeEscrow** - 1v1 duel escrow, self-challenge ban, 24h accept window, push-pattern overage refund, Duel King badge, Trending Duel auto-promotion, Duel page (completed 2026-06-01 — deployed to Sepolia `0x59eb7C80…bec2`, security audit 36/36; settled-state UAT deferred to Phase 4)
-- [ ] **Phase 4: SettlementManager + 7 oracle paths + Solidity baseline rep delta** - 14-step atomic settle dispatch hub, Pyth pull + multicall, NFT TWAP via Alchemy + KMS-signed relayer, DefiLlama, RPC, Snapshot/Tally, 8 CEX scrapers, dispute window with $5 bond, forceSettle 7d cooldown, Settled Receipt page, in-contract Solidity baseline rep math
+- [x] **Phase 4: SettlementManager + 7 oracle paths + Solidity baseline rep delta** - 14-step atomic settle dispatch hub, Pyth pull + multicall, NFT TWAP via Alchemy + KMS-signed relayer, DefiLlama, RPC, Snapshot/Tally, 8 CEX scrapers, dispute window with $5 bond, forceSettle 7d cooldown, Settled Receipt page, in-contract Solidity baseline rep math (completed 2026-06-02 — security threats_open: 0 + validation 18/18 GREEN; Pyth settlement spine live; live UAT + non-Pyth functional rail acknowledged-deferred per 04-VERIFICATION.md)
 - [ ] **Phase 5: StylusScoreEngine + 48h cutoff** - Rust reputation engine behind Solidity `TransparentUpgradeableProxy`, full-fidelity `compute_rep_change`, 365-day reactivation runbook integrated with Phase 0 alerts, parallel-built `RevertingStylusEngine` test fixture
 - [ ] **Phase 6: Safety review + Sepolia ≥48h + multisig promotion** - Stylus destruction drill, TVL cap aggregation boundary tests, full "Looks Done But Isn't" checklist, Sepolia ≥48h with seeded calls/follows/settles/exits/challenges/disputes, Safe 2-of-3 multisig deploy + ownership transfer (HARD GATE)
 - [ ] **Phase 7: OG service final variants + Subgraph final mappings** - 5 OG card variants finalized (Live, Settled, DuelSettled, CallerExited, Fallback) via @vercel/og + Satori, subgraph published to Decentralized Network on Arbitrum, auto-post-to-X gated by cache-warm verification, Twitter Card Validator pre-flight, 200px readability QA gate
@@ -250,7 +250,7 @@ Phases execute in numeric order: 0 → 1 → 1.5 (parallel with 2) → 2 → 3 �
 | 1.5. Social linking | 0/TBD | Not started | - |
 | 2. FollowFadeMarket | 9/9 | Complete | 2026-05-31 |
 | 3. ChallengeEscrow | 5/7 | In Progress|  |
-| 4. SettlementManager + 7 oracle paths + Solidity baseline rep delta | 7/9 | In Progress|  |
+| 4. SettlementManager + 7 oracle paths + Solidity baseline rep delta | 9/9 | Complete | 2026-06-02 |
 | 5. StylusScoreEngine + 48h cutoff | 0/TBD | Not started | - |
 | 6. Safety review + Sepolia ≥48h + multisig promotion | 0/TBD | Not started | - |
 | 7. OG service final variants + Subgraph final mappings | 0/TBD | Not started | - |
