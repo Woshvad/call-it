@@ -35,6 +35,7 @@ import {
   OracleOutcome,
   SUBMIT_ATTESTATION_ABI,
 } from '../oracle-attestation.js';
+import { resolveCriteria } from '../../../db/criteria-store.js';
 
 import * as binanceScraper from './binance-scraper.js';
 import * as coinbaseScraper from './coinbase-scraper.js';
@@ -118,24 +119,43 @@ export class CexAdapter {
    * Scrape all exchanges in parallel and attest if any confirms the listing.
    *
    * @param callId - call ID for the attestation
-   * @param tokenSymbol - token ticker (e.g., 'BTC')
+   * @param tokenSymbol - token ticker (e.g., 'BTC'). If omitted, resolved from criteria store (Gap B.3).
    * @param tokenName - full token name (e.g., 'Bitcoin')
    * @param expiryTimestamp - call expiry Unix timestamp
-   * @returns 'found' | 'not_found' | 'ambiguous'
+   * @returns CexScrapeOutcome (rich object with status + attestation data)
    */
   async scrapeAndAttest(
     callId: bigint,
-    tokenSymbol: string,
+    tokenSymbol: string | undefined,
     tokenName: string,
     expiryTimestamp: number,
   ): Promise<CexScrapeOutcome | 'found' | 'not_found' | 'ambiguous'> {
     const logger = getLogger();
 
+    // ── Resolve tokenSymbol from criteria store (Gap B.3 fix) ───────────────────
+    // Production path: tokenSymbol comes from the criteria store (identifier field).
+    // Direct-call path: tokenSymbol may be provided in params (bypasses store lookup).
+    let resolvedTokenSymbol = tokenSymbol;
+    if (!resolvedTokenSymbol) {
+      const criteria = await resolveCriteria(Number(callId));
+      if (!criteria) {
+        logger.warn(
+          {
+            event: 'cex_adapter_criteria_missing',
+            callId: callId.toString(),
+          },
+          'CEX adapter: criteria not found in store — returning ambiguous (no settlement)',
+        );
+        return { status: 'ambiguous' };
+      }
+      resolvedTokenSymbol = criteria.identifier;
+    }
+
     logger.info(
       {
         event: 'cex_adapter_scrape_start',
         callId: callId.toString(),
-        tokenSymbol,
+        tokenSymbol: resolvedTokenSymbol,
         tokenName,
         exchangeCount: Object.keys(scrapers).length,
       },
@@ -147,7 +167,7 @@ export class CexAdapter {
     const results = await Promise.allSettled(
       scraperEntries.map(([, scrapeFunc]) =>
         (scrapeFunc as (sym: string, name: string, exp: number) => Promise<boolean>)(
-          tokenSymbol,
+          resolvedTokenSymbol!,
           tokenName,
           expiryTimestamp,
         ),
@@ -170,7 +190,7 @@ export class CexAdapter {
         {
           event: 'cex_adapter_not_found',
           callId: callId.toString(),
-          tokenSymbol,
+          tokenSymbol: resolvedTokenSymbol,
         },
         'CEX adapter: no exchange confirmed listing — returning not_found',
       );
@@ -181,7 +201,7 @@ export class CexAdapter {
       {
         event: 'cex_adapter_found',
         callId: callId.toString(),
-        tokenSymbol,
+        tokenSymbol: resolvedTokenSymbol,
         foundExchange,
       },
       `CEX adapter: listing confirmed by ${foundExchange} — signing attestation`,

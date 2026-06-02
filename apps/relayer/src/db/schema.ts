@@ -233,6 +233,54 @@ export const trendingDuels = pgTable(
 );
 
 // ---------------------------------------------------------------------------
+// call_oracle_criteria  (Phase 05.1 — Gap B.3)
+// ---------------------------------------------------------------------------
+
+/**
+ * Off-chain criteria store for non-Pyth oracle adapters.
+ *
+ * The on-chain Call struct does not carry string identifiers (proposalId,
+ * protocolSlug, tokenSymbol). This table bridges the gap:
+ *
+ *   Writer: apps/relayer/src/workers/calls-preflight.ts
+ *           Called via insertCriteria() after CallCreated on-chain confirmation.
+ *           Only DefiLlama (2), RpcMetrics (3), and CexScraper (6) calls need a row.
+ *           Governance (Snapshot/Tally) use assetA encoding; NFT-TWAP uses assetA.
+ *
+ *   Reader: apps/relayer/src/workers/oracle-adapters/{defillama,rpc-metrics,cex}-adapter.ts
+ *           Called via resolveCriteria(callId) at settlement time.
+ *           If null returned → adapter returns { ambiguous: true } → settlement DEFERs.
+ *
+ * Fail-safe (T-05.1-04-02): if this table is unavailable or row missing,
+ * the adapter must NEVER settle — it returns { ambiguous: true } so the
+ * dispute window handles it. No mis-settlement is possible.
+ *
+ * PK on call_id is sufficient for the lookup pattern (single key lookup at
+ * settlement time). No secondary indexes needed.
+ */
+export const callOracleCriteria = pgTable('call_oracle_criteria', {
+  /** On-chain callId (assigned post-tx from CallCreated event) */
+  callId: integer('call_id').primaryKey().notNull(),
+  /**
+   * OracleType enum value: 2=DefiLlama, 3=RpcMetrics, 6=CexScraper.
+   * (Governance=4/5 and NFT-TWAP=1 do not use this table.)
+   */
+  oracleType: integer('oracle_type').notNull(),
+  /**
+   * The string identifier the adapter needs at settlement time:
+   *   - DefiLlama / RpcMetrics: protocolSlug (e.g. 'uniswap', 'aave')
+   *   - CexScraper: tokenSymbol (e.g. 'BTC', 'ETH')
+   */
+  identifier: text('identifier').notNull(),
+  /**
+   * Optional unit description for targetValue comparison (e.g. 'tvl', 'volume_24h').
+   * NULL for CEX calls (binary listed/not-listed; no unit needed).
+   */
+  targetUnit: text('target_unit'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+// ---------------------------------------------------------------------------
 // duel_kings  (Phase 3 — D-07)
 // ---------------------------------------------------------------------------
 

@@ -34,6 +34,7 @@ import {
   resolveValueOutcome,
   SUBMIT_ATTESTATION_ABI,
 } from './oracle-attestation.js';
+import { resolveCriteria } from '../../db/criteria-store.js';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -52,7 +53,13 @@ export interface DefiLlamaAdapterConfig {
 export interface FetchAndAttestParams {
   callId: bigint;
   metric: DefiLlamaMetric;
-  protocolSlug: string;
+  /**
+   * Protocol slug (e.g. 'uniswap', 'aave').
+   * At settlement time, this is omitted — the adapter resolves it via resolveCriteria(callId).
+   * When provided (e.g., in unit tests), it bypasses the criteria store lookup.
+   * The criteria store is the production source of truth (Gap B.3).
+   */
+  protocolSlug?: string;
   /**
    * The call's on-chain targetValue from the 19-field Call struct.
    * MUST be passed through — do NOT default to 0n (T-05.1-03-07).
@@ -171,7 +178,35 @@ export class DefiLlamaAdapter {
    */
   async fetchAndAttest(params: FetchAndAttestParams): Promise<DefiLlamaAttestation> {
     const logger = getLogger();
-    const { callId, metric, protocolSlug, targetValue } = params;
+    const { callId, metric, targetValue } = params;
+
+    // ── Resolve protocolSlug from criteria store (Gap B.3 fix) ──────────────────
+    // Production path: protocolSlug comes from the criteria store, not call params.
+    // Test / direct-call path: protocolSlug may be provided in params (bypasses store lookup).
+    let protocolSlug = params.protocolSlug;
+    if (!protocolSlug) {
+      const criteria = await resolveCriteria(Number(callId));
+      if (!criteria) {
+        logger.warn(
+          {
+            event: 'defillama_criteria_missing',
+            callId: callId.toString(),
+            metric,
+          },
+          'DefiLlama: criteria not found in store — returning ambiguous (no settlement)',
+        );
+        return {
+          callId,
+          metric,
+          value: 0n,
+          timestamp: BigInt(Math.floor(Date.now() / 1000)),
+          signature: '0x' as `0x${string}`,
+          attestationData: '0x' as `0x${string}`,
+          ambiguous: true,
+        };
+      }
+      protocolSlug = criteria.identifier;
+    }
 
     logger.info(
       {

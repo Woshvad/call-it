@@ -35,6 +35,7 @@ import {
   OracleType,
   resolveValueOutcome,
 } from './oracle-attestation.js';
+import { resolveCriteria } from '../../db/criteria-store.js';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -214,11 +215,41 @@ export class RpcMetricsAdapter {
    */
   async fetchAndAttest(
     callId: bigint,
-    metricType: RpcMetricType,
+    metricType: RpcMetricType | undefined,
     expiryTimestamp: number,
     targetValue?: bigint,
   ): Promise<RpcMetricAttestation & { ambiguous?: boolean }> {
     const logger = getLogger();
+
+    // ── Resolve metricType from criteria store (Gap B.3 fix) ────────────────────
+    // Production path: metricType comes from the criteria store (identifier field).
+    // Direct-call path: metricType may be provided in params (bypasses store lookup).
+    let resolvedMetricType: RpcMetricType;
+    if (!metricType) {
+      const criteria = await resolveCriteria(Number(callId));
+      if (!criteria) {
+        logger.warn(
+          {
+            event: 'rpc_metrics_criteria_missing',
+            callId: callId.toString(),
+          },
+          'RpcMetrics: criteria not found in store — returning ambiguous (no settlement)',
+        );
+        return {
+          callId,
+          metricType: 'liquidation' as RpcMetricType,
+          value: 0n,
+          blockNumber: 0n,
+          timestamp: BigInt(Math.floor(Date.now() / 1000)),
+          signature: '0x' as `0x${string}`,
+          attestationData: '0x' as `0x${string}`,
+          ambiguous: true,
+        };
+      }
+      resolvedMetricType = criteria.identifier as RpcMetricType;
+    } else {
+      resolvedMetricType = metricType;
+    }
 
     if (!this.config.publicClient) {
       logger.error(
@@ -227,7 +258,7 @@ export class RpcMetricsAdapter {
       );
       return {
         callId,
-        metricType,
+        metricType: resolvedMetricType,
         value: 0n,
         blockNumber: 0n,
         timestamp: BigInt(Math.floor(Date.now() / 1000)),
@@ -239,7 +270,7 @@ export class RpcMetricsAdapter {
 
     const metricResult = await fetchRpcMetric(
       callId,
-      metricType,
+      resolvedMetricType,
       expiryTimestamp,
       this.config.publicClient,
     );
@@ -247,7 +278,7 @@ export class RpcMetricsAdapter {
     if (metricResult.ambiguous) {
       return {
         callId,
-        metricType,
+        metricType: resolvedMetricType,
         value: 0n,
         blockNumber: 0n,
         timestamp: BigInt(Math.floor(Date.now() / 1000)),
@@ -264,13 +295,13 @@ export class RpcMetricsAdapter {
         {
           event: 'rpc_metrics_ambiguous_no_target',
           callId: callId.toString(),
-          metricType,
+          metricType: resolvedMetricType,
         },
         'RpcMetrics: targetValue is 0n — returning ambiguous (no valid threshold)',
       );
       return {
         callId,
-        metricType,
+        metricType: resolvedMetricType,
         value: 0n,
         blockNumber: 0n,
         timestamp: BigInt(Math.floor(Date.now() / 1000)),
@@ -308,7 +339,7 @@ export class RpcMetricsAdapter {
       {
         event: 'rpc_metrics_sign',
         callId: callId.toString(),
-        metricType,
+        metricType: resolvedMetricType,
         value: metricResult.value.toString(),
         targetValue: tv.toString(),
         outcome,
@@ -333,7 +364,7 @@ export class RpcMetricsAdapter {
       {
         event: 'rpc_metrics_submit_ready',
         callId: callId.toString(),
-        metricType,
+        metricType: resolvedMetricType,
         value: metricResult.value.toString(),
       },
       'RPC metrics attestation signed and ready for submission',
@@ -341,7 +372,7 @@ export class RpcMetricsAdapter {
 
     return {
       callId,
-      metricType,
+      metricType: resolvedMetricType,
       value: metricResult.value,
       blockNumber: metricResult.blockNumber,
       timestamp: result.fields.timestamp,
