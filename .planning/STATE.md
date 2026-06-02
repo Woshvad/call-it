@@ -4,7 +4,7 @@ milestone: v1.1
 milestone_name: milestone
 status: executing
 stopped_at: Completed 04-09-PLAN.md (Task 1 autonomous); human-verify checkpoint pending
-last_updated: "2026-06-02T13:00:47.518Z"
+last_updated: "2026-06-02T14:35:17.464Z"
 last_activity: 2026-06-02
 progress:
   total_phases: 13
@@ -21,13 +21,13 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-21)
 
 **Core value:** Every call is permanent, public, and tied to identity. The receipt — created, settled, and shared — must be unfakeable, undeletable, and visually unmistakable.
-**Current focus:** Phase 05.1 — non-pyth-oracle-rail-activation
+**Current focus:** Phase 05.1 — awaiting operator live cutover (Sepolia redeploy + DB migration)
 
 ## Current Position
 
 Phase: 05.1 (non-pyth-oracle-rail-activation) — EXECUTING
 Plan: 3 of 5
-Status: Ready to execute
+Status: Phase 05.1 in progress — code complete (plans 01,03 done; 02,04 committed, awaiting operator); live deploy + DB migration deferred to operator (Cloud KMS API disabled). See 05.1-OPERATOR-HANDOFF.md
 Last activity: 2026-06-02
 
 Progress: [██████████] 98%
