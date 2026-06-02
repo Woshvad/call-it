@@ -192,7 +192,7 @@ Call It ships as a person-first onchain social prediction product on Arbitrum ma
   6. **Safety**: every non-Pyth gap resolves to revert or DEFER (never mis-settle); a Phase 05.1 security pass returns `threats_open: 0`; the Pyth settlement spine remains fully functional and unaffected throughout.
 **Plans**: 5 plans across 3 waves
 Plans:
-- [ ] 05.1-01-PLAN.md — Wave 1: ICallRegistry EventSubtype enum split (Option A: Governance_Snapshot=6, Governance_Tally=7, ProtocolMilestone=8) + AdapterMapTest.sol + SETTLE-DUAL-GOV requirement
+- [x] 05.1-01-PLAN.md — Wave 1: ICallRegistry EventSubtype enum split (Option A: Governance_Snapshot=6, Governance_Tally=7, ProtocolMilestone=8) + AdapterMapTest.sol + SETTLE-DUAL-GOV requirement
 - [ ] 05.1-02-PLAN.md — Wave 2: DeployPhase5_1.s.sol — redeploy CR+SM, setAdapterMap x8, setAttestationSigner x6, Sepolia deploy checkpoint
 - [ ] 05.1-03-PLAN.md — Wave 2: Relayer rewire — 19-field CALL_REGISTRY_ABI, on-chain adapterMap dispatch, 6 adapter signOracleAttestation, CEX submitAttestation fix
 - [ ] 05.1-04-PLAN.md — Wave 2: Criteria store — callOracleCriteria Drizzle schema + migration + resolveCriteria/insertCriteria + adapter wiring

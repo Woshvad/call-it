@@ -282,7 +282,7 @@ Requirements for the v1 mainnet release. Each line is an atomic, testable behavi
 - [ ] **SETTLE-50**: Creator fee follows Model B for exited callers — `0.4% × callerVolumeAtExit` snapshot, not full settled volume (§8.8, §12.4)
 - [ ] **SETTLE-51**: Challenge settlement charges 1% protocol fee on the total pot; no creator fee, no LP fee (§8.9, §12.3)
 - [x] **SETTLE-52**: Settlement provenance is exposed on the settled receipt — line "SETTLED FROM [oracle URL] at [timestamp] UTC · view oracle proof ↗" with modal showing tx hash, raw data, signed relayer attestation (§15.7)
-- [ ] **SETTLE-DUAL-GOV**: SettlementManager adapterMap supports BOTH Snapshot(4) and Tally(5) governance oracle adapters via distinct EventSubtype keys (Governance_Snapshot=6 and Governance_Tally=7); adapterMap[Event][6] = Snapshot and adapterMap[Event][7] = Tally are independently configurable; _checkAdapterBinding preserves the oracleType binding for each (Phase 05.1 Option A, §13.5, §12.4)
+- [x] **SETTLE-DUAL-GOV**: SettlementManager adapterMap supports BOTH Snapshot(4) and Tally(5) governance oracle adapters via distinct EventSubtype keys (Governance_Snapshot=6 and Governance_Tally=7); adapterMap[Event][6] = Snapshot and adapterMap[Event][7] = Tally are independently configurable; _checkAdapterBinding preserves the oracleType binding for each (Phase 05.1 Option A, §13.5, §12.4)
 
 ### Mainnet Safety (SAFETY)
 
@@ -814,7 +814,7 @@ Which phases cover which requirements. Updated during roadmap creation by the ro
 | SETTLE-50 | Phase 4 | Pending |
 | SETTLE-51 | Phase 4 | Pending |
 | SETTLE-52 | Phase 4 | Complete |
-| SETTLE-DUAL-GOV | Phase 05.1 | Pending |
+| SETTLE-DUAL-GOV | Phase 05.1 | Complete |
 | SAFETY-01 | Phase 1 | Pending |
 | SAFETY-02 | Phase 6 | Pending |
 | SAFETY-03 | Phase 6 | Pending |
