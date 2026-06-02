@@ -24,7 +24,7 @@ const VALID_TOKEN = 'valid-privy-token-wa-test';
 const VALID_USER_ID = 'did:privy:withdraw-auth-user';
 
 // Mutable getUser response — updated per test for Pitfall D scenarios
-let mockGetUserResponse: { linkedAccounts: Array<{ type: string; verifiedAt?: number }> } = {
+let mockGetUserResponse: { linkedAccounts: Array<{ type: string; verifiedAt?: Date }> } = {
   linkedAccounts: [],
 };
 
@@ -379,9 +379,11 @@ describe('POST /api/withdraw/authorize', () => {
   it('Test 6: Pitfall D — fresh linkedAccount in Privy but missing auth_methods row → 403 + lazy backfill', async () => {
     // NO auth_methods rows — simulates a scenario where webhook was missed
     // Privy's getUser() returns a linkedAccount with verifiedAt = 1h ago
-    const oneHourAgoTimestamp = Math.floor((NOW.getTime() - 60 * 60 * 1000) / 1000);
+    // Privy returns verifiedAt as a Date (not a unix-seconds number) — mock it as
+    // such so this test exercises the real type the production code consumes.
+    const oneHourAgo = new Date(NOW.getTime() - 60 * 60 * 1000);
     mockGetUserResponse = {
-      linkedAccounts: [{ type: 'google', verifiedAt: oneHourAgoTimestamp }],
+      linkedAccounts: [{ type: 'google', verifiedAt: oneHourAgo }],
     };
 
     const res = await app.inject({

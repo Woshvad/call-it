@@ -40,7 +40,7 @@
  */
 
 import type { FastifyInstance, FastifyPluginOptions } from 'fastify';
-import { eq, and, max } from 'drizzle-orm';
+import { eq, and } from 'drizzle-orm';
 import { z } from 'zod';
 import { getDb } from '../db/client.js';
 import { authMethods, addressBook } from '../db/schema.js';
@@ -108,7 +108,10 @@ export async function withdrawAuthorizeRoute(
         const linkedAccounts = privyUser.linkedAccounts ?? [];
 
         for (const account of linkedAccounts) {
-          const linkedAt = account.verifiedAt ? new Date(account.verifiedAt * 1000) : null;
+          // Privy types verifiedAt as a Date already — do NOT multiply by 1000
+          // (that coerces the Date to its ms value and overshoots ~1000x, which
+          // would make isWithinCooldown always true and reject every withdrawal).
+          const linkedAt = account.verifiedAt ? new Date(account.verifiedAt) : null;
           if (!linkedAt) continue;
           if (!isWithinCooldown(linkedAt, now)) continue;
 

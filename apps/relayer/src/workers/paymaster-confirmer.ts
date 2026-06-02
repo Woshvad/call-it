@@ -22,16 +22,18 @@
  * Requirements: AUTH-27, AUTH-28, D-02, SAFETY-18, T-01-41, T-01-45
  */
 
-import { createPublicClient, webSocket, parseAbi, type Log } from 'viem';
+import { createPublicClient, webSocket, parseAbiItem } from 'viem';
 import { arbitrum } from 'viem/chains';
 import { incrementPaymasterCount, getSenderMapping } from '../lib/upstash-counter.js';
 import { sendAlert } from './alerts.js';
 import { getLogger } from '../lib/logger.js';
 
-// ERC-4337 EntryPoint v0.6 UserOperationEvent ABI
-const ENTRY_POINT_ABI = parseAbi([
+// ERC-4337 EntryPoint v0.6 UserOperationEvent (single AbiEvent — parseAbiItem
+// narrows to AbiEvent so viem watchEvent's `event` param type-checks; parseAbi[0]
+// widens to AbiItem and viem falls back to the no-event overload).
+const USER_OPERATION_EVENT = parseAbiItem(
   'event UserOperationEvent(bytes32 indexed userOpHash, address indexed sender, address indexed paymaster, uint256 nonce, bool success, uint256 actualGasCost, uint256 actualGasUsed)',
-]);
+);
 
 // EntryPoint v0.6 on Arbitrum
 const ENTRY_POINT_ADDRESS = '0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789' as const;
@@ -149,8 +151,8 @@ export function startPaymasterConfirmer(): () => void {
     try {
       _unwatch = client.watchEvent({
         address: ENTRY_POINT_ADDRESS,
-        event: ENTRY_POINT_ABI[0],
-        onLogs: (logs: Log[]) => {
+        event: USER_OPERATION_EVENT,
+        onLogs: (logs) => {
           for (const log of logs) {
             handleUserOperationEvent(log as Parameters<typeof handleUserOperationEvent>[0])
               .catch((err: unknown) => {
