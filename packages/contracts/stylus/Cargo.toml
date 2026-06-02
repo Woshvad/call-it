@@ -1,6 +1,6 @@
 [package]
 name = "stylus-score-engine"
-version = "0.0.1"
+version = "0.1.0"
 edition = "2021"
 description = "Call It StylusScoreEngine — Rust/Stylus reputation scoring engine (Phase 5 implementation)"
 
@@ -17,6 +17,12 @@ description = "Call It StylusScoreEngine — Rust/Stylus reputation scoring engi
 #
 # 48h cutoff: If Stylus path not working, swap to Solidity baseline in same proxy slot.
 # Pitch: "Stylus in production roadmap" (§11.6 build-time fallback).
+
+[features]
+# export-abi: enables ABI generation via `cargo build --features export-abi`
+# Required by the cfg_attr(not(any(test, feature="export-abi")), no_std) pattern.
+# Also enables stylus-sdk's export-abi feature for `cargo stylus export-abi`.
+export-abi = ["stylus-sdk/export-abi"]
 
 [lib]
 crate-type = ["cdylib", "lib"]
@@ -35,8 +41,16 @@ stylus-sdk = { version = "=0.10.7", default-features = false }
 
 [dev-dependencies]
 # Motsu: OZ Stylus testing framework for unit testing without a fork
-# motsu = { git = "https://github.com/OpenZeppelin/motsu" }
-# Uncomment in Phase 5 when real scoring logic is tested
+# Source: https://github.com/OpenZeppelin/motsu
+# Uncommented in Phase 5 for test_math.rs unit tests
+# motsu 0.10.0 is incompatible with stylus-sdk 0.10.7's alloy-primitives dependency
+# (arbitrary-1.4.2 derive feature conflict). Since all 9 test_math.rs tests use plain
+# #[test] (not #[motsu::test]) — compute_rep_delta is pure Rust, no Stylus host calls —
+# motsu is not required for cargo test to compile or run.
+# When motsu resolves the alloy-primitives/arbitrary conflict (expected in a future release),
+# uncomment to enable #[motsu::test] for engine-level Stylus host call tests.
+# motsu = { version = "0.10.0" }
+# See deviation in 05-01-SUMMARY.md for details.
 
 [profile.release]
 codegen-units = 1

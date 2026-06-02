@@ -1,31 +1,46 @@
-// Call It StylusScoreEngine -- Phase 0 stub
+// Call It StylusScoreEngine — Phase 5 Plan 01 (RED test scaffold)
 //
-// This file is a minimal placeholder that proves:
-//   1. The Rust toolchain pin (stable + wasm32-unknown-unknown target) compiles
-//   2. The Cargo.toml stylus-sdk version pin is accepted by the registry
+// This file exposes the `math` module for unit testing via `cargo test`.
+// The full Stylus engine struct with #[storage]/#[public] attributes
+// will be added in Plan 02 (GREEN) after tests pass.
 //
-// Real implementation (reputation scoring engine) lands in Phase 5.
-// See CALL_IT_SPEC1.md ss11.2--11.6 for the full scoring algorithm.
+// no_std is applied only when building for wasm32 targets (not for cargo test
+// on the host target). This is the correct pattern for Stylus crates that need
+// to run plain #[test] unit tests without a Stylus mock host.
 //
-// Deployment: Solidity TransparentUpgradeableProxy -> this Stylus implementation.
-// Fallback: If Stylus path is not working 48h before demo, swap to Solidity baseline
-//           in the same proxy slot (CALL_IT_SPEC1.md ss11.6).
+// CRITICAL (for Plan 02): The `#[selector(name = "compute_rep_change")]` attribute
+// is MANDATORY when adding the Stylus engine. Without it, the Stylus SDK converts
+// `compute_rep_change` → `computeRepChange` → selector 0xfe7606ba (wrong).
+// Required selector: 0xff540eb6
+// Verified: cast sig "compute_rep_change(uint128,uint8,uint8,bool,uint256)" → 0xff540eb6
+//
+// Pattern: RESEARCH.md "Pattern 2: Math Isolation"
+// Requirements: REP-19, REP-20
+// Interface: packages/contracts/src/interfaces/IStylusScoreEngine.sol (LOCKED)
 
-#![cfg_attr(not(any(test, feature = "export-abi")), no_std)]
-extern crate alloc;
+// Apply no_std only for wasm32 target builds (Stylus deployment).
+// cargo test runs on the host target (x86_64) and uses std — no no_std needed.
+#![cfg_attr(target_arch = "wasm32", no_std)]
 
-// Phase 0 stub: no-op exported function to verify the WASM target compiles.
-// Phase 5 replaces this with the full reputation scoring engine.
+/// Pure-Rust scoring math module. No Stylus host calls — no alloc needed.
+/// Uses only primitive types: u128, u8, bool, u64, i32.
+/// Fully unit-testable with plain `cargo test` on the host target.
+pub mod math;
+
+// Phase 0 stub retained for WASM target compilation verification.
+// Plan 02 replaces this with the full #[storage]/#[public] Stylus engine struct.
+#[cfg(target_arch = "wasm32")]
 #[no_mangle]
 pub extern "C" fn stub_ping() -> u32 {
-    // Phase 0 placeholder -- returns 0 to confirm compilation
     0
 }
 
 #[cfg(test)]
 mod tests {
     #[test]
-    fn stub_ping_returns_zero() {
-        assert_eq!(super::stub_ping(), 0);
+    fn lib_compiles() {
+        // Confirm lib.rs builds in test mode with pure-Rust math module.
+        // All D-2 substantive tests are in tests/test_math.rs.
+        assert!(true);
     }
 }
