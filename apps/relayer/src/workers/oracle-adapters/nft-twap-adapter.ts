@@ -6,26 +6,33 @@
  *
  * Flow:
  *   1. fetchNftTwap: call alchemy.nft.getNftSales for 24h window (SETTLE-13..16)
- *   2. signNftTwapAttestation: EIP-712 sign with keyId='nft-twap' KMS key
- *   3. submitNftFloor: writeContract to SettlementManager.submitAttestation
+ *   2. signOracleAttestation: unified EIP-712 sign with domain='CallIt-Oracle', keyId='nft-twap'
+ *   3. submitNftFloor: writeContract to SettlementManager.submitAttestation via SUBMIT_ATTESTATION_ABI
  *
- * Security (Pitfall 7):
- *   - EIP-712 domain chainId=42161n (Arbitrum One) — cross-chain replay prevention
- *   - domain.name='CallIt-NftTwap' — cross-adapter replay prevention
+ * Security:
+ *   - chainId comes from process.env.CHAIN_ID — never hardcoded (T-05.1-03-01)
+ *   - domain.name='CallIt-Oracle' — unified domain; on-chain ECDSA.recover verifies correctly
  *   - keyId='nft-twap' — per-type KMS key (D-05); isolated from CEX, DefiLlama, Snapshot/Tally
  *   - observationCount < 12 → return { ambiguous: true } (SETTLE-16)
+ *   - targetValue from the 19-field Call struct — never defaults to 0n (T-05.1-03-07)
  *
  * Spec: CALL_IT_SPEC1.md §13.4
  * Requirements: SETTLE-13, SETTLE-14, SETTLE-15, SETTLE-16, SETTLE-17
  */
 
-import { encodeAbiParameters, parseAbiParameters, type Address } from 'viem';
+import { type Address } from 'viem';
 import { Alchemy, Network } from 'alchemy-sdk';
 // NOTE: Import from 3 levels up so the path resolves to apps/relayer/lib/kms-signer.ts,
 // matching the vi.mock('../../../lib/kms-signer.js') pattern established in defillama-adapter.
 import { gcpKmsAccount } from '../../../lib/kms-signer.js';
 import { getLogger } from '../../lib/logger.js';
 import { SETTLEMENT_MANAGER_ARBITRUM_SEPOLIA } from '@call-it/shared';
+import {
+  signOracleAttestation,
+  OracleType,
+  resolveValueOutcome,
+  SUBMIT_ATTESTATION_ABI,
+} from './oracle-attestation.js';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -61,24 +68,6 @@ export interface NftTwapAdapterConfig {
 
 /** Minimum observations required for a valid TWAP (SETTLE-16) */
 const MIN_OBSERVATIONS = 12;
-
-// ── EIP-712 type definitions ──────────────────────────────────────────────────
-
-/**
- * EIP-712 types for NFT TWAP attestation.
- * Domain: name='CallIt-NftTwap', chainId=42161n (Pitfall 7).
- */
-const NFT_TWAP_ATTESTATION_TYPES = {
-  NftTwapAttestation: [
-    { name: 'callId', type: 'uint256' },
-    { name: 'contractAddress', type: 'address' },
-    { name: 'twapPriceWei', type: 'uint256' },
-    { name: 'observationCount', type: 'uint256' },
-    { name: 'evidenceHash', type: 'bytes32' },
-    { name: 'timestamp', type: 'uint256' },
-    { name: 'chainId', type: 'uint256' },
-  ],
-} as const;
 
 // ── NFT TWAP fetch ────────────────────────────────────────────────────────────
 
@@ -224,6 +213,7 @@ export class NftTwapAdapter {
     callId: bigint,
     contractAddress: string,
     expiryTimestamp: number,
+    targetValue?: bigint,
   ): Promise<NftTwapAttestation & { ambiguous?: boolean }> {
     const logger = getLogger();
 
@@ -251,8 +241,35 @@ export class NftTwapAdapter {
       };
     }
 
+    // targetValue=0n → ambiguous (no valid threshold, T-05.1-03-07)
+    const tv = targetValue ?? 0n;
+    if (tv === 0n) {
+      logger.warn(
+        {
+          event: 'nft_twap_ambiguous_no_target',
+          callId: callId.toString(),
+          contractAddress,
+        },
+        'NftTwap: targetValue is 0n — returning ambiguous (no valid threshold)',
+      );
+      return {
+        callId,
+        contractAddress,
+        twapPriceWei: 0n,
+        observationCount: twapResult.observationCount,
+        evidenceHash: twapResult.evidenceHash,
+        timestamp: BigInt(Math.floor(Date.now() / 1000)),
+        signature: '0x' as `0x${string}`,
+        attestationData: '0x' as `0x${string}`,
+        ambiguous: true,
+      };
+    }
+
+    const { outcome, priceDelta } = resolveValueOutcome(twapResult.twapPriceWei, tv);
     const timestamp = BigInt(Math.floor(Date.now() / 1000));
     const smAddress = this.config.settlementManagerAddress ?? (SETTLEMENT_MANAGER_ARBITRUM_SEPOLIA as `0x${string}`);
+    // chainId MUST come from env — never hardcoded (T-05.1-03-01)
+    const chainId = BigInt(process.env.CHAIN_ID ?? '421614');
 
     const expectedAddress = (
       this.config.kmsExpectedAddress ??
@@ -261,7 +278,6 @@ export class NftTwapAdapter {
     );
 
     // keyId='nft-twap' — per-type KMS key (D-05, SETTLE-17)
-    // domain.name='CallIt-NftTwap' — prevents cross-adapter replay (Pitfall 7)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const account = gcpKmsAccount({
       projectId: this.config.kmsProjectId,
@@ -272,57 +288,30 @@ export class NftTwapAdapter {
       expectedAddress,
     }) as any; // gcpKmsAccount returns LocalAccount; viem type widening loses signTypedData
 
-    const domain = {
-      name: 'CallIt-NftTwap',
-      version: '1',
-      chainId: 42161n,
-      verifyingContract: smAddress,
-    };
-
-    const message = {
-      callId,
-      contractAddress,
-      twapPriceWei: twapResult.twapPriceWei,
-      observationCount: BigInt(twapResult.observationCount),
-      evidenceHash: twapResult.evidenceHash,
-      timestamp,
-      chainId: 42161n,
-    };
-
     logger.info(
       {
         event: 'nft_twap_sign',
         callId: callId.toString(),
         contractAddress,
         twapPriceWei: twapResult.twapPriceWei.toString(),
-        observationCount: twapResult.observationCount,
+        targetValue: tv.toString(),
+        outcome,
+        chainId: chainId.toString(),
       },
-      'Signing NFT TWAP attestation with KMS (keyId=nft-twap)',
+      'Signing NFT TWAP attestation with unified oracle-attestation domain (keyId=nft-twap)',
     );
 
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-call
-    const signature = await account.signTypedData({
-      domain,
-      types: NFT_TWAP_ATTESTATION_TYPES,
-      primaryType: 'NftTwapAttestation',
-      message,
+    // Use unified signOracleAttestation — domain='CallIt-Oracle', chainId from env
+    const result = await signOracleAttestation({
+      account,
+      chainId,
+      verifyingContract: smAddress,
+      callId,
+      oracleType: OracleType.NftTwap,
+      outcome,
+      priceDelta,
+      timestamp,
     });
-
-    // ABI-encode attestation data for on-chain submitAttestation call
-    const attestationData = encodeAbiParameters(
-      parseAbiParameters(
-        'uint256 callId, address contractAddress, uint256 twapPriceWei, uint256 observationCount, bytes32 evidenceHash, uint256 timestamp, uint256 chainId',
-      ),
-      [
-        callId,
-        contractAddress as Address,
-        twapResult.twapPriceWei,
-        BigInt(twapResult.observationCount),
-        twapResult.evidenceHash,
-        timestamp,
-        42161n,
-      ],
-    );
 
     logger.info(
       { event: 'nft_twap_submit_ready', callId: callId.toString() },
@@ -335,31 +324,18 @@ export class NftTwapAdapter {
       twapPriceWei: twapResult.twapPriceWei,
       observationCount: twapResult.observationCount,
       evidenceHash: twapResult.evidenceHash,
-      timestamp,
-      signature: signature as `0x${string}`,
-      attestationData,
+      timestamp: result.fields.timestamp,
+      signature: result.signature,
+      attestationData: result.attestationData,
     };
   }
 }
 
 // ── Standalone export: submitNftFloor ─────────────────────────────────────────
 
-const SM_SUBMIT_ABI = [
-  {
-    type: 'function',
-    name: 'submitAttestation',
-    inputs: [
-      { name: 'callId', type: 'uint256', internalType: 'uint256' },
-      { name: 'attestationData', type: 'bytes', internalType: 'bytes' },
-      { name: 'signature', type: 'bytes', internalType: 'bytes' },
-    ],
-    outputs: [],
-    stateMutability: 'nonpayable',
-  },
-] as const;
-
 /**
- * Submit an NFT TWAP attestation to SettlementManager.
+ * Submit an NFT TWAP attestation to SettlementManager using the unified SUBMIT_ATTESTATION_ABI.
+ * Body updated to use the shared ABI constant (Pitfall 5 fix).
  * (SETTLE-13)
  */
 export async function submitNftFloor(
@@ -378,7 +354,7 @@ export async function submitNftFloor(
 
   await walletClient.writeContract({
     address: settlementManagerAddress,
-    abi: SM_SUBMIT_ABI,
+    abi: SUBMIT_ATTESTATION_ABI,
     functionName: 'submitAttestation',
     args: [callId, attestationData, signature],
   });

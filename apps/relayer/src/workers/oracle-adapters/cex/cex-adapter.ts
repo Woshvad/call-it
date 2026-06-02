@@ -2,17 +2,19 @@
  * CEX oracle adapter orchestrator — KMS-attestation rail (D-02).
  *
  * Dispatches to all 8 per-exchange scrapers in parallel and signs a single
- * EIP-712 attestation if any exchange confirms the listing.
+ * EIP-712 attestation if any exchange confirms the listing, then calls SM.submitAttestation.
  *
  * Flow:
  *   1. scrapeAndAttest: run all scrapers in parallel via Promise.allSettled
- *   2. If any scraper returns true → sign with keyId='cex'; domain='CallIt-Cex'
- *   3. Return 'found' | 'not_found' | 'ambiguous'
+ *   2. If any scraper returns true → signOracleAttestation with keyId='cex', domain='CallIt-Oracle'
+ *   3. Call SM.submitAttestation with the signed attestation (Pitfall 6 fix)
+ *   4. Return { status: 'found' } | { status: 'not_found' } | { status: 'ambiguous' }
  *
- * Security (Pitfall 7):
- *   - EIP-712 domain chainId=42161n (Arbitrum One) — cross-chain replay prevention
- *   - domain.name='CallIt-Cex' — cross-adapter replay prevention
+ * Security:
+ *   - chainId comes from process.env.CHAIN_ID — never hardcoded (T-05.1-03-01)
+ *   - domain.name='CallIt-Oracle' — unified domain; on-chain ECDSA.recover verifies correctly
  *   - keyId='cex' — per-type KMS key (D-05)
+ *   - oracleType=OracleType.CexScraper(6) — bound via _checkAdapterBinding on-chain
  *   - Multi-signal confirm (symbol+name) per scraper (Pitfall 19)
  *   - Innovation Zone exclusion per exchange (Pitfall 19)
  *
@@ -22,12 +24,17 @@
  * Requirements: SETTLE-23, SETTLE-24
  */
 
-import { encodeAbiParameters, parseAbiParameters } from 'viem';
 // NOTE: Import from 4 levels up to match vi.mock('../../../lib/kms-signer.js') pattern
 // (cex/ subdir is one level deeper than oracle-adapters/)
 import { gcpKmsAccount } from '../../../../lib/kms-signer.js';
 import { getLogger } from '../../../lib/logger.js';
 import { SETTLEMENT_MANAGER_ARBITRUM_SEPOLIA } from '@call-it/shared';
+import {
+  signOracleAttestation,
+  OracleType,
+  OracleOutcome,
+  SUBMIT_ATTESTATION_ABI,
+} from '../oracle-attestation.js';
 
 import * as binanceScraper from './binance-scraper.js';
 import * as coinbaseScraper from './coinbase-scraper.js';
@@ -40,7 +47,15 @@ import * as upbitScraper from './upbit-scraper.js';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-export type CexScrapeOutcome = 'found' | 'not_found' | 'ambiguous';
+/**
+ * Rich CexScrapeOutcome type — 'found' now includes the attestationData and signature
+ * so the settlement-watcher can verify submission happened. Internal submission is done
+ * inside scrapeAndAttest (Pitfall 6 fix).
+ */
+export type CexScrapeOutcome =
+  | { status: 'found'; attestationData: `0x${string}`; signature: `0x${string}` }
+  | { status: 'not_found' }
+  | { status: 'ambiguous' };
 
 export interface CexAdapterConfig {
   settlementManagerAddress?: `0x${string}`;
@@ -49,6 +64,8 @@ export interface CexAdapterConfig {
   kmsKeyRingId: string;
   kmsKeyVersion: string;
   kmsExpectedAddress?: `0x${string}`;
+  /** WalletClient for calling SM.submitAttestation (required for Pitfall 6 fix) */
+  walletClient?: { writeContract: (params: unknown) => Promise<`0x${string}`> };
 }
 
 // ── Innovation Zone exclusion patterns registry ───────────────────────────────
@@ -82,23 +99,6 @@ const scrapers = {
   upbit: upbitScraper.scrape,
 } as const;
 
-// ── EIP-712 type definitions ──────────────────────────────────────────────────
-
-/**
- * EIP-712 types for CEX listing attestation.
- * Domain: name='CallIt-Cex', chainId=42161n (Pitfall 7).
- */
-const CEX_ATTESTATION_TYPES = {
-  CexAttestation: [
-    { name: 'callId', type: 'uint256' },
-    { name: 'tokenSymbol', type: 'string' },
-    { name: 'tokenName', type: 'string' },
-    { name: 'confirmed', type: 'bool' },
-    { name: 'timestamp', type: 'uint256' },
-    { name: 'chainId', type: 'uint256' },
-  ],
-} as const;
-
 // ── CexAdapter class ──────────────────────────────────────────────────────────
 
 /**
@@ -128,7 +128,7 @@ export class CexAdapter {
     tokenSymbol: string,
     tokenName: string,
     expiryTimestamp: number,
-  ): Promise<CexScrapeOutcome> {
+  ): Promise<CexScrapeOutcome | 'found' | 'not_found' | 'ambiguous'> {
     const logger = getLogger();
 
     logger.info(
@@ -174,7 +174,7 @@ export class CexAdapter {
         },
         'CEX adapter: no exchange confirmed listing — returning not_found',
       );
-      return 'not_found';
+      return { status: 'not_found' };
     }
 
     logger.info(
@@ -187,10 +187,11 @@ export class CexAdapter {
       `CEX adapter: listing confirmed by ${foundExchange} — signing attestation`,
     );
 
-    // Sign attestation
+    // Sign attestation using unified oracle-attestation format and submit to SM (Pitfall 6 fix)
     try {
       const smAddress = this.config.settlementManagerAddress ?? (SETTLEMENT_MANAGER_ARBITRUM_SEPOLIA as `0x${string}`);
-      const timestamp = BigInt(Math.floor(Date.now() / 1000));
+      // chainId MUST come from env — never hardcoded (T-05.1-03-01)
+      const chainId = BigInt(process.env.CHAIN_ID ?? '421614');
 
       const expectedAddress = (
         this.config.kmsExpectedAddress ??
@@ -199,7 +200,6 @@ export class CexAdapter {
       );
 
       // keyId='cex' — per-type KMS key (D-05)
-      // domain.name='CallIt-Cex' — prevents cross-adapter replay (Pitfall 7)
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const account = gcpKmsAccount({
         projectId: this.config.kmsProjectId,
@@ -210,36 +210,17 @@ export class CexAdapter {
         expectedAddress,
       }) as any;
 
-      const domain = {
-        name: 'CallIt-Cex',
-        version: '1',
-        chainId: 42161n,
+      // CEX is a binary confirmed/not event — CallerWon means listing confirmed
+      const result = await signOracleAttestation({
+        account,
+        chainId,
         verifyingContract: smAddress,
-      };
-
-      const message = {
         callId,
-        tokenSymbol,
-        tokenName,
-        confirmed: true,
-        timestamp,
-        chainId: 42161n,
-      };
-
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-call
-      const signature = await account.signTypedData({
-        domain,
-        types: CEX_ATTESTATION_TYPES,
-        primaryType: 'CexAttestation',
-        message,
+        oracleType: OracleType.CexScraper,
+        outcome: OracleOutcome.CallerWon, // CEX listing confirmed = caller wins
+        priceDelta: 0n,                   // CEX: no price delta
+        timestamp: BigInt(Math.floor(Date.now() / 1000)),
       });
-
-      const attestationData = encodeAbiParameters(
-        parseAbiParameters(
-          'uint256 callId, string tokenSymbol, string tokenName, bool confirmed, uint256 timestamp, uint256 chainId',
-        ),
-        [callId, tokenSymbol, tokenName, true, timestamp, 42161n],
-      );
 
       logger.info(
         {
@@ -247,13 +228,32 @@ export class CexAdapter {
           callId: callId.toString(),
           tokenSymbol,
           foundExchange,
-          attestationData: attestationData.slice(0, 20) + '...',
+          chainId: chainId.toString(),
         },
-        'CEX attestation signed',
+        'CEX attestation signed with unified oracle-attestation domain',
       );
 
-      void signature; // attestationData + signature are available for submission
-      void attestationData;
+      // Submit to SM.submitAttestation (Pitfall 6 fix — was log-only stub before)
+      if (this.config.walletClient) {
+        await this.config.walletClient.writeContract({
+          address: smAddress,
+          abi: SUBMIT_ATTESTATION_ABI,
+          functionName: 'submitAttestation',
+          args: [callId, result.attestationData, result.signature],
+        });
+
+        logger.info(
+          { event: 'cex_adapter_submitted', callId: callId.toString() },
+          'CEX attestation submitted to SettlementManager',
+        );
+      } else {
+        logger.warn(
+          { event: 'cex_adapter_no_wallet_client', callId: callId.toString() },
+          'CEX adapter: walletClient not configured — attestation signed but not submitted',
+        );
+      }
+
+      return { status: 'found', attestationData: result.attestationData, signature: result.signature };
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       logger.error(
@@ -264,10 +264,8 @@ export class CexAdapter {
         },
         'CEX attestation signing failed — returning ambiguous',
       );
-      return 'ambiguous';
+      return { status: 'ambiguous' };
     }
-
-    return 'found';
   }
 }
 
@@ -308,13 +306,17 @@ export const testWithFixture = {
 
 /**
  * Create a CexAdapter instance from environment configuration.
+ * walletClient is optional — if provided, submitAttestation is called internally (Pitfall 6 fix).
  */
-export function createCexAdapter(): CexAdapter {
+export function createCexAdapter(
+  walletClient?: { writeContract: (params: unknown) => Promise<`0x${string}`> },
+): CexAdapter {
   return new CexAdapter({
     kmsProjectId: process.env.GCP_PROJECT_ID ?? 'call-it-sepolia',
     kmsLocationId: process.env.GCP_LOCATION_ID ?? 'us-east1',
     kmsKeyRingId: process.env.GCP_KEY_RING_ID ?? 'attestations',
     kmsKeyVersion: process.env.GCP_KEY_VERSION_CEX ?? '1',
     kmsExpectedAddress: process.env.KMS_ADDRESS_CEX as `0x${string}` | undefined,
+    walletClient,
   });
 }

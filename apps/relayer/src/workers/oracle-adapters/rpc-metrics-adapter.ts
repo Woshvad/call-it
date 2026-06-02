@@ -2,25 +2,27 @@
  * RPC Metrics oracle adapter — KMS-attestation rail (D-02).
  *
  * Queries on-chain metrics via viem getLogs (e.g., Aave V3 liquidation events).
- * Signs the metric value with the GCP KMS key.
+ * Signs the metric value using the unified oracle-attestation format.
  *
  * KMS key: 'defillama' — shared intentionally with defillama-adapter.ts.
  * Both adapters produce numeric off-chain attestations with equivalent trust requirements.
  * Blast radius: a compromised 'defillama' key can forge DefiLlama AND RpcMetrics attestations;
  * NFT-TWAP, CEX, and Snapshot/Tally keys remain isolated.
- * Different EIP-712 domain names (CallIt-RpcMetrics vs CallIt-DefiLlama) prevent cross-type
- * replay within the shared key.
+ * The unified domain name 'CallIt-Oracle' is used; oracleType=RpcMetrics(3) prevents
+ * cross-type replay via _checkAdapterBinding on-chain.
  *
- * Security (Pitfall 7):
- *   - EIP-712 domain chainId=42161n (Arbitrum One) — cross-chain replay prevention
- *   - domain.name='CallIt-RpcMetrics' — different from 'CallIt-DefiLlama'; prevents cross-type replay
+ * Security:
+ *   - chainId comes from process.env.CHAIN_ID — never hardcoded (T-05.1-03-01)
+ *   - domain.name='CallIt-Oracle' — unified domain
+ *   - oracleType=OracleType.RpcMetrics(3) — bound via _checkAdapterBinding on-chain
  *   - AAVE_V3_POOL_ARBITRUM_ONE imported from @call-it/shared — never from call parameters (W11)
+ *   - targetValue from the 19-field Call struct — never defaults to 0n (T-05.1-03-07)
  *
  * Spec: CALL_IT_SPEC1.md §13.5
  * Requirements: SETTLE-19, SETTLE-20
  */
 
-import { encodeAbiParameters, parseAbiParameters, type Address, type PublicClient } from 'viem';
+import { type Address, type PublicClient } from 'viem';
 // NOTE: Import from 3 levels up to match vi.mock('../../../lib/kms-signer.js') test pattern
 import { gcpKmsAccount } from '../../../lib/kms-signer.js';
 import { getLogger } from '../../lib/logger.js';
@@ -28,6 +30,11 @@ import {
   SETTLEMENT_MANAGER_ARBITRUM_SEPOLIA,
   AAVE_V3_POOL_ARBITRUM_ONE,
 } from '@call-it/shared';
+import {
+  signOracleAttestation,
+  OracleType,
+  resolveValueOutcome,
+} from './oracle-attestation.js';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -75,28 +82,6 @@ const LIQUIDATION_CALL_ABI = {
   ],
   name: 'LiquidationCall',
   type: 'event',
-} as const;
-
-// ── EIP-712 type definitions ──────────────────────────────────────────────────
-
-/**
- * EIP-712 types for RPC Metrics attestation.
- * Domain: name='CallIt-RpcMetrics', chainId=42161n (Pitfall 7).
- *
- * NOTE on domain.name: 'CallIt-RpcMetrics' differs from 'CallIt-DefiLlama' even though
- * both use keyId='defillama'. This different domain name prevents cross-type replay
- * within the shared key — an attacker cannot replay an RpcMetrics attestation as a
- * DefiLlama attestation on-chain because the domain separators differ.
- */
-const RPC_METRICS_ATTESTATION_TYPES = {
-  RpcMetricsAttestation: [
-    { name: 'callId', type: 'uint256' },
-    { name: 'metricType', type: 'string' },
-    { name: 'value', type: 'uint256' },
-    { name: 'blockNumber', type: 'uint256' },
-    { name: 'timestamp', type: 'uint256' },
-    { name: 'chainId', type: 'uint256' },
-  ],
 } as const;
 
 // ── RPC Metrics fetch ─────────────────────────────────────────────────────────
@@ -231,6 +216,7 @@ export class RpcMetricsAdapter {
     callId: bigint,
     metricType: RpcMetricType,
     expiryTimestamp: number,
+    targetValue?: bigint,
   ): Promise<RpcMetricAttestation & { ambiguous?: boolean }> {
     const logger = getLogger();
 
@@ -271,8 +257,34 @@ export class RpcMetricsAdapter {
       };
     }
 
+    // targetValue=0n → ambiguous (no valid threshold, T-05.1-03-07)
+    const tv = targetValue ?? 0n;
+    if (tv === 0n) {
+      logger.warn(
+        {
+          event: 'rpc_metrics_ambiguous_no_target',
+          callId: callId.toString(),
+          metricType,
+        },
+        'RpcMetrics: targetValue is 0n — returning ambiguous (no valid threshold)',
+      );
+      return {
+        callId,
+        metricType,
+        value: 0n,
+        blockNumber: 0n,
+        timestamp: BigInt(Math.floor(Date.now() / 1000)),
+        signature: '0x' as `0x${string}`,
+        attestationData: '0x' as `0x${string}`,
+        ambiguous: true,
+      };
+    }
+
+    const { outcome, priceDelta } = resolveValueOutcome(metricResult.value, tv);
     const timestamp = BigInt(Math.floor(Date.now() / 1000));
     const smAddress = this.config.settlementManagerAddress ?? (SETTLEMENT_MANAGER_ARBITRUM_SEPOLIA as `0x${string}`);
+    // chainId MUST come from env — never hardcoded (T-05.1-03-01)
+    const chainId = BigInt(process.env.CHAIN_ID ?? '421614');
 
     const expectedAddress = (
       this.config.kmsExpectedAddress ??
@@ -281,9 +293,7 @@ export class RpcMetricsAdapter {
     );
 
     // KMS key: 'defillama' — shared intentionally with defillama-adapter.ts.
-    // Both adapters produce numeric off-chain attestations with equivalent trust requirements.
-    // Blast radius: a compromised 'defillama' key can forge DefiLlama AND RpcMetrics attestations;
-    // NFT-TWAP, CEX, and Snapshot/Tally keys remain isolated.
+    // oracleType=RpcMetrics(3) in the unified domain prevents cross-type replay on-chain.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const account = gcpKmsAccount({
       projectId: this.config.kmsProjectId,
@@ -300,43 +310,24 @@ export class RpcMetricsAdapter {
         callId: callId.toString(),
         metricType,
         value: metricResult.value.toString(),
-        signerAddress: account.address,
+        targetValue: tv.toString(),
+        outcome,
+        chainId: chainId.toString(),
       },
-      'Signing RPC metrics attestation with KMS (keyId=defillama, intentional shared key)',
+      'Signing RPC metrics attestation with unified oracle-attestation domain (keyId=defillama)',
     );
 
-    // domain.name='CallIt-RpcMetrics' — different from 'CallIt-DefiLlama'
-    // This prevents cross-type replay even though both use keyId='defillama' (Pitfall 7)
-    const domain = {
-      name: 'CallIt-RpcMetrics',
-      version: '1',
-      chainId: 42161n,
+    // Use unified signOracleAttestation — domain='CallIt-Oracle', chainId from env
+    const result = await signOracleAttestation({
+      account,
+      chainId,
       verifyingContract: smAddress,
-    };
-
-    const message = {
       callId,
-      metricType,
-      value: metricResult.value,
-      blockNumber: metricResult.blockNumber,
+      oracleType: OracleType.RpcMetrics,
+      outcome,
+      priceDelta,
       timestamp,
-      chainId: 42161n,
-    };
-
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-call
-    const signature = await account.signTypedData({
-      domain,
-      types: RPC_METRICS_ATTESTATION_TYPES,
-      primaryType: 'RpcMetricsAttestation',
-      message,
     });
-
-    const attestationData = encodeAbiParameters(
-      parseAbiParameters(
-        'uint256 callId, string metricType, uint256 value, uint256 blockNumber, uint256 timestamp, uint256 chainId',
-      ),
-      [callId, metricType, metricResult.value, metricResult.blockNumber, timestamp, 42161n],
-    );
 
     logger.info(
       {
@@ -353,9 +344,9 @@ export class RpcMetricsAdapter {
       metricType,
       value: metricResult.value,
       blockNumber: metricResult.blockNumber,
-      timestamp,
-      signature: signature as `0x${string}`,
-      attestationData,
+      timestamp: result.fields.timestamp,
+      signature: result.signature,
+      attestationData: result.attestationData,
     };
   }
 }

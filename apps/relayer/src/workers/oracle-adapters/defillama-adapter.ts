@@ -1,25 +1,26 @@
 /**
  * DefiLlama oracle adapter — KMS-attestation rail (D-02).
  *
- * Proves the KMS-attestation rail generalizes from Pyth by implementing
- * the DefiLlama TVL/volume/fees/APR oracle path.
+ * Implements the DefiLlama TVL/volume/fees/APR oracle path using the unified
+ * oracle-attestation signing format.
  *
  * Flow:
  *   1. fetch api.llama.fi/protocol/{slug} (TVL) or yields.llama.fi/pools (APRs)
- *   2. Sign the metric value with the per-type KMS key (keyId='defillama')
+ *   2. signOracleAttestation: unified EIP-712 sign with domain='CallIt-Oracle', keyId='defillama'
  *   3. Return ABI-encoded attestationData + EIP-712 signature
  *
- * Security (Pitfall 7):
- *   - EIP-712 domain chainId=42161n (Arbitrum One) prevents cross-chain replay (T-04-04-02)
- *   - Domain name='CallIt-DefiLlama' prevents cross-adapter replay (T-04-04-01)
- *   - verifyingContract=SETTLEMENT_MANAGER_ADDRESS binds to specific deployment
- *   - KMS key keyId='defillama' (not shared with NFT-TWAP or CEX keys)
+ * Security:
+ *   - chainId comes from process.env.CHAIN_ID (421614 on Sepolia, 42161 on mainnet) — never hardcoded
+ *   - domain.name='CallIt-Oracle' — unified domain; on-chain ECDSA.recover verifies correctly
+ *   - keyId='defillama' — shared with rpc-metrics-adapter (both numeric off-chain attestations)
+ *   - oracleType=OracleType.DefiLlama(2) — bound via _checkAdapterBinding on-chain
+ *   - targetValue from the 19-field Call struct — never defaults to 0n (T-05.1-03-07)
  *
  * Spec: CALL_IT_SPEC1.md §13.3
  * Requirements: SETTLE-18
  */
 
-import { encodeAbiParameters, parseAbiParameters, type Address } from 'viem';
+import { type Address } from 'viem';
 // NOTE: Import from 3 levels up so the path resolves to apps/relayer/lib/kms-signer.ts,
 // matching the vi.mock('../../../lib/kms-signer.js') in defillama-adapter.test.ts.
 // apps/relayer/lib/kms-signer.ts is a re-export barrel of src/lib/kms-signer.ts.
@@ -27,6 +28,12 @@ import { encodeAbiParameters, parseAbiParameters, type Address } from 'viem';
 import { gcpKmsAccount } from '../../../lib/kms-signer.js';
 import { getLogger } from '../../lib/logger.js';
 import { SETTLEMENT_MANAGER_ARBITRUM_SEPOLIA } from '@call-it/shared';
+import {
+  signOracleAttestation,
+  OracleType,
+  resolveValueOutcome,
+  SUBMIT_ATTESTATION_ABI,
+} from './oracle-attestation.js';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -46,6 +53,12 @@ export interface FetchAndAttestParams {
   callId: bigint;
   metric: DefiLlamaMetric;
   protocolSlug: string;
+  /**
+   * The call's on-chain targetValue from the 19-field Call struct.
+   * MUST be passed through — do NOT default to 0n (T-05.1-03-07).
+   * If 0n and no valid threshold exists, fetchAndAttest returns { ambiguous: true }.
+   */
+  targetValue?: bigint;
 }
 
 /** Signed attestation returned by fetchAndAttest */
@@ -57,23 +70,8 @@ export interface DefiLlamaAttestation {
   signature: `0x${string}`;
   /** ABI-encoded attestation data for on-chain submitAttestation call */
   attestationData: `0x${string}`;
+  ambiguous?: boolean;
 }
-
-// ── EIP-712 type definitions ──────────────────────────────────────────────────
-
-/**
- * EIP-712 types for DefiLlama attestation.
- * Domain: name='CallIt-DefiLlama', chainId=42161n (Pitfall 7).
- */
-const DEFILLAMA_ATTESTATION_TYPES = {
-  DefiLlamaAttestation: [
-    { name: 'callId', type: 'uint256' },
-    { name: 'metric', type: 'string' },
-    { name: 'value', type: 'uint256' },
-    { name: 'timestamp', type: 'uint256' },
-    { name: 'chainId', type: 'uint256' },
-  ],
-} as const;
 
 // ── DefiLlama API helpers ─────────────────────────────────────────────────────
 
@@ -173,7 +171,7 @@ export class DefiLlamaAdapter {
    */
   async fetchAndAttest(params: FetchAndAttestParams): Promise<DefiLlamaAttestation> {
     const logger = getLogger();
-    const { callId, metric, protocolSlug } = params;
+    const { callId, metric, protocolSlug, targetValue } = params;
 
     logger.info(
       {
@@ -227,9 +225,34 @@ export class DefiLlamaAdapter {
       throw err;
     }
 
+    // Step 2: Resolve outcome using targetValue from the 19-field Call struct
+    // targetValue=0n with no valid threshold → ambiguous (never settle against zero, T-05.1-03-07)
+    const tv = targetValue ?? 0n;
+    if (tv === 0n) {
+      logger.warn(
+        {
+          event: 'defillama_ambiguous_no_target',
+          callId: callId.toString(),
+          metric,
+          protocolSlug,
+        },
+        'DefiLlama: targetValue is 0n — returning ambiguous (no valid threshold)',
+      );
+      return {
+        callId,
+        metric,
+        value,
+        timestamp: BigInt(Math.floor(Date.now() / 1000)),
+        signature: '0x' as `0x${string}`,
+        attestationData: '0x' as `0x${string}`,
+        ambiguous: true,
+      };
+    }
+
+    const { outcome, priceDelta } = resolveValueOutcome(value, tv);
     const timestamp = BigInt(Math.floor(Date.now() / 1000));
 
-    // Step 2: Sign with GCP KMS (per-type key for keyId='defillama')
+    // Step 3: Sign with GCP KMS using unified oracle-attestation format
     const expectedAddress = (
       this.config.kmsExpectedAddress ??
       (process.env.KMS_ADDRESS_DEFILLAMA as `0x${string}`) ??
@@ -244,47 +267,35 @@ export class DefiLlamaAdapter {
       keyId: 'defillama',
       keyVersion: this.config.kmsKeyVersion,
       expectedAddress,
-    }) as any; // gcpKmsAccount returns LocalAccount which has signTypedData; viem type widening loses it
+    }) as any; // gcpKmsAccount returns LocalAccount; viem type widening loses signTypedData
+
+    // chainId MUST come from env — never hardcoded (T-05.1-03-01)
+    const chainId = BigInt(process.env.CHAIN_ID ?? '421614');
 
     logger.info(
       {
         event: 'defillama_sign',
         callId: callId.toString(),
         metric,
-        signerAddress: account.address,
+        value: value.toString(),
+        targetValue: tv.toString(),
+        outcome,
+        chainId: chainId.toString(),
       },
-      'Signing DefiLlama attestation with KMS',
+      'Signing DefiLlama attestation with unified oracle-attestation domain',
     );
 
-    // EIP-712 domain — Pitfall 7: chainId=42161n (Arbitrum One), per-adapter name
-    const domain = {
-      name: 'CallIt-DefiLlama',
-      version: '1',
-      chainId: 42161n,
+    // Use unified signOracleAttestation — domain='CallIt-Oracle', chainId from env
+    const result = await signOracleAttestation({
+      account,
+      chainId,
       verifyingContract: this.config.settlementManagerAddress as `0x${string}`,
-    };
-
-    const message = {
       callId,
-      metric,
-      value,
+      oracleType: OracleType.DefiLlama,
+      outcome,
+      priceDelta,
       timestamp,
-      chainId: 42161n,
-    };
-
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-call
-    const signature = await account.signTypedData({
-      domain,
-      types: DEFILLAMA_ATTESTATION_TYPES,
-      primaryType: 'DefiLlamaAttestation',
-      message,
     });
-
-    // ABI-encode attestation data for on-chain submitAttestation call
-    const attestationData = encodeAbiParameters(
-      parseAbiParameters('uint256 callId, string metric, uint256 value, uint256 timestamp, uint256 chainId'),
-      [callId, metric, value, timestamp, 42161n],
-    );
 
     logger.info(
       {
@@ -301,9 +312,9 @@ export class DefiLlamaAdapter {
       callId,
       metric,
       value,
-      timestamp,
-      signature: signature as `0x${string}`,
-      attestationData,
+      timestamp: result.fields.timestamp,
+      signature: result.signature,
+      attestationData: result.attestationData,
     };
   }
 }
@@ -333,13 +344,14 @@ export async function fetchDefiLlamaMetric(
 }
 
 /**
- * Sign a DefiLlama attestation with the per-type KMS key.
+ * Sign a DefiLlama attestation with the per-type KMS key using the unified oracle-attestation format.
  *
+ * @param targetValue - the call's on-chain targetValue; must not be 0n (no valid threshold)
  * @returns attestationData (ABI-encoded) + EIP-712 signature
  */
 export async function signDefiLlamaAttestation(
   callId: bigint,
-  metric: string,
+  _metric: string, // kept for API compatibility; unified format uses oracleType=DefiLlama(2) only
   value: bigint,
   config: {
     settlementManagerAddress?: Address;
@@ -349,9 +361,24 @@ export async function signDefiLlamaAttestation(
     kmsKeyVersion: string;
     kmsExpectedAddress?: Address;
   },
-): Promise<{ attestationData: `0x${string}`; signature: `0x${string}` }> {
+  targetValue?: bigint,
+): Promise<{ attestationData: `0x${string}`; signature: `0x${string}`; ambiguous?: boolean }> {
   const smAddress = config.settlementManagerAddress ?? (SETTLEMENT_MANAGER_ARBITRUM_SEPOLIA as Address);
+
+  // targetValue=0n → ambiguous (no valid threshold, T-05.1-03-07)
+  const tv = targetValue ?? 0n;
+  if (tv === 0n) {
+    return {
+      attestationData: '0x' as `0x${string}`,
+      signature: '0x' as `0x${string}`,
+      ambiguous: true,
+    };
+  }
+
+  const { outcome, priceDelta } = resolveValueOutcome(value, tv);
   const timestamp = BigInt(Math.floor(Date.now() / 1000));
+  // chainId MUST come from env — never hardcoded (T-05.1-03-01)
+  const chainId = BigInt(process.env.CHAIN_ID ?? '421614');
 
   const expectedAddress = (
     config.kmsExpectedAddress ??
@@ -367,39 +394,28 @@ export async function signDefiLlamaAttestation(
     keyId: 'defillama',
     keyVersion: config.kmsKeyVersion,
     expectedAddress,
-  }) as any; // gcpKmsAccount returns LocalAccount; viem type widening loses signTypedData
+  }) as any;
 
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-call
-  const signature = await account.signTypedData({
-    domain: {
-      name: 'CallIt-DefiLlama',
-      version: '1',
-      chainId: 42161n,
-      verifyingContract: smAddress,
-    },
-    types: DEFILLAMA_ATTESTATION_TYPES,
-    primaryType: 'DefiLlamaAttestation',
-    message: { callId, metric, value, timestamp, chainId: 42161n },
+  // Use unified signOracleAttestation — domain='CallIt-Oracle', chainId from env
+  const result = await signOracleAttestation({
+    account,
+    chainId,
+    verifyingContract: smAddress,
+    callId,
+    oracleType: OracleType.DefiLlama,
+    outcome,
+    priceDelta,
+    timestamp,
   });
 
-  const attestationData = encodeAbiParameters(
-    parseAbiParameters('uint256 callId, string metric, uint256 value, uint256 timestamp, uint256 chainId'),
-    [callId, metric, value, timestamp, 42161n],
-  );
-
   return {
-    attestationData,
-    signature: signature as `0x${string}`,
+    attestationData: result.attestationData,
+    signature: result.signature,
   };
 }
 
 /**
- * Submit a DefiLlama attestation to SettlementManager.
- *
- * @param callId - call ID being settled
- * @param attestationData - ABI-encoded attestation data
- * @param signature - EIP-712 signature
- * @param walletClient - GCP-KMS-backed viem WalletClient
+ * Submit a DefiLlama attestation to SettlementManager using the unified SUBMIT_ATTESTATION_ABI.
  */
 export async function submitDefiLlamaAttestation(
   callId: bigint,
@@ -410,20 +426,6 @@ export async function submitDefiLlamaAttestation(
 ): Promise<void> {
   const logger = getLogger();
 
-  const SM_SUBMIT_ABI = [
-    {
-      type: 'function',
-      name: 'submitAttestation',
-      inputs: [
-        { name: 'callId', type: 'uint256', internalType: 'uint256' },
-        { name: 'attestationData', type: 'bytes', internalType: 'bytes' },
-        { name: 'signature', type: 'bytes', internalType: 'bytes' },
-      ],
-      outputs: [],
-      stateMutability: 'nonpayable',
-    },
-  ] as const;
-
   logger.info(
     { event: 'defillama_submit', callId: callId.toString() },
     'Submitting DefiLlama attestation to SettlementManager',
@@ -431,7 +433,7 @@ export async function submitDefiLlamaAttestation(
 
   await walletClient.writeContract({
     address: settlementManagerAddress,
-    abi: SM_SUBMIT_ABI,
+    abi: SUBMIT_ATTESTATION_ABI,
     functionName: 'submitAttestation',
     args: [callId, attestationData, signature],
   });
