@@ -32,6 +32,23 @@ jobs:
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1
 
+      - name: Selector gate — compute_rep_change must be 0xff540eb6
+        # T-05-01-01: ABI selector spoofing guard. The Stylus SDK converts snake_case to camelCase
+        # by default (compute_rep_change → computeRepChange → selector 0xfe7606ba). The locked
+        # IStylusScoreEngine interface requires 0xff540eb6. This gate blocks any ABI change that
+        # would silently route SettlementManager calls to the wrong selector.
+        # Source: 05-RESEARCH.md "Risk 1: ABI Selector Mismatch"
+        working-directory: packages/contracts
+        run: |
+          SELECTOR=$(cast sig "compute_rep_change(uint128,uint8,uint8,bool,uint256)")
+          if [ "$SELECTOR" != "0xff540eb6" ]; then
+            echo "::error::FATAL: selector mismatch: got $SELECTOR, expected 0xff540eb6"
+            echo "::error::The Stylus SDK converts snake_case to camelCase by default."
+            echo "::error::Use #[selector(name = \"compute_rep_change\")] in the Rust engine."
+            exit 1
+          fi
+          echo "PASS: compute_rep_change selector is 0xff540eb6 (matches IStylusScoreEngine)"
+
       - name: Build contracts
         working-directory: packages/contracts
         run: forge build
