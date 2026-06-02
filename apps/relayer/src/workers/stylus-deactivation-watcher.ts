@@ -67,6 +67,14 @@ export interface StylusDeactivationWatcherOpts {
   redis: {
     set(key: string, value: string, ...args: (string | number)[]): Promise<string | null>;
   };
+  /**
+   * Demo/mainnet milestone date (Unix timestamp seconds). Optional.
+   * If set, fires `stylus_demo_cutoff` alerts at T-72h/T-48h/T-24h before the date.
+   * Uses distinct Redis key prefix `stylus:demo-cutoff:T-${h}h:` (no collision with
+   * reactivation `stylus:alert-fired:T-${N}d:` keys).
+   * Watcher is no-op for this feature if field is null/undefined.
+   */
+  demoCutoffTimestamp?: number;
 }
 
 export interface StylusDeactivationWatcherHandle {
@@ -171,6 +179,41 @@ export function startStylusDeactivationWatcher(
         }
         // Only fire the highest triggered threshold (first match in descending order)
         break;
+      }
+    }
+
+    // ─── Demo/milestone cutoff alert block (D-7, Pitfall 17) ───────────────────
+    // Mirrors the reactivation threshold loop above — same Redis NX idempotency pattern.
+    // Key prefix MUST differ from reactivation: stylus:demo-cutoff:T-${h}h: (T-05-05-02)
+    // Thresholds ascending [24, 48, 72]: fires the MOST URGENT (smallest) applicable threshold.
+    // e.g. 12h remaining → 12 <= 24 → fires T-24h (most urgent), breaks.
+    if (opts.demoCutoffTimestamp) {
+      const demoThresholds = [24, 48, 72] as const;
+      // nowSeconds is already in scope from line 128 above
+      const hoursUntilDemo = (opts.demoCutoffTimestamp - nowSeconds) / 3600;
+      for (const h of demoThresholds) {
+        if (hoursUntilDemo <= h && hoursUntilDemo > 0) {
+          const dateKey = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+          const lockKey = `stylus:demo-cutoff:T-${h}h:${dateKey}`;
+
+          // Idempotency lock — one alert per threshold per calendar day (T-05-05-02)
+          const acquired = await redis.set(lockKey, '1', 'EX', 86400, 'NX');
+
+          if (acquired === 'OK') {
+            await sendAlert('stylus_demo_cutoff', {
+              hoursRemaining: Math.floor(hoursUntilDemo),
+              threshold: h,
+              demoCutoffTimestamp: opts.demoCutoffTimestamp,
+              stylusAddress,
+              message:
+                h <= 48
+                  ? 'DECISION REQUIRED: Run cargo stylus check. If Stylus not working, execute CutoffFallback.s.sol NOW.'
+                  : 'Pre-demo check: Verify Stylus engine is activated and compute_rep_change works.',
+            });
+          }
+          // Only fire highest triggered threshold (mirrors reactivation pattern)
+          break;
+        }
       }
     }
   }

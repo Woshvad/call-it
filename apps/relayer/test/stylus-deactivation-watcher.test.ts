@@ -179,4 +179,41 @@ describe('startStylusDeactivationWatcher', () => {
     expect(mockPublicClient.readContract).not.toHaveBeenCalled();
     expect(sendAlert).not.toHaveBeenCalled();
   });
+
+  it('Test 5: demo-cutoff alert fires when hoursUntilDemo <= 24', async () => {
+    const mockRedis = makeMockRedis('OK');
+    const sendAlertMock = vi.mocked(sendAlert);
+    // Set demoCutoffTimestamp to nowPlusDays(0.5) = 12 hours from now (in seconds)
+    const demoCutoffTs = Math.floor(Date.now() / 1000) + 12 * 3600;
+    const expiryFarFuture = nowPlusDays(200); // far future — no reactivation alert
+    const mockPublicClient = makeMockPublicClient(expiryFarFuture);
+
+    const watcher = startStylusDeactivationWatcher({
+      publicClient: mockPublicClient as any,
+      stylusAddress: '0xStylusAddr0000000000000000000000000000',
+      intervalMs: 50,
+      redis: mockRedis as any,
+      demoCutoffTimestamp: demoCutoffTs,
+    });
+
+    await new Promise((resolve) => setTimeout(resolve, 150));
+    watcher.stop();
+
+    expect(sendAlertMock).toHaveBeenCalledWith(
+      'stylus_demo_cutoff',
+      expect.objectContaining({
+        hoursRemaining: expect.any(Number),
+        threshold: 24, // 12 hours remaining < 24h threshold → fires at T-24h
+        demoCutoffTimestamp: demoCutoffTs,
+      }),
+    );
+    // Verify Redis lock key prefix is demo-cutoff, NOT alert-fired
+    expect(mockRedis.set).toHaveBeenCalledWith(
+      expect.stringMatching(/stylus:demo-cutoff:T-24h:/),
+      '1',
+      'EX',
+      86400,
+      'NX',
+    );
+  });
 });
