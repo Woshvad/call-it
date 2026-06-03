@@ -526,11 +526,12 @@ forge create packages/contracts/src/RevertingStylusEngine.sol:RevertingStylusEng
   --rpc-url $ARBITRUM_SEPOLIA_RPC_URL \
   --private-key $DEPLOYER_PRIVATE_KEY
 
-# Step 2: proxy.upgradeTo(revertingEngineAddr)
-# The StylusScoreEngine proxy (0xe7e15980...) is a TransparentUpgradeableProxy
-# proxyAdmin.upgrade(proxyAddr, revertingEngineAddr)
-cast send $PROXY_ADMIN_ADDR "upgrade(address,address)" \
-  $STYLUS_PROXY_ADDR $REVERTING_ENGINE_ADDR \
+# Step 2: Upgrade proxy to RevertingStylusEngine via ProxyAdmin
+# OZ 5.6.1 ONLY exposes upgradeAndCall(address,address,bytes) — 3 arguments.
+# The 2-arg upgrade(address,address) was REMOVED in OZ 5.0 and is absent from this codebase.
+# Use 0x as the empty bytes data argument (no init call needed).
+cast send $PROXY_ADMIN_ADDR "upgradeAndCall(address,address,bytes)" \
+  $STYLUS_PROXY_ADDR $REVERTING_ENGINE_ADDR 0x \
   --private-key $DEPLOYER_PRIVATE_KEY \
   --rpc-url $ARBITRUM_SEPOLIA_RPC_URL
 
@@ -548,9 +549,9 @@ cast logs --from-block latest --address $SM_ADDR \
 cast call $PR_ADDR "getProfile(address)" $CALLER_ADDR \
   --rpc-url $ARBITRUM_SEPOLIA_RPC_URL
 
-# Step 6: Restore real Stylus engine
-cast send $PROXY_ADMIN_ADDR "upgrade(address,address)" \
-  $STYLUS_PROXY_ADDR $REAL_STYLUS_ENGINE_ADDR \
+# Step 6: Restore real Stylus engine (same 3-arg OZ 5.x form required)
+cast send $PROXY_ADMIN_ADDR "upgradeAndCall(address,address,bytes)" \
+  $STYLUS_PROXY_ADDR $REAL_STYLUS_ENGINE_ADDR 0x \
   --private-key $DEPLOYER_PRIVATE_KEY \
   --rpc-url $ARBITRUM_SEPOLIA_RPC_URL
 ```
