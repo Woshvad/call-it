@@ -304,7 +304,7 @@ Requirements for the v1 mainnet release. Each line is an atomic, testable behavi
 - [x] **SAFETY-16**: Daily cap is owner-tunable via `setPaymasterDailyCap(uint256)` on the off-chain relayer config (operational, not a contract function) (§10.7)
 - [x] **SAFETY-17**: Telegram alert fires when daily paymaster spend hits 80% of cap (§10.7, App.A.1)
 - [ ] **SAFETY-18**: CallRegistry, FollowFadeMarket, ChallengeEscrow, SettlementManager, ProfileRegistry are NOT upgradable in v1 — pause + redeploy is the rollback policy (§10.8, App.A.1)
-- [ ] **SAFETY-19**: StylusScoreEngine is the ONLY upgradable contract via minimal transparent proxy; upgrade sequence is pause → upgrade → unpause (no silent mid-call rule changes) (§10.8)
+- [x] **SAFETY-19**: StylusScoreEngine is the ONLY upgradable contract via minimal transparent proxy; upgrade sequence is pause → upgrade → unpause (no silent mid-call rule changes) (§10.8)
 - [ ] **SAFETY-20**: Proxy admin key rotates to a multisig before any v1.1 promotion or before TVL exceeds $5K (§10.8)
 - [ ] **SAFETY-21**: Sepolia staging gate requires ≥48 hours of operation with seeded data before any mainnet deploy — non-optional (§19.10, App.A.1)
 - [ ] **SAFETY-22**: Sepolia staging requires ≥10 seeded calls covering each call type (Price target, Spread/vs, ≥3 event subtypes) (§19.10)
@@ -327,7 +327,7 @@ Requirements for the v1 mainnet release. Each line is an atomic, testable behavi
 - [x] **SAFETY-39**: Phase 6 verifies settlement idempotency — calling `settle` twice reverts cleanly (§19 Phase 6)
 - [x] **SAFETY-40**: Phase 6 verifies self-challenge gate — caller cannot challenge themselves (§19 Phase 6)
 - [x] **SAFETY-41**: Phase 6 verifies reentrancy guard with a USDC mock callback attempt — must revert (§19 Phase 6)
-- [ ] **SAFETY-42**: Phase 6 verifies Stylus runtime fallback — deploy a deliberately reverting Stylus contract, verify Solidity baseline runs and `RepCalculatedFallback` fires (§19 Phase 6)
+- [x] **SAFETY-42**: Phase 6 verifies Stylus runtime fallback — deploy a deliberately reverting Stylus contract, verify Solidity baseline runs and `RepCalculatedFallback` fires (§19 Phase 6)
 - [x] **SAFETY-43**: Phase 6 verifies owner-only functions — non-owner cannot pause, setTvlCap, setSettlementManager, setRelayer, forceSettle, resolveDispute (§19 Phase 6)
 - [ ] **SAFETY-44**: Post-deploy smoke test checklist (§19.11) is mandatory before public announcement — 20 minutes estimated (§19.11, App.A.1)
 - [ ] **SAFETY-45**: Smoke test verifies `pause()` and `unpause()` execute from owner wallet and `paused()` view reflects state (§19.11)
@@ -833,7 +833,7 @@ Which phases cover which requirements. Updated during roadmap creation by the ro
 | SAFETY-16 | Phase 0 | Complete |
 | SAFETY-17 | Phase 0 | Complete |
 | SAFETY-18 | Phase 1 | Pending |
-| SAFETY-19 | Phase 6 | Pending |
+| SAFETY-19 | Phase 6 | Complete |
 | SAFETY-20 | Phase 6 | Pending |
 | SAFETY-21 | Phase 6 | Pending |
 | SAFETY-22 | Phase 6 | Pending |
@@ -856,7 +856,7 @@ Which phases cover which requirements. Updated during roadmap creation by the ro
 | SAFETY-39 | Phase 6 | Complete |
 | SAFETY-40 | Phase 6 | Complete |
 | SAFETY-41 | Phase 6 | Complete |
-| SAFETY-42 | Phase 6 | Pending |
+| SAFETY-42 | Phase 6 | Complete |
 | SAFETY-43 | Phase 6 | Complete |
 | SAFETY-44 | Phase 7.5 | Pending |
 | SAFETY-45 | Phase 7.5 | Pending |
