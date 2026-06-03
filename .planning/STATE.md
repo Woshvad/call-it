@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: milestone
 status: executing
-stopped_at: Phase 6 context gathered
-last_updated: "2026-06-03T21:13:32.368Z"
-last_activity: 2026-06-03 -- Phase 06 planning complete
+stopped_at: "06-01 Tasks 1-2 complete; awaiting Task 3 security-review checkpoint"
+last_updated: "2026-06-03T22:30:00Z"
+last_activity: "2026-06-03 -- 06-01 Tasks 1+2 committed (119c4a6, 61a37dd); paused at Task 3 security-review gate"
 progress:
   total_phases: 9
   completed_phases: 7
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-21)
 
 **Core value:** Every call is permanent, public, and tied to identity. The receipt — created, settled, and shared — must be unfakeable, undeletable, and visually unmistakable.
-**Current focus:** Phase 05.1 — cluster deployed + rolled up; relayer go-live deferred to Phase 6 soak
+**Current focus:** Phase 06 — safety-review-sepolia-48h-multisig-promotion
 
 ## Current Position
 
-Phase: 6
-Plan: Not started
-Status: Ready to execute
-Last activity: 2026-06-03 -- Phase 06 planning complete
+Phase: 06 (safety-review-sepolia-48h-multisig-promotion) — EXECUTING
+Plan: 1 of 6 (Tasks 1-2 complete; Task 3 is security-review checkpoint — awaiting human)
+Status: Paused at Task 3 security-review gate
+Last activity: "2026-06-03 -- 06-01 Tasks 1+2 committed; awaiting security review before Wave 2 redeploy"
 
 Progress: [██████████] 98%
 
