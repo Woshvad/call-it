@@ -75,6 +75,35 @@ jobs:
           fi
           echo "PASS: No USDC.e address in Solidity files."
 
+      - name: USDC address allowlist (mainnet + Circle Sepolia only)
+        run: |
+          # Phase 6 addition (ADR-0001): enforce the 2-address USDC allowlist.
+          # Forbid any USDC-like address that is NOT in {USDC_ARB_NATIVE, USDC_ARB_SEPOLIA}.
+          # Note: the USDC.e absolute-forbid guard above remains UNCHANGED -- still forbidden.
+          #
+          # Strategy: find any 40-hex-char token starting with af88d065 or 75faf114 in
+          # *.sol and *.ts files (the only file types that can carry hardcoded USDC addresses).
+          # Strip the two known-good addresses. If anything remains, fail the build.
+          # Case-insensitive match because Solidity checksummed addresses mix case.
+          USDC_MAINNET="af88d065e77c8cc2239327c5edb3a432268e5831"
+          USDC_SEPOLIA="75faf114eafb1bdbe2f0316df893fd58ce46aa4d"
+          VIOLATIONS=$(rg --hidden --no-ignore \
+              --glob '**/*.sol' --glob '**/*.ts' \
+              --glob '!**/node_modules/**' --glob '!**/out/**' \
+              --glob '!**/target/**' --glob '!**/.next/**' \
+              --glob '!**/.turbo/**' --glob '!**/dist/**' \
+              --ignore-case \
+              -o "(af88d065|75faf114)[0-9a-fA-F]{32}" \
+              . \
+              | grep -iv "$USDC_MAINNET" | grep -iv "$USDC_SEPOLIA" || true)
+          if [ -n "$VIOLATIONS" ]; then
+            echo "::error::USDC address outside 2-address allowlist: $VIOLATIONS"
+            echo "::error::Allowed: USDC_ARB_NATIVE (af88d065...e5831) and USDC_ARB_SEPOLIA (75faf114...AA4d)"
+            echo "::error::See ADR-0001: .planning/decisions/0001-sepolia-staging-usdc.md"
+            exit 1
+          fi
+          echo "PASS: All USDC addresses are in the 2-address allowlist."
+
   solidity-pragma:
     name: Guard — All Solidity pragmas must be exactly =0.8.30
     runs-on: ubuntu-latest
