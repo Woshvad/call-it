@@ -2,9 +2,9 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: milestone
-status: completed
+status: verifying
 stopped_at: Completed 04-09-PLAN.md (Task 1 autonomous); human-verify checkpoint pending
-last_updated: "2026-06-02T20:42:37.151Z"
+last_updated: "2026-06-03T16:32:12.740Z"
 last_activity: 2026-06-02
 progress:
   total_phases: 13
@@ -21,13 +21,13 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-21)
 
 **Core value:** Every call is permanent, public, and tied to identity. The receipt — created, settled, and shared — must be unfakeable, undeletable, and visually unmistakable.
-**Current focus:** Phase 05.1 — code + DB done; KMS provisioning + deploy + Plan 05 deferred to Phase 6 soak (operator)
+**Current focus:** Phase 05.1 — cluster deployed + rolled up; relayer go-live deferred to Phase 6 soak
 
 ## Current Position
 
 Phase: 05.1 (non-pyth-oracle-rail-activation) — EXECUTING
 Plan: 3 of 5
-Status: Phase 05.1 code-complete + DB migration 0004 applied to live Fly Postgres; live deploy (Gate A) + Plan 05 rollup DEFERRED to Phase 6 soak — blocked on GCP KMS attestation key provisioning (attestations keyring/keys not created in call-it-sepolia). See 05.1-OPERATOR-HANDOFF.md.
+Status: Phase 05.1 LIVE — non-Pyth oracle rail cluster (CR+FFM+CE+SM) deployed + verified on Arbitrum Sepolia; addresses.ts + subgraph repointed + redeployed; forge 185/185. Only relayer go-live remains (Phase 6 soak). See 05.1-OPERATOR-HANDOFF.md.
 Last activity: 2026-06-02
 
 Progress: [██████████] 98%
