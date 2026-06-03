@@ -22,7 +22,7 @@ import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.s
 import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import { Ownable2Step, Ownable } from "@openzeppelin/contracts/access/Ownable2Step.sol";
 import { Pausable } from "@openzeppelin/contracts/utils/Pausable.sol";
-import { USDC_ARB_NATIVE } from "./constants/USDC.sol";
+import { USDC_ARB_NATIVE, resolveUsdc } from "./constants/USDC.sol";
 import { ICallRegistry } from "./interfaces/ICallRegistry.sol";
 import { IFollowFadeMarket } from "./interfaces/IFollowFadeMarket.sol";
 import { IChallengeEscrow } from "./interfaces/IChallengeEscrow.sol";
@@ -106,7 +106,7 @@ contract ChallengeEscrow is Ownable2Step, ReentrancyGuard, Pausable, IChallengeE
     /// @notice Deploy a non-upgradeable ChallengeEscrow.
     /// @param _callRegistry    CallRegistry for call data + TVL reads.
     /// @param _followFadeMarket FollowFadeMarket for TVL reads.
-    /// @param _usdc            Must equal USDC_ARB_NATIVE (CI assertion).
+    /// @param _usdc            Must equal resolveUsdc() for the current chain (ADR-0001).
     /// @param _treasury        Treasury address for protocol fees.
     /// @param _tvlCap          Initial TVL cap for ChallengeEscrow's escrow portion.
     constructor(
@@ -118,7 +118,7 @@ contract ChallengeEscrow is Ownable2Step, ReentrancyGuard, Pausable, IChallengeE
     ) Ownable(msg.sender) {
         require(_callRegistry != address(0), "invalid-registry");
         require(_followFadeMarket != address(0), "invalid-ffm");
-        require(_usdc == USDC_ARB_NATIVE, "wrong-usdc");
+        require(_usdc == resolveUsdc(), "wrong USDC");
         require(_treasury != address(0) && _treasury != address(this), "invalid-treasury");
         require(_tvlCap <= MAX_ALLOWED_CAP, "cap-too-high");
         callRegistry   = ICallRegistry(_callRegistry);

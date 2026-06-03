@@ -36,7 +36,7 @@ import { Ownable2Step, Ownable } from "@openzeppelin/contracts/access/Ownable2St
 import { Pausable } from "@openzeppelin/contracts/utils/Pausable.sol";
 import { EIP712 } from "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
 import { ECDSA } from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
-import { USDC_ARB_NATIVE } from "./constants/USDC.sol";
+import { USDC_ARB_NATIVE, resolveUsdc } from "./constants/USDC.sol";
 import { ICallRegistry } from "./interfaces/ICallRegistry.sol";
 import { IFollowFadeMarket } from "./interfaces/IFollowFadeMarket.sol";
 import { IChallengeEscrow } from "./interfaces/IChallengeEscrow.sol";
@@ -162,7 +162,7 @@ contract SettlementManager is Ownable2Step, ReentrancyGuard, Pausable, EIP712, I
     /// @param _followFadeMarket FollowFadeMarket for fee extraction and pool queries.
     /// @param _challengeEscrow  ChallengeEscrow for duel settlement loop.
     /// @param _profileRegistry  ProfileRegistry for rep delta + stats updates.
-    /// @param _usdc             Must equal USDC_ARB_NATIVE (CI gate). USDC MANDATE.
+    /// @param _usdc             Must equal resolveUsdc() for the current chain (ADR-0001).
     /// @param _treasury         Treasury address for fees (must not be address(this)).
     /// @param _pyth             Pyth oracle address per chain.
     constructor(
@@ -178,7 +178,7 @@ contract SettlementManager is Ownable2Step, ReentrancyGuard, Pausable, EIP712, I
         require(_followFadeMarket != address(0), "invalid-ffm");
         require(_challengeEscrow != address(0), "invalid-escrow");
         require(_profileRegistry != address(0), "invalid-profile");
-        require(_usdc == USDC_ARB_NATIVE, "wrong-usdc");
+        require(_usdc == resolveUsdc(), "wrong USDC");
         require(_treasury != address(0) && _treasury != address(this), "invalid-treasury");
         require(_pyth != address(0), "invalid-pyth");
 

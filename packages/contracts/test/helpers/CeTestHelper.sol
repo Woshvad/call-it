@@ -48,6 +48,11 @@ abstract contract CeTestHelper is FfmTestHelper {
     // ─── setUp ────────────────────────────────────────────────────────────────
 
     function setUp() public virtual override {
+        // Pin chainid to Arbitrum One before deploying contracts with resolveUsdc() guards.
+        // resolveUsdc() reverts on Foundry's default chainid (31337) -- must be 42161 or 421614.
+        // (ADR-0001 Phase 6 regression fix)
+        vm.chainId(42161);
+
         // Step 1: boot the 3-contract stack + MockUSDC etch + fund alice+bob
         super.setUp();
 

@@ -57,6 +57,10 @@ abstract contract SmTestHelper is CeTestHelper {
     // ─── setUp ────────────────────────────────────────────────────────────────
 
     function setUp() public virtual override {
+        // chainId is already pinned to 42161 by CeTestHelper.setUp() which super.setUp() calls.
+        // resolveUsdc() reverts on Foundry's default chainid (31337) -- requires 42161 or 421614.
+        // (ADR-0001 Phase 6 regression fix -- see CeTestHelper.setUp())
+
         // Step 1: boot the 4-contract stack (PR + CR + FFM + CE) + MockUSDC + all actors
         super.setUp();
 
