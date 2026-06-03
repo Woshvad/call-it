@@ -40,6 +40,7 @@ contract CallRegistrySafetyTest is Test {
         0xb53127684a568b3173ae13b9f8a6016e243e63b6e8ee1178d6a717850b5d6103;
 
     function setUp() public {
+        vm.chainId(42161); // ADR-0001: pin Arbitrum One so resolveUsdc() in CR/CE/SM constructors resolves (reverts on default 31337)
         owner = makeAddr("owner");
         alice = makeAddr("alice");
 

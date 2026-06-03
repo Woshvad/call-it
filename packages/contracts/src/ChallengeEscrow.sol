@@ -5,7 +5,8 @@ pragma solidity =0.8.30;
 // Spec: CALL_IT_SPEC1.md §11.3, §12.3 — ChallengeEscrow responsibilities + function signatures
 // Requirement: SOCIAL-29..39, SAFETY-01/04..11/14/18
 //
-// USDC MANDATE (§10.5): ALL transfer paths use USDC_ARB_NATIVE from ./constants/USDC.sol.
+// USDC MANDATE (§10.5 / ADR-0001): ALL transfer paths use the chainid-resolved `usdc` immutable
+// (= resolveUsdc(): 42161 -> USDC_ARB_NATIVE, 421614 -> USDC_ARB_SEPOLIA) from ./constants/USDC.sol.
 // Never paste the literal address in this file. The CI grep guard will catch it.
 //
 // NON-UPGRADEABLE BY DESIGN (D-14, SAFETY-18):
@@ -22,7 +23,7 @@ import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.s
 import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import { Ownable2Step, Ownable } from "@openzeppelin/contracts/access/Ownable2Step.sol";
 import { Pausable } from "@openzeppelin/contracts/utils/Pausable.sol";
-import { USDC_ARB_NATIVE, resolveUsdc } from "./constants/USDC.sol";
+import { resolveUsdc } from "./constants/USDC.sol";
 import { ICallRegistry } from "./interfaces/ICallRegistry.sol";
 import { IFollowFadeMarket } from "./interfaces/IFollowFadeMarket.sol";
 import { IChallengeEscrow } from "./interfaces/IChallengeEscrow.sol";
@@ -67,6 +68,10 @@ contract ChallengeEscrow is Ownable2Step, ReentrancyGuard, Pausable, IChallengeE
 
     /// @notice FollowFadeMarket: reads getTvl() for 3-way TVL cap.
     IFollowFadeMarket public immutable followFadeMarket;
+
+    /// @notice Chainid-resolved USDC token (= resolveUsdc(), validated in constructor). ADR-0001
+    ///         hybrid money-path: mainnet 42161 -> USDC_ARB_NATIVE, Sepolia 421614 -> USDC_ARB_SEPOLIA.
+    address public immutable usdc;
 
     // ─── Mutable admin state ───────────────────────────────────────────────────
 
@@ -123,6 +128,7 @@ contract ChallengeEscrow is Ownable2Step, ReentrancyGuard, Pausable, IChallengeE
         require(_tvlCap <= MAX_ALLOWED_CAP, "cap-too-high");
         callRegistry   = ICallRegistry(_callRegistry);
         followFadeMarket = IFollowFadeMarket(_followFadeMarket);
+        usdc           = _usdc; // validated == resolveUsdc() above (ADR-0001 chainid gate)
         treasury       = _treasury;
         tvlCap         = _tvlCap;
         nextChallengeId = 1; // burn challengeId 0
@@ -173,7 +179,7 @@ contract ChallengeEscrow is Ownable2Step, ReentrancyGuard, Pausable, IChallengeE
         ch.status          = ChallengeStatus.Proposed;
 
         // ── INTERACTIONS ──
-        IERC20(USDC_ARB_NATIVE).safeTransferFrom(msg.sender, address(this), stake);
+        IERC20(usdc).safeTransferFrom(msg.sender, address(this), stake);
 
         emit ChallengeProposed(challengeId, callId, msg.sender, stake);
     }
@@ -214,7 +220,7 @@ contract ChallengeEscrow is Ownable2Step, ReentrancyGuard, Pausable, IChallengeE
         ch.status          = ChallengeStatus.Accepted;
 
         // ── INTERACTIONS ──
-        IERC20(USDC_ARB_NATIVE).safeTransferFrom(msg.sender, address(this), callerMatchingStake);
+        IERC20(usdc).safeTransferFrom(msg.sender, address(this), callerMatchingStake);
 
         emit ChallengeAccepted(challengeId, msg.sender, callerMatchingStake);
     }
@@ -239,7 +245,7 @@ contract ChallengeEscrow is Ownable2Step, ReentrancyGuard, Pausable, IChallengeE
         totalEscrow -= amount;
 
         // ── INTERACTIONS ──
-        IERC20(USDC_ARB_NATIVE).safeTransfer(challenger_, amount);
+        IERC20(usdc).safeTransfer(challenger_, amount);
 
         emit ChallengeRejected(challengeId, msg.sender);
     }
@@ -267,7 +273,7 @@ contract ChallengeEscrow is Ownable2Step, ReentrancyGuard, Pausable, IChallengeE
         totalEscrow -= amount;
 
         // ── INTERACTIONS ──
-        IERC20(USDC_ARB_NATIVE).safeTransfer(challenger_, amount);
+        IERC20(usdc).safeTransfer(challenger_, amount);
 
         emit ChallengeRefunded(challengeId, challenger_, amount);
     }
@@ -334,8 +340,8 @@ contract ChallengeEscrow is Ownable2Step, ReentrancyGuard, Pausable, IChallengeE
         totalEscrow -= pot;
 
         // ── INTERACTIONS ──
-        IERC20(USDC_ARB_NATIVE).safeTransfer(ch.winner, payout);
-        IERC20(USDC_ARB_NATIVE).safeTransfer(treasury, protocolFee);
+        IERC20(usdc).safeTransfer(ch.winner, payout);
+        IERC20(usdc).safeTransfer(treasury, protocolFee);
 
         emit PayoutClaimed(challengeId, ch.winner, payout, protocolFee);
     }
@@ -366,7 +372,7 @@ contract ChallengeEscrow is Ownable2Step, ReentrancyGuard, Pausable, IChallengeE
         totalEscrow      -= overage;
 
         // ── INTERACTIONS ──
-        IERC20(USDC_ARB_NATIVE).safeTransfer(overcommitter, overage);
+        IERC20(usdc).safeTransfer(overcommitter, overage);
     }
 
     // ─── Admin functions ───────────────────────────────────────────────────────
@@ -427,7 +433,7 @@ contract ChallengeEscrow is Ownable2Step, ReentrancyGuard, Pausable, IChallengeE
         totalEscrow      -= overage;
 
         // ── INTERACTIONS: bool return — must NOT revert on failure (Pitfall C) ──
-        bool ok = IERC20(USDC_ARB_NATIVE).transfer(overcommitter, overage);
+        bool ok = IERC20(usdc).transfer(overcommitter, overage);
 
         if (!ok) {
             // Rollback: push failed; record for claimOverage() fallback

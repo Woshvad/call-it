@@ -45,6 +45,7 @@ contract CallRegistryParityTest is Test {
     uint64 internal constant FUTURE = 86400; // seconds from now
 
     function setUp() public {
+        vm.chainId(42161); // ADR-0001: pin Arbitrum One so resolveUsdc() in CallRegistry constructor resolves (reverts on default 31337)
         owner = makeAddr("owner");
         alice = makeAddr("alice");
         bob   = makeAddr("bob");

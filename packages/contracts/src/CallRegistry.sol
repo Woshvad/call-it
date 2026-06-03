@@ -5,7 +5,8 @@ pragma solidity =0.8.30;
 // Spec: CALL_IT_SPEC1.md §11.1, §12.1 — CallRegistry responsibilities + function signatures
 // Requirement: CALL-01..70, SAFETY-01/04..11/14/18, AUTH-39
 //
-// USDC MANDATE (§10.5): ALL transfer paths use USDC_ARB_NATIVE from ./constants/USDC.sol.
+// USDC MANDATE (§10.5 / ADR-0001): ALL transfer paths use the chainid-resolved `usdc` immutable
+// (= resolveUsdc(): 42161 -> USDC_ARB_NATIVE, 421614 -> USDC_ARB_SEPOLIA) from ./constants/USDC.sol.
 // Never paste the literal address in this file. The CI grep guard will catch it.
 //
 // NON-UPGRADEABLE BY DESIGN (D-14, SAFETY-18):
@@ -25,7 +26,7 @@ import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.s
 import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import { Ownable2Step, Ownable } from "@openzeppelin/contracts/access/Ownable2Step.sol";
 import { Pausable } from "@openzeppelin/contracts/utils/Pausable.sol";
-import { USDC_ARB_NATIVE } from "./constants/USDC.sol";
+import { resolveUsdc } from "./constants/USDC.sol";
 import { IProfileRegistry } from "./interfaces/IProfileRegistry.sol";
 import { ICallRegistry } from "./interfaces/ICallRegistry.sol";
 import { IFollowFadeMarket } from "./interfaces/IFollowFadeMarket.sol";
@@ -105,6 +106,11 @@ contract CallRegistry is Ownable2Step, ReentrancyGuard, Pausable, ICallRegistry 
     /// @notice The ProfileRegistry consulted for Gate 6.3 (conviction floor). CALL-29..31.
     IProfileRegistry public immutable profileRegistry;
 
+    /// @notice Chainid-resolved USDC token (= resolveUsdc()). ADR-0001 hybrid money-path:
+    ///         mainnet 42161 -> USDC_ARB_NATIVE, Sepolia 421614 -> USDC_ARB_SEPOLIA. All
+    ///         transfer paths use this immutable so the same bytecode is correct on both chains.
+    address public immutable usdc;
+
     /// @notice Phase 4 settlement manager address. Settable by owner. CALL-27.
     address public settlementManager;
 
@@ -130,6 +136,7 @@ contract CallRegistry is Ownable2Step, ReentrancyGuard, Pausable, ICallRegistry 
         require(_tvlCap <= MAX_ALLOWED_CAP, "cap-too-high");
         profileRegistry = _profileRegistry;
         tvlCap = _tvlCap;
+        usdc = resolveUsdc(); // ADR-0001 chainid gate; reverts on unsupported chain (fail-fast at deploy)
         _calls.push(); // burn callId 0 -- a callId of 0 in activeDuplicateHashes means "no duplicate"
     }
 
@@ -247,9 +254,9 @@ contract CallRegistry is Ownable2Step, ReentrancyGuard, Pausable, ICallRegistry 
         if (currentTvl + uint256(p.stake) > tvlCap) revert TvlCapReached(uint256(p.stake), tvlCap - currentTvl);
 
         // CALL-35/36: USDC pre-checks
-        uint256 allowance = IERC20(USDC_ARB_NATIVE).allowance(msg.sender, address(this));
+        uint256 allowance = IERC20(usdc).allowance(msg.sender, address(this));
         if (allowance < incoming) revert InsufficientUsdcAllowance(incoming, allowance);
-        uint256 balance = IERC20(USDC_ARB_NATIVE).balanceOf(msg.sender);
+        uint256 balance = IERC20(usdc).balanceOf(msg.sender);
         if (balance < incoming) revert InsufficientUsdcBalance(incoming, balance);
 
         // EFFECTS: state writes before interaction (CEI strict -- SAFETY-05)
@@ -280,7 +287,7 @@ contract CallRegistry is Ownable2Step, ReentrancyGuard, Pausable, ICallRegistry 
         currentTvl += uint256(p.stake);
 
         // INTERACTIONS: token pull LAST (CEI, SAFETY-05, SAFETY-14)
-        IERC20(USDC_ARB_NATIVE).safeTransferFrom(msg.sender, address(this), incoming);
+        IERC20(usdc).safeTransferFrom(msg.sender, address(this), incoming);
 
         // D-01: Forward stake to FollowFadeMarket (single-custodian model).
         //       ALL incoming USDC must leave CallRegistry immediately (CallRegistry holds $0).
@@ -290,9 +297,9 @@ contract CallRegistry is Ownable2Step, ReentrancyGuard, Pausable, ICallRegistry 
             uint256 virtualFadeSeed = uint256(c.virtualFadeSeed);
             // Send full creation fee to treasury (CallRegistry must hold $0 after createCall)
             if (treasury != address(0)) {
-                IERC20(USDC_ARB_NATIVE).safeTransfer(treasury, uint256(CREATION_FEE));
+                IERC20(usdc).safeTransfer(treasury, uint256(CREATION_FEE));
             }
-            IERC20(USDC_ARB_NATIVE).safeTransfer(followFadeMarket, uint256(p.stake));
+            IERC20(usdc).safeTransfer(followFadeMarket, uint256(p.stake));
             IFollowFadeMarket(followFadeMarket).initPool(callId, uint256(p.stake), virtualFadeSeed);
         }
 

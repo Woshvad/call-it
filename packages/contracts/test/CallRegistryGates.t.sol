@@ -27,6 +27,7 @@ contract CallRegistryGates is Test {
     bytes32 internal constant FEED1 = bytes32(uint256(1));
 
     function setUp() public {
+        vm.chainId(42161); // ADR-0001: pin Arbitrum One so resolveUsdc() in CallRegistry constructor resolves (reverts on default 31337)
         owner  = makeAddr("owner");
         caller = makeAddr("caller");
 

@@ -5,7 +5,8 @@ pragma solidity =0.8.30;
 // Spec: CALL_IT_SPEC1.md §8.1, §8.7.1, §8.7.2, §11.2, §12.2 — FollowFadeMarket AMM
 // Requirement: SOCIAL-01..28, D-01..D-06
 //
-// USDC MANDATE (§10.5): ALL transfer paths use USDC_ARB_NATIVE from ./constants/USDC.sol.
+// USDC MANDATE (§10.5 / ADR-0001): ALL transfer paths use the chainid-resolved `usdc` immutable
+// (= resolveUsdc(): 42161 -> USDC_ARB_NATIVE, 421614 -> USDC_ARB_SEPOLIA) from ./constants/USDC.sol.
 // Never paste the literal address in this file. The CI grep guard will catch it.
 //
 // NON-UPGRADEABLE BY DESIGN (D-14, SAFETY-18):
@@ -23,7 +24,7 @@ import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.s
 import { Ownable2Step, Ownable } from "@openzeppelin/contracts/access/Ownable2Step.sol";
 import { Pausable } from "@openzeppelin/contracts/utils/Pausable.sol";
 import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
-import { USDC_ARB_NATIVE } from "./constants/USDC.sol";
+import { resolveUsdc } from "./constants/USDC.sol";
 import { IProfileRegistry } from "./interfaces/IProfileRegistry.sol";
 import { ICallRegistry } from "./interfaces/ICallRegistry.sol";
 import { IFollowFadeMarket } from "./interfaces/IFollowFadeMarket.sol";
@@ -87,6 +88,11 @@ contract FollowFadeMarket is Ownable2Step, ReentrancyGuard, Pausable, IFollowFad
 
     /// @notice ProfileRegistry — called for applyRepDelta on callerExit (SOCIAL-26, D-05).
     IProfileRegistry public immutable profileRegistry;
+
+    /// @notice Chainid-resolved USDC token (= resolveUsdc()). ADR-0001 hybrid money-path:
+    ///         mainnet 42161 -> USDC_ARB_NATIVE, Sepolia 421614 -> USDC_ARB_SEPOLIA. All real
+    ///         USDC the AMM holds/moves flows through this immutable (getTvl reads it too).
+    address public immutable usdc;
 
     // ─── Mutable admin state ───────────────────────────────────────────────────
 
@@ -164,6 +170,7 @@ contract FollowFadeMarket is Ownable2Step, ReentrancyGuard, Pausable, IFollowFad
         callRegistry = ICallRegistry(_callRegistry);
         profileRegistry = IProfileRegistry(_profileRegistry);
         treasury = _treasury;
+        usdc = resolveUsdc(); // ADR-0001 chainid gate; reverts on unsupported chain (fail-fast at deploy)
     }
 
     // ─── Core pool initialization ──────────────────────────────────────────────
@@ -297,7 +304,7 @@ contract FollowFadeMarket is Ownable2Step, ReentrancyGuard, Pausable, IFollowFad
         }
 
         // ── INTERACTIONS: USDC transfer LAST (CEI, SAFETY-05, SAFETY-14) ──
-        IERC20(USDC_ARB_NATIVE).safeTransferFrom(msg.sender, address(this), amountIn);
+        IERC20(usdc).safeTransferFrom(msg.sender, address(this), amountIn);
 
         if (side == Side.Follow) {
             emit Followed(callId, msg.sender, amountIn, sharesOut);
@@ -377,8 +384,8 @@ contract FollowFadeMarket is Ownable2Step, ReentrancyGuard, Pausable, IFollowFad
         }
 
         // ── INTERACTIONS: transfers LAST (CEI) ──
-        IERC20(USDC_ARB_NATIVE).safeTransfer(msg.sender, userReceives);
-        IERC20(USDC_ARB_NATIVE).safeTransfer(treasury, toTreasury);
+        IERC20(usdc).safeTransfer(msg.sender, userReceives);
+        IERC20(usdc).safeTransfer(treasury, toTreasury);
 
         emit PositionExited(callId, msg.sender, side, userReceives, slash);
     }
@@ -421,11 +428,11 @@ contract FollowFadeMarket is Ownable2Step, ReentrancyGuard, Pausable, IFollowFad
         profileRegistry.applyRepDelta(call.caller, repDelta);           // D-05 SOCIAL-26
 
         if (userReceives > 0) {
-            IERC20(USDC_ARB_NATIVE).safeTransfer(msg.sender, userReceives);
+            IERC20(usdc).safeTransfer(msg.sender, userReceives);
         }
         // 10% of slash → treasury (subtraction already applied in _computeCallerExitAmounts)
         uint256 toTreasury = slash - (slash * 50) / 100 - (slash * 40) / 100;
-        IERC20(USDC_ARB_NATIVE).safeTransfer(treasury, toTreasury);
+        IERC20(usdc).safeTransfer(treasury, toTreasury);
 
         uint64 timeElapsed = uint64(block.timestamp) - call.createdAt;
         emit CallerExited(callId, call.caller, timeElapsed, slash, userReceives, repDelta);
@@ -536,7 +543,7 @@ contract FollowFadeMarket is Ownable2Step, ReentrancyGuard, Pausable, IFollowFad
 
             // ── INTERACTIONS ──
             if (followAmt > 0) {
-                IERC20(USDC_ARB_NATIVE).safeTransfer(treasury, followAmt);
+                IERC20(usdc).safeTransfer(treasury, followAmt);
             }
         } else {
             // Normal path: extract protocol + creator fees; LP fee into winning reserve.
@@ -553,7 +560,7 @@ contract FollowFadeMarket is Ownable2Step, ReentrancyGuard, Pausable, IFollowFad
             // ── INTERACTIONS ──
             uint256 totalFees = protocolFeeAmt + creatorFeeAmt;
             if (totalFees > 0) {
-                IERC20(USDC_ARB_NATIVE).safeTransfer(treasury, totalFees);
+                IERC20(usdc).safeTransfer(treasury, totalFees);
             }
         }
 
@@ -613,7 +620,7 @@ contract FollowFadeMarket is Ownable2Step, ReentrancyGuard, Pausable, IFollowFad
         if (payout == 0) revert NoPayoutAvailable(); // Dust: rounding produced 0
 
         // ── INTERACTIONS ──
-        IERC20(USDC_ARB_NATIVE).safeTransfer(msg.sender, payout);
+        IERC20(usdc).safeTransfer(msg.sender, payout);
 
         emit PayoutClaimed(callId, msg.sender, payout);
     }
@@ -624,7 +631,7 @@ contract FollowFadeMarket is Ownable2Step, ReentrancyGuard, Pausable, IFollowFad
     /// @dev Uses USDC.balanceOf(address(this)) — never a counter to avoid drift.
     ///      Virtual fade seed is never transferred so it is not counted.
     function getTvl() public view returns (uint256) {
-        return IERC20(USDC_ARB_NATIVE).balanceOf(address(this));
+        return IERC20(usdc).balanceOf(address(this));
     }
 
     /// @notice Compute the current caller exit penalty percentage for a call.

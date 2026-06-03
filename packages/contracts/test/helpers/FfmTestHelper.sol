@@ -73,6 +73,7 @@ abstract contract FfmTestHelper is TestBase, StdAssertions, StdChains, StdCheats
     // ─── setUp ────────────────────────────────────────────────────────────────
 
     function setUp() public virtual {
+        vm.chainId(42161); // ADR-0001: pin Arbitrum One so resolveUsdc() in CR/FFM constructors resolves (reverts on default 31337)
         owner    = makeAddr("owner");
         alice    = makeAddr("alice");
         bob      = makeAddr("bob");

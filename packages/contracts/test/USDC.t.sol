@@ -9,6 +9,7 @@ import {ProfileRegistry} from "../src/ProfileRegistry.sol";
 import {CallRegistry} from "../src/CallRegistry.sol";
 import {FollowFadeMarket} from "../src/FollowFadeMarket.sol";
 import {IProfileRegistry} from "../src/interfaces/IProfileRegistry.sol";
+import {ICallRegistry} from "../src/interfaces/ICallRegistry.sol";
 import {MockUSDC} from "./mocks/MockUSDC.sol";
 
 /// @dev Thin wrapper so vm.expectRevert() catches the revert at sub-call depth.
@@ -161,5 +162,109 @@ contract USDCConstantTest is Test {
             address(cr), address(ffm), address(ce), address(pr),
             wrongUsdc, address(0xBEEF), mockPyth
         );
+    }
+}
+
+/// @title USDC transfer-routing test (Phase 6 / ADR-0001 regression guard)
+/// @notice Proves the `usdc` immutable and ALL transfer paths route to the chain-resolved
+///         USDC address (= resolveUsdc()), not a hardcoded constant.
+///
+///         This is the regression guard for the Phase-6 bug where CR/FFM/CE/SM validated
+///         the constructor `_usdc` argument but every transfer hardcoded USDC_ARB_NATIVE —
+///         which has NO code on Arbitrum Sepolia, so every money flow would have reverted
+///         during the 48h soak. The 421614 test below etches the mock ONLY at the Circle
+///         Sepolia address; if any transfer path still used the native address, createCall
+///         would revert (no code there).
+contract UsdcRoutingTest is Test {
+    /// @notice Circle's official USDC on Arbitrum Sepolia (ADR-0001).
+    address constant SEPOLIA_USDC = 0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d;
+
+    /// @notice Deterministic ETH feed id used for the allowlisted test asset.
+    bytes32 constant ETH_FEED = bytes32(uint256(1));
+
+    function _etchMockUsdcAt(address where) internal returns (MockUSDC) {
+        MockUSDC impl = new MockUSDC();
+        vm.etch(where, address(impl).code);
+        return MockUSDC(where);
+    }
+
+    /// @dev Deploy + wire the full CR+FFM+CE+SM stack on the CURRENT chainid, mirroring
+    ///      DeployPhase5_1. CE/SM receive resolveUsdc() as their _usdc argument.
+    function _deployStack(address owner, address treasury_)
+        internal
+        returns (CallRegistry cr, FollowFadeMarket ffm, ChallengeEscrow ce, SettlementManager sm)
+    {
+        vm.startPrank(owner);
+        ProfileRegistry pr = new ProfileRegistry();
+        cr = new CallRegistry(IProfileRegistry(address(pr)), 5_000e6);
+        ffm = new FollowFadeMarket(address(cr), address(pr), treasury_);
+        ce = new ChallengeEscrow(address(cr), address(ffm), resolveUsdc(), treasury_, 5_000e6);
+        sm = new SettlementManager(
+            address(cr), address(ffm), address(ce), address(pr),
+            resolveUsdc(), treasury_, makeAddr("pyth")
+        );
+        cr.setFollowFadeMarket(address(ffm));
+        cr.setTreasury(treasury_);
+        pr.setAuthorizedRepWriter(address(ffm), true);
+        cr.addAsset("ETH", ETH_FEED);
+        vm.stopPrank();
+    }
+
+    /// @notice On Arbitrum One (42161), every money contract's usdc() == USDC_ARB_NATIVE.
+    function test_usdc_getter_mainnet_returns_native() public {
+        vm.chainId(42161);
+        _etchMockUsdcAt(USDC_ARB_NATIVE);
+        (CallRegistry cr, FollowFadeMarket ffm, ChallengeEscrow ce, SettlementManager sm) =
+            _deployStack(makeAddr("owner"), makeAddr("treasury"));
+        assertEq(cr.usdc(),  USDC_ARB_NATIVE, "CR.usdc() must be native USDC on 42161");
+        assertEq(ffm.usdc(), USDC_ARB_NATIVE, "FFM.usdc() must be native USDC on 42161");
+        assertEq(ce.usdc(),  USDC_ARB_NATIVE, "CE.usdc() must be native USDC on 42161");
+        assertEq(sm.usdc(),  USDC_ARB_NATIVE, "SM.usdc() must be native USDC on 42161");
+    }
+
+    /// @notice On Arbitrum Sepolia (421614), usdc() == Circle Sepolia USDC for every contract,
+    ///         AND a real createCall routes USDC through the Sepolia token. The mock is etched
+    ///         ONLY at the Sepolia address — a hardcoded-native transfer path would revert here.
+    function test_usdc_routing_sepolia_transfers_through_circle_usdc() public {
+        vm.chainId(421614);
+        address treasury = makeAddr("treasury");
+        MockUSDC sepoliaUsdc = _etchMockUsdcAt(SEPOLIA_USDC);
+
+        (CallRegistry cr, FollowFadeMarket ffm, ChallengeEscrow ce, SettlementManager sm) =
+            _deployStack(makeAddr("owner"), treasury);
+
+        // Every money contract resolves to the Circle Sepolia token on 421614.
+        assertEq(cr.usdc(),  SEPOLIA_USDC, "CR.usdc() must be Circle Sepolia USDC on 421614");
+        assertEq(ffm.usdc(), SEPOLIA_USDC, "FFM.usdc() must be Circle Sepolia USDC on 421614");
+        assertEq(ce.usdc(),  SEPOLIA_USDC, "CE.usdc() must be Circle Sepolia USDC on 421614");
+        assertEq(sm.usdc(),  SEPOLIA_USDC, "SM.usdc() must be Circle Sepolia USDC on 421614");
+
+        // Fund a caller in the Sepolia token and create a call (stake $100 + $10 creation fee).
+        address caller = makeAddr("caller");
+        sepoliaUsdc.mint(caller, 200e6);
+        vm.prank(caller);
+        sepoliaUsdc.approve(address(cr), type(uint256).max);
+
+        vm.prank(caller);
+        cr.createCall(
+            ICallRegistry.MarketType.PriceTarget,
+            ICallRegistry.EventSubtype.None,
+            ICallRegistry.Category.Majors,
+            uint256(ETH_FEED), // assetA
+            0,                 // assetB
+            3000e6,            // targetValue
+            uint64(block.timestamp + 7 days),
+            uint96(100e6),     // stake
+            50,                // conviction
+            bytes32(0),
+            true,
+            0
+        );
+
+        // Caller paid $110 (stake + fee) and FFM received the $100 stake — all denominated in
+        // the Circle Sepolia token. This only succeeds because transfers use the usdc immutable.
+        assertEq(sepoliaUsdc.balanceOf(caller), 90e6, "caller must pay stake+fee in Sepolia USDC");
+        assertEq(sepoliaUsdc.balanceOf(address(ffm)), 100e6, "stake must reach FFM via Sepolia USDC");
+        assertGt(sepoliaUsdc.balanceOf(treasury), 0, "creation fee must reach treasury via Sepolia USDC");
     }
 }

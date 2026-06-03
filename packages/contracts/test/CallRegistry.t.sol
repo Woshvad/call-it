@@ -33,6 +33,7 @@ contract CallRegistryTest is Test {
     uint256 internal constant TOTAL  = STAKE + FEE; // $20
 
     function setUp() public {
+        vm.chainId(42161); // ADR-0001: pin Arbitrum One so resolveUsdc() in CallRegistry constructor resolves (reverts on default 31337)
         owner = makeAddr("owner");
         alice = makeAddr("alice");
         bob   = makeAddr("bob");

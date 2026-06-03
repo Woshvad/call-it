@@ -5,7 +5,8 @@ pragma solidity =0.8.30;
 // Spec: CALL_IT_SPEC1.md ss12.4 -- 14-step settle() sequence (LOCKED)
 // Requirements: SETTLE-01..52, REP-03..27, SAFETY-57
 //
-// USDC MANDATE (ss10.5): ALL transfer paths use USDC_ARB_NATIVE from ./constants/USDC.sol.
+// USDC MANDATE (ss10.5 / ADR-0001): ALL transfer paths use the chainid-resolved `usdc` immutable
+// (= resolveUsdc(): 42161 -> USDC_ARB_NATIVE, 421614 -> USDC_ARB_SEPOLIA) from ./constants/USDC.sol.
 // Never paste the literal address in this file. The CI grep guard will catch it.
 //
 // NON-UPGRADEABLE BY DESIGN (D-14, SAFETY-18):
@@ -36,7 +37,7 @@ import { Ownable2Step, Ownable } from "@openzeppelin/contracts/access/Ownable2St
 import { Pausable } from "@openzeppelin/contracts/utils/Pausable.sol";
 import { EIP712 } from "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
 import { ECDSA } from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
-import { USDC_ARB_NATIVE, resolveUsdc } from "./constants/USDC.sol";
+import { resolveUsdc } from "./constants/USDC.sol";
 import { ICallRegistry } from "./interfaces/ICallRegistry.sol";
 import { IFollowFadeMarket } from "./interfaces/IFollowFadeMarket.sol";
 import { IChallengeEscrow } from "./interfaces/IChallengeEscrow.sol";
@@ -109,6 +110,10 @@ contract SettlementManager is Ownable2Step, ReentrancyGuard, Pausable, EIP712, I
 
     /// @notice Treasury address for protocol + creator fee routing.
     address public immutable treasury;
+
+    /// @notice Chainid-resolved USDC token (= resolveUsdc(), validated in constructor). ADR-0001
+    ///         hybrid money-path: mainnet 42161 -> USDC_ARB_NATIVE, Sepolia 421614 -> USDC_ARB_SEPOLIA.
+    address public immutable usdc;
 
     // ---- Mutable admin state -------------------------------------------------
 
@@ -188,6 +193,7 @@ contract SettlementManager is Ownable2Step, ReentrancyGuard, Pausable, EIP712, I
         profileRegistry  = IProfileRegistry(_profileRegistry);
         treasury         = _treasury;
         pyth             = IPyth(_pyth);
+        usdc             = _usdc; // validated == resolveUsdc() above (ADR-0001 chainid gate)
     }
 
     /// @notice Accept ETH top-ups for the Pyth update fee budget. Pitfall 4.
@@ -445,7 +451,7 @@ contract SettlementManager is Ownable2Step, ReentrancyGuard, Pausable, EIP712, I
             dispute.counterClaimCount = 0;
 
             // ── INTERACTIONS ──
-            IERC20(USDC_ARB_NATIVE).safeTransferFrom(msg.sender, address(this), DISPUTE_BOND);
+            IERC20(usdc).safeTransferFrom(msg.sender, address(this), DISPUTE_BOND);
         } else {
             revert DisputeAlreadyRaised();
         }
@@ -472,7 +478,7 @@ contract SettlementManager is Ownable2Step, ReentrancyGuard, Pausable, EIP712, I
         dispute.bondAmount += DISPUTE_BOND;
 
         // ── INTERACTIONS ──
-        IERC20(USDC_ARB_NATIVE).safeTransferFrom(msg.sender, address(this), DISPUTE_BOND);
+        IERC20(usdc).safeTransferFrom(msg.sender, address(this), DISPUTE_BOND);
 
         emit DisputeRaised(callId, msg.sender, evidenceHash);
     }
@@ -513,11 +519,11 @@ contract SettlementManager is Ownable2Step, ReentrancyGuard, Pausable, EIP712, I
             : 0;
 
         // ── INTERACTIONS ──
-        if (bondToReturn > 0 && IERC20(USDC_ARB_NATIVE).balanceOf(address(this)) >= bondToReturn) {
-            IERC20(USDC_ARB_NATIVE).safeTransfer(dispute.disputer, bondToReturn);
+        if (bondToReturn > 0 && IERC20(usdc).balanceOf(address(this)) >= bondToReturn) {
+            IERC20(usdc).safeTransfer(dispute.disputer, bondToReturn);
         }
         if (bondToTreasury > 0) {
-            IERC20(USDC_ARB_NATIVE).safeTransfer(treasury, bondToTreasury);
+            IERC20(usdc).safeTransfer(treasury, bondToTreasury);
         }
 
         emit DisputeResolved(callId, finalOutcome, msg.sender);
