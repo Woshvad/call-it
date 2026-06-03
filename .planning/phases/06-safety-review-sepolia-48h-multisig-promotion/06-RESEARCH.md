@@ -947,22 +947,13 @@ Per CONTEXT.md Claude's Discretion: security review via `/gsd-secure-phase` + `/
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **ProfileRegistry constructor — does it accept USDC address?**
-   - What we know: ProfileRegistry stores social links + rep data, not financial balances
-   - What's unclear: Whether its constructor takes `_usdc` (unlikely based on purpose, but not verified this session)
-   - Recommendation: `grep -n "USDC\|usdc" packages/contracts/src/ProfileRegistry.sol` before writing DeployPhase6.s.sol. If it doesn't reference USDC, it's NOT in the redeploy set.
+1. **ProfileRegistry constructor — does it accept USDC address?** — **RESOLVED (verified in code): NO.** `packages/contracts/src/ProfileRegistry.sol:114` is `constructor() Ownable(msg.sender) {}` — no USDC parameter. Therefore ProfileRegistry is **NOT** in the Circle-USDC redeploy set (the redeploy set is CallRegistry + FollowFadeMarket + ChallengeEscrow + SettlementManager only, via immutable-ref coupling). ProfileRegistry keeps its current 05.1 address but **IS** one of the 6 ownership-transfer surfaces (SAFETY-19/20). After SM redeploys, re-wire `ProfileRegistry.setSettlementManager(newSM)` (mutable owner-setter).
 
-2. **Exact proxy type for StylusScoreEngine — TransparentUpgradeableProxy vs UUPS?**
-   - What we know: Phase 5 deployed the proxy at `0xe7e15980...`; CLAUDE.md notes OZ Stylus ships UUPS but spec says Transparent; the project may have used a Solidity TransparentUpgradeableProxy in front of the Stylus impl
-   - What's unclear: Whether there is a separate ProxyAdmin contract, and what address it's at
-   - Recommendation: `cast storage 0xe7e15980C40db52BFC6dcaBb21B3d90edFB27c14 0xb53127684a568b3173ae13b9f8a6016e243e63b6e8ee1178d6a717850b5d6103 --rpc-url $ARBITRUM_SEPOLIA_RPC_URL` to read EIP-1967 admin slot before implementing TransferOwnershipToSafe.s.sol
+2. **Exact proxy type for StylusScoreEngine — Transparent vs UUPS?** — **RESOLVED (verified in code): Transparent.** The proxy is `packages/contracts/src/StatelessTransparentProxy.sol`, an OZ 5.x `TransparentUpgradeableProxy` variant that **auto-creates its own `ProxyAdmin`** (owned by `initialOwner` = the deployer; the admin lives in the EIP-1967 admin slot — there is NO pre-deployed ProxyAdmin). Multisig promotion (SAFETY-20): transfer the **ProxyAdmin** via plain `Ownable.transferOwnership` (single-step, immediate) — distinct from the `Ownable2Step` two-step `transferOwnership`→`acceptOwnership` used by the 5 protocol contracts (assert `owner()`, not `pendingOwner()`). Upgrades use `ProxyAdmin.upgradeAndCall(proxy, impl, "")` (3-arg OZ 5.x), never the removed 2-arg `upgrade()`.
 
-3. **Relayer Sepolia ETH balance — is 0.5 ETH available?**
-   - What we know: SM was funded with 0.05 ETH in Phase 5.1 for Pyth fees; relayer wallet is separate
-   - What's unclear: Current relayer EOA ETH balance on Sepolia
-   - Recommendation: `cast balance <DEPLOYER_ADDR> --rpc-url $ARBITRUM_SEPOLIA_RPC_URL --ether` before soak start; top up from Alchemy/QuickNode Sepolia faucet if needed
+3. **Relayer Sepolia ETH balance — is 0.5 ETH available?** — **RESOLVED as a runtime gate** (not a planning input). Wired into Plan 06-02 Task 2 Step 1: `cast balance $RELAYER_ADDRESS --ether` must return ≥0.5 ETH before the soak proceeds; top up from a Sepolia faucet if short (`autonomous: false` if a manual top-up is required).
 
 ---
 
