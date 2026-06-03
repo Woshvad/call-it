@@ -16,6 +16,7 @@
     "@ledgerhq/hw-transport-node-hid": "^6.30.0",
     "@safe-global/api-kit": "^4.0.0",
     "@safe-global/protocol-kit": "^7.0.0",
+    "@safe-global/types-kit": "^3.1.0",
     "googleapis": "^144.0.0",
     "viem": "2.50.4"
   },
