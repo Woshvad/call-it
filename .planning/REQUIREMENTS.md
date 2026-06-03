@@ -314,21 +314,21 @@ Requirements for the v1 mainnet release. Each line is an atomic, testable behavi
 - [ ] **SAFETY-26**: Sepolia staging requires ≥1 challenge proposed-and-accepted cycle settled (§19.10)
 - [ ] **SAFETY-27**: Sepolia staging requires ≥1 dispute raised and resolved via owner path (§19.10)
 - [ ] **SAFETY-28**: Sepolia staging requires Pyth confidence retry exercised manually with `SettlementDelayed` flow verified (§19.10)
-- [ ] **SAFETY-29**: All Phase 6 safety tests must pass on Sepolia before mainnet (§19.10, §19 Phase 6)
-- [ ] **SAFETY-30**: Phase 6 verifies emergency pause buttons work on every state-changing function (§19 Phase 6)
-- [ ] **SAFETY-31**: Phase 6 verifies TVL cap boundary — $4,999 OK, $5,001 reverts (§19 Phase 6)
-- [ ] **SAFETY-32**: Phase 6 verifies max stake — $100 OK, $101 reverts (§19 Phase 6)
-- [ ] **SAFETY-33**: Phase 6 verifies min position — $1 OK, $0.99 reverts (§19 Phase 6)
-- [ ] **SAFETY-34**: Phase 6 verifies all withdraw/claim paths work while paused (§19 Phase 6, §10.3)
-- [ ] **SAFETY-35**: Phase 6 verifies caller-exit 24h lock — 24h cannot exit, 24h+1s can exit, penalty math correct at all decay points (§19 Phase 6)
-- [ ] **SAFETY-36**: Phase 6 verifies follower/fader position-exit 4h cooldown and 10% slash math (§19 Phase 6)
-- [ ] **SAFETY-37**: Phase 6 verifies duplicate-hash detection for UTC-day-boundary edge cases (§19 Phase 6, §6.2)
-- [ ] **SAFETY-38**: Phase 6 verifies slippage `minSharesOut` reverts when AMM moves between quote and execution (§19 Phase 6)
-- [ ] **SAFETY-39**: Phase 6 verifies settlement idempotency — calling `settle` twice reverts cleanly (§19 Phase 6)
-- [ ] **SAFETY-40**: Phase 6 verifies self-challenge gate — caller cannot challenge themselves (§19 Phase 6)
-- [ ] **SAFETY-41**: Phase 6 verifies reentrancy guard with a USDC mock callback attempt — must revert (§19 Phase 6)
+- [x] **SAFETY-29**: All Phase 6 safety tests must pass on Sepolia before mainnet (§19.10, §19 Phase 6)
+- [x] **SAFETY-30**: Phase 6 verifies emergency pause buttons work on every state-changing function (§19 Phase 6)
+- [x] **SAFETY-31**: Phase 6 verifies TVL cap boundary — $4,999 OK, $5,001 reverts (§19 Phase 6)
+- [x] **SAFETY-32**: Phase 6 verifies max stake — $100 OK, $101 reverts (§19 Phase 6)
+- [x] **SAFETY-33**: Phase 6 verifies min position — $1 OK, $0.99 reverts (§19 Phase 6)
+- [x] **SAFETY-34**: Phase 6 verifies all withdraw/claim paths work while paused (§19 Phase 6, §10.3)
+- [x] **SAFETY-35**: Phase 6 verifies caller-exit 24h lock — 24h cannot exit, 24h+1s can exit, penalty math correct at all decay points (§19 Phase 6)
+- [x] **SAFETY-36**: Phase 6 verifies follower/fader position-exit 4h cooldown and 10% slash math (§19 Phase 6)
+- [x] **SAFETY-37**: Phase 6 verifies duplicate-hash detection for UTC-day-boundary edge cases (§19 Phase 6, §6.2)
+- [x] **SAFETY-38**: Phase 6 verifies slippage `minSharesOut` reverts when AMM moves between quote and execution (§19 Phase 6)
+- [x] **SAFETY-39**: Phase 6 verifies settlement idempotency — calling `settle` twice reverts cleanly (§19 Phase 6)
+- [x] **SAFETY-40**: Phase 6 verifies self-challenge gate — caller cannot challenge themselves (§19 Phase 6)
+- [x] **SAFETY-41**: Phase 6 verifies reentrancy guard with a USDC mock callback attempt — must revert (§19 Phase 6)
 - [ ] **SAFETY-42**: Phase 6 verifies Stylus runtime fallback — deploy a deliberately reverting Stylus contract, verify Solidity baseline runs and `RepCalculatedFallback` fires (§19 Phase 6)
-- [ ] **SAFETY-43**: Phase 6 verifies owner-only functions — non-owner cannot pause, setTvlCap, setSettlementManager, setRelayer, forceSettle, resolveDispute (§19 Phase 6)
+- [x] **SAFETY-43**: Phase 6 verifies owner-only functions — non-owner cannot pause, setTvlCap, setSettlementManager, setRelayer, forceSettle, resolveDispute (§19 Phase 6)
 - [ ] **SAFETY-44**: Post-deploy smoke test checklist (§19.11) is mandatory before public announcement — 20 minutes estimated (§19.11, App.A.1)
 - [ ] **SAFETY-45**: Smoke test verifies `pause()` and `unpause()` execute from owner wallet and `paused()` view reflects state (§19.11)
 - [ ] **SAFETY-46**: Smoke test attempts deposit while paused (reverts `Paused`) and withdrawal while paused (succeeds per §10.3 carve-out) (§19.11)
@@ -843,21 +843,21 @@ Which phases cover which requirements. Updated during roadmap creation by the ro
 | SAFETY-26 | Phase 6 | Pending |
 | SAFETY-27 | Phase 6 | Pending |
 | SAFETY-28 | Phase 6 | Pending |
-| SAFETY-29 | Phase 6 | Pending |
-| SAFETY-30 | Phase 6 | Pending |
-| SAFETY-31 | Phase 6 | Pending |
-| SAFETY-32 | Phase 6 | Pending |
-| SAFETY-33 | Phase 6 | Pending |
-| SAFETY-34 | Phase 6 | Pending |
-| SAFETY-35 | Phase 6 | Pending |
-| SAFETY-36 | Phase 6 | Pending |
-| SAFETY-37 | Phase 6 | Pending |
-| SAFETY-38 | Phase 6 | Pending |
-| SAFETY-39 | Phase 6 | Pending |
-| SAFETY-40 | Phase 6 | Pending |
-| SAFETY-41 | Phase 6 | Pending |
+| SAFETY-29 | Phase 6 | Complete |
+| SAFETY-30 | Phase 6 | Complete |
+| SAFETY-31 | Phase 6 | Complete |
+| SAFETY-32 | Phase 6 | Complete |
+| SAFETY-33 | Phase 6 | Complete |
+| SAFETY-34 | Phase 6 | Complete |
+| SAFETY-35 | Phase 6 | Complete |
+| SAFETY-36 | Phase 6 | Complete |
+| SAFETY-37 | Phase 6 | Complete |
+| SAFETY-38 | Phase 6 | Complete |
+| SAFETY-39 | Phase 6 | Complete |
+| SAFETY-40 | Phase 6 | Complete |
+| SAFETY-41 | Phase 6 | Complete |
 | SAFETY-42 | Phase 6 | Pending |
-| SAFETY-43 | Phase 6 | Pending |
+| SAFETY-43 | Phase 6 | Complete |
 | SAFETY-44 | Phase 7.5 | Pending |
 | SAFETY-45 | Phase 7.5 | Pending |
 | SAFETY-46 | Phase 7.5 | Pending |
