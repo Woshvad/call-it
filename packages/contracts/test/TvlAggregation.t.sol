@@ -4,6 +4,7 @@ pragma solidity =0.8.30;
 // Source: CLAUDE.md "Recommended Stack — Pinned Versions"
 // Spec: CALL_IT_SPEC1.md §11.2, §10.1 — TVL cap aggregation + boundary enforcement
 // Requirement: SOCIAL-09, Pitfall 3, D-03
+//              SAFETY-31, SAFETY-32, SAFETY-33
 //
 // Wave 0 TVL boundary test scaffold.
 // RED GATE: This file will fail to compile until Plan 02 creates
@@ -15,6 +16,9 @@ import { Test } from "forge-std/Test.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { IFollowFadeMarket } from "../src/interfaces/IFollowFadeMarket.sol";
 import { ICallRegistry } from "../src/interfaces/ICallRegistry.sol";
+import { IChallengeEscrow } from "../src/interfaces/IChallengeEscrow.sol";
+import { ChallengeEscrow } from "../src/ChallengeEscrow.sol";
+import { USDC_ARB_NATIVE } from "../src/constants/USDC.sol";
 import { FfmTestHelper } from "./helpers/FfmTestHelper.sol";
 
 /// @title TvlAggregation
@@ -23,6 +27,12 @@ import { FfmTestHelper } from "./helpers/FfmTestHelper.sol";
 ///         Tests the $5,000 TVL cap enforcement across CallRegistry.currentTvl
 ///         + FollowFadeMarket.getTvl(). The cap is checked on every follow/fade
 ///         deposit: (CR.currentTvl + FFM.getTvl() + amountIn) > cap → TvlCapReached.
+///
+///         Phase 6 extensions (SAFETY-31/32/33):
+///           SAFETY-31: ChallengeEscrow USDC balance must count toward the TVL cap.
+///                      $5,000 split across CR+FFM+CE reverts next deposit TvlCapReached.
+///           SAFETY-32: createCall stake boundary — $100 max succeeds, $101 reverts.
+///           SAFETY-33: follow/fade position size boundary — $1 min succeeds, $0.99 reverts.
 ///
 ///         Boundary cases:
 ///           $4,999 total: OK
@@ -35,9 +45,29 @@ contract TvlAggregation is FfmTestHelper {
     // TVL cap used in setUp() = $5,000 USDC
     uint256 internal constant TVL_CAP = 5_000e6;
 
+    // ChallengeEscrow — wired in setUp for SAFETY-31 tests
+    ChallengeEscrow internal ce;
+
     function setUp() public override {
         super.setUp();
         // Ensure TVL cap is exactly $5,000 (FfmTestHelper sets $5,000 on CallRegistry)
+
+        // Deploy ChallengeEscrow for SAFETY-31 3-way TVL tests
+        vm.startPrank(owner);
+        ce = new ChallengeEscrow(
+            address(registry),
+            address(ffm),
+            USDC_ARB_NATIVE,
+            treasury,
+            TVL_CAP
+        );
+        vm.stopPrank();
+
+        // Approve ChallengeEscrow for alice and bob
+        vm.prank(alice);
+        usdc.approve(address(ce), type(uint256).max);
+        vm.prank(bob);
+        usdc.approve(address(ce), type(uint256).max);
     }
 
     // ─── Test: $4,999 combined TVL succeeds ───────────────────────────────────
@@ -169,5 +199,135 @@ contract TvlAggregation is FfmTestHelper {
         // Now follow of $1 should succeed
         vm.prank(bob);
         ffm.follow(callId, 1e6, 0); // should not revert
+    }
+
+    // ─── SAFETY-31: ChallengeEscrow balance must count toward TVL cap ──────────
+
+    /// @notice SAFETY-31: ChallengeEscrow._checkTvlCap aggregates CR + FFM + totalEscrow.
+    ///         Pitfall 3 note: CE uses callRegistry.tvlCap() as the global cap and sums
+    ///         CR.currentTvl + FFM.getTvl + CE.totalEscrow + incoming vs the cap.
+    ///
+    ///         Test: seed CR+FFM to $100 each ($200 combined), set cap=$201, then propose
+    ///         a $5 challenge ($200+$5=$205 > $201) → must revert TvlCapReached.
+    ///
+    ///         This confirms CE escrow is included in the 3-way aggregate (SAFETY-31 closed).
+    function test_tvlBoundary_includesChallengeEscrow() public {
+        // Seed a call: CR.currentTvl = $100, FFM.getTvl = $100, combined = $200
+        uint256 callId = _seedPool(alice, 100e6);
+
+        uint256 combined = registry.currentTvl() + ffm.getTvl();
+        assertEq(combined, 200e6, "SAFETY-31: combined should be $200 after seed");
+
+        // Set the global TVL cap to $204 — allows $4 more, but NOT a $5 CE stake
+        vm.prank(owner);
+        registry.setTvlCap(204e6);
+
+        // Fund bob and try a $5 challenge (the minimum CE stake)
+        // CE._checkTvlCap: $100 + $100 + $0 + $5 = $205 > $204 → TvlCapReached
+        usdc.mint(bob, 10e6);
+        vm.prank(bob);
+        usdc.approve(address(ce), type(uint256).max);
+
+        vm.prank(bob);
+        vm.expectRevert(); // TvlCapReached — CR + FFM + CE totalEscrow > cap
+        ce.proposeChallenge(callId, 5e6);
+
+        // Now raise the cap to $206 — $5 challenge should succeed
+        vm.prank(owner);
+        registry.setTvlCap(206e6);
+
+        vm.prank(bob);
+        uint256 challengeId = ce.proposeChallenge(callId, 5e6);
+        assertGt(challengeId, 0, "SAFETY-31: challenge must succeed with raised cap");
+
+        // CE now holds $5 in escrow
+        assertEq(ce.totalEscrow(), 5e6, "SAFETY-31: CE must track $5 in escrow");
+
+        // With $100+$100+$5=$205 in cap=$206, only $1 more allowed.
+        // A second $5 challenge from charlie: $205+$5=$210 > $206 → TvlCapReached
+        address charlie = makeAddr("charlie_ce_test");
+        usdc.mint(charlie, 10e6);
+        vm.prank(charlie);
+        usdc.approve(address(ce), type(uint256).max);
+
+        vm.prank(charlie);
+        vm.expectRevert(); // TvlCapReached — CE escrow counted in aggregate
+        ce.proposeChallenge(callId, 5e6);
+    }
+
+    // ─── SAFETY-32: createCall stake boundary enforcement ──────────────────────
+
+    /// @notice SAFETY-32: createCall with stake = $100 (max) must succeed.
+    function test_maxStake_100_succeeds() public {
+        usdc.mint(alice, 100e6 + 10e6); // stake + creation fee
+        vm.prank(alice);
+        usdc.approve(address(registry), type(uint256).max);
+
+        vm.prank(alice);
+        uint256 callId = registry.createCall(
+            ICallRegistry.MarketType.PriceTarget,
+            ICallRegistry.EventSubtype.None,
+            ICallRegistry.Category.Majors,
+            uint256(ETH_FEED),
+            0,
+            3000e6,
+            uint64(block.timestamp + 7 days),
+            100e6,   // max stake = $100
+            50,
+            bytes32(0),
+            true,
+            0
+        );
+        assertGt(callId, 0, "SAFETY-32: $100 stake must succeed");
+
+        ICallRegistry.Call memory c = registry.getCall(callId);
+        assertEq(c.stake, 100e6, "SAFETY-32: stake stored correctly");
+    }
+
+    /// @notice SAFETY-32: createCall with stake = $101 must revert StakeAboveMaximum.
+    function test_maxStake_101_reverts() public {
+        usdc.mint(alice, 101e6 + 10e6);
+        vm.prank(alice);
+        usdc.approve(address(registry), type(uint256).max);
+
+        vm.prank(alice);
+        vm.expectRevert(); // StakeAboveMaximum
+        registry.createCall(
+            ICallRegistry.MarketType.PriceTarget,
+            ICallRegistry.EventSubtype.None,
+            ICallRegistry.Category.Majors,
+            uint256(ETH_FEED),
+            0,
+            3000e6,
+            uint64(block.timestamp + 7 days),
+            101e6,   // one cent over max
+            50,
+            bytes32(0),
+            true,
+            0
+        );
+    }
+
+    // ─── SAFETY-33: follow/fade minimum position size enforcement ──────────────
+
+    /// @notice SAFETY-33: follow with $1 (minimum position) must succeed.
+    function test_minPosition_1_succeeds() public {
+        uint256 callId = _seedPool(alice, 10e6);
+
+        vm.prank(bob);
+        ffm.follow(callId, 1e6, 0); // $1 = MIN_POSITION
+
+        // Bob has a follow position
+        uint256 bobShares = ffm.followShares(callId, bob);
+        assertGt(bobShares, 0, "SAFETY-33: $1 follow must create shares");
+    }
+
+    /// @notice SAFETY-33: follow with $0.99 (below minimum) must revert PositionBelowMinimum.
+    function test_minPosition_99cents_reverts() public {
+        uint256 callId = _seedPool(alice, 10e6);
+
+        vm.prank(bob);
+        vm.expectRevert(); // PositionBelowMinimum
+        ffm.follow(callId, 990_000, 0); // $0.99 = 990,000 micro-USDC
     }
 }
