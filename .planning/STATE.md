@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: milestone
 status: executing
-stopped_at: Phase 6 context gathered
-last_updated: "2026-06-03T23:17:43.359Z"
-last_activity: 2026-06-03
+stopped_at: Phase 6 CI-safe code built; 3 live operator gates + deploy-safe.ts migration pending
+last_updated: "2026-06-04T00:00:00.000Z"
+last_activity: 2026-06-04 -- Phase 6 CI-safe code complete; live-ops deferred to operator runbook
 progress:
   total_phases: 9
   completed_phases: 7
@@ -25,10 +25,21 @@ See: .planning/PROJECT.md (updated 2026-05-21)
 
 ## Current Position
 
-Phase: 06 (safety-review-sepolia-48h-multisig-promotion) — EXECUTING
-Plan: 3 of 6 (Tasks 1-2 complete; Task 3 is security-review checkpoint — awaiting human)
-Status: Ready to execute
-Last activity: 2026-06-03
+Phase: 06 (safety-review-sepolia-48h-multisig-promotion) — CI-SAFE CODE COMPLETE; LIVE-OPS PENDING
+Last activity: 2026-06-04
+
+**CI-safe code built this session (on master):**
+- 06-01 ✅ COMPLETE — resolveUsdc() gate + CI allowlist + **critical security fix**: routed ALL USDC transfers in CR/FFM/CE/SM through a chainid-resolved `usdc` immutable (the constructor validated `_usdc` but transfers hardcoded mainnet USDC → would revert every Sepolia money flow). 421614 routing regression test added. Security review PASSED. (11d16d2, c25c175)
+- 06-02 ⏸ Task 1 done — DeployPhase6.s.sol written + compiles (85a5cdf). **Task 2 (live Sepolia broadcast) DEFERRED — operator.**
+- 06-03 ✅ COMPLETE — SAFETY-29–43 matrix tests; SAFETY-31 TVL aggregate confirmed; fork suite skips gracefully (7a32405, 97ae83c, 54d1836)
+- 06-04 ✅ COMPLETE — SAFETY-42 RevertingStylusEngineDrill + soak-seeder.ts + evidence scaffold (9a2911d, b366c4f, ff6bb53)
+- 06-06 ⏸ Task 1 done — TransferOwnershipToSafe.s.sol (compiles) + rehearse-ownership.ts (clean) (166914a). **Task 2 (live multisig promotion + mainnet Safe) DEFERRED — operator.**
+
+forge test: 222 pass / 0 fail / 2 skip (excl. 2 RPC-gated fork suites which skip gracefully).
+
+**Pending — operator live gates (require keys/RPC/Ledger):** 06-02 Task 2 (Sepolia broadcast + relayer go-live) → 06-05 (≥48h soak + drill + 5 UAT + evidence log) → 06-06 Task 2 (Safe rehearsal on Sepolia + production Arbitrum One Safe). See operator runbook in the session report.
+**Pending — code:** deploy-safe.ts needs SafeFactory→protocol-kit-v7 migration (or use the Safe UI for the actual deploys) — see deferred-items.md.
+Status: Paused for operator — resume per runbook.
 
 Progress: [██████████] 98%
 
@@ -379,6 +390,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-06-03T23:17:43.340Z
+Last session: 2026-06-03T23:40:17.039Z
 Stopped at: Phase 6 context gathered
 Resume file: None
