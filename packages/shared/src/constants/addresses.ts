@@ -85,7 +85,7 @@ type AddressRecord = Record<
  * Threat: T-01-16 -- wrong address pinned in frontend silently routes txs to wrong contract.
  */
 export const CALL_REGISTRY_ARBITRUM_SEPOLIA =
-  '0x7DAd732764abfC935aD5bf8e5CFF9BEA7B2C234D' as const;
+  '0x9E3E467e5D1F1266354444CEaC67651c7e9CACEc' as const; // Phase 05.1 cluster redeploy 2026-06-02 (block 273493950); supersedes 0x7DAd732764abfC935aD5bf8e5CFF9BEA7B2C234D
 
 /**
  * ProfileRegistry on Arbitrum Sepolia — v2 (Phase 2 redeploy).
@@ -114,7 +114,7 @@ export const PROFILE_REGISTRY_ARBITRUM_SEPOLIA =
  * Threat: T-02-04-01 — wrong/zero address routes all FFM reads/writes to nowhere.
  */
 export const FOLLOW_FADE_MARKET_ARBITRUM_SEPOLIA =
-  '0x185e43526c0acd88AC236197e3Ee7629ebd601CA' as const;
+  '0x5Aa7bC9ee202AD9197CB109e7EcF3d7d99C72a48' as const; // Phase 05.1 cluster redeploy 2026-06-02 (block 273493953); supersedes 0x185e43526c0acd88AC236197e3Ee7629ebd601CA
 
 /**
  * FollowFadeMarket on Arbitrum One (mainnet).
@@ -155,7 +155,7 @@ export const PROFILE_REGISTRY_ARBITRUM_ONE =
  * Threat: T-03-03-01 — wrong/zero address routes all duel reads/writes to nowhere.
  */
 export const CHALLENGE_ESCROW_ARBITRUM_SEPOLIA =
-  '0x59eb7C8000f0bC4C0e32d2060f304d9b5655bec2' as const;
+  '0xf0D65BFd5dFa4e40c81d198DD7ED78423a26Fdea' as const; // Phase 05.1 cluster redeploy 2026-06-02 (block 273493957); supersedes 0x59eb7C8000f0bC4C0e32d2060f304d9b5655bec2
 
 /**
  * ChallengeEscrow on Arbitrum One (mainnet).
@@ -186,7 +186,7 @@ export const CHALLENGE_ESCROW_ARBITRUM_ONE =
  * Threat: T-04-03-01 — wrong address wired prevents settlement; post-deploy assertions mitigate.
  */
 export const SETTLEMENT_MANAGER_ARBITRUM_SEPOLIA =
-  '0xAc37a0e4A3e575EF21684c28a5b820dB44654595' as const;
+  '0x765f6ecd85059CF8eF59286DF578AEC0B13230fC' as const; // Phase 05.1 cluster redeploy 2026-06-02 (block 273493961); supersedes 0xAc37a0e4A3e575EF21684c28a5b820dB44654595
 
 /**
  * SettlementManager on Arbitrum One (mainnet).

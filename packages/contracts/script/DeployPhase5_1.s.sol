@@ -81,10 +81,11 @@ import { USDC_ARB_NATIVE } from "../src/constants/USDC.sol";
 ///         (marketType, eventSubtype) pairs and setAttestationSigner for all 6
 ///         non-Pyth oracle types. Closes Gap B.1 -- non-Pyth submitAttestation path.
 ///
-///         Contracts NOT redeployed (addresses unchanged):
-///           ChallengeEscrow:  0x59eb7C8000f0bC4C0e32d2060f304d9b5655bec2 (Phase 3)
+///         Redeployed as a CONSISTENT CLUSTER (FFM/CE immutably reference CallRegistry,
+///         so redeploying CR forces redeploying FFM + CE + SM together):
+///           CallRegistry, FollowFadeMarket, ChallengeEscrow, SettlementManager
+///         NOT redeployed (settable refs / unaffected):
 ///           ProfileRegistry:  0xAfe239a3606b89Ef65DbBcDb1b87a920052c359E (Phase 2)
-///           FollowFadeMarket: 0x185e43526c0acd88AC236197e3Ee7629ebd601CA (Phase 4)
 ///           StylusScoreEngine proxy: 0xe7e15980C40db52BFC6dcaBb21B3d90edFB27c14 (Phase 5)
 ///
 ///         Sepolia chainId: 421614
@@ -166,6 +167,30 @@ contract DeployPhase5_1 is Script {
         );
         console.log("CallRegistry v3 deployed at:", address(cr));
 
+        // ─── 1b. Redeploy FollowFadeMarket (Phase 05.1 cluster fix) ────────────
+        // FFM.callRegistry is IMMUTABLE: the old FFM is permanently bound to the old
+        // CallRegistry, so a CR redeploy REQUIRES a fresh FFM bound to the new CR.
+        // Constructor: (callRegistry, profileRegistry, treasury)
+        FollowFadeMarket ffm = new FollowFadeMarket(
+            address(cr),
+            PROFILE_REGISTRY,
+            treasuryAddress
+        );
+        console.log("FollowFadeMarket v3 deployed at:", address(ffm));
+
+        // ─── 1c. Redeploy ChallengeEscrow (Phase 05.1 cluster fix) ─────────────
+        // CE.callRegistry AND CE.followFadeMarket are both IMMUTABLE: the old CE is
+        // bound to the old CR + old FFM, so it must be rebuilt against the new pair.
+        // Constructor: (callRegistry, followFadeMarket, usdc, treasury, tvlCap)
+        ChallengeEscrow ce = new ChallengeEscrow(
+            address(cr),
+            address(ffm),
+            USDC_ARB_NATIVE,
+            treasuryAddress,
+            TVL_CAP
+        );
+        console.log("ChallengeEscrow v2 deployed at:", address(ce));
+
         // ─── 2. Deploy SettlementManager (Phase 5.1) ───────────────────────────
         // Reason for redeploy: non-upgradeable + needs setAdapterMap/setAttestationSigner
         // calls at deploy time. Phase 4 SM had all adapterMap slots at Pyth(0) default.
@@ -174,8 +199,8 @@ contract DeployPhase5_1 is Script {
         // USDC MANDATE: USDC_ARB_NATIVE imported from ./constants/USDC.sol (no inline address).
         SettlementManager sm = new SettlementManager(
             address(cr),
-            FOLLOW_FADE_MARKET,
-            CHALLENGE_ESCROW,
+            address(ffm),
+            address(ce),
             PROFILE_REGISTRY,
             USDC_ARB_NATIVE,
             treasuryAddress,
@@ -187,17 +212,19 @@ contract DeployPhase5_1 is Script {
         // Each contract's setSettlementManager() is onlyOwner (deployer key in Phase 5.1).
         // Phase 6 multisig promotion rotates ownership.
 
-        // 3a. CallRegistry -- wire new SM into the new CR
+        // 3a. CallRegistry -- wire the new FFM (createCall.initPool depends on it!) + new SM
+        cr.setFollowFadeMarket(address(ffm));
+        console.log("CallRegistry v3.setFollowFadeMarket -> FFM:", address(ffm));
         ICallRegistry(address(cr)).setSettlementManager(address(sm));
         console.log("CallRegistry v3.setSettlementManager -> SM:", address(sm));
 
-        // 3b. FollowFadeMarket v2 -- rotate SM pointer (was Phase 4 SM, now Phase 5.1 SM)
-        FollowFadeMarket(FOLLOW_FADE_MARKET).setSettlementManager(address(sm));
-        console.log("FollowFadeMarket v2.setSettlementManager -> SM:", address(sm));
+        // 3b. FollowFadeMarket v3 (fresh) -- wire SM
+        ffm.setSettlementManager(address(sm));
+        console.log("FollowFadeMarket v3.setSettlementManager -> SM:", address(sm));
 
-        // 3c. ChallengeEscrow -- rotate SM pointer (was Phase 4 SM, now Phase 5.1 SM)
-        IChallengeEscrow(CHALLENGE_ESCROW).setSettlementManager(address(sm));
-        console.log("ChallengeEscrow.setSettlementManager -> SM:", address(sm));
+        // 3c. ChallengeEscrow v2 (fresh) -- wire SM
+        ce.setSettlementManager(address(sm));
+        console.log("ChallengeEscrow v2.setSettlementManager -> SM:", address(sm));
 
         // 3d. ProfileRegistry -- rotate SM pointer (was Phase 4 SM, now Phase 5.1 SM)
         IProfileRegistry(PROFILE_REGISTRY).setSettlementManager(address(sm));
@@ -348,13 +375,32 @@ contract DeployPhase5_1 is Script {
         );
 
         require(
-            address(sm.followFadeMarket()) == FOLLOW_FADE_MARKET,
+            address(sm.followFadeMarket()) == address(ffm),
             "DeployPhase5_1: sm.followFadeMarket() mismatch"
         );
 
         require(
-            address(sm.challengeEscrow()) == CHALLENGE_ESCROW,
+            address(sm.challengeEscrow()) == address(ce),
             "DeployPhase5_1: sm.challengeEscrow() mismatch"
+        );
+
+        // Cluster consistency (Phase 05.1 fix): fresh FFM/CE immutably bound to the
+        // NEW CR, and CR wired to the new FFM (createCall.initPool depends on it).
+        require(
+            address(ffm.callRegistry()) == address(cr),
+            "DeployPhase5_1: ffm.callRegistry() != new CR"
+        );
+        require(
+            address(ce.callRegistry()) == address(cr),
+            "DeployPhase5_1: ce.callRegistry() != new CR"
+        );
+        require(
+            address(ce.followFadeMarket()) == address(ffm),
+            "DeployPhase5_1: ce.followFadeMarket() != new FFM"
+        );
+        require(
+            cr.followFadeMarket() == address(ffm),
+            "DeployPhase5_1: cr.followFadeMarket() != new FFM"
         );
 
         require(
@@ -378,12 +424,12 @@ contract DeployPhase5_1 is Script {
         );
 
         require(
-            FollowFadeMarket(FOLLOW_FADE_MARKET).settlementManager() == address(sm),
+            ffm.settlementManager() == address(sm),
             "DeployPhase5_1: FFM.settlementManager() mismatch"
         );
 
         require(
-            ChallengeEscrow(CHALLENGE_ESCROW).settlementManager() == address(sm),
+            ce.settlementManager() == address(sm),
             "DeployPhase5_1: CE.settlementManager() mismatch"
         );
 
@@ -513,6 +559,8 @@ contract DeployPhase5_1 is Script {
         console.log("---");
         console.log("DEPLOYMENT SUMMARY (Arbitrum Sepolia -- Phase 5.1)");
         console.log("CallRegistry v3:     ", address(cr));
+        console.log("FollowFadeMarket v3: ", address(ffm));
+        console.log("ChallengeEscrow v2:  ", address(ce));
         console.log("SettlementManager:   ", address(sm));
         console.log("---");
         console.log("POST-DEPLOY ASSERTIONS: ALL PASSED");
@@ -545,9 +593,13 @@ contract DeployPhase5_1 is Script {
         console.log("REQUIRED NEXT STEPS:");
         console.log("1. Update packages/shared/src/constants/addresses.ts:");
         console.log("   CALL_REGISTRY_ARBITRUM_SEPOLIA =", address(cr));
+        console.log("   FOLLOW_FADE_MARKET_ARBITRUM_SEPOLIA =", address(ffm));
+        console.log("   CHALLENGE_ESCROW_ARBITRUM_SEPOLIA =", address(ce));
         console.log("   SETTLEMENT_MANAGER_ARBITRUM_SEPOLIA =", address(sm));
-        console.log("2. Update packages/subgraph/subgraph.yaml:");
+        console.log("2. Update packages/subgraph/subgraph.yaml (all 4 datasources):");
         console.log("   CallRegistry address =", address(cr));
+        console.log("   FollowFadeMarket address =", address(ffm));
+        console.log("   ChallengeEscrow address =", address(ce));
         console.log("   SettlementManager address =", address(sm));
         console.log("   startBlock = <block numbers printed above>");
         console.log("3. Rebuild and redeploy subgraph to Studio:");
