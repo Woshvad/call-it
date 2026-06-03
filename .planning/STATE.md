@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: milestone
-status: verifying
+status: ready_to_plan
 stopped_at: Completed 04-09-PLAN.md (Task 1 autonomous); human-verify checkpoint pending
 last_updated: "2026-06-03T16:32:12.740Z"
 last_activity: 2026-06-02
 progress:
   total_phases: 13
-  completed_phases: 6
+  completed_phases: 7
   total_plans: 52
   completed_plans: 51
-  percent: 98
+  percent: 54
 ---
 
 # Project State
@@ -25,10 +25,10 @@ See: .planning/PROJECT.md (updated 2026-05-21)
 
 ## Current Position
 
-Phase: 05.1 (non-pyth-oracle-rail-activation) — EXECUTING
-Plan: 3 of 5
-Status: Phase 05.1 LIVE — non-Pyth oracle rail cluster (CR+FFM+CE+SM) deployed + verified on Arbitrum Sepolia; addresses.ts + subgraph repointed + redeployed; forge 185/185. Only relayer go-live remains (Phase 6 soak). See 05.1-OPERATOR-HANDOFF.md.
-Last activity: 2026-06-02
+Phase: 6
+Plan: Not started
+Status: Ready to plan
+Last activity: 2026-06-03
 
 Progress: [██████████] 98%
 
@@ -75,7 +75,7 @@ All 3 operator actions were run this session (user explicitly authorized "run al
 
 **Velocity:**
 
-- Total plans completed: 42
+- Total plans completed: 47
 - Average duration: —
 - Total execution time: 0 hours
 
@@ -87,6 +87,7 @@ All 3 operator actions were run this session (user explicitly authorized "run al
 | 03 | 7 | - | - |
 | 04 | 10 | - | - |
 | 05 | 7 | - | - |
+| 05.1 | 5 | - | - |
 
 **Recent Trend:**
 
