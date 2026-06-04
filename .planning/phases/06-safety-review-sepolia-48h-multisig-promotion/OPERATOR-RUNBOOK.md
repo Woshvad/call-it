@@ -57,16 +57,41 @@ cast call 0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d "decimals()(uint8)" --rpc-u
 **Then →** paste me the 4 addresses + deploy block. I'll update `addresses.ts` (+ `USDC_ARB_SEPOLIA`)
 and `subgraph.yaml`, commit, and write 06-02-SUMMARY.md.
 
-**Relayer go-live (platform access — Railway/Fly + Graph Studio + GCP KMS):**
+**Relayer go-live — the ONLY remaining Gate-1 step (platform access: Fly/Railway).**
+
+> Mechanism correction (verified against code 2026-06-04): the relayer does **not** read the
+> cluster addresses or the subgraph URL from five dedicated env vars. `apps/relayer/src/index.ts`
+> and `duel-live-state.ts` import `*_ARBITRUM_SEPOLIA` **directly from `@call-it/shared`**, which is
+> already on the Phase-6 cluster + `v0.6.0`. So the primary action is just **redeploy from latest
+> `master`** so the rebuilt shared package ships the new values. The relayer's `.env.local` has
+> **zero** address/subgraph overrides — so locally there is nothing to change.
+>
+> The only real risk is a **stale override secret on the deployed Fly app** silently pinning old
+> values (these env reads take precedence over the shared default):
+> - `NEXT_PUBLIC_CALL_REGISTRY_ADDRESS` / `CALL_REGISTRY_ADDRESS` → used by `calls-dup-check.ts` + `calls-preflight.ts`. If set, must equal new CR `0x015758CbBc9A97b98Cf3BBf30381fFAc3F00BB54` (or unset → shared default wins).
+> - `RELAYER_SUBGRAPH_URL` / `NEXT_PUBLIC_SUBGRAPH_URL` → used by `duels.ts` (+ workers). If set, must be the `…/call-it-sepolia/v0.6.0` endpoint (or unset).
+> - `FFM_ADDRESS` / `CE_ADDRESS` / `SM_ADDRESS` / `USDC_ARB_SEPOLIA_ADDRESS` → only read by `soak-seeder.ts`. If you set them for the soak, use the new cluster values; otherwise the shared defaults are correct.
+>
+> 5b (KMS signer re-grant) and the subgraph publish are **already DONE** — the Phase-6 deploy wired
+> the 4 signers, and `v0.6.0` is live (commit 02249fa). Do not re-run them.
+
 ```bash
-# 5b. Re-grant the 4 KMS signers on the NEW SM (oracleType 1..6 per 05.1-OPERATOR-HANDOFF)
-cast send <NEW_SM> "setAttestationSigner(uint8,address)" 1 <KMS_NFT_TWAP_ADDR> --rpc-url $ARBITRUM_SEPOLIA_RPC_URL --private-key $DEPLOYER_PRIVATE_KEY
-# ... repeat for DEFILLAMA, SNAPSHOT_TALLY, CEX (see 06-02 plan Step 5b)
-# 5a. Update relayer env (CALL_REGISTRY_ADDRESS/FFM_ADDRESS/CE_ADDRESS/SM_ADDRESS=NEW_*, USDC_ADDRESS=0x75faf114...)
-# 5c. node apps/relayer/.../backfill-criteria.ts    5d. restart relayer    5e. curl <relayer>/health -> ok
-# Subgraph: cd packages/subgraph && graph build && graph deploy --studio call-it-sepolia
+# 1. Deploy latest master to the relayer host (rebuilds @call-it/shared -> Phase-6 addrs + v0.6.0)
+flyctl deploy -a call-it-relayer-sepolia            # (or your Railway deploy trigger)
+
+# 2. Audit for stale overrides; fix/unset any that pin OLD values
+flyctl secrets list -a call-it-relayer-sepolia      # look for the 4 keys above
+#   flyctl secrets unset NEXT_PUBLIC_CALL_REGISTRY_ADDRESS NEXT_PUBLIC_SUBGRAPH_URL -a call-it-relayer-sepolia
+#   (or `secrets set KEY=<new value>` — unset is safest since the shared default is already correct)
+
+# 3. Health + a live read that proves retarget
+curl -fsS https://<relayer-host>/health            # -> ok
+#   then hit a route that reads CR (e.g. duel-live-state / calls-preflight) and confirm it sees the new cluster
+
+# 4. Web tier (Vercel), if it carries its own envs: set NEXT_PUBLIC_SUBGRAPH_URL=…/v0.6.0
+#    and any NEXT_PUBLIC_*_ADDRESS to the new cluster, then redeploy.
 ```
-**Resume signal:** `cluster-live` + the 4 addresses + block.
+**Resume signal:** `cluster-live` (relayer redeployed + override-audited + healthy).
 
 ---
 
