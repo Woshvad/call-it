@@ -10,3 +10,7 @@
 *.gif binary
 *.ico binary
 *.wasm binary
+
+# Shell scripts MUST stay LF — a CRLF shebang breaks `/bin/sh` in Linux containers
+# (relayer entrypoint.sh runs in node:22-alpine). Force LF regardless of core.autocrlf.
+*.sh text eol=lf

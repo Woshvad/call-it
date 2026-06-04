@@ -62,6 +62,11 @@ RUN pnpm install --frozen-lockfile --prod
 COPY --from=builder /app/apps/relayer/dist ./apps/relayer/dist
 COPY --from=builder /app/packages/shared/dist ./packages/shared/dist
 
+# Entrypoint: materializes GCP ADC from the GCP_SA_KEY_B64 Fly secret at boot
+# (so @google-cloud/secret-manager + @google-cloud/kms can authenticate at runtime)
+COPY apps/relayer/entrypoint.sh /app/entrypoint.sh
+RUN chmod +x /app/entrypoint.sh
+
 # Non-root runtime (security best practice, T-00-16)
 USER node
 
@@ -71,4 +76,5 @@ EXPOSE 8080
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
   CMD wget -qO- http://localhost:8080/health || exit 1
 
-CMD ["node", "apps/relayer/dist/index.js"]
+# Entrypoint decodes GCP creds (if GCP_SA_KEY_B64 is set) then exec's the node process
+CMD ["/app/entrypoint.sh"]
