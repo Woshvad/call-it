@@ -43,6 +43,7 @@ describe('Telegram alert dispatcher', () => {
     'settle_failed',
     'stylus_reactivation',
     'address_book_cooldown_bypass_attempt', // Plan 01-07 addition (T-01-42)
+    'stylus_demo_cutoff', // Phase 5/6 relayer go-live addition (T-05-05-02)
   ];
 
   const P1_EVENT_LIST: AlertEvent[] = [
