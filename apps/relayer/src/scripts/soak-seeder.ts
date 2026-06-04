@@ -146,8 +146,8 @@ function getSoakWalletKey(index: number): `0x${string}` | null {
 // ── Minimal ABIs (inline — no external ABI files needed) ─────────────────────
 
 const CALL_REGISTRY_ABI = parseAbi([
-  'function createCall(uint8 marketType, uint8 eventSubtype, uint8 category, uint256 assetA, uint256 assetB, uint256 targetValue, uint64 expiry, uint256 stakeAmount, uint8 conviction, bytes32 duplicateHash, bool isPriceAbove, uint256 minSharesOut) returns (uint256 callId)',
-  'event CallCreated(uint256 indexed callId, address indexed caller)',
+  'function createCall(uint8 marketType, uint8 eventSubtype, uint8 category, uint256 assetA, uint256 assetB, uint256 targetValue, uint64 expiry, uint96 stake, uint8 conviction, bytes32 criteriaHash, bool openToChallenges, uint256 parentCallId) returns (uint256 callId)',
+  'event CallCreated(uint256 indexed id, address indexed caller, uint8 marketType, uint96 stake)',
 ]);
 
 const FFM_ABI = parseAbi([
@@ -157,7 +157,7 @@ const FFM_ABI = parseAbi([
 ]);
 
 const CE_ABI = parseAbi([
-  'function proposeChallenge(uint256 callId, uint256 stake) returns (uint256 challengeId)',
+  'function proposeChallenge(uint256 callId, uint96 stake) returns (uint256 challengeId)',
   'function acceptChallenge(uint256 challengeId)',
   'function claimDuelPayout(uint256 challengeId)',
 ]);
@@ -344,13 +344,13 @@ async function phaseA_createCalls(
           spec.marketType,   // marketType
           spec.eventSubtype, // eventSubtype
           0,                 // category (0 = Majors)
-          BigInt(1),         // assetA (ETH feed index 1)
+          BigInt('0xff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace'), // assetA = ETH/USD Pyth feed ID (allowlisted on CallRegistry)
           BigInt(0),         // assetB
-          BigInt(3000_000000), // targetValue: $3000 USDC (6 decimals)
+          BigInt(3000_000000 + i * 1_000000), // targetValue varied per call (distinct dup-hash, avoids DuplicateCall)
           expiry,
           BigInt(5_000000),  // stakeAmount: $5 USDC (min stake; sized so 20 USDC/wallet covers a full seed)
           50,                // conviction 50%
-          '0x0000000000000000000000000000000000000000000000000000000000000000',
+          '0x0000000000000000000000000000000000000000000000000000000000000001', // non-zero criteriaHash (required for event subtypes 4-7)
           true,              // isPriceAbove
           BigInt(0),         // minSharesOut
         ],
@@ -366,7 +366,7 @@ async function phaseA_createCalls(
         fromBlock: blockNumber,
         toBlock: blockNumber,
       });
-      const callId = logs.length > 0 ? Number(logs[logs.length - 1].args.callId) : i + 1;
+      const callId = logs.length > 0 ? Number(logs[logs.length - 1].args.id) : i + 1;
       callIds.push(callId);
 
       appendEvidenceLog({
@@ -433,7 +433,7 @@ async function phaseB_followFade(
         address: FFM_ADDRESS,
         abi: FFM_ABI,
         functionName,
-        args: [BigInt(callId), BigInt(2_000000), BigInt(0)], // $2 USDC, no slippage (3 per wallet fits 20 USDC budget)
+        args: [BigInt(callId), BigInt(1_000000), BigInt(0)], // $1 USDC (min) — $10 creation fee leaves only ~$5/wallet for follows
         account,
         chain: arbitrumSepolia,
       });
@@ -534,7 +534,7 @@ async function phaseD_callerExit(
 
   // Use the last callId (least likely to already be settled in Phase C)
   const callId = callIds[callIds.length - 1];
-  const walletIndex = 0; // caller is wallet[0]
+  const walletIndex = (callId - 1) % SOAK_WALLET_COUNT; // actual caller: call #N was created by wallet (N-1)%10 (fixes NotCallerOfCall)
   const key = walletKeys[walletIndex];
   if (!key) {
     console.warn('[Phase D] wallet[0] key not set — skipping callerExit');
@@ -586,8 +586,8 @@ async function phaseE_challengeCycle(
   }
 
   const callId = callIds[1]; // use second call for challenge
-  const challengerIndex = 1; // wallet[1] = challenger
-  const callerIndex = 0;     // wallet[0] = caller (created the call)
+  const callerIndex = (callId - 1) % SOAK_WALLET_COUNT;          // actual caller of call #N
+  const challengerIndex = (callerIndex + 1) % SOAK_WALLET_COUNT; // a DIFFERENT wallet (fixes SelfChallenge)
 
   const challengerKey = walletKeys[challengerIndex];
   const callerKey = walletKeys[callerIndex];
