@@ -543,6 +543,18 @@ contract DeployPhase6 is Script {
             "DeployPhase6: asset allowlist not populated"
         );
 
+        // The Phase-6 SM calls ProfileRegistry.globalRep(address) during settle()
+        // (SettlementManager._computeRepDelta, OUTSIDE the Stylus try/catch). A PR
+        // that predates that getter makes EVERY settle revert with no data — exactly
+        // the Sepolia soak blocker (the preserved Phase-2 PR lacked globalRep). Assert
+        // the SM<->PR coupling so a stale/incompatible PR fails the deploy loudly.
+        (bool prHasGlobalRep, ) =
+            PROFILE_REGISTRY.staticcall(abi.encodeWithSignature("globalRep(address)", address(0)));
+        require(
+            prHasGlobalRep,
+            "DeployPhase6: ProfileRegistry lacks globalRep() -- SM.settle would revert; redeploy PR from current source"
+        );
+
         require(
             address(sm.profileRegistry()) == PROFILE_REGISTRY,
             "DeployPhase6: sm.profileRegistry() mismatch"
