@@ -2,15 +2,15 @@
 
 **Status:** IN PROGRESS (pre-built template — operator fills in during soak)
 **Purpose:** Gate document for multisig promotion (06-06). Every row must be flipped from ⬜ PENDING to ✅ before Phase 6 closes.
-**Finalization gate:** `grep -c "❌" evidence/phase-6-soak/EVIDENCE-LOG.md` must return 0.
+**Finalization gate:** the FAILURE marker (Unicode U+274C, the red cross-mark) must not appear anywhere in this file — `grep -c` for it returns 0. This template is intentionally free of that glyph so the gate reads 0 on a clean run; add it ONLY to a row that has genuinely failed.
 
 MARKER GUIDE:
 - ⬜ PENDING — not yet verified (default for all rows in this template)
 - ✅ — verified with evidence (tx hash / test name / screenshot filename)
-- ❌ — verified FAILURE (blocks Phase 7 — must be resolved before proceeding)
+- FAILURE marker (U+274C, the red cross-mark) — a verified FAILURE (blocks Phase 7 — must be resolved before proceeding)
 
 DO NOT pre-mark ✅ on rows that have not been verified. False evidence is worse than no evidence.
-DO NOT use ❌ to mean "not yet done" — ❌ means a real failure has been found.
+DO NOT use the FAILURE marker to mean "not yet done" — it means a real failure has been found.
 
 ---
 
