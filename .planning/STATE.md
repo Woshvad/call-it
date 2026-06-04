@@ -30,14 +30,14 @@ Last activity: 2026-06-04
 
 **CI-safe code built this session (on master):**
 - 06-01 ✅ COMPLETE — resolveUsdc() gate + CI allowlist + **critical security fix**: routed ALL USDC transfers in CR/FFM/CE/SM through a chainid-resolved `usdc` immutable (the constructor validated `_usdc` but transfers hardcoded mainnet USDC → would revert every Sepolia money flow). 421614 routing regression test added. Security review PASSED. (11d16d2, c25c175)
-- 06-02 ⏸ Task 1 done — DeployPhase6.s.sol written + compiles (85a5cdf). **Task 2 (live Sepolia broadcast) DEFERRED — operator.**
+- 06-02 ✅ Task 2 DONE (2026-06-04) — DeployPhase6 broadcast to Sepolia, cluster LIVE + verified (all 4 usdc()=Circle Sepolia 0x75faf114; usdc.decimals()=6; signers+adapters wired). New addrs: CR 0x015758Cb, FFM 0x3129a7E3, CE 0xD2688514, SM 0x998CC092. addresses.ts + subgraph.yaml retargeted. **Remaining go-live: relayer env-retarget+restart + subgraph publish (operator platform creds).**
 - 06-03 ✅ COMPLETE — SAFETY-29–43 matrix tests; SAFETY-31 TVL aggregate confirmed; fork suite skips gracefully (7a32405, 97ae83c, 54d1836)
 - 06-04 ✅ COMPLETE — SAFETY-42 RevertingStylusEngineDrill + soak-seeder.ts + evidence scaffold (9a2911d, b366c4f, ff6bb53)
 - 06-06 ⏸ Task 1 done — TransferOwnershipToSafe.s.sol (compiles) + rehearse-ownership.ts (clean) (166914a). **Task 2 (live multisig promotion + mainnet Safe) DEFERRED — operator.**
 
 forge test: 222 pass / 0 fail / 2 skip (excl. 2 RPC-gated fork suites which skip gracefully).
 
-**Pending — operator live gates (require keys/RPC/Ledger):** 06-02 Task 2 (Sepolia broadcast + relayer go-live) → 06-05 (≥48h soak + drill + 5 UAT + evidence log) → 06-06 Task 2 (Safe rehearsal on Sepolia + production Arbitrum One Safe). See operator runbook in the session report.
+**Pending — operator live gates:** (a) finish 06-02 go-live — relayer env-retarget + worker restart + subgraph publish (platform creds); → 06-05 (≥48h soak + drill + 5 UAT + evidence log) → 06-06 Task 2 (Safe rehearsal on Sepolia + production Arbitrum One Safe). The DeployPhase6 cluster broadcast is DONE. See OPERATOR-RUNBOOK.md.
 **Pending — code:** deploy-safe.ts needs SafeFactory→protocol-kit-v7 migration (or use the Safe UI for the actual deploys) — see deferred-items.md.
 Status: Paused for operator — resume per runbook.
 

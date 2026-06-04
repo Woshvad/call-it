@@ -54,6 +54,15 @@ export const PYTH_ARBITRUM_ONE = '0xff1a0f4744e8582DF1aE09D5611b887B6a12925C' as
  */
 export const PYTH_ARBITRUM_SEPOLIA = '0x4374e5a8b9C22271E9EB878A2AA31DE97DF15DAF' as const;
 
+/**
+ * Circle's official USDC on Arbitrum Sepolia (testnet). Chain ID 421614, 6 decimals
+ * (same parity as mainnet native USDC). ADR-0001 hybrid money-path.
+ * TS mirror of USDC_ARB_SEPOLIA in packages/contracts/src/constants/USDC.sol.
+ * The Phase-6 Sepolia cluster's resolveUsdc() resolves to this on chainid 421614 —
+ * verified on-chain 2026-06-04: cr/ffm/ce/sm.usdc() all return this address.
+ */
+export const USDC_ARB_SEPOLIA = '0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d' as const;
+
 // ---------------------------------------------------------------------------
 // Protocol contract addresses (populated by Phase 1+)
 // ---------------------------------------------------------------------------
@@ -85,7 +94,7 @@ type AddressRecord = Record<
  * Threat: T-01-16 -- wrong address pinned in frontend silently routes txs to wrong contract.
  */
 export const CALL_REGISTRY_ARBITRUM_SEPOLIA =
-  '0x9E3E467e5D1F1266354444CEaC67651c7e9CACEc' as const; // Phase 05.1 cluster redeploy 2026-06-02 (block 273493950); supersedes 0x7DAd732764abfC935aD5bf8e5CFF9BEA7B2C234D
+  '0x015758CbBc9A97b98Cf3BBf30381fFAc3F00BB54' as const; // Phase 6 cluster redeploy 2026-06-04 (block 273674159); usdc() -> Circle Sepolia via resolveUsdc(); supersedes 0x9E3E467e5D1F1266354444CEaC67651c7e9CACEc
 
 /**
  * ProfileRegistry on Arbitrum Sepolia — v2 (Phase 2 redeploy).
@@ -114,7 +123,7 @@ export const PROFILE_REGISTRY_ARBITRUM_SEPOLIA =
  * Threat: T-02-04-01 — wrong/zero address routes all FFM reads/writes to nowhere.
  */
 export const FOLLOW_FADE_MARKET_ARBITRUM_SEPOLIA =
-  '0x5Aa7bC9ee202AD9197CB109e7EcF3d7d99C72a48' as const; // Phase 05.1 cluster redeploy 2026-06-02 (block 273493953); supersedes 0x185e43526c0acd88AC236197e3Ee7629ebd601CA
+  '0x3129a7E3A9D52Fd40E18b8581d1A6D4c22E25cAA' as const; // Phase 6 cluster redeploy 2026-06-04 (block 273674163); usdc() -> Circle Sepolia via resolveUsdc(); supersedes 0x5Aa7bC9ee202AD9197CB109e7EcF3d7d99C72a48
 
 /**
  * FollowFadeMarket on Arbitrum One (mainnet).
@@ -155,7 +164,7 @@ export const PROFILE_REGISTRY_ARBITRUM_ONE =
  * Threat: T-03-03-01 — wrong/zero address routes all duel reads/writes to nowhere.
  */
 export const CHALLENGE_ESCROW_ARBITRUM_SEPOLIA =
-  '0xf0D65BFd5dFa4e40c81d198DD7ED78423a26Fdea' as const; // Phase 05.1 cluster redeploy 2026-06-02 (block 273493957); supersedes 0x59eb7C8000f0bC4C0e32d2060f304d9b5655bec2
+  '0xD2688514f95D94a1f426506C921928D188036487' as const; // Phase 6 cluster redeploy 2026-06-04 (block 273674167); usdc() -> Circle Sepolia via resolveUsdc(); supersedes 0xf0D65BFd5dFa4e40c81d198DD7ED78423a26Fdea
 
 /**
  * ChallengeEscrow on Arbitrum One (mainnet).
@@ -186,7 +195,7 @@ export const CHALLENGE_ESCROW_ARBITRUM_ONE =
  * Threat: T-04-03-01 — wrong address wired prevents settlement; post-deploy assertions mitigate.
  */
 export const SETTLEMENT_MANAGER_ARBITRUM_SEPOLIA =
-  '0x765f6ecd85059CF8eF59286DF578AEC0B13230fC' as const; // Phase 05.1 cluster redeploy 2026-06-02 (block 273493961); supersedes 0xAc37a0e4A3e575EF21684c28a5b820dB44654595
+  '0x998CC092E69f4D2bebb0852eF69CC1F04038c7D4' as const; // Phase 6 cluster redeploy 2026-06-04 (block 273674171); usdc() -> Circle Sepolia via resolveUsdc(); supersedes 0x765f6ecd85059CF8eF59286DF578AEC0B13230fC
 
 /**
  * SettlementManager on Arbitrum One (mainnet).
