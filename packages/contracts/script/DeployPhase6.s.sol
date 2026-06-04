@@ -118,9 +118,14 @@ import { USDC_ARB_SEPOLIA, resolveUsdc } from "../src/constants/USDC.sol";
 ///           - All version comments updated to "Phase 6"
 ///
 ///         Redeployed as a CONSISTENT CLUSTER (FFM/CE immutably reference CallRegistry):
-///           CallRegistry v4, FollowFadeMarket v4, ChallengeEscrow v3, SettlementManager v5
+///           ProfileRegistry (Phase 6), CallRegistry v4, FollowFadeMarket v4,
+///           ChallengeEscrow v3, SettlementManager v5
+///         PHASE 6 SETTLE-BLOCKER FIX: ProfileRegistry is now REDEPLOYED (was preserved).
+///           The preserved Phase-2 PR (0xAfe239a3...) predated the globalRep(address) getter
+///           that SettlementManager.settle() staticcalls (SM._computeRepDelta), so every
+///           settle() reverted with no data — the Sepolia soak release-blocker. A fresh deploy
+///           from current source restores globalRep(). CR/FFM/SM reference the fresh PR.
 ///         NOT redeployed (settable refs / unaffected):
-///           ProfileRegistry:          0xAfe239a3606b89Ef65DbBcDb1b87a920052c359E (Phase 2)
 ///           StylusScoreEngine proxy:  0xe7e15980C40db52BFC6dcaBb21B3d90edFB27c14 (Phase 5)
 ///           ProxyAdmin:               0xAeA5a279DDF1625490c5F4284eF0D735BB56044a (Phase 5)
 ///
@@ -133,10 +138,13 @@ contract DeployPhase6 is Script {
     // NOTE: CR/FFM/CE/SM from Phase 05.1 are superseded by this redeploy.
     // Only PR, Stylus proxy, and ProxyAdmin are preserved unchanged.
 
-    /// @notice ProfileRegistry v2 on Arbitrum Sepolia.
-    ///         Deployed via DeployPhase2.s.sol at block 272458667.
-    ///         NOT redeployed in Phase 6 -- setSettlementManager() rotates the SM pointer.
-    address public constant PROFILE_REGISTRY = 0xAfe239a3606b89Ef65DbBcDb1b87a920052c359E;
+    /// @notice ProfileRegistry is REDEPLOYED in Phase 6 (see run()) — NOT preserved.
+    ///         The preserved Phase-2 PR (0xAfe239a3606b89Ef65DbBcDb1b87a920052c359E) lacked the
+    ///         globalRep(address) getter that SettlementManager.settle() staticcalls, which made
+    ///         every settle() revert with no data (the soak release-blocker). A fresh deploy from
+    ///         current source restores globalRep(). No constant here — the fresh address is the
+    ///         local `pr` in run(), referenced by CR/FFM/SM and wired as a rep-writer + SM pointer.
+    ///         The old PR's rep/social state is abandoned (correct: the soak re-seeds from zero).
 
     /// @notice StylusScoreEngine proxy on Arbitrum Sepolia.
     ///         Deployed via DeployPhase5Stylus.s.sol (Phase 5 Plan 06).
@@ -226,6 +234,19 @@ contract DeployPhase6 is Script {
 
         vm.startBroadcast(deployerKey);
 
+        // ─── 0. Redeploy ProfileRegistry (Phase 6 SETTLE-BLOCKER FIX) ──────────
+        // The preserved Phase-2 PR (0xAfe239a3...) was compiled BEFORE the
+        // globalRep(address) getter existed, so SettlementManager._computeRepDelta's
+        // staticcall to PR.globalRep reverted with no data → EVERY settle() reverted
+        // (the Sepolia soak release-blocker, root-caused via SettleTrace.t.sol). The
+        // current ProfileRegistry source HAS globalRep() (ProfileRegistry.sol:146), so a
+        // fresh deploy fixes it. Constructor is no-arg (Ownable(msg.sender)); CR/FFM/SM
+        // below reference this fresh address. A fresh PR starts with empty rep/social
+        // state — correct for the soak, which re-seeds from zero. The deployer owns it
+        // and wires it as SM pointer + FFM/SM rep-writers (steps 3d/4/4b below).
+        ProfileRegistry pr = new ProfileRegistry();
+        console.log("ProfileRegistry (Phase 6 redeploy) deployed at:", address(pr));
+
         // ─── 1. Deploy CallRegistry v4 ─────────────────────────────────────────
         // Reason for redeploy: full-cluster consistency required when redeploying
         // CE/SM (which have immutable CR refs). CR itself calls resolveUsdc()
@@ -233,7 +254,7 @@ contract DeployPhase6 is Script {
         // address so FFM/CE/SM can reference the new CR immutably.
         // Constructor: (IProfileRegistry _profileRegistry, uint256 _tvlCap)
         CallRegistry cr = new CallRegistry(
-            IProfileRegistry(PROFILE_REGISTRY),
+            IProfileRegistry(address(pr)),
             TVL_CAP
         );
         console.log("CallRegistry v4 deployed at:", address(cr));
@@ -245,7 +266,7 @@ contract DeployPhase6 is Script {
         // NOTE: FFM resolves USDC internally via resolveUsdc() -- no _usdc arg.
         FollowFadeMarket ffm = new FollowFadeMarket(
             address(cr),
-            PROFILE_REGISTRY,
+            address(pr),
             treasuryAddress
         );
         console.log("FollowFadeMarket v4 deployed at:", address(ffm));
@@ -282,7 +303,7 @@ contract DeployPhase6 is Script {
             address(cr),
             address(ffm),
             address(ce),
-            PROFILE_REGISTRY,
+            address(pr),
             resolveUsdc(),       // Phase 6 KEY CHANGE: was hardcoded mainnet addr in Phase 5.1
             treasuryAddress,
             PYTH_ARBITRUM_SEPOLIA
@@ -311,20 +332,20 @@ contract DeployPhase6 is Script {
         // Phase 6 addition: PR.setSettlementManager is called inside vm.startBroadcast()
         // so the deployer (still owner of PR) re-wires the mutable cross-ref.
         // This is required before the soak bot can trigger rep delta writes.
-        IProfileRegistry(PROFILE_REGISTRY).setSettlementManager(address(sm));
+        IProfileRegistry(address(pr)).setSettlementManager(address(sm));
         console.log("ProfileRegistry.setSettlementManager -> SM:", address(sm));
 
         // ─── 4. Authorize new SettlementManager as rep writer ──────────────────
         // SM calls pr.applyRepDelta + pr.updateAfterSettlement -- both require authorization.
         // Per spec §12.5 + Phase-2 D-04.
-        IProfileRegistry(PROFILE_REGISTRY).setAuthorizedRepWriter(address(sm), true);
+        IProfileRegistry(address(pr)).setAuthorizedRepWriter(address(sm), true);
         console.log("ProfileRegistry.setAuthorizedRepWriter(SM, true) -> authorized");
 
         // 4b. Authorize the new FollowFadeMarket as rep writer (Phase 6 wiring-gap FIX).
         // FFM.initPool calls profileRegistry.applyRepDelta on every createCall; without
         // this, createCall reverts NotAuthorizedWriter. DeployPhase6 originally authorized
         // only the SM (above), never the freshly-redeployed FFM.
-        IProfileRegistry(PROFILE_REGISTRY).setAuthorizedRepWriter(address(ffm), true);
+        IProfileRegistry(address(pr)).setAuthorizedRepWriter(address(ffm), true);
         console.log("ProfileRegistry.setAuthorizedRepWriter(FFM, true) -> authorized");
 
         // ─── 5. Wire StylusScoreEngine proxy into new SM ───────────────────────
@@ -531,11 +552,11 @@ contract DeployPhase6 is Script {
 
         // --- Wiring-gap FIX assertions (Phase 6): rep-writers + asset allowlist ---
         require(
-            ProfileRegistry(PROFILE_REGISTRY).authorizedRepWriters(address(ffm)),
+            ProfileRegistry(address(pr)).authorizedRepWriters(address(ffm)),
             "DeployPhase6: FFM not authorized as rep writer"
         );
         require(
-            ProfileRegistry(PROFILE_REGISTRY).authorizedRepWriters(address(sm)),
+            ProfileRegistry(address(pr)).authorizedRepWriters(address(sm)),
             "DeployPhase6: SM not authorized as rep writer"
         );
         require(
@@ -549,14 +570,14 @@ contract DeployPhase6 is Script {
         // the Sepolia soak blocker (the preserved Phase-2 PR lacked globalRep). Assert
         // the SM<->PR coupling so a stale/incompatible PR fails the deploy loudly.
         (bool prHasGlobalRep, ) =
-            PROFILE_REGISTRY.staticcall(abi.encodeWithSignature("globalRep(address)", address(0)));
+            address(pr).staticcall(abi.encodeWithSignature("globalRep(address)", address(0)));
         require(
             prHasGlobalRep,
             "DeployPhase6: ProfileRegistry lacks globalRep() -- SM.settle would revert; redeploy PR from current source"
         );
 
         require(
-            address(sm.profileRegistry()) == PROFILE_REGISTRY,
+            address(sm.profileRegistry()) == address(pr),
             "DeployPhase6: sm.profileRegistry() mismatch"
         );
 
@@ -586,12 +607,12 @@ contract DeployPhase6 is Script {
         );
 
         require(
-            ProfileRegistry(PROFILE_REGISTRY).settlementManager() == address(sm),
+            ProfileRegistry(address(pr)).settlementManager() == address(sm),
             "DeployPhase6: PR.settlementManager() mismatch"
         );
 
         require(
-            ProfileRegistry(PROFILE_REGISTRY).authorizedRepWriters(address(sm)),
+            ProfileRegistry(address(pr)).authorizedRepWriters(address(sm)),
             "DeployPhase6: PR.authorizedRepWriters(SM) != true"
         );
 
@@ -620,7 +641,7 @@ contract DeployPhase6 is Script {
         // Confirms that PR.setSettlementManager(newSM) executed correctly above.
         // The soak bot's rep-delta writes depend on this pointer being current.
         require(
-            ProfileRegistry(PROFILE_REGISTRY).settlementManager() == address(sm),
+            ProfileRegistry(address(pr)).settlementManager() == address(sm),
             "DeployPhase6: PR.settlementManager() != new SM -- setSettlementManager call failed"
         );
 
@@ -749,7 +770,7 @@ contract DeployPhase6 is Script {
         console.log("  sm.callRegistry()              -> CR v4 address              [OK]");
         console.log("  sm.followFadeMarket()          -> FFM v4 address             [OK]");
         console.log("  sm.challengeEscrow()           -> CE v3 address              [OK]");
-        console.log("  sm.profileRegistry()           -> PROFILE_REGISTRY           [OK]");
+        console.log("  sm.profileRegistry()           -> address(pr)           [OK]");
         console.log("  CR.settlementManager()         -> SM v5 address              [OK]");
         console.log("  FFM.settlementManager()        -> SM v5 address              [OK]");
         console.log("  CE.settlementManager()         -> SM v5 address              [OK]");
@@ -814,7 +835,7 @@ contract DeployPhase6 is Script {
         console.log("  # -> 0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d (Circle Sepolia USDC)");
         console.log("  cast call", address(ce), "\"usdc()(address)\" --rpc-url $ARBITRUM_SEPOLIA_RPC_URL");
         console.log("  # -> 0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d (Circle Sepolia USDC)");
-        console.log("  cast call", PROFILE_REGISTRY, "\"settlementManager()(address)\" --rpc-url $ARBITRUM_SEPOLIA_RPC_URL");
+        console.log("  cast call", address(pr), "\"settlementManager()(address)\" --rpc-url $ARBITRUM_SEPOLIA_RPC_URL");
         console.log("  # ->", address(sm), "(new SM v5)");
         console.log("  cast call", address(sm), "\"adapterMap(uint8,uint8)(uint8)\" 2 1 --rpc-url $ARBITRUM_SEPOLIA_RPC_URL");
         console.log("  # -> 2 (DefiLlama), NOT 0 (Pyth) -- non-Pyth rail live");
