@@ -2,17 +2,15 @@
 
 ## Plan 06-06 Deferred (out-of-scope pre-existing issues)
 
-### scripts/deploy-safe.ts — Pre-existing tsc errors (NOT caused by 06-06)
+### scripts/deploy-safe.ts — ✅ RESOLVED 2026-06-04 (commit aa7d4e6)
 
-These errors were present before Plan 06-06 execution. They are out of scope per deviation rules (only fix issues DIRECTLY caused by the current task's changes).
-
-| File | Error | Root Cause |
-|------|-------|-----------|
-| `scripts/deploy-safe.ts:48` | `TS2614: Module '"@safe-global/protocol-kit"' has no exported member 'SafeFactory'` | `SafeFactory` was removed in protocol-kit v7 (was a v4 API). The script uses the v4 pattern. Needs update to v7 `Safe.init()` or `safeFactory.deploySafe()` pattern. |
-| `scripts/deploy-safe.ts:38` | `TS6133: 'createWriteStream' is declared but its value is never read` | Unused import from a previous iteration |
-| `scripts/deploy-safe.ts:42` | Multiple unused imports (`createWalletClient`, `http`, `Account`) | Same — unused imports from a previous iteration |
-| `scripts/deploy-safe.ts:185` | `TS6133: 'network' is declared but its value is never read` | Unused parameter |
-| `scripts/deploy-safe.ts:210` | `TS2351: This expression is not constructable` | Ledger `Eth` class dynamic import type issue |
+Migrated to protocol-kit v7: the removed v4 `SafeFactory` API replaced with `Safe.init` +
+`createSafeDeploymentTransaction` + viem for the `--signer-source=env` path (Sepolia rehearsal);
+the Ledger/mainnet path now routes to the Safe UI (app.safe.global) instead of shipping
+unverified Ledger tx-signing. Unused imports + the unused `network` param removed; the Ledger
+`Eth` dynamic-import type fixed via cast. `tsc --noEmit` is clean for `deploy-safe.ts`.
+**NOT runtime-tested** (no Safe deploy / Ledger in CI) — operator MUST `--network sepolia --dry-run`
+first, and the Safe UI remains the recommended path for the production Arbitrum One deploy.
 
 ### scripts/phase-0-smoke.ts, seed-calendar.ts, test/*.ts — Pre-existing tsc errors
 

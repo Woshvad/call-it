@@ -29,6 +29,8 @@ Load env into your shell first: `set -a; source .env; set +a`
 
 ## GATE 1 — 06-02 Task 2: Sepolia broadcast + relayer go-live
 
+> **STATUS 2026-06-04 — DONE except the relayer.** Cluster broadcast + verified, addresses.ts/subgraph.yaml retargeted, subgraph v0.6.0 published (commits 733059b, 02249fa). New cluster: CR `0x015758Cb…BB54` / FFM `0x3129a7E3…25cAA` / CE `0xD2688514…6487` / SM `0x998CC092…38c7D4`. The KMS signers were wired by the deploy. **Only step 5a (relayer env-retarget + restart) remains.** The commands below are the original plan; skip what's already done.
+
 ```bash
 set -a; source .env; set +a
 cd packages/contracts
@@ -72,7 +74,27 @@ cast send <NEW_SM> "setAttestationSigner(uint8,address)" 1 <KMS_NFT_TWAP_ADDR> -
 
 1. `cast wallet new` ×10 → set `SOAK_WALLET_0..9`; fund each ~20 USDC at faucet.circle.com.
 2. `node apps/relayer/src/scripts/soak-seeder.ts` (needs the Phase-6 addresses live from Gate 1). Record start ts + the `evidence-*.jsonl` path.
-3. **Mid-soak SAFETY-42 drill:** `cast send <PROXY_ADMIN> "upgradeAndCall(address,address,bytes)" <STYLUS_PROXY> <REVERTING_ENGINE> 0x ...` → trigger a settle → confirm `RepCalculatedFallback` on Arbiscan + Telegram alert → restore the real engine. (3-arg OZ-5 form only.)
+3. **Mid-soak SAFETY-42 destruction drill** (ProxyAdmin owner is still the deployer until Gate 3, so the deployer key works):
+   ```bash
+   set -a; source .env; set +a
+   RPC=$ARBITRUM_SEPOLIA_RPC_URL
+   PROXY=0xe7e15980C40db52BFC6dcaBb21B3d90edFB27c14   # StylusScoreEngine proxy
+   ADMIN=0xAeA5a279DDF1625490c5F4284eF0D735BB56044a   # ProxyAdmin (owner = deployer)
+   REVERT=0x8492faD7eF45a213E498daaA88986f97Fb22b6e1  # RevertingStylusEngine (drill fixture)
+   STYLUS=0xdbe23df8ff832e09f2d8f52c3ec8a32b3d714755  # real Stylus WASM impl (restore target)
+   SLOT=0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc   # EIP-1967 impl slot
+
+   # (a) upgrade proxy -> reverting fixture (3-arg OZ-5 form only)
+   cast send $ADMIN "upgradeAndCall(address,address,bytes)" $PROXY $REVERT 0x --private-key $DEPLOYER_PRIVATE_KEY --rpc-url $RPC
+   cast storage $PROXY $SLOT --rpc-url $RPC          # lower 20 bytes == $REVERT
+   # (b) let the relayer settle a live soak call; on Arbiscan confirm the settle tx emits
+   #     RepCalculatedFallback(...) + a Telegram "stylus_fallback" alert, and the call still
+   #     reaches Settled (Solidity baseline applied). Record the settle tx hash.
+   # (c) restore the real Stylus engine
+   cast send $ADMIN "upgradeAndCall(address,address,bytes)" $PROXY $STYLUS 0x --private-key $DEPLOYER_PRIVATE_KEY --rpc-url $RPC
+   cast storage $PROXY $SLOT --rpc-url $RPC          # lower 20 bytes == $STYLUS again
+   ```
+   Record the upgrade tx, the settle tx (with `RepCalculatedFallback`), and the restore tx for the evidence log.
 4. **Manual UAT (human eyes, no automation):** settled-call payout, dispute flow, Provenance modal (D-10), OG 200px readability, settled-OG `X-Variant`. Screenshot each.
 5. Pre-deploy rituals + the 38-item PITFALLS checklist.
 
