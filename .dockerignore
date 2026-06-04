@@ -1,0 +1,61 @@
+# .dockerignore — MUST live at the monorepo root (the Docker build *context* root)
+# for `flyctl deploy --config apps/relayer/fly.toml --dockerfile apps/relayer/Dockerfile`
+# to honor it. Docker only reads the .dockerignore at the context root, so a copy
+# placed under apps/relayer/ is silently ignored (that was the original mistake).
+#
+# Critically, host node_modules are excluded: the Dockerfile COPYs source AFTER
+# `pnpm install`, so without this the host's Windows pnpm symlink farm would be
+# copied over the container's clean Linux install and corrupt module resolution
+# (e.g. `Cannot find module 'viem'`) — the bug that blocked the first relayer deploy.
+
+# Dependencies (the image runs its own pnpm install)
+node_modules
+**/node_modules
+apps/relayer/node_modules
+packages/shared/node_modules
+packages/config/node_modules
+
+# Git history
+.git
+.gitignore
+
+# Environment files (secrets injected via Fly.io `flyctl secrets set`, D-08)
+.env
+.env.*
+.env.local
+.env.*.local
+
+# Test artifacts
+apps/relayer/test
+apps/relayer/**/*.test.ts
+apps/relayer/**/*.test.js
+apps/relayer/**/*.spec.ts
+apps/relayer/vitest.config.ts
+apps/relayer/vitest.config.js
+
+# TypeScript build outputs (rebuilt in the Docker builder stage)
+apps/relayer/dist
+packages/shared/dist
+packages/config/dist
+
+# Unrelated monorepo packages (not needed by the relayer image)
+apps/web
+packages/contracts
+packages/subgraph
+
+# Build artifacts
+**/.turbo
+**/coverage
+**/.next
+
+# Editor / OS files
+.vscode
+.idea
+*.swp
+.DS_Store
+Thumbs.db
+
+# Planning/docs/scripts (not needed at runtime)
+.planning
+docs
+scripts
