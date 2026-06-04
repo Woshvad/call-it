@@ -655,6 +655,19 @@
     "stateMutability": "nonpayable"
   },
   {
+    "type": "function",
+    "name": "usdc",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
     "type": "event",
     "name": "AttestationSignerSet",
     "inputs": [
