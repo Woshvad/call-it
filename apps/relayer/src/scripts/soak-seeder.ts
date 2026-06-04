@@ -322,8 +322,12 @@ async function phaseA_createCalls(
   ] as const;
 
   const callIds: number[] = [];
-  // Use expiry = now + 2 hours so calls can be settled later in Phase C
-  const expiry = BigInt(Math.floor(Date.now() / 1000) + 2 * 60 * 60);
+  // Expiry = now + 2h by default (a live soak waits for expiry before settling).
+  // Override with SOAK_CALL_EXPIRY_SECONDS for a short-expiry run that can be settled
+  // in-session — settle() requires the call to be PAST expiry. Keep it comfortably larger
+  // than the seeder's own runtime so follow/fade (which require an un-expired call) all land.
+  const expirySeconds = Number(process.env.SOAK_CALL_EXPIRY_SECONDS ?? 2 * 60 * 60);
+  const expiry = BigInt(Math.floor(Date.now() / 1000) + expirySeconds);
 
   for (let i = 0; i < callSpecs.length; i++) {
     const spec = callSpecs[i];
