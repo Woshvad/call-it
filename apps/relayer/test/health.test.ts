@@ -47,6 +47,19 @@ vi.mock('../src/lib/redis.js', () => ({
   _resetRedisForTesting: vi.fn(),
 }));
 
+// Mock the Postgres client to avoid a real DB connection in buildApp().
+// buildApp() eagerly calls getDb() (src/index.ts:192) to hand the notification
+// fan-out + duel workers a db handle. CI has no POSTGRES_URL, so the real getDb()
+// throws "POSTGRES_URL is not set". Returning null is safe here: GET /health never
+// queries the db, and the workers it's passed to are interval-based + try/catch
+// wrapped (no query runs within the test's lifetime). Mirrors the redis mock above
+// and the db mocks in the onboarding/address-book/privy-webhook/withdraw tests.
+vi.mock('../src/db/client.js', () => ({
+  getDb: vi.fn().mockReturnValue(null),
+  _resetDbForTesting: vi.fn(),
+  _setDbForTesting: vi.fn(),
+}));
+
 // Mock alerts to avoid Telegram calls
 vi.mock('../src/workers/alerts.js', () => ({
   sendAlert: vi.fn().mockResolvedValue(undefined),
