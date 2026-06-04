@@ -35,17 +35,18 @@
  */
 
 import { parseArgs } from 'node:util';
-import { createWriteStream, mkdirSync } from 'node:fs';
-import { writeFileSync } from 'node:fs';
+import { mkdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { isAddress, createWalletClient, http, type Account } from 'viem';
+import { isAddress, createWalletClient, createPublicClient, http } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
 import { arbitrum, arbitrumSepolia } from 'viem/chains';
 
-// Safe SDK (D-10, D-11, SAFETY-58)
-// @safe-global/protocol-kit v4+
-import Safe, { SafeFactory } from '@safe-global/protocol-kit';
+// Safe SDK (D-10, D-11, SAFETY-58) — @safe-global/protocol-kit v7 (Safe.init API;
+// SafeFactory was removed in v7). The --signer-source=env path deploys via
+// createSafeDeploymentTransaction + viem; the Ledger/mainnet path routes to the
+// Safe UI (https://app.safe.global). See runDeploy.
+import Safe from '@safe-global/protocol-kit';
 
 // @ts-ignore — Ledger HID transport (optional; only needed when --signer-source=ledger)
 // Dynamically imported below to avoid bundling issues when not using Ledger path
@@ -182,7 +183,7 @@ function getChainId(network: NetworkName): number {
 // Deployer account construction
 // ─────────────────────────────────────────────────────────────────────────────
 
-async function buildDeployerAccount(signerSource: SignerSource, network: NetworkName): Promise<{ address: string; signer: string }> {
+async function buildDeployerAccount(signerSource: SignerSource): Promise<{ address: string; signer: string }> {
   if (signerSource === 'env') {
     // LOCAL DEV ONLY — D-11 prohibits this for mainnet (validated above in validateArgs)
     console.warn(
@@ -204,10 +205,12 @@ async function buildDeployerAccount(signerSource: SignerSource, network: Network
   try {
     // Dynamic import to avoid hard dependency when not using Ledger
     const { default: TransportNodeHid } = await import('@ledgerhq/hw-transport-node-hid');
-    const { default: Eth } = await import('@ledgerhq/hw-app-eth');
+    const EthApp = (await import('@ledgerhq/hw-app-eth')).default as unknown as new (
+      transport: unknown,
+    ) => { getAddress(path: string): Promise<{ address: string }> };
 
     const transport = await (TransportNodeHid as any).create();
-    const eth = new Eth(transport);
+    const eth = new EthApp(transport);
 
     const derivationPath = "44'/60'/0'/0/0";
     const result = await eth.getAddress(derivationPath);
@@ -266,7 +269,7 @@ export async function runDeploy(args: DeployArgs): Promise<DeployResult> {
   const safeAccountConfig = buildSafeAccountConfig(signer1, signer2, signer3);
   const rpcUrl = getRpcUrl(args.network);
   const chainId = getChainId(args.network);
-  const { address: deployerAddress, signer } = await buildDeployerAccount(args.signerSource, args.network);
+  const { address: deployerAddress, signer } = await buildDeployerAccount(args.signerSource);
 
   console.log(`\nSafe 2-of-3 Deploy Script`);
   console.log(`  Network:    ${args.network} (chainId: ${chainId})`);
@@ -275,17 +278,17 @@ export async function runDeploy(args: DeployArgs): Promise<DeployResult> {
   console.log(`  Deployer:   ${deployerAddress}`);
   console.log(`  Mode:       ${args.dryRun ? 'DRY RUN (no tx broadcast)' : 'EXECUTE (deploy tx)'}\n`);
 
-  // Initialize SafeFactory using @safe-global/protocol-kit
-  const safeFactory = await SafeFactory.init({
-    provider: rpcUrl,
-    signer: args.signerSource === 'env' ? signer : deployerAddress,
-    safeVersion: '1.4.1',
-  });
+  // protocol-kit v7 SafeAccountConfig shape (owners + threshold).
+  const pkConfig = { owners: safeAccountConfig.owners, threshold: safeAccountConfig.threshold };
+  const chain = args.network === 'sepolia' ? arbitrumSepolia : arbitrum;
+
+  // Predicted Safe address is deterministic from the config — no live signer needed.
+  // Safe.init() is the correct protocol-kit v7 static factory; the `as any` cast mirrors
+  // rehearse-ownership.ts (the type decl does not surface the static .init).
+  const predictKit = await (Safe as any).init({ provider: rpcUrl, predictedSafe: { safeAccountConfig: pkConfig } });
+  const predictedAddress = await predictKit.getAddress();
 
   if (args.dryRun) {
-    // Predict address without deploying
-    const predictedAddress = await safeFactory.predictSafeAddress(safeAccountConfig);
-
     console.log(`Predicted Safe address: ${predictedAddress}`);
     console.log('DRY RUN complete — no transaction broadcast.\n');
 
@@ -306,22 +309,44 @@ export async function runDeploy(args: DeployArgs): Promise<DeployResult> {
     return result;
   }
 
-  // Execute: deploy the Safe
-  console.log('Deploying Safe 2-of-3...');
-  console.log('Awaiting Ledger confirmation for deploy transaction...\n');
+  // D-11 + safety: signing the deployment tx with a Ledger via viem is non-trivial and is
+  // NOT exercised here. For a one-time production multisig, the official Safe UI is the
+  // audited, hardware-wallet-native path — route Ledger/mainnet there rather than ship
+  // unverified signing code.
+  if (args.signerSource === 'ledger') {
+    throw new Error(
+      `Ledger-signed Safe deployment is not implemented in this script.\n` +
+        `Deploy the Safe via the Safe UI (https://app.safe.global) connected to your Ledger:\n` +
+        `  Predicted address: ${predictedAddress}\n` +
+        `  Owners:            ${safeAccountConfig.owners.join(', ')}\n` +
+        `  Threshold:         ${safeAccountConfig.threshold}-of-${safeAccountConfig.owners.length}`,
+    );
+  }
 
-  const safe = await safeFactory.deploySafe({
-    safeAccountConfig,
-    options: {
-      gasPrice: undefined, // use network default
-    },
+  // --signer-source=env (Sepolia rehearsal / local dev): deploy via protocol-kit v7 +
+  // viem. NOTE: this path is not exercised in CI — always run --dry-run first.
+  console.log('Deploying Safe 2-of-3 (env signer)...\n');
+  const protocolKit = await (Safe as any).init({ provider: rpcUrl, signer, predictedSafe: { safeAccountConfig: pkConfig } });
+  const deploymentTx = await protocolKit.createSafeDeploymentTransaction();
+
+  const account = privateKeyToAccount(signer as `0x${string}`);
+  const walletClient = createWalletClient({ account, chain, transport: http(rpcUrl) });
+  const publicClient = createPublicClient({ chain, transport: http(rpcUrl) });
+  const txHash = await walletClient.sendTransaction({
+    to: deploymentTx.to as `0x${string}`,
+    data: deploymentTx.data as `0x${string}`,
+    value: BigInt(deploymentTx.value),
   });
+  console.log(`  Deployment tx: ${txHash}`);
+  await publicClient.waitForTransactionReceipt({ hash: txHash });
 
-  const safeAddress = await safe.getAddress();
-
-  // Verify owners + threshold post-deploy
-  const owners = await safe.getOwners();
-  const threshold = await safe.getThreshold();
+  const deployedKit = await protocolKit.connect({ safeAddress: predictedAddress });
+  if (!(await deployedKit.isSafeDeployed())) {
+    throw new Error('Deployment tx mined but Safe not found at predicted address');
+  }
+  const owners = await deployedKit.getOwners();
+  const threshold = await deployedKit.getThreshold();
+  const safeAddress = predictedAddress;
 
   console.log(`\nSafe deployed!`);
   console.log(`  Address:   ${safeAddress}`);
@@ -335,7 +360,7 @@ export async function runDeploy(args: DeployArgs): Promise<DeployResult> {
     threshold,
     deployedAt: new Date().toISOString(),
     deployerAddress,
-    txHash: 'pending', // Safe SDK v7+ doesn't expose txHash directly from deploySafe
+    txHash,
     network: args.network,
   };
 
