@@ -72,8 +72,13 @@ async function main(): Promise<void> {
 
   // 3. Env block
   console.log('--- ENV BLOCK (paste into your .env.local or Railway secrets, then DELETE) ---');
+  console.log('# IMPORTANT: soak-seeder.ts uses SOAK_WALLET_0 as the call CALLER *and* as the');
+  console.log('# SettlementManager OWNER that calls resolveDispute (owner-only, Phase F / SAFETY-27).');
+  console.log('# Replace SOAK_WALLET_0 below with your DEPLOYER/OWNER private key, otherwise the');
+  console.log('# dispute-resolution step reverts and SAFETY-27 evidence will be missing from the log.');
   for (const w of wallets) {
-    console.log(`SOAK_WALLET_${w.index}=${w.privateKey}`);
+    const note = w.index === 0 ? '   # <-- REPLACE with deployer/owner key (see note above)' : '';
+    console.log(`SOAK_WALLET_${w.index}=${w.privateKey}${note}`);
   }
   console.log('');
 
