@@ -16,8 +16,9 @@ task-commits:
 completed: 2026-06-04
 status: complete
 deferred:
-  - "Relayer go-live: env retarget + worker restart (Railway/Fly platform access — operator)"
-  - "Subgraph Studio publish: graph build + deploy (operator)"
+  - "Relayer go-live: env retarget + worker restart (Railway/Fly platform access — operator) — ONLY remaining go-live step"
+post_broadcast_done:
+  - "Subgraph Studio publish: call-it-sepolia v0.6.0 (2026-06-04) — api.studio.thegraph.com/query/1754389/call-it-sepolia/v0.6.0"
 ---
 
 # Phase 6 Plan 2: DeployPhase6 broadcast — live Sepolia cluster with Circle USDC
@@ -55,9 +56,9 @@ New Phase-6 Sepolia cluster (deployer/owner `0xDa8c…A4a5`):
 
 The on-chain deploy + repo wiring is done. Two go-live steps remain (need Railway/Fly + Graph Studio creds, not available to the agent):
 1. **Relayer:** set `CALL_REGISTRY_ADDRESS`/`FFM_ADDRESS`/`CE_ADDRESS`/`SM_ADDRESS` to the new addresses + `USDC_ADDRESS=0x75faf114…`, restart workers, `curl /health`. (KMS `setAttestationSigner` is already done by the deploy.)
-2. **Subgraph:** `cd packages/subgraph && pnpm run build && pnpm run deploy:sepolia`.
+2. **Subgraph:** ✅ DONE 2026-06-04 — published `call-it-sepolia` **v0.6.0** indexing the new cluster; `SUBGRAPH_URL_SEPOLIA` updated. (Operator: update `.env` `NEXT_PUBLIC_SUBGRAPH_URL` to the v0.6.0 endpoint for the frontend.)
 
-These unblock the Gate-2 soak (the relayer must target the new cluster). See OPERATOR-RUNBOOK.md.
+Only the relayer retarget remains to fully close Gate-1 go-live and unblock the Gate-2 soak. See OPERATOR-RUNBOOK.md.
 
 ## Self-Check: PASSED
 
