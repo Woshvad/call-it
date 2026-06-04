@@ -346,7 +346,7 @@ async function phaseA_createCalls(
           0,                 // category (0 = Majors)
           BigInt('0xff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace'), // assetA = ETH/USD Pyth feed ID (allowlisted on CallRegistry)
           BigInt(0),         // assetB
-          BigInt(3000_000000 + i * 1_000000), // targetValue varied per call (distinct dup-hash, avoids DuplicateCall)
+          BigInt(3000_000000 + i * 1_000000 + (Date.now() % 1_000_000_000)), // run-unique targetValue (distinct dup-hash across re-runs)
           expiry,
           BigInt(5_000000),  // stakeAmount: $5 USDC (min stake; sized so 20 USDC/wallet covers a full seed)
           50,                // conviction 50%

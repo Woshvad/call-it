@@ -1,6 +1,6 @@
 # Phase 6 Soak — Evidence Log
 
-**Status:** IN PROGRESS — partial seed live + CI evidence captured (2026-06-04). Time-gated rows (settle/exit/challenge/dispute/drill/UAT) PENDING.
+**Status:** IN PROGRESS — SAFETY-22 + 23 met live; CI safety-matrix + rituals captured (2026-06-04). Calls 1–10 now expired (settleable); time-gated rows (settle/exit/dispute/drill), challenge (SAFETY-26, needs wallet top-up), and UAT PENDING.
 **Purpose:** Gate document for multisig promotion (06-06). Every row must be flipped from ⬜ PENDING to ✅ before Phase 6 closes.
 **Finalization gate:** the FAILURE marker (Unicode U+274C, the red cross-mark) must not appear anywhere in this file — `grep -c` for it returns 0. This template is intentionally free of that glyph so the gate reads 0 on a clean run; add it ONLY to a row that has genuinely failed.
 
@@ -24,7 +24,7 @@ DO NOT use the FAILURE marker to mean "not yet done" — it means a real failure
 |------|-------------|--------|----------|
 | SAFETY-21 | Soak duration ≥48 continuous hours with live relayer active | ⬜ PENDING | Partial seed only; 48h soak not yet run. Start/End TBD. |
 | SAFETY-22 | ≥10 seeded calls covering all market types (PriceTarget, SpreadVs, ≥3 EventSubtypes) | ✅ | 10 calls created 2026-06-04 — callIds 1–10, blocks 273779300–330. Types: PriceTarget(0), SpreadVs(1) + Event subtypes TvlMilestone(1)/VolumeFees(2)/OnchainMetric(3)/CexListing(4)/TokenLaunch(5). call 1 tx `0xf88160e2…839f5`; full list in evidence-1780584415130.jsonl |
-| SAFETY-23 | ≥30 follow/fade positions (≥15 each), distributed across 10 wallets | ⬜ PARTIAL (20/30) | 15 follow + 5 fade across wallets 0–9, blocks 273779354–403. Remaining 10 blocked on budget ($10 creation fee drained wallets) — needs re-fund. Evidence in evidence-1780584415130.jsonl |
+| SAFETY-23 | ≥30 follow/fade positions (≥15 each), distributed across 10 wallets | ✅ | 30 positions (15 follow + 15 fade) across wallets 0–9 on calls 11–20, 2026-06-04 (after re-fund to 21 USDC/wallet). Raw log: evidence-1780599464899.jsonl |
 | SAFETY-24 | ≥3 settled calls per type; outcome words, payouts, and rep updates verified | ⬜ PENDING | Time-gated — calls expire ~2h after creation; settle not yet run. |
 | SAFETY-25 | ≥1 caller-exit triggered and CallerExited event broadcast verified | ⬜ PENDING | Time-gated — caller-exit requires 24h after call creation. |
 | SAFETY-26 | ≥1 full challenge cycle: propose → accept → settle duel | ⬜ PENDING | Needs funded challenger/caller wallets (seeder logic fixed: challenger ≠ caller). |
