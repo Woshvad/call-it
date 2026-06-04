@@ -348,7 +348,7 @@ async function phaseA_createCalls(
           BigInt(0),         // assetB
           BigInt(3000_000000), // targetValue: $3000 USDC (6 decimals)
           expiry,
-          BigInt(10_000000),  // stakeAmount: $10 USDC (6 decimals)
+          BigInt(5_000000),  // stakeAmount: $5 USDC (min stake; sized so 20 USDC/wallet covers a full seed)
           50,                // conviction 50%
           '0x0000000000000000000000000000000000000000000000000000000000000000',
           true,              // isPriceAbove
@@ -433,7 +433,7 @@ async function phaseB_followFade(
         address: FFM_ADDRESS,
         abi: FFM_ABI,
         functionName,
-        args: [BigInt(callId), BigInt(5_000000), BigInt(0)], // $5 USDC, no slippage
+        args: [BigInt(callId), BigInt(2_000000), BigInt(0)], // $2 USDC, no slippage (3 per wallet fits 20 USDC budget)
         account,
         chain: arbitrumSepolia,
       });
@@ -614,7 +614,7 @@ async function phaseE_challengeCycle(
       address: CE_ADDRESS,
       abi: CE_ABI,
       functionName: 'proposeChallenge',
-      args: [BigInt(callId), BigInt(10_000000)], // $10 USDC stake
+      args: [BigInt(callId), BigInt(5_000000)], // $5 USDC stake (fits 20 USDC/wallet budget)
       account: challengerAccount,
       chain: arbitrumSepolia,
     });
