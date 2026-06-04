@@ -354,11 +354,16 @@ contract DeployPhase6 is Script {
         sm.setStylusScoreEngine(STYLUS_SCORE_ENGINE_PROXY);
         console.log("SettlementManager v5.setStylusScoreEngine ->", STYLUS_SCORE_ENGINE_PROXY);
 
-        // ─── 6. Fund SettlementManager with ETH for Pyth fees ─────────────────
-        // Pyth pull-oracle requires ETH to pay for VAA update fees (Pitfall 4).
-        // Initial budget: 0.05 ETH. Relayer monitors; OPS-15 covers top-up.
-        payable(address(sm)).transfer(PYTH_ETH_BUDGET);
-        console.log("Funded SettlementManager v5 with 0.05 ETH for Pyth update fees");
+        // ─── 6. SettlementManager ETH funding (Pyth fees) — SEPARATE POST-DEPLOY STEP ──
+        // Pyth pull-oracle needs ETH for VAA update fees (Pitfall 4; 0.05 ETH budget).
+        // NOT funded in-script: an in-script `payable(sm).transfer(value)` is charged to
+        // THIS script contract (balance 0) during forge's mandatory simulation pass — not
+        // the funded deployer EOA — so the sim reverts OutOfFunds and `forge --broadcast`
+        // aborts before sending anything. (This is the Phase-4 "deviation note": SM was
+        // funded out-of-band.) Fund SM with a separate broadcast AFTER this deploy:
+        //   cast send <NEW_SM> --value 0.05ether --private-key $DEPLOYER_PRIVATE_KEY \
+        //     --rpc-url arbitrum_sepolia
+        console.log("SettlementManager v5 NOT funded in-script -- send 0.05 ETH separately (see REQUIRED NEXT STEPS)");
 
         // ─── 7. setAdapterMap -- ALL 8 pairs in one broadcast block ─────────────
         // CRITICAL: All 8 setAdapterMap calls are inside a single vm.startBroadcast()
@@ -616,10 +621,9 @@ contract DeployPhase6 is Script {
             "DeployPhase6: PR.authorizedRepWriters(SM) != true"
         );
 
-        require(
-            address(sm).balance >= PYTH_ETH_BUDGET,
-            "DeployPhase6: SM ETH balance < 0.05 ether"
-        );
+        // NOTE: SM ETH funding is a SEPARATE post-deploy step (see step 6) — at this
+        // point sm.balance is 0 by design, so we do NOT assert it here. The operator
+        // funds SM via `cast send <SM> --value 0.05ether` and verifies with `cast balance`.
 
         // --- Phase 6 USDC gate assertions (ADR-0001) ---
         // Confirm that both CE and SM received the correct chain-resolved USDC address.
@@ -776,7 +780,7 @@ contract DeployPhase6 is Script {
         console.log("  CE.settlementManager()         -> SM v5 address              [OK]");
         console.log("  PR.settlementManager()         -> SM v5 address              [OK]");
         console.log("  PR.authorizedRepWriters(SM)    -> true                       [OK]");
-        console.log("  SM ETH balance                 -> 0.05 ether                [OK]");
+        console.log("  SM ETH balance                 -> FUND 0.05 ETH SEPARATELY (step 0) [!]");
         console.log("  sm.usdc()                      -> resolveUsdc()              [OK]  Phase 6 USDC gate");
         console.log("  ce.usdc()                      -> resolveUsdc()              [OK]  Phase 6 USDC gate");
         console.log("  adapterMap[Event][TvlMilestone]      == DefiLlama(2)         [OK]");
@@ -796,6 +800,8 @@ contract DeployPhase6 is Script {
         console.log("  attestationSigner[CexScraper(6)]       != address(0)         [OK]");
         console.log("---");
         console.log("REQUIRED NEXT STEPS:");
+        console.log("0. FUND SM with 0.05 ETH for Pyth fees (NOT done in-script -- see step 6 note):");
+        console.log("   cast send", address(sm), "--value 0.05ether --private-key $DEPLOYER_PRIVATE_KEY --rpc-url arbitrum_sepolia");
         console.log("1. Update packages/shared/src/constants/addresses.ts:");
         console.log("   USDC_ARB_SEPOLIA = 0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d");
         console.log("   CALL_REGISTRY_ARBITRUM_SEPOLIA =", address(cr));
