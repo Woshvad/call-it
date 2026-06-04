@@ -17,10 +17,16 @@
  * IMPORTANT (D-11): '--signer-source env' is FORBIDDEN with '--network arbitrum-one'.
  * The deployer Ledger key must be used for all mainnet operations.
  *
- * Phase 6 usage:
- *   The same Ledger key (SAFE_SIGNER_1 = operator's Ledger address) becomes one
- *   of the 3 multisig signers. Run this script once with --network arbitrum-one
- *   --execute --signer-source ledger to deploy the production Safe.
+ * ⚠ NOT LIVE-TESTED: migrated to @safe-global/protocol-kit v7, but the deploy path has NOT
+ *   been exercised against a live network. ALWAYS dry-run on Sepolia first before any real
+ *   broadcast:  tsx scripts/deploy-safe.ts --network sepolia --dry-run --signer-source env
+ *   then --execute on Sepolia, and verify the resulting Safe before trusting it.
+ *
+ * Production Safe (Arbitrum One): per the 2026-06-04 roadmap change this is the FINAL
+ *   Phase 10 (no longer Phase 6). The Ledger/mainnet path here intentionally routes to the
+ *   Safe UI (https://app.safe.global) — the audited, hardware-native path for a one-time
+ *   mainnet multisig — rather than ship unverified Ledger tx-signing. The Sepolia rehearsal
+ *   (Phase 6) uses the --signer-source env path above.
  *
  * Env vars required:
  *   SAFE_SIGNER_1    Operator's Ledger Nano address (first signer + future owner key)
