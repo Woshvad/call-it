@@ -166,6 +166,43 @@ contract DeployPhase6 is Script {
     ///         0.05 ETH initial budget. OPS-15 covers top-up when < 0.01 ETH.
     uint256 public constant PYTH_ETH_BUDGET = 0.05 ether;
 
+    // ─── Asset allowlist constants (CALL-13) — Phase 6 wiring-gap FIX ─────────────
+    // DeployPhase6 originally deployed CallRegistry with an EMPTY asset allowlist (no
+    // addAsset calls) → every createCall reverted AssetNotAllowlisted. Re-populated
+    // from DeployPhase2 (verified Pyth feed IDs, CLAUDE.md catalogue). Feed IDs are
+    // chain-agnostic (same on Sepolia + mainnet).
+    bytes32 constant FEED_BTC    = 0xe62df6c8b4a85fe1a67db44dc12de5db330f7ac66b72dc658afedf0f4a415b43;
+    bytes32 constant FEED_ETH    = 0xff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace;
+    bytes32 constant FEED_SOL    = 0xef0d8b6fda2ceba41da15d4095d1da392a0d2f8ed0c6c7bc0f4cfac8c280b56d;
+    bytes32 constant FEED_ARB    = 0x3fa4252848f9f0a1480be62745a4629d9eb1322aebab8a791e344b3b9c1adcf5;
+    bytes32 constant FEED_OP     = 0x385f64d993f7b77d8182ed5003d97c60aa3361f3cecfe711544d2d59165e9bdf;
+    bytes32 constant FEED_POL    = 0xffd11c5a1cfd42f80afb2df4d9f264c15f956d68153335374ec10722edd70472;
+    bytes32 constant FEED_MNT    = 0x4e3037c822d852d79af3ac80e35eb420ee3b870dca49f9344a38ef4773fb0585;
+    bytes32 constant FEED_UNI    = 0x78d185a741d07edb3412b09008b7c5cfb9bbbd7d568bf00ba737b456ba171501;
+    bytes32 constant FEED_LINK   = 0x8ac0c70fff57e9aefdf5edf44b51d62c2d433653cbb2cf5cc06bb115af04d221;
+    bytes32 constant FEED_AAVE   = 0x2b9ab1e972a281585084148ba1389800799bd4be63b957507db1349314e47445;
+    bytes32 constant FEED_SKY    = 0xa483243eed64ca27a1f6e26385b7d1e0d07e9fe264bb6903efb3efc4689d3fe7;
+    bytes32 constant FEED_EIGEN  = 0xc65db025687356496e8653d0d6608eec64ce2d96e2e28c530e574f0e4f712380;
+    bytes32 constant FEED_ETHFI  = 0xb27578a9654246cb0a2950842b92330e9ace141c52b63829cc72d5c45a5a595a;
+    bytes32 constant FEED_EZETH  = 0x06c217a791f5c4f988b36629af4cb88fad827b2485400a358f3b02886b54de92;
+    bytes32 constant FEED_PEPE   = 0xd69731a2e74ac1ce884fc3890f7ee324b6deb66147055249568869ed700882e4;
+    bytes32 constant FEED_WIF    = 0x4ca4beeca86f0d164160323817a4e42b10010a724c2217c6ee41b54cd4cc61fc;
+    bytes32 constant FEED_BONK   = 0x72b021217ca3fe68922a19aaf990109cb9d84e9ad004b4d2025ad6f529314419;
+    bytes32 constant FEED_DOGE   = 0xdcef50dd0a4cd2dcc17e45df1676dcb336a11a61c69df7a0299b0150c672d25c;
+    bytes32 constant FEED_GMX    = 0xb962539d0fcb272a494d65ea56f94851c2bcf8823935da05bd628916e2e9edbf;
+    bytes32 constant FEED_PENDLE = 0x9a4df90b25497f66b1afb012467e316e801ca3d839456db028892fe8c70c8016;
+    bytes32 constant FEED_RDNT   = 0xc8cf45412be4268bef8f76a8b0d60971c6e57ab57919083b8e9f12ba72adeeb6;
+    bytes32 constant FEED_RENDER = 0x3d4a2bd9535be6ce8059d75eadeba507b043257321aa544717c56fa19b49e35d;
+    bytes32 constant FEED_FET    = 0x7da003ada32eabbac855af3d22fcf0fe692cc589f0cfd5ced63cf0bdcc742efe;
+    bytes32 constant FEED_ONDO   = 0xd40472610abe56d36d065a0cf889fc8f1dd9f3b7f2a478231a5fc6df07ea5ce3;
+
+    address constant NFT_CRYPTOPUNKS     = 0xb47e3cd837dDF8e4c57F05d70Ab865de6e193BBB;
+    address constant NFT_BAYC            = 0xBC4CA0EdA7647A8aB7C2061c2E118A18a936f13D;
+    address constant NFT_PUDGY_PENGUINS  = 0xBd3531dA5CF5857e7CfAA92426877b022e612cf8;
+    address constant NFT_MILADY          = 0x5Af0D9827E0c53E4799BB226655A1de152A425a5;
+    address constant NFT_AZUKI           = 0xED5AF388653567Af2F388E6224dC7C4b3241C544;
+    address constant NFT_DEGODS          = 0x8821BeE2ba0dF28761AffF119D66390D594CD280;
+
     function run() external {
         // Load deployer key from environment.
         // For Sepolia: set DEPLOYER_PRIVATE_KEY to a funded Sepolia test key.
@@ -282,6 +319,13 @@ contract DeployPhase6 is Script {
         // Per spec §12.5 + Phase-2 D-04.
         IProfileRegistry(PROFILE_REGISTRY).setAuthorizedRepWriter(address(sm), true);
         console.log("ProfileRegistry.setAuthorizedRepWriter(SM, true) -> authorized");
+
+        // 4b. Authorize the new FollowFadeMarket as rep writer (Phase 6 wiring-gap FIX).
+        // FFM.initPool calls profileRegistry.applyRepDelta on every createCall; without
+        // this, createCall reverts NotAuthorizedWriter. DeployPhase6 originally authorized
+        // only the SM (above), never the freshly-redeployed FFM.
+        IProfileRegistry(PROFILE_REGISTRY).setAuthorizedRepWriter(address(ffm), true);
+        console.log("ProfileRegistry.setAuthorizedRepWriter(FFM, true) -> authorized");
 
         // ─── 5. Wire StylusScoreEngine proxy into new SM ───────────────────────
         // Phase 5 deployed the Stylus engine at STYLUS_SCORE_ENGINE_PROXY.
@@ -408,6 +452,41 @@ contract DeployPhase6 is Script {
         );
         console.log("setAttestationSigner: CexScraper(6) ->", kmsCex);
 
+        // ─── 9. Re-populate asset allowlist (CALL-13) — Phase 6 wiring-gap FIX ──
+        // Without these, the freshly-deployed CallRegistry rejects EVERY createCall
+        // (AssetNotAllowlisted). Mirrors DeployPhase2 step 7a/7b: 24 coins + 6 NFTs.
+        cr.addAsset("BTC",    FEED_BTC);
+        cr.addAsset("ETH",    FEED_ETH);
+        cr.addAsset("SOL",    FEED_SOL);
+        cr.addAsset("ARB",    FEED_ARB);
+        cr.addAsset("OP",     FEED_OP);
+        cr.addAsset("POL",    FEED_POL);
+        cr.addAsset("MNT",    FEED_MNT);
+        cr.addAsset("UNI",    FEED_UNI);
+        cr.addAsset("LINK",   FEED_LINK);
+        cr.addAsset("AAVE",   FEED_AAVE);
+        cr.addAsset("SKY",    FEED_SKY);
+        cr.addAsset("EIGEN",  FEED_EIGEN);
+        cr.addAsset("ETHFI",  FEED_ETHFI);
+        cr.addAsset("EZETH",  FEED_EZETH);
+        cr.addAsset("PEPE",   FEED_PEPE);
+        cr.addAsset("WIF",    FEED_WIF);
+        cr.addAsset("BONK",   FEED_BONK);
+        cr.addAsset("DOGE",   FEED_DOGE);
+        cr.addAsset("GMX",    FEED_GMX);
+        cr.addAsset("PENDLE", FEED_PENDLE);
+        cr.addAsset("RDNT",   FEED_RDNT);
+        cr.addAsset("RENDER", FEED_RENDER);
+        cr.addAsset("FET",    FEED_FET);
+        cr.addAsset("ONDO",   FEED_ONDO);
+        cr.addNFTCollection(NFT_CRYPTOPUNKS,    "PUNK");
+        cr.addNFTCollection(NFT_BAYC,           "BAYC");
+        cr.addNFTCollection(NFT_PUDGY_PENGUINS, "PENGU");
+        cr.addNFTCollection(NFT_MILADY,         "MILADY");
+        cr.addNFTCollection(NFT_AZUKI,          "AZUKI");
+        cr.addNFTCollection(NFT_DEGODS,         "DEGODS");
+        console.log("addAsset: 24 coins + 6 NFT collections allowlisted");
+
         vm.stopBroadcast();
 
         // ─── Post-deploy assertions ──────────────────────────────────────────────
@@ -448,6 +527,20 @@ contract DeployPhase6 is Script {
         require(
             cr.followFadeMarket() == address(ffm),
             "DeployPhase6: cr.followFadeMarket() != new FFM"
+        );
+
+        // --- Wiring-gap FIX assertions (Phase 6): rep-writers + asset allowlist ---
+        require(
+            ProfileRegistry(PROFILE_REGISTRY).authorizedRepWriters(address(ffm)),
+            "DeployPhase6: FFM not authorized as rep writer"
+        );
+        require(
+            ProfileRegistry(PROFILE_REGISTRY).authorizedRepWriters(address(sm)),
+            "DeployPhase6: SM not authorized as rep writer"
+        );
+        require(
+            cr.allowlistedFeedKeys(FEED_ETH) && cr.allowlistedFeedKeys(FEED_BTC),
+            "DeployPhase6: asset allowlist not populated"
         );
 
         require(
