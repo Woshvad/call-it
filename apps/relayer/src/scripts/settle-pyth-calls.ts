@@ -122,6 +122,11 @@ async function main(): Promise<void> {
   console.log(`  callIds: [${callIds.join(', ')}]`);
   console.log('');
 
+  const forceGas = process.env.SETTLE_FORCE_GAS ? BigInt(process.env.SETTLE_FORCE_GAS) : undefined;
+  if (forceGas) {
+    console.log(`  FORCE mode: manual gas=${forceGas} — tx will MINE even if it reverts (for cast run tracing)`);
+  }
+
   let settled = 0;
   let delayed = 0;
   let failed = 0;
@@ -136,10 +141,11 @@ async function main(): Promise<void> {
         args: [BigInt(callId), [vaa], []],
         account,
         chain: arbitrumSepolia,
+        ...(forceGas ? { gas: forceGas } : {}),
       });
       const receipt = await publicClient.waitForTransactionReceipt({ hash });
 
-      let summary = 'tx mined (no CallSettled/SettlementDelayed decoded)';
+      let summary = `tx status=${receipt.status} (no CallSettled/SettlementDelayed decoded)`;
       for (const log of receipt.logs) {
         try {
           const d = decodeEventLog({ abi: SM_ABI, data: log.data, topics: log.topics });
