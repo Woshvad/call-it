@@ -11,7 +11,7 @@
  * Security (T-00-12): Redis operations use atomic INCRBY for counter integrity.
  */
 
-import { Redis, type RedisOptions } from 'ioredis';
+import { Redis } from 'ioredis';
 import { getLogger } from './logger.js';
 
 let _redis: Redis | undefined;
@@ -30,35 +30,23 @@ export function getRedis(): Redis {
   const url = process.env.UPSTASH_REDIS_REST_URL ?? 'redis://localhost:6379';
   const token = process.env.UPSTASH_REDIS_REST_TOKEN;
 
-  const options: RedisOptions = {
+  // Upstash exposes a standard Redis URL; the token is the password
+  // Parse URL and inject token as password if provided separately
+  let redisUrl = url;
+  if (token && !url.includes('@')) {
+    // Insert token into URL: rediss://:<token>@<host>:<port>
+    const parsed = new URL(url);
+    parsed.password = token;
+    redisUrl = parsed.toString();
+  }
+
+  _redis = new Redis(redisUrl, {
     maxRetriesPerRequest: 3,
     enableReadyCheck: true,
     lazyConnect: false,
     // Disable offline queue for tests to fail fast
     enableOfflineQueue: process.env.NODE_ENV !== 'test',
-  };
-
-  // Upstash exposes a standard Redis URL; the token is the AUTH password.
-  // Pass it as a discrete option rather than baking it into the URL string:
-  //   1. Security — a token embedded in the connection string can leak into ioredis
-  //      error/debug output that echoes the URL; an options.password never appears there.
-  //   2. Correctness — detect already-embedded credentials via the PARSED userinfo, not a
-  //      `url.includes('@')` substring check that misfires when an '@' appears elsewhere
-  //      (query string, host) or the URL carries a username but no password.
-  // URL-embedded credentials, when present, take precedence (we don't override them).
-  let hasEmbeddedCreds = false;
-  try {
-    const parsed = new URL(url);
-    hasEmbeddedCreds = parsed.username !== '' || parsed.password !== '';
-  } catch {
-    // Non-URL connection string (e.g. bare host:port) — treat as no embedded creds.
-    hasEmbeddedCreds = false;
-  }
-  if (token && !hasEmbeddedCreds) {
-    options.password = token;
-  }
-
-  _redis = new Redis(url, options);
+  });
 
   _redis.on('error', (err: Error) => {
     getLogger().warn({ event: 'redis_error', err: err.message }, 'Redis connection error');
