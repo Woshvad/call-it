@@ -4,11 +4,11 @@
   "private": true,
   "description": "Call It relayer — Fastify backend on Fly.io (BullMQ + Pino + viem + GCP KMS)",
   "type": "module",
-  "main": "dist/index.js",
+  "main": "dist/src/index.js",
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "build": "tsc --build",
-    "start": "node dist/index.js",
+    "start": "node dist/src/index.js",
     "test": "vitest run",
     "lint": "echo 'No lint configured for relayer yet'",
     "db:generate": "drizzle-kit generate",

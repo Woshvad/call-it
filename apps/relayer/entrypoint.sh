@@ -22,4 +22,6 @@ if [ -n "$GCP_SA_KEY_B64" ]; then
   export GOOGLE_APPLICATION_CREDENTIALS=/tmp/gcp-sa-key.json
 fi
 
-exec node apps/relayer/dist/index.js
+# tsconfig rootDir is "." (src/ + lib/ both compiled), so the entry lands at
+# dist/src/index.js — NOT dist/index.js.
+exec node apps/relayer/dist/src/index.js
