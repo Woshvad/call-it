@@ -140,6 +140,7 @@ All 3 operator actions were run this session (user explicitly authorized "run al
 ### Roadmap Evolution
 
 - Phase 05.1 inserted after Phase 5: Non-Pyth Oracle Rail Activation (Bucket B — non-Pyth functional rail + dual-governance schema change) (URGENT)
+- 2026-06-04: ROADMAP.md restored (it had been accidentally truncated to 0 bytes at commit 4fdaaf2 during Phase 6 planning; recovered from 9091887). **Mainnet multisig promotion MOVED out of Phase 6 → new final Phase 10** (Mainnet multisig promotion / ownership lockdown), per operator decision. Phase 6 is now Sepolia-rehearsal-only; Phase 7.5 launches mainnet under the deployer key, so a single-owner-key window (Risk #2) is live on mainnet from launch until Phase 10. Phase count 9 → 10.
 
 ### Decisions
 
