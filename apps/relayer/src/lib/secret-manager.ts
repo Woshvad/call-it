@@ -46,13 +46,25 @@ async function getSecret(
     const payload = version.payload?.data;
     if (!payload) return undefined;
     return typeof payload === 'string' ? payload : Buffer.from(payload).toString('utf8');
-  } catch (_err) {
+  } catch (err) {
     if (!isProduction) {
       // In dev, silently fall through to undefined — caller handles missing
       return process.env[name];
     }
-    // In production, re-throw so boot fails fast on missing required secrets
-    throw new Error(`Failed to fetch secret '${name}' from GCP Secret Manager`);
+    // A genuinely-absent secret (gRPC NOT_FOUND, code 5) is NOT fatal here:
+    // optional secrets (fetchSecret) tolerate undefined, and requireSecret still
+    // throws on undefined for the ones that are mandatory. Only a real GCP failure
+    // (permission, auth, network) should hard-fail boot — otherwise a single missing
+    // optional value (e.g. NEXT_PUBLIC_SUBGRAPH_URL, which falls back to a constant)
+    // would crash-loop the whole relayer.
+    const code = (err as { code?: number } | null | undefined)?.code;
+    const msg = err instanceof Error ? err.message : String(err);
+    if (code === 5 || /NOT_FOUND/i.test(msg)) {
+      return undefined;
+    }
+    throw new Error(
+      `Failed to fetch secret '${name}' from GCP Secret Manager: ${msg}`,
+    );
   }
 }
 
