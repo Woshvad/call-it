@@ -45,7 +45,15 @@ async function getSecret(
     const [version] = await client.accessSecretVersion({ name: secretName });
     const payload = version.payload?.data;
     if (!payload) return undefined;
-    return typeof payload === 'string' ? payload : Buffer.from(payload).toString('utf8');
+    const value = typeof payload === 'string' ? payload : Buffer.from(payload).toString('utf8');
+    // Mirror GCP-fetched secrets into process.env so modules that read process.env
+    // directly (getDb -> POSTGRES_URL, alerts -> TELEGRAM_*, etc.) work under the
+    // GCP-Secret-Manager deploy path, not only the Fly-env-injection path. Never
+    // clobber an explicit Fly env override that was set ahead of boot.
+    if (process.env[name] === undefined || process.env[name] === '') {
+      process.env[name] = value;
+    }
+    return value;
   } catch (err) {
     if (!isProduction) {
       // In dev, silently fall through to undefined — caller handles missing
