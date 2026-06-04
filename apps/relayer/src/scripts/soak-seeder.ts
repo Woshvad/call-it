@@ -50,8 +50,9 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 function loadEnvIfNeeded(): void {
   if (!process.env.ARBITRUM_SEPOLIA_RPC_URL) {
     const envCandidates = [
-      resolve(__dirname, '../../../.env.local'),
-      resolve(__dirname, '../../../../.env'),
+      resolve(__dirname, '../../.env.local'), // apps/relayer/.env.local (correct for this script)
+      resolve(__dirname, '../../../.env.local'), // apps/.env.local (legacy)
+      resolve(__dirname, '../../../../.env'), // repo-root/.env
     ];
     for (const envPath of envCandidates) {
       if (existsSync(envPath)) {
