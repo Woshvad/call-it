@@ -38,6 +38,15 @@ apps/relayer/dist
 packages/shared/dist
 packages/config/dist
 
+# TypeScript incremental build cache — MUST be excluded. `tsc --build` skips
+# emitting dist/ when it finds an up-to-date *.tsbuildinfo. shared's buildinfo lands
+# at the package ROOT (packages/shared/tsconfig.tsbuildinfo), NOT under dist/, so the
+# dist rules above don't catch it. Docker COPY honors .dockerignore (not .gitignore),
+# so a stale copy was carried into the image and made the container skip emitting
+# packages/shared/dist — breaking @call-it/shared type resolution in the relayer build.
+*.tsbuildinfo
+**/*.tsbuildinfo
+
 # Unrelated monorepo packages (not needed by the relayer image)
 apps/web
 packages/contracts
