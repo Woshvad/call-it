@@ -50,6 +50,7 @@ export type AlertEvent =
   | 'rep_fallback'         // OPS-12 — rep engine fell back to Solidity baseline
   | 'settle_failed'        // OPS-07 — settlement failed after 30 Pyth retries
   | 'stylus_reactivation'  // D-13   — Stylus WASM being reactivated (belt-and-suspenders)
+  | 'stylus_demo_cutoff'   // P0 — T-72h/48h/24h Stylus go/no-go decision alert (T-05-05-02)
   | 'paymaster_80'         // OPS-10 — daily cap 80% threshold crossed
   | 'tvl_approach'         // OPS-11 — TVL approaching $5K initial cap
   | 'settle_stuck_25m'     // OPS-14 — settlement stuck >25 minutes
@@ -71,6 +72,7 @@ export const P0_EVENTS: ReadonlySet<AlertEvent> = new Set<AlertEvent>([
   'settle_failed',
   'stylus_reactivation',
   'address_book_cooldown_bypass_attempt',  // P0: security-relevant bypass attempt
+  'stylus_demo_cutoff',                    // P0: Stylus demo go/no-go decision required
 ]);
 
 // Lazy bot singleton — initialized on first sendAlert call
