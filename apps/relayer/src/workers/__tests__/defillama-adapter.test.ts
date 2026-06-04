@@ -49,101 +49,20 @@ describe('DefiLlamaAdapter', () => {
     vi.clearAllMocks();
   });
 
-  /**
-   * testAttestation (Pitfall 7):
-   * EIP-712 domain must have:
-   *   name = "CallIt-DefiLlama"
-   *   chainId = 42161n (Arbitrum One)
-   *   verifyingContract = SETTLEMENT_MANAGER_ADDRESS
-   *
-   * This test is the spec-of-record for the EIP-712 domain parameters.
-   * A different chainId (e.g., 1) would allow cross-chain replay attacks.
-   */
-  // SKIP (stale test, not a product bug): Phase 05.1 (3bcfbeb/ee75bee) rewired the adapter to
-  // signOracleAttestation + a criteria store; this 04-01 RED-gate scaffold predates that, so
-  // fetchAndAttest now returns { ambiguous } (criteria not seeded here) BEFORE it signs. Re-seed
-  // the criteria store in this test, then unskip. Tracked as pre-existing test drift.
-  it.skip('EIP-712 domain uses name="CallIt-DefiLlama", chainId=42161n, verifyingContract (Pitfall 7)', async () => {
-    // Mock DefiLlama API response
-    (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
-      ok: true,
-      json: async () => ({
-        tvl: [{ date: Math.floor(Date.now() / 1000), totalLiquidityUSD: 1_000_000 }],
-      }),
-    });
-
-    const { gcpKmsAccount } = await import('../../../lib/kms-signer.js');
-
-    await adapter.fetchAndAttest({
-      callId: BigInt(1),
-      metric: 'tvl',
-      protocolSlug: 'uniswap',
-    });
-
-    // Verify signTypedData was called with the correct EIP-712 domain
-    const mockAccount = (gcpKmsAccount as ReturnType<typeof vi.fn>)();
-    const signTypedDataCall = (mockAccount.signTypedData as ReturnType<typeof vi.fn>).mock.calls[0];
-
-    expect(signTypedDataCall).toBeDefined();
-    const { domain } = signTypedDataCall[0];
-
-    // Pitfall 7: chainId MUST be 42161n (Arbitrum One) for cross-chain replay prevention
-    expect(domain.chainId).toBe(42161n);
-
-    // Cross-adapter replay prevention: per-adapter domain name
-    expect(domain.name).toBe('CallIt-DefiLlama');
-
-    // Binds attestation to the specific SettlementManager deployment
-    expect(domain.verifyingContract).toBe(MOCK_SETTLEMENT_MANAGER);
-  });
-
-  /**
-   * testChainIdBinding (Pitfall 7):
-   * An attestation signed for chainId=1 (Ethereum mainnet) must fail
-   * ecrecover verification when submitted to the Arbitrum One contract.
-   *
-   * This test documents the expected behavior — the adapter must include
-   * the correct chainId so the on-chain ECDSA.recover() rejects wrong-chain sigs.
-   */
-  // SKIP: same Phase-05.1 adapter-rewire drift as above (returns { ambiguous } before signing).
-  it.skip('attestation signed with wrong chainId (1) fails ecrecover check', async () => {
-    // Create a tampered attestation with wrong chainId
-    const tamperedDomain = {
-      name: 'CallIt-DefiLlama',
-      version: '1',
-      chainId: 1n, // WRONG: Ethereum mainnet, not Arbitrum One
-      verifyingContract: MOCK_SETTLEMENT_MANAGER,
-    };
-
-    // The adapter should validate chainId before signing
-    // A wrong-chainId attestation submitted on-chain would fail ecrecover
-    // This test verifies the adapter's domain is hardcoded to 42161n
-    const { gcpKmsAccount } = await import('../../../lib/kms-signer.js');
-
-    (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
-      ok: true,
-      json: async () => ({
-        tvl: [{ date: Math.floor(Date.now() / 1000), totalLiquidityUSD: 500_000 }],
-      }),
-    });
-
-    await adapter.fetchAndAttest({
-      callId: BigInt(2),
-      metric: 'tvl',
-      protocolSlug: 'aave',
-    });
-
-    const mockAccount = (gcpKmsAccount as ReturnType<typeof vi.fn>)();
-    const signTypedDataCall = (mockAccount.signTypedData as ReturnType<typeof vi.fn>).mock.calls[0];
-    const { domain } = signTypedDataCall[0];
-
-    // Adapter MUST use 42161n — NOT chainId=1
-    expect(domain.chainId).not.toBe(1n);
-    expect(domain.chainId).toBe(42161n);
-
-    // Verify the tampered domain is different (documents the attack scenario)
-    expect(tamperedDomain.chainId).not.toBe(domain.chainId);
-  });
+  // ── EIP-712 domain-binding coverage relocated (Phase 05.1) ───────────────────
+  // Two tests previously lived here asserting the LEGACY per-adapter EIP-712 domain
+  // (name="CallIt-DefiLlama", hardcoded chainId 42161n). Phase 05.1 (3bcfbeb/ee75bee)
+  // unified every oracle adapter onto signOracleAttestation — domain name="CallIt-Oracle"
+  // and chainId sourced from process.env.CHAIN_ID (421614 Sepolia / 42161 mainnet), never
+  // hardcoded. The cross-chain-replay / cross-adapter-replay / verifyingContract-binding
+  // guarantees those tests existed to protect now live canonically — and against the CURRENT
+  // design, including a real ECDSA.recover round-trip — in
+  //   src/workers/__tests__/oracle-attestation.test.ts:
+  //     · "carries the REAL deployment chainId, never a hardcoded 42161"  → cross-chain replay
+  //     · domain.name === "CallIt-Oracle" + verifyingContract === SM      → cross-adapter replay
+  //     · "a real viem signature ... recovers to the signer address"      → on-chain ECDSA.recover
+  // The legacy assertions were DELETED (not unskipped) because they pinned a domain shape that
+  // no longer exists and would now assert wrong values.
 
   /**
    * testFetchTvl:
