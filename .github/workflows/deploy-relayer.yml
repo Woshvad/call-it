@@ -24,7 +24,7 @@
 # Per D-03: min_machines_running=1 ensures rolling-deploy keeps one healthy instance alive.
 #
 # Network routing:
-#   Branch: sepolia → GCP project: call-it-sepolia-602217 → Fly app: call-it-relayer-sepolia
+#   Branch: sepolia → GCP project: call-it-sepolia → Fly app: call-it-relayer-sepolia
 #   Branch: main    → GCP project: call-it-mainnet (PLACEHOLDER — create real project in
 #                     Phase 6 and replace the literal in the select-network step below;
 #                     'call-it-mainnet' may be globally taken, like 'call-it-sepolia' was)
@@ -78,8 +78,10 @@ jobs:
             echo "NETWORK=mainnet" >> "$GITHUB_ENV"
             echo "BUILD_ARG_NETWORK=arbitrum-one" >> "$GITHUB_ENV"
           else
-            # Real sepolia project ID — the plain 'call-it-sepolia' was globally taken.
-            echo "GCP_PROJECT_ID=call-it-sepolia-602217" >> "$GITHUB_ENV"
+            # KMS keys + Secret Manager both live in project 'call-it-sepolia'
+            # (consolidated 2026-06-04 — the '-602217' suffix was a workaround for a
+            # naming conflict that never existed; the plain name is owned by this account).
+            echo "GCP_PROJECT_ID=call-it-sepolia" >> "$GITHUB_ENV"
             echo "GCP_SERVICE_ACCOUNT=${{ secrets.GCP_SERVICE_ACCOUNT_SEPOLIA }}" >> "$GITHUB_ENV"
             echo "FLY_APP_NAME=call-it-relayer-sepolia" >> "$GITHUB_ENV"
             echo "NETWORK=sepolia" >> "$GITHUB_ENV"
