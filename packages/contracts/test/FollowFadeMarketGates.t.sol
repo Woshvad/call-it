@@ -72,6 +72,16 @@ contract FollowFadeMarketGates is FfmTestHelper, StdInvariant {
     function invariant_kNeverShrinks() public view {
         for (uint256 i = 0; i < callIds.length; i++) {
             uint256 cid = callIds[i];
+            // The "k never shrinks" property only holds during a pool's ACTIVE life.
+            // applySettlement() pays out the pot and zeroes the reserves (FollowFadeMarket.sol
+            // L540-541, and the normal branch drains them to fund winner payouts), so once a
+            // pool is settled k → 0 is the CORRECT terminal state — not a violation. The
+            // invariant fuzzer reaches that state via setSettlementManager()+applySettlement()
+            // (admin path, not a user op), which previously tripped this assertion
+            // nondeterministically ("k decreased: 0 < <initial k>"). Skip settled pools so a
+            // legitimate terminal drain isn't flagged; a mid-life k-shrink on an ACTIVE pool
+            // (the real bug class — penalty not injected, cross-call interference) is still caught.
+            if (ffm.settlementApplied(cid)) continue;
             uint256 follow = ffm.followReserve(cid);
             uint256 fade   = ffm.fadeReserve(cid);
             // k can only stay equal or grow (penalty injection and new deposits grow it)
