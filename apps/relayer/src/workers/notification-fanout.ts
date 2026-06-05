@@ -47,9 +47,6 @@ import { sendAlertSafe } from './alerts.js';
 import { PROFILE_REGISTRY_ARBITRUM_SEPOLIA } from '@call-it/shared';
 import type * as schema from '../db/schema.js';
 
-// Max block span scanned per tick (WR-05) — most RPC providers reject very large
-// getLogs ranges. Caps catch-up so a missed/late init can never request block 1→head.
-const MAX_BLOCK_RANGE_PER_TICK = 10_000n;
 const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000';
 
 // ── ProfileRegistry.displayHandle slice (WR-06) ────────────────────────────────
@@ -481,6 +478,25 @@ async function processChallengeNotifications(config: NotificationFanoutConfig): 
 export function startNotificationFanout(config: NotificationFanoutConfig): NotificationFanoutHandle {
   const { publicClient, ffmAddress, intervalMs = 30_000 } = config;
 
+  // Free-tier-safe chunking tunables (WR-05 — Alchemy free tier caps eth_getLogs
+  // at 10 blocks per request on Arbitrum; 9n gives an unambiguous safety margin).
+  // Raise NOTIFICATION_FANOUT_BLOCK_SPAN and NOTIFICATION_FANOUT_MAX_WINDOWS_PER_TICK
+  // when the relayer is upgraded to a paid Alchemy plan.
+  const blockSpan: bigint = (() => {
+    const raw = process.env['NOTIFICATION_FANOUT_BLOCK_SPAN'];
+    if (!raw) return 9n;
+    const n = Number(raw);
+    if (!Number.isFinite(n) || n <= 0) return 9n;
+    return BigInt(Math.floor(n));
+  })();
+  const maxWindowsPerTick: number = (() => {
+    const raw = process.env['NOTIFICATION_FANOUT_MAX_WINDOWS_PER_TICK'];
+    if (!raw) return 50;
+    const n = Number(raw);
+    if (!Number.isFinite(n) || n <= 0) return 50;
+    return Math.floor(n);
+  })();
+
   let lastBlockSeen: bigint = 0n;
   // WR-05: tracks whether lastBlockSeen has been seeded from a real head. If init
   // fails we must NOT default to scanning from block 1 (a multi-million-block
@@ -544,53 +560,73 @@ export function startNotificationFanout(config: NotificationFanoutConfig): Notif
       'Notification fan-out tick',
     );
 
+    // WR-05: read current head once per tick. On failure, skip the tick entirely
+    // (same semantics as today's catch-of-get_logs — do not advance lastBlockSeen).
+    let head: bigint;
     try {
-      const fromBlock = lastBlockSeen + 1n;
-
-      // WR-05: cap the scan window so a long catch-up never requests an oversized
-      // range the RPC provider rejects. Subsequent ticks advance through the gap.
-      let toBlock: bigint | 'latest' = 'latest';
-      let cappedToBlock: bigint | null = null;
-      try {
-        const head = await publicClient.getBlockNumber();
-        if (head - fromBlock > MAX_BLOCK_RANGE_PER_TICK) {
-          cappedToBlock = fromBlock + MAX_BLOCK_RANGE_PER_TICK;
-          toBlock = cappedToBlock;
+      head = await publicClient.getBlockNumber();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      logger.error(
+        { event: 'notification_fanout_error', error: message, phase: 'get_head' },
+        'getBlockNumber failed — skipping tick',
+      );
+      errors++;
+      // Skip to challenge notifications — they are subgraph/time-windowed and
+      // independent of block range.
+      if (config.subgraphUrl) {
+        try {
+          await processChallengeNotifications(config);
+        } catch (err2) {
+          const msg2 = err2 instanceof Error ? err2.message : String(err2);
+          logger.warn(
+            { event: 'notification_fanout_error', error: msg2, phase: 'challenge_notifications' },
+            'Challenge notification processing failed — will retry next tick',
+          );
         }
-      } catch {
-        // If head is unavailable, fall back to 'latest' (single recent tick).
+      }
+      return;
+    }
+
+    // Chunk getLogs into <=blockSpan windows so no single call exceeds the
+    // Alchemy free-tier 10-block limit. maxWindowsPerTick bounds per-tick work
+    // and rate-limit exposure; a backlog drains across successive ticks.
+    let windows = 0;
+    while (lastBlockSeen < head && windows < maxWindowsPerTick && !stopped) {
+      const from = lastBlockSeen + 1n;
+      const to = from + blockSpan - 1n > head ? head : from + blockSpan - 1n;
+
+      let logs: Awaited<ReturnType<typeof publicClient.getLogs>>;
+      try {
+        logs = await publicClient.getLogs({
+          address: ffmAddress,
+          event: CALLER_EXITED_EVENT,
+          fromBlock: from,
+          toBlock: to,
+        });
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        logger.error(
+          {
+            event: 'notification_fanout_error',
+            error: message,
+            lastBlockSeen: lastBlockSeen.toString(),
+            phase: 'get_logs',
+          },
+          'getLogs failed — will retry next tick',
+        );
+        errors++;
+        break; // Do NOT advance lastBlockSeen — retry same window next tick
       }
 
-      const logs = await publicClient.getLogs({
-        address: ffmAddress,
-        event: CALLER_EXITED_EVENT,
-        fromBlock,
-        toBlock,
-      });
-
-      // Advance lastBlockSeen. When the range was capped, advance only to the cap
-      // so the next tick continues from there; otherwise advance to current head.
-      try {
-        if (cappedToBlock !== null) {
-          lastBlockSeen = cappedToBlock;
-        } else {
-          const currentBlock = await publicClient.getBlockNumber();
-          if (currentBlock > lastBlockSeen) {
-            lastBlockSeen = currentBlock;
-          }
-        }
-      } catch {
-        // Non-fatal — advance will happen on next tick
-      }
-
-      // Process each CallerExited event
+      // Process each CallerExited event in this window
       for (const log of logs) {
         if (stopped) break;
         try {
           await processCallerExitedEvent(log, config);
           totalEventsProcessed++;
 
-          // Track highest block seen
+          // Track highest block seen within the window
           if (log.blockNumber !== null && log.blockNumber !== undefined) {
             if (log.blockNumber > lastBlockSeen) {
               lastBlockSeen = log.blockNumber;
@@ -607,34 +643,37 @@ export function startNotificationFanout(config: NotificationFanoutConfig): Notif
         }
       }
 
-      // ── Phase 3: Challenge event notifications ────────────────────────────
-      // Query subgraph for new challenges proposed/accepted/rejected since last tick.
-      // Skipped if subgraphUrl is empty (dev without subgraph); errors are non-fatal.
-      if (config.subgraphUrl) {
-        try {
-          await processChallengeNotifications(config);
-        } catch (err) {
-          const message = err instanceof Error ? err.message : String(err);
-          logger.warn(
-            { event: 'notification_fanout_error', error: message, phase: 'challenge_notifications' },
-            'Challenge notification processing failed — will retry next tick',
-          );
-          // Non-fatal — do NOT increment errors that block the worker
-        }
-      }
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      logger.error(
+      lastBlockSeen = to;
+      windows++;
+    }
+
+    // If the loop stopped because the window cap was hit while there is still
+    // a gap, log an info event so backlog drain is visible but not alarming.
+    if (lastBlockSeen < head && windows >= maxWindowsPerTick) {
+      logger.info(
         {
-          event: 'notification_fanout_error',
-          error: message,
-          lastBlockSeen: lastBlockSeen.toString(),
-          phase: 'get_logs',
+          event: 'notification_fanout_catching_up',
+          remaining: (head - lastBlockSeen).toString(),
+          windowsThisTick: windows,
         },
-        'getLogs failed — will retry next tick',
+        'Window cap reached — backlog will drain across future ticks',
       );
-      errors++;
-      // Do NOT throw — the interval must keep running through transient RPC errors
+    }
+
+    // ── Phase 3: Challenge event notifications ────────────────────────────
+    // Query subgraph for new challenges proposed/accepted/rejected since last tick.
+    // Skipped if subgraphUrl is empty (dev without subgraph); errors are non-fatal.
+    if (config.subgraphUrl) {
+      try {
+        await processChallengeNotifications(config);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        logger.warn(
+          { event: 'notification_fanout_error', error: message, phase: 'challenge_notifications' },
+          'Challenge notification processing failed — will retry next tick',
+        );
+        // Non-fatal — do NOT increment errors that block the worker
+      }
     }
   }
 
