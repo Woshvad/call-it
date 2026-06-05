@@ -4,8 +4,8 @@ milestone: v1.1
 milestone_name: milestone
 status: executing
 stopped_at: Phase 6 CI-safe code built; 3 live operator gates + deploy-safe.ts migration pending
-last_updated: "2026-06-04T00:00:00.000Z"
-last_activity: 2026-06-04 -- Phase 6 CI-safe code complete; live-ops deferred to operator runbook
+last_updated: "2026-06-05T00:00:00.000Z"
+last_activity: 2026-06-05 -- Quick task 260605-a4i: notification-fanout eth_getLogs free-tier chunking fix (relayer redeploy pending)
 progress:
   total_phases: 9
   completed_phases: 7
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-05-21)
 ## Current Position
 
 Phase: 06 (safety-review-sepolia-48h-multisig-promotion) — CI-SAFE CODE COMPLETE; LIVE-OPS PENDING
-Last activity: 2026-06-04 — Completed quick task 260604-jt2 (Gate-2 soak scaffolding) + Telegram alert path now LIVE (@calllitbot, secrets v2, relayer restarted)
+Last activity: 2026-06-05 — Completed quick task 260605-a4i (notification-fanout eth_getLogs free-tier 10-block chunking fix; relayer redeploy pending). Prior: 260604-jt2 soak scaffolding + Telegram alerts LIVE (@calllitbot, secrets v2)
 
 **CI-safe code built this session (on master):**
 - 06-01 ✅ COMPLETE — resolveUsdc() gate + CI allowlist + **critical security fix**: routed ALL USDC transfers in CR/FFM/CE/SM through a chainid-resolved `usdc` immutable (the constructor validated `_usdc` but transfers hardcoded mainnet USDC → would revert every Sepolia money flow). 421614 routing regression test added. Security review PASSED. (11d16d2, c25c175)
@@ -386,6 +386,7 @@ None yet.
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
 | 260604-jt2 | Prep Phase 6 Gate-2 soak scaffolding (ritual checker, wallet-gen, evidence-log skeleton) | 2026-06-04 | ec106ba | [260604-jt2-prep-phase-6-gate-2-soak-scaffolding-rit](./quick/260604-jt2-prep-phase-6-gate-2-soak-scaffolding-rit/) |
+| 260605-a4i | Fix notification-fanout eth_getLogs free-tier 10-block chunking | 2026-06-05 | 79ca33c | [260605-a4i-fix-notification-fanout-eth-getlogs-free](./quick/260605-a4i-fix-notification-fanout-eth-getlogs-free/) |
 
 ## Deferred Items
 
