@@ -160,6 +160,7 @@ const CE_ABI = parseAbi([
   'function proposeChallenge(uint256 callId, uint96 stake) returns (uint256 challengeId)',
   'function acceptChallenge(uint256 challengeId)',
   'function claimDuelPayout(uint256 challengeId)',
+  'event ChallengeProposed(uint256 indexed challengeId, uint256 indexed callId, address indexed challenger, uint96 stake)',
 ]);
 
 const SM_ABI = parseAbi([
@@ -624,8 +625,21 @@ async function phaseE_challengeCycle(
     });
     const { blockNumber } = await waitForReceipt(publicClient, txHash);
 
-    // Read challengeId from logs — assume it's callIds.length + 1 as fallback
-    challengeId = callId + 100; // approximate — operator checks Arbiscan for real ID
+    // Read the REAL challengeId from the ChallengeProposed event. (Previously this assumed
+    // challengeId = callId + 100, which is wrong on a fresh ChallengeEscrow — the stale ID
+    // made acceptChallenge revert NotAuthorized, breaking the SAFETY-26 duel cycle.)
+    const propReceipt = await publicClient.getTransactionReceipt({ hash: txHash });
+    for (const log of propReceipt.logs) {
+      try {
+        const decoded = decodeEventLog({ abi: CE_ABI, data: log.data, topics: log.topics });
+        if (decoded.eventName === 'ChallengeProposed') {
+          challengeId = Number((decoded.args as { challengeId: bigint }).challengeId);
+          break;
+        }
+      } catch {
+        // not a ChallengeEscrow event — skip
+      }
+    }
 
     appendEvidenceLog({
       action: 'challengeProposed',
@@ -638,6 +652,11 @@ async function phaseE_challengeCycle(
     console.log(`[Phase E] Challenge proposed on call #${callId} — tx ${txHash}`);
   } catch (err) {
     console.error(`[Phase E] proposeChallenge failed callId=${callId}: ${String(err)}`);
+    return;
+  }
+
+  if (challengeId === null) {
+    console.warn('[Phase E] could not decode challengeId from ChallengeProposed event — skipping accept');
     return;
   }
 
