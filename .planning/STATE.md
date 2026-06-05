@@ -25,7 +25,9 @@ See: .planning/PROJECT.md (updated 2026-05-21)
 
 ## Current Position
 
-Phase: 06 (safety-review-sepolia-48h-multisig-promotion) — CI-SAFE CODE COMPLETE; LIVE-OPS PENDING
+Phase: 06 (safety-review-sepolia-48h-multisig-promotion) — **CLUSTER REDEPLOYED + LIVE; SOAK TAIL + MULTISIG PENDING**
+
+> **⚡ CURRENT REALITY (2026-06-05) — supersedes the 06-02 cluster details below.** The settle-blocker (preserved Phase-2 ProfileRegistry lacked `globalRep`) was root-caused + fixed by a full cluster REDEPLOY. **Canonical Sepolia cluster:** PR `0xE82308B350013fA0dcc11fEF10B3F0bf684EFd14` · CR `0xb864308D7214f98d60C5811F451fa96a49619150` · FFM `0xBDaD3F1E608452fea36a7861cDd8BBb73D9D10c1` · CE `0x2E11fD3E03acE074D855661Bc4320bddbE897714` · SM `0x9235003d9C9F38539a41d9798c32C72e7615428A` (blks ~273884585-600). **SAFETY-22/23/24 PROVEN** (10 calls all types + 30 follow/fade + **5 settled "CALLED IT" receipts**, 0 failed — settle() works end-to-end). **GO-LIVE COMPLETE:** subgraph v0.7.0 indexing the new cluster (calls #1/#2 = Settled); relayer rebuilt+redeployed (machine v6, /health 200) polling new FFM; **notification-fanout eth_getLogs free-tier bug FIXED + live-verified** (quick 260605-a4i, commit 79ca33c — chunked ≤9-block getLogs; new worker pid 644 ticks clean, 0 get_logs errors). The old 06-02 addrs (CR 0x015758Cb…) below are SUPERSEDED.
 Last activity: 2026-06-05 — Completed quick task 260605-a4i (notification-fanout eth_getLogs free-tier 10-block chunking fix; relayer redeploy pending). Prior: 260604-jt2 soak scaffolding + Telegram alerts LIVE (@calllitbot, secrets v2)
 
 **CI-safe code built this session (on master):**
@@ -37,7 +39,7 @@ Last activity: 2026-06-05 — Completed quick task 260605-a4i (notification-fano
 
 forge test: 222 pass / 0 fail / 2 skip (excl. 2 RPC-gated fork suites which skip gracefully).
 
-**Pending — operator live gates:** (a) finish 06-02 go-live — relayer env-retarget + worker restart + subgraph publish (platform creds); → 06-05 (≥48h soak + drill + 5 UAT + evidence log) → 06-06 Task 2 (Safe rehearsal on Sepolia + production Arbitrum One Safe). The DeployPhase6 cluster broadcast is DONE. See OPERATOR-RUNBOOK.md.
+**Pending — operator gates (all genuinely gated on funds/time/secrets, NOT code):** (1) **SOAK TAIL** — SAFETY-21 (48h duration, time), SAFETY-25 (callerExit: wait 24h post-create then exit; today's revert `0x27404ae3` = the EXPECTED `CallerExitLocked(uint64)` 24h guard, NOT a bug), SAFETY-26 ✅ PROVEN + SAFETY-27 raise ✅ PROVEN (2026-06-05, targeted cast: challenge #2 on Live call #12 propose+accept; raiseDispute on settled call #8). **SAFETY-27 RESOLVE pending** — resolveDispute is onlyOwner and the cluster owner = `0xF4ee61950B63cCA5C82f1146484d018Ac95Bd0F2` (operator deploy key, NOT a soak wallet / not treasury 0xDa8c5726) → operator runs `resolveDispute(8,2)` from it. **0xF4ee6195 owns ALL 5 contracts** → same key gates the 06-06 multisig promotion + the SAFETY-42 destruction drill. SAFETY-28 (Pyth-confidence-wide variant). (2) **synthetic-alert cron FAILING daily** — `synthetic-alert.yml` needs 4 GH Actions secrets set (`RELAYER_URL`=https://call-it-relayer-sepolia.fly.dev, `RELAYER_INTERNAL_HMAC`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID_P0`); none set (`gh secret list` empty) — the Telegram secrets live only on GCP/Fly, not GitHub. (3) **06-06 Task 2** multisig promotion (Safe rehearsal on Sepolia → production Arbitrum One Safe). DeployPhase6 broadcast + go-live DONE. See OPERATOR-RUNBOOK.md.
 **Pending — code:** deploy-safe.ts needs SafeFactory→protocol-kit-v7 migration (or use the Safe UI for the actual deploys) — see deferred-items.md.
 Status: Paused for operator — resume per runbook.
 
