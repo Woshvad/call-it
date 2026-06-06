@@ -113,4 +113,23 @@ export const profileRegistryAbi = [
     outputs: [],
     stateMutability: 'nonpayable',
   },
+  // ─── Social unlink (AUTH-12, user-callable — Phase 1.5 SocialLinkControls) ─
+  // unlinkTwitter()/unlinkFarcaster() are msg.sender-self-service on-chain
+  // (ProfileRegistry.sol:168-182). They remove the badge + handle reference but
+  // retain on-chain history. The relayer purge (/api/social/unlink-purge) is a
+  // separate side call that clears the off-chain follow-graph (D-13/AUTH-17).
+  {
+    type: 'function',
+    name: 'unlinkTwitter',
+    inputs: [],
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    name: 'unlinkFarcaster',
+    inputs: [],
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
 ] as const;
