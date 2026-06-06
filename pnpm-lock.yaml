@@ -35,6 +35,9 @@ importers:
       '@call-it/shared':
         specifier: workspace:*
         version: link:../../packages/shared
+      '@farcaster/auth-client':
+        specifier: 0.7.1
+        version: 0.7.1(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@6.0.6)(zod@3.25.76)
       '@fastify/cors':
         specifier: ^10.1.0
         version: 10.1.0
@@ -9679,6 +9682,16 @@ snapshots:
     dependencies:
       neverthrow: 6.2.2
       viem: 2.50.4(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@5.0.10)(zod@4.4.3)
+    transitivePeerDependencies:
+      - bufferutil
+      - typescript
+      - utf-8-validate
+      - zod
+
+  '@farcaster/auth-client@0.7.1(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@6.0.6)(zod@3.25.76)':
+    dependencies:
+      neverthrow: 6.2.2
+      viem: 2.50.4(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@6.0.6)(zod@3.25.76)
     transitivePeerDependencies:
       - bufferutil
       - typescript

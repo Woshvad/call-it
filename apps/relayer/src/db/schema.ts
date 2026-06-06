@@ -281,6 +281,92 @@ export const callOracleCriteria = pgTable('call_oracle_criteria', {
 });
 
 // ---------------------------------------------------------------------------
+// follow_graph  (Phase 01.5 — D-12, AUTH-17)
+// ---------------------------------------------------------------------------
+
+/**
+ * Viewer-scoped Twitter/Farcaster follow graph (D-12, AUTH-17).
+ *
+ * Keyed by the authenticated viewer's privyUserId — the relayer NEVER exposes
+ * another user's graph (AUTH-17 viewer-only). One row per followed handle/id.
+ * The "From your X / Farcaster" feed (FEED wave, 01.5 later plan) cross-references
+ * these handles against on-chain-linked twitterHandle/farcasterHandle.
+ *
+ * Privacy (AUTH-17, D-13): purge-on-disconnect deletes these rows AND the matching
+ * Redis cache key. The unlink-purge route + SocialUnlinked watcher both clear them.
+ *
+ * Mirrors the existing varchar/index patterns (varchar(128) privy_user_id).
+ */
+export const followGraph = pgTable(
+  'follow_graph',
+  {
+    id: serial('id').primaryKey(),
+    /** Authenticated viewer's Privy DID — the graph owner (viewer-only, AUTH-17) */
+    privyUserId: varchar('privy_user_id', { length: 128 }).notNull(),
+    /** 'twitter' | 'farcaster' */
+    platform: varchar('platform', { length: 16 }).notNull(),
+    /** Followed account's handle — normalized, lowercased */
+    followedHandle: varchar('followed_handle', { length: 64 }),
+    /** Followed account's stable id — X user id / Farcaster fid */
+    followedId: varchar('followed_id', { length: 64 }),
+    fetchedAt: timestamp('fetched_at').defaultNow().notNull(),
+  },
+  (table) => ({
+    /** Per-viewer, per-platform lookup for feed cross-reference + purge */
+    followGraphUserIdx: index('follow_graph_user_idx').on(table.privyUserId, table.platform),
+  }),
+);
+
+// ---------------------------------------------------------------------------
+// social_link_index  (Phase 01.5 — D-06 handle uniqueness)
+// ---------------------------------------------------------------------------
+
+/**
+ * Off-chain handle-uniqueness index (D-06): one ACTIVE link per (platform, handle).
+ *
+ * A given X/FC handle can be actively linked to only one Call It profile at a
+ * time. A second account attempting to link an already-active handle is rejected
+ * with 409 (anti-impersonation / anti-squatting). Re-linking a different handle to
+ * your own profile is allowed (last valid proof wins for your account).
+ *
+ * Active = unlinkedAt IS NULL. On unlink/purge, the active row is marked
+ * unlinkedAt = now() rather than deleted (auditable history).
+ *
+ * uniqueIndex on (platform, handle_normalized): the relayer's
+ * assertHandleAvailable() enforces the "one active link" rule in application code
+ * (a row is only ever inserted/reactivated after the active-elsewhere check
+ * passes), so this unique index also guards against double-insert races. Because
+ * unlinked rows keep their (platform, handle_normalized), the application
+ * reactivates the existing row on re-link rather than inserting a duplicate.
+ *
+ * Mirrors RESEARCH Pattern 5 schema.
+ */
+export const socialLinkIndex = pgTable(
+  'social_link_index',
+  {
+    id: serial('id').primaryKey(),
+    /** 'twitter' | 'farcaster' */
+    platform: varchar('platform', { length: 16 }).notNull(),
+    /** Normalized handle (lowercased, '@'-stripped) — the uniqueness key */
+    handleNormalized: varchar('handle_normalized', { length: 64 }).notNull(),
+    /** On-chain wallet address the handle is linked to (0x + 40 hex) */
+    userAddress: varchar('user_address', { length: 42 }).notNull(),
+    linkedAt: timestamp('linked_at').defaultNow().notNull(),
+    /** NULL = ACTIVE link; NOT NULL = unlinked (D-06 active = unlinkedAt IS NULL) */
+    unlinkedAt: timestamp('unlinked_at'),
+  },
+  (table) => ({
+    /** One row per (platform, handle) — guards double-insert; app reactivates on re-link */
+    socialLinkActiveIdx: uniqueIndex('social_link_active_idx').on(
+      table.platform,
+      table.handleNormalized,
+    ),
+    /** Reverse lookup for backstop purge by user address (SocialUnlinked watcher) */
+    socialLinkUserIdx: index('social_link_user_idx').on(table.userAddress),
+  }),
+);
+
+// ---------------------------------------------------------------------------
 // duel_kings  (Phase 3 — D-07)
 // ---------------------------------------------------------------------------
 

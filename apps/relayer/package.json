@@ -17,6 +17,7 @@
   },
   "dependencies": {
     "@call-it/shared": "workspace:*",
+    "@farcaster/auth-client": "0.7.1",
     "@fastify/cors": "^10.1.0",
     "@google-cloud/kms": "^5.0.0",
     "@google-cloud/secret-manager": "^5.0.0",
