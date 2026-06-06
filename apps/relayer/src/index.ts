@@ -49,6 +49,8 @@ import { quoteStanceRoute } from './routes/quote-stance.js';
 import { notificationsRoute } from './routes/notifications.js';
 import { duelLiveStateRoute } from './routes/duel-live-state.js';
 import { duelsRoute } from './routes/duels.js';
+// Phase 01.5 — Plan 02: social-link service (Twitter/Farcaster link + unlink-purge)
+import { socialLinkRoute } from './routes/social-link.js';
 import { sendAlert } from './workers/alerts.js';
 import { startPaymasterConfirmer } from './workers/paymaster-confirmer.js';
 import { startNotificationFanout } from './workers/notification-fanout.js';
@@ -174,6 +176,10 @@ export async function buildApp(): Promise<FastifyInstance> {
   await app.register(settleRoute);
   // Phase 4 — Plan 08: dispute raise/list/evidence (D-06, D-07)
   await app.register(disputesRoute);
+  // ── Plan 01.5-02 routes ───────────────────────────────────
+  // Phase 01.5 — Plan 02: social-link service (AUTH-06/07/12/13/17 — session-gated;
+  // Twitter (Privy proof) + Farcaster (SIWF) link via KMS oauth-proof wallet + unlink-purge)
+  await app.register(socialLinkRoute);
   // ─────────────────────────────────────────────────────────
 
   // 5. Boot-time BullMQ compatibility smoke (Pitfall A mitigation)

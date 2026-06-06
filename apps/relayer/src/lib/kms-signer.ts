@@ -82,7 +82,21 @@ function getKmsClient(): KeyManagementServiceClient {
  *
  * @param opts - KMS key configuration + expected Ethereum address
  */
-export function gcpKmsAccount(opts: KmsAccountOptions): ReturnType<typeof toAccount> {
+/**
+ * A viem Account whose underlying KMS digest signer is also exposed directly.
+ *
+ * The base toAccount() wrapper deliberately throws on signTransaction (the
+ * generic viem walletClient path cannot use a KMS-held key for raw tx signing).
+ * For raw EIP-1559 submission (e.g. ProfileRegistry.linkTwitter/linkFarcaster in
+ * the 01.5-02 social-link route) consumers serialize the tx themselves, then call
+ * `signDigest(keccak256(serializedUnsigned))` to obtain the 65-byte signature.
+ */
+export type GcpKmsAccount = ReturnType<typeof toAccount> & {
+  /** Sign a 32-byte digest via GCP KMS → 65-byte compact hex (r||s||v). */
+  signDigest(digest: Hex): Promise<Hex>;
+};
+
+export function gcpKmsAccount(opts: KmsAccountOptions): GcpKmsAccount {
   const kms = getKmsClient();
 
   const versionName = kms.cryptoKeyVersionPath(
@@ -139,7 +153,7 @@ export function gcpKmsAccount(opts: KmsAccountOptions): ReturnType<typeof toAcco
     }
   }
 
-  return toAccount({
+  const account = toAccount({
     address: opts.expectedAddress,
 
     async signMessage({ message }) {
@@ -154,14 +168,19 @@ export function gcpKmsAccount(opts: KmsAccountOptions): ReturnType<typeof toAcco
     },
 
     async signTransaction() {
-      // Transactions sign at a lower level in Phase 4.
-      // Use: serialize the transaction, compute digest, call signDigest() directly.
+      // The generic viem walletClient path cannot sign raw txs via KMS.
+      // Use: serialize the transaction, compute digest, call account.signDigest() directly.
       throw new Error(
         'gcpKmsAccount.signTransaction: use serializeTransaction + signDigest for raw tx signing. ' +
-          'The toAccount wrapper does not expose signDigest directly — import from kms-signer.ts.',
+          'The account exposes signDigest() — see oauth-proof-submitter.ts.',
       );
     },
   });
+
+  // Expose the raw digest signer for consumers that serialize their own tx
+  // (raw EIP-1559 submission — e.g. the social-link route). T-00-13 logging is
+  // already inside signDigest.
+  return Object.assign(account, { signDigest });
 }
 
 /**
