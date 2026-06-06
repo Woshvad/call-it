@@ -39,7 +39,7 @@ Requirements for the v1 mainnet release. Each line is an atomic, testable behavi
 - [x] **AUTH-13**: ProfileRegistry stores `SocialIdentity` per user (twitterHandle, farcasterHandle, twitterProofHash, farcasterProofHash, twitterLinkedAt, farcasterLinkedAt) capped at 50 bytes per handle (§9.8, §12.5, App.A.1)
 - [ ] **AUTH-14**: Twitter follow-graph integration queries X API and cross-references against `ProfileRegistry.SocialIdentity.twitterHandle` to power the "From your X" feed (§9.9)
 - [ ] **AUTH-15**: "From your X" feed section shows up to 10 calls, ordered by recency, includes active calls + active duels, excludes settled calls, refreshes when feed opens with 1-hour graph cache (§9.9, §15.1)
-- [ ] **AUTH-16**: First-time onboarding shows explicit Twitter follow-graph opt-in screen with "Yes, show me" / "No thanks"; declined state never shows the section (§9.9, §15.9 Screen 3)
+- [x] **AUTH-16**: First-time onboarding shows explicit Twitter follow-graph opt-in screen with "Yes, show me" / "No thanks"; declined state never shows the section (§9.9, §15.9 Screen 3)
 - [x] **AUTH-17**: Twitter follow-graph data is held server-side only, never written onchain; visible only to the viewer themselves; cleared on disconnect (§9.9)
 - [ ] **AUTH-18**: Farcaster follow-graph mirrors the Twitter mechanic via Farcaster Hub API → "From your Farcaster" feed section; both can appear simultaneously with collapse toggles (§9.9, §15.1)
 - [ ] **AUTH-19**: Onboarding flow runs automatically on first sign-in across 4 screens: Handle, Connect Socials, Follow-graph opt-in (conditional), Tagline commitment (§15.9)
@@ -583,7 +583,7 @@ Which phases cover which requirements. Updated during roadmap creation by the ro
 | AUTH-13 | Phase 1.5 | Complete |
 | AUTH-14 | Phase 1.5 | Pending |
 | AUTH-15 | Phase 1.5 | Pending |
-| AUTH-16 | Phase 1.5 | Pending |
+| AUTH-16 | Phase 1.5 | Complete |
 | AUTH-17 | Phase 1.5 | Complete |
 | AUTH-18 | Phase 1.5 | Pending |
 | AUTH-19 | Phase 1 | Pending |

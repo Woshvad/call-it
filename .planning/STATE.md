@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: milestone
 status: executing
-stopped_at: Phase 6 context gathered
-last_updated: "2026-06-06T17:51:31.417Z"
+stopped_at: Completed 01.5-04-PLAN.md
+last_updated: "2026-06-06T18:11:04.018Z"
 last_activity: 2026-06-06
 progress:
   total_phases: 14
   completed_phases: 7
   total_plans: 63
-  completed_plans: 60
+  completed_plans: 61
   percent: 50
 ---
 
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-05-21)
 ## Current Position
 
 Phase: 01.5 (social-linking-parallel-to-phase-2) — EXECUTING
-Plan: 3 of 5
+Plan: 4 of 5
 
 > **⚡ CURRENT REALITY (2026-06-05) — supersedes the 06-02 cluster details below.** The settle-blocker (preserved Phase-2 ProfileRegistry lacked `globalRep`) was root-caused + fixed by a full cluster REDEPLOY. **Canonical Sepolia cluster:** PR `0xE82308B350013fA0dcc11fEF10B3F0bf684EFd14` · CR `0xb864308D7214f98d60C5811F451fa96a49619150` · FFM `0xBDaD3F1E608452fea36a7861cDd8BBb73D9D10c1` · CE `0x2E11fD3E03acE074D855661Bc4320bddbE897714` · SM `0x9235003d9C9F38539a41d9798c32C72e7615428A` (blks ~273884585-600). **SAFETY-22/23/24 PROVEN** (10 calls all types + 30 follow/fade + **5 settled "CALLED IT" receipts**, 0 failed — settle() works end-to-end). **GO-LIVE COMPLETE:** subgraph v0.7.0 indexing the new cluster (calls #1/#2 = Settled); relayer rebuilt+redeployed (machine v6, /health 200) polling new FFM; **notification-fanout eth_getLogs free-tier bug FIXED + live-verified** (quick 260605-a4i, commit 79ca33c — chunked ≤9-block getLogs; new worker pid 644 ticks clean, 0 get_logs errors). The old 06-02 addrs (CR 0x015758Cb…) below are SUPERSEDED.
 Last activity: 2026-06-06
@@ -45,7 +45,7 @@ forge test: 222 pass / 0 fail / 2 skip (excl. 2 RPC-gated fork suites which skip
 **Pending — code:** deploy-safe.ts needs SafeFactory→protocol-kit-v7 migration (or use the Safe UI for the actual deploys) — see deferred-items.md.
 Status: Ready to execute
 
-Progress: [██████████] 95%
+Progress: [██████████] 97%
 
 ## Known Plan Issues — Phase 03 (RESOLVED at execution, 2026-06-01)
 
@@ -140,6 +140,7 @@ All 3 operator actions were run this session (user explicitly authorized "run al
 | Phase 06 P04 | 584 | 2 tasks | 4 files |
 | Phase 01.5 P03 | 6min | 3 tasks | 9 files |
 | Phase 01.5 P02 | 18min | 3 tasks | 20 files |
+| Phase 01.5 P04 | 10min | 3 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -271,6 +272,9 @@ completed: 2026-05-29
 - [Phase ?]: [Phase 01.5-02]: Farcaster on-chain handle stored as fid:{fid} in CORE wave (no Neynar key); FEED wave resolves fid->fname; fid is the verified subject
 - [Phase ?]: [Phase 01.5-02]: social_link_index uses plain unique (platform,handle_normalized) + reactivate-on-relink (recordActiveLink) for D-06 one-active-link, not a partial index
 - [Phase ?]: [Phase 01.5-02]: gcpKmsAccount exposes account.signDigest + oauth-proof-submitter serialize+signDigest+sendRaw (signTransaction throws by design) — Rule 3 blocking auto-fix
+- [Phase 01.5-04]: AuthKitProvider placed innermost (around children) so the AST provider-order test first-three-JSX order stays intact while remaining below PrivyProvider (CLAUDE.md)
+- [Phase 01.5-04]: follow-graph-optin test is .test.ts (node env) against a pure render-gate module, not .test.tsx+Testing Library — apps/web vitest include is tests/**/*.test.ts, no jsdom/testing-library, threat model locks no-new-deps
+- [Phase 01.5-04]: AUTH-16 declined-never-renders enforced by shouldRenderFollowGraphSection() (true only on explicit opt-in); follow-graph preference persisted local+best-effort relayer (durable /api/social/follow-graph-optin route lands in 01.5-05 FEED wave)
 
 ## Performance
 
@@ -412,6 +416,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-06-06T17:50:37.797Z
-Stopped at: Phase 6 context gathered
+Last session: 2026-06-06T18:11:03.997Z
+Stopped at: Completed 01.5-04-PLAN.md
 Resume file: None
