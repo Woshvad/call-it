@@ -66,9 +66,11 @@ gcloud kms keys list \
 
 ## Item 2: Telegram Bot Permissions (Open Question 5, Pitfall D)
 
-**Purpose:** Confirm the Telegram bot has the permissions required for `getUpdates` to return
-channel posts. Without admin rights, `getUpdates` returns empty and the synthetic alert step
-silently passes without verification.
+**Purpose:** Confirm the Telegram bot exists and can SEND alerts to the P0 and P1 chats, and
+that the synthetic-alert CI is wired to verify delivery via the relayer's send-confirmation.
+P0 alerts are delivered to a private DM; a bot cannot read its own outgoing messages, so the
+end-to-end check is a direct `sendMessage` smoke test plus the relayer's HTTP 200 +
+echoed-nonce confirmation — NOT `getUpdates` polling.
 
 **Commands to run:**
 
@@ -77,26 +79,32 @@ silently passes without verification.
 curl "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/getMe"
 # Expected: { ok: true, result: { id: <botId>, username: "call_it_alerts_bot" (or similar) } }
 
-# Confirm bot can read P0 channel posts (should return recent channel_post entries)
-curl "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/getUpdates?offset=-10&limit=10"
-# Expected: channel_post entries visible if bot has read access
+# Confirm bot can SEND to the P0 chat (direct sendMessage smoke test)
+curl "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+  -d "chat_id=${TELEGRAM_CHAT_ID_P0}" \
+  -d "text=Phase 0 smoke test — P0 send check"
+# Expected: { ok: true, result: { message_id: <id>, ... } } — Telegram accepted the send
 
-# Confirm P1 channel also accessible
-curl "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/getUpdates?offset=-10&limit=10&chat_id=${TELEGRAM_CHAT_ID_P1}"
+# Confirm bot can SEND to the P1 chat
+curl "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+  -d "chat_id=${TELEGRAM_CHAT_ID_P1}" \
+  -d "text=Phase 0 smoke test — P1 send check"
 ```
 
 **Manual steps:**
-- In @BotFather: run `/setprivacy` → select your bot → choose "Disable" so `getUpdates` returns channel posts
-- In P0 channel: confirm bot is an admin with "Post Messages" + "Read Messages" rights
-- In P1 channel: same admin rights confirmed
+- Confirm the `TELEGRAM_CHAT_ID_P0` and `TELEGRAM_CHAT_ID_P1` values match the chats the
+  operator expects to receive alerts (the P0 DM and the P1 chat).
+- Confirm the synthetic-alert CI Secrets are set so the daily `synthetic-alert.yml` cron can
+  verify the relayer's send-confirmation: `gh secret set RELAYER_URL` and
+  `gh secret set RELAYER_INTERNAL_HMAC` (Telegram credentials live only in the relayer).
 
 **Checkboxes:**
 
 - [ ] `getMe` returns bot exists and is active
-- [ ] `getUpdates` returns `channel_post` entries from the P0 channel (proves bot has read access)
-- [ ] In @BotFather: `/setprivacy` is set to "Disabled" for this bot
-- [ ] Bot is admin in P0 channel with `can_post_messages` + read rights
-- [ ] Bot is admin in P1 channel with same rights
+- [ ] `sendMessage` to `TELEGRAM_CHAT_ID_P0` returns `{ ok: true }` (P0 send smoke test passes)
+- [ ] `sendMessage` to `TELEGRAM_CHAT_ID_P1` returns `{ ok: true }` (P1 send smoke test passes)
+- [ ] `RELAYER_URL` GitHub Secret is set (points at the deployed relayer)
+- [ ] `RELAYER_INTERNAL_HMAC` GitHub Secret is set (matches `RELAYER_INTERNAL_HMAC_SECRET` in the relayer env)
 
 ---
 

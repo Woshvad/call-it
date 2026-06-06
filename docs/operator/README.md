@@ -33,7 +33,7 @@ This directory contains the operational substrate for Call It.
 | `scripts/deploy-safe.ts` | Safe 2-of-3 deploy (SAFETY-58) |
 | `scripts/seed-calendar.ts` | Google Calendar event seeding for Stylus reactivation (D-13) |
 | `scripts/repoint-calendar.ts` | Phase 5: update Calendar events to real Stylus deploy date |
-| `scripts/fire-synthetic-alert.ts` | CI helper: fire + verify synthetic alert via Telegram |
+| `scripts/fire-synthetic-alert.ts` | CI helper: fire synthetic alert + verify via the relayer's send-confirmation (HTTP 200 + echoed nonce) |
 | `scripts/phase-0-smoke.ts` | 6-step Phase 0 smoke test against deployed artifacts; used by phase-0-gate.yml |
 
 ## GitHub Actions Workflows
@@ -44,5 +44,5 @@ This directory contains the operational substrate for Call It.
 | `deploy-relayer.yml` | push to sepolia/main | Deploy apps/relayer to Fly.io (GCP OIDC + Secret Manager) |
 | `deploy-subgraph.yml` | push to sepolia/main (path-filtered) | Deploy packages/subgraph to Subgraph Studio |
 | `phase-0-gate.yml` | tag phase-0-complete* | 6-step blocking gate; creates GitHub release with smoke results |
-| `synthetic-alert.yml` | daily cron 12:00 UTC | Verify Telegram alert pipeline end-to-end |
+| `synthetic-alert.yml` | daily cron 12:00 UTC | Fire a synthetic alert + verify the relayer's send-confirmation end-to-end |
 | `grep-guards.yml` | every push | 3 CI invariants (USDC address, Solidity pragma, env-network) |
