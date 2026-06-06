@@ -29,18 +29,18 @@ Requirements for the v1 mainnet release. Each line is an atomic, testable behavi
 - [ ] **AUTH-03**: Google OAuth path auto-creates a Privy embedded wallet keyed to the Google account; user never sees a seed phrase (§9.1, §9.2)
 - [ ] **AUTH-04**: Twitter OAuth path auto-creates a Privy embedded wallet AND pre-links the Twitter handle automatically (no separate Connect Twitter step) (§9.1, §9.2)
 - [ ] **AUTH-05**: Privy is integrated as a single React provider (`PrivyProvider` + `usePrivy()`) wrapping the app (§9.2)
-- [ ] **AUTH-06**: After sign-in, user can optionally link Twitter via OAuth → ProfileRegistry.linkTwitter (relayer-mediated) (§9.3, §11.5, §12.5)
-- [ ] **AUTH-07**: After sign-in, user can optionally link Farcaster via Farcaster Auth Kit → ProfileRegistry.linkFarcaster (relayer-mediated) (§9.3, §11.5, §12.5)
+- [x] **AUTH-06**: After sign-in, user can optionally link Twitter via OAuth → ProfileRegistry.linkTwitter (relayer-mediated) (§9.3, §11.5, §12.5)
+- [x] **AUTH-07**: After sign-in, user can optionally link Farcaster via Farcaster Auth Kit → ProfileRegistry.linkFarcaster (relayer-mediated) (§9.3, §11.5, §12.5)
 - [ ] **AUTH-08**: User can skip social linking and return to it later via Profile → Settings (§9.3, §15.4)
 - [x] **AUTH-09**: VERIFIED · X / VERIFIED · FC / VERIFIED · X · FC badges render next to the handle on profile, feed cards, receipts, duel page, leaderboard rows (§9.4, §15.1, §15.3, §15.4, §15.6, §15.7)
 - [x] **AUTH-10**: Connected social verification has zero mechanical effect — no rep boost, no stake-limit unlock, no fee discount, no payout effect (§9.5)
 - [ ] **AUTH-11**: Handle resolution priority is ENS → Twitter → Farcaster → truncated 0x address, with user-overridable preferred display handle in profile settings (§9.6)
-- [ ] **AUTH-12**: Users can unlink socials via Profile → Settings — removes badge and handle reference, does not delete onchain history (§9.7, §12.5)
-- [ ] **AUTH-13**: ProfileRegistry stores `SocialIdentity` per user (twitterHandle, farcasterHandle, twitterProofHash, farcasterProofHash, twitterLinkedAt, farcasterLinkedAt) capped at 50 bytes per handle (§9.8, §12.5, App.A.1)
+- [x] **AUTH-12**: Users can unlink socials via Profile → Settings — removes badge and handle reference, does not delete onchain history (§9.7, §12.5)
+- [x] **AUTH-13**: ProfileRegistry stores `SocialIdentity` per user (twitterHandle, farcasterHandle, twitterProofHash, farcasterProofHash, twitterLinkedAt, farcasterLinkedAt) capped at 50 bytes per handle (§9.8, §12.5, App.A.1)
 - [ ] **AUTH-14**: Twitter follow-graph integration queries X API and cross-references against `ProfileRegistry.SocialIdentity.twitterHandle` to power the "From your X" feed (§9.9)
 - [ ] **AUTH-15**: "From your X" feed section shows up to 10 calls, ordered by recency, includes active calls + active duels, excludes settled calls, refreshes when feed opens with 1-hour graph cache (§9.9, §15.1)
 - [ ] **AUTH-16**: First-time onboarding shows explicit Twitter follow-graph opt-in screen with "Yes, show me" / "No thanks"; declined state never shows the section (§9.9, §15.9 Screen 3)
-- [ ] **AUTH-17**: Twitter follow-graph data is held server-side only, never written onchain; visible only to the viewer themselves; cleared on disconnect (§9.9)
+- [x] **AUTH-17**: Twitter follow-graph data is held server-side only, never written onchain; visible only to the viewer themselves; cleared on disconnect (§9.9)
 - [ ] **AUTH-18**: Farcaster follow-graph mirrors the Twitter mechanic via Farcaster Hub API → "From your Farcaster" feed section; both can appear simultaneously with collapse toggles (§9.9, §15.1)
 - [ ] **AUTH-19**: Onboarding flow runs automatically on first sign-in across 4 screens: Handle, Connect Socials, Follow-graph opt-in (conditional), Tagline commitment (§15.9)
 - [ ] **AUTH-20**: Onboarding Screen 1 pre-fills handle from ENS (Wallet path) or Twitter handle (Twitter path); default placeholder "you.eth" otherwise (§15.9 Screen 1)
@@ -573,18 +573,18 @@ Which phases cover which requirements. Updated during roadmap creation by the ro
 | AUTH-03 | Phase 1 | Pending |
 | AUTH-04 | Phase 1 | Pending |
 | AUTH-05 | Phase 1 | Pending |
-| AUTH-06 | Phase 1.5 | Pending |
-| AUTH-07 | Phase 1.5 | Pending |
+| AUTH-06 | Phase 1.5 | Complete |
+| AUTH-07 | Phase 1.5 | Complete |
 | AUTH-08 | Phase 1 | Pending |
 | AUTH-09 | Phase 1.5 | Complete |
 | AUTH-10 | Phase 1.5 | Complete |
 | AUTH-11 | Phase 1 | Pending |
-| AUTH-12 | Phase 1.5 | Pending |
-| AUTH-13 | Phase 1.5 | Pending |
+| AUTH-12 | Phase 1.5 | Complete |
+| AUTH-13 | Phase 1.5 | Complete |
 | AUTH-14 | Phase 1.5 | Pending |
 | AUTH-15 | Phase 1.5 | Pending |
 | AUTH-16 | Phase 1.5 | Pending |
-| AUTH-17 | Phase 1.5 | Pending |
+| AUTH-17 | Phase 1.5 | Complete |
 | AUTH-18 | Phase 1.5 | Pending |
 | AUTH-19 | Phase 1 | Pending |
 | AUTH-20 | Phase 1 | Pending |

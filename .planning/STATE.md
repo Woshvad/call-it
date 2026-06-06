@@ -4,13 +4,13 @@ milestone: v1.1
 milestone_name: milestone
 status: executing
 stopped_at: Phase 6 context gathered
-last_updated: "2026-06-06T17:33:05.193Z"
+last_updated: "2026-06-06T17:51:31.417Z"
 last_activity: 2026-06-06
 progress:
   total_phases: 14
   completed_phases: 7
   total_plans: 63
-  completed_plans: 59
+  completed_plans: 60
   percent: 50
 ---
 
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-05-21)
 ## Current Position
 
 Phase: 01.5 (social-linking-parallel-to-phase-2) — EXECUTING
-Plan: 2 of 5
+Plan: 3 of 5
 
 > **⚡ CURRENT REALITY (2026-06-05) — supersedes the 06-02 cluster details below.** The settle-blocker (preserved Phase-2 ProfileRegistry lacked `globalRep`) was root-caused + fixed by a full cluster REDEPLOY. **Canonical Sepolia cluster:** PR `0xE82308B350013fA0dcc11fEF10B3F0bf684EFd14` · CR `0xb864308D7214f98d60C5811F451fa96a49619150` · FFM `0xBDaD3F1E608452fea36a7861cDd8BBb73D9D10c1` · CE `0x2E11fD3E03acE074D855661Bc4320bddbE897714` · SM `0x9235003d9C9F38539a41d9798c32C72e7615428A` (blks ~273884585-600). **SAFETY-22/23/24 PROVEN** (10 calls all types + 30 follow/fade + **5 settled "CALLED IT" receipts**, 0 failed — settle() works end-to-end). **GO-LIVE COMPLETE:** subgraph v0.7.0 indexing the new cluster (calls #1/#2 = Settled); relayer rebuilt+redeployed (machine v6, /health 200) polling new FFM; **notification-fanout eth_getLogs free-tier bug FIXED + live-verified** (quick 260605-a4i, commit 79ca33c — chunked ≤9-block getLogs; new worker pid 644 ticks clean, 0 get_logs errors). The old 06-02 addrs (CR 0x015758Cb…) below are SUPERSEDED.
 Last activity: 2026-06-06
@@ -45,7 +45,7 @@ forge test: 222 pass / 0 fail / 2 skip (excl. 2 RPC-gated fork suites which skip
 **Pending — code:** deploy-safe.ts needs SafeFactory→protocol-kit-v7 migration (or use the Safe UI for the actual deploys) — see deferred-items.md.
 Status: Ready to execute
 
-Progress: [█████████░] 94%
+Progress: [██████████] 95%
 
 ## Known Plan Issues — Phase 03 (RESOLVED at execution, 2026-06-01)
 
@@ -139,6 +139,7 @@ All 3 operator actions were run this session (user explicitly authorized "run al
 | Phase 05.1 P03 | 17min | 3 tasks | 7 files |
 | Phase 06 P04 | 584 | 2 tasks | 4 files |
 | Phase 01.5 P03 | 6min | 3 tasks | 9 files |
+| Phase 01.5 P02 | 18min | 3 tasks | 20 files |
 
 ## Accumulated Context
 
@@ -266,6 +267,10 @@ completed: 2026-05-29
 - [Phase ?]: [Phase 01.5-03]: VerifiedBadge reuses Tag intent=warning (brand-accent); returns null when both flags false; inline-flex preserved for Satori/OG (Pitfall 15)
 - [Phase ?]: [Phase 01.5-03]: AUTH-10 zero-mechanical-effect locked as an invariant guard — verified vs unverified mechanicalInputsFor() deep-equal + static guard on fees/call-gates/follow-fade-gates (D-09)
 - [Phase ?]: [Phase 01.5-03]: VerifiedBadgeHost is a typed prop seam only — full Duel page Phase 3, Leaderboard Phase 7 (D-07); Receipt settled-mode badge wiring deferred to Phase 4
+- [Phase ?]: [Phase 01.5-02]: Twitter link proof reads Privy-verified linkedAccounts.twitter_oauth.username server-side (never request body — Pitfall 2)
+- [Phase ?]: [Phase 01.5-02]: Farcaster on-chain handle stored as fid:{fid} in CORE wave (no Neynar key); FEED wave resolves fid->fname; fid is the verified subject
+- [Phase ?]: [Phase 01.5-02]: social_link_index uses plain unique (platform,handle_normalized) + reactivate-on-relink (recordActiveLink) for D-06 one-active-link, not a partial index
+- [Phase ?]: [Phase 01.5-02]: gcpKmsAccount exposes account.signDigest + oauth-proof-submitter serialize+signDigest+sendRaw (signTransaction throws by design) — Rule 3 blocking auto-fix
 
 ## Performance
 
@@ -407,6 +412,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-06-06T17:30:08.064Z
+Last session: 2026-06-06T17:50:37.797Z
 Stopped at: Phase 6 context gathered
 Resume file: None
