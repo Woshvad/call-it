@@ -24,11 +24,20 @@ import { Card } from '../primitives/Card';
 import { CornerBrackets } from '../primitives/CornerBrackets';
 import { Tag } from '../primitives/Tag';
 import { Stamp, type StampColor } from '../primitives/Stamp';
+import { VerifiedBadge } from '../primitives/VerifiedBadge';
 
 /** Data shape for Receipt — intentionally excludes wallet address (AUTH-44) */
 export type ReceiptData = {
   /** Public handle (not wallet address) */
   handle: string;
+  /**
+   * X (Twitter) link verified — renders VERIFIED · X in the header (AUTH-09).
+   * Badge host for the Live Receipt (Phase 2) and the Settled Receipt (Phase 4,
+   * wiring deferred — the host is ready now per D-07).
+   */
+  verifiedX?: boolean;
+  /** Farcaster link verified — renders VERIFIED · FC in the header (AUTH-09) */
+  verifiedFc?: boolean;
   /** Human-readable market line e.g. "BTC >= $80k by Dec 31" */
   marketLine: string;
   /** Conviction 1-100 */
@@ -88,7 +97,11 @@ export function Receipt({ mode, data, className }: ReceiptProps) {
         {mode === 'settled' && data.outcome && data.outcomeColor && (
           <Tag intent="success">SETTLED</Tag>
         )}
-        <span className="font-mono text-sm text-brand-muted">@{data.handle}</span>
+        {/* Caller handle + verified badge host (AUTH-09 / D-07) */}
+        <div className="flex flex-row items-center gap-2">
+          <VerifiedBadge verifiedX={data.verifiedX} verifiedFc={data.verifiedFc} />
+          <span className="font-mono text-sm text-brand-muted">@{data.handle}</span>
+        </div>
       </div>
 
       {/* Settled mode: Stamp overlay */}

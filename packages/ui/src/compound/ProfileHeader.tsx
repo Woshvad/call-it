@@ -7,6 +7,8 @@
  * FLEXBOX ONLY — Satori compatibility (Pitfall 15). No grid.
  */
 
+import { VerifiedBadge } from '../primitives/VerifiedBadge';
+
 export type ProfileHeaderUser = {
   /** Public handle — shown as @handle */
   handle: string;
@@ -14,8 +16,15 @@ export type ProfileHeaderUser = {
   displayName?: string;
   /** Avatar URL (optional — falls back to initials) */
   avatarUrl?: string;
-  /** Verified (Phase 1.5 wires the VERIFIED·X badge) */
+  /**
+   * @deprecated Use verifiedX / verifiedFc (AUTH-09). Kept for back-compat —
+   * a truthy `verified` maps to verifiedX when verifiedX is not set.
+   */
   verified?: boolean;
+  /** X (Twitter) link verified — renders VERIFIED · X (AUTH-09) */
+  verifiedX?: boolean;
+  /** Farcaster link verified — renders VERIFIED · FC (AUTH-09) */
+  verifiedFc?: boolean;
   /** Top percentile rep (e.g. 5 = "TOP 5%") — Phase 2 wires */
   topPercent?: number;
   /** Call stats */
@@ -66,11 +75,10 @@ export function ProfileHeader({ user, className }: ProfileHeaderProps) {
         <div className="flex flex-col gap-1">
           <div className="flex flex-row items-center gap-2">
             <span className="font-display font-bold text-brand-text text-xl">{displayName}</span>
-            {user.verified && (
-              <span className="font-mono text-xs text-brand-accent border border-brand-accent px-1">
-                VERIFIED
-              </span>
-            )}
+            <VerifiedBadge
+              verifiedX={user.verifiedX ?? user.verified}
+              verifiedFc={user.verifiedFc}
+            />
           </div>
           <span className="font-mono text-sm text-brand-muted">@{user.handle}</span>
           {user.topPercent !== undefined && (

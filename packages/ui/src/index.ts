@@ -14,7 +14,7 @@
 export { Button, type ButtonProps } from './primitives/Button';
 export { Card, type CardProps } from './primitives/Card';
 export { Tag, type TagProps } from './primitives/Tag';
-export { VerifiedBadge, type VerifiedBadgeProps } from './primitives/VerifiedBadge';
+export { VerifiedBadge, type VerifiedBadgeProps, type VerifiedBadgeHost } from './primitives/VerifiedBadge';
 export { CornerBrackets } from './primitives/CornerBrackets';
 export {
   Skeleton,

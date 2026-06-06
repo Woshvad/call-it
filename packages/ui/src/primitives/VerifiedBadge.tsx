@@ -35,6 +35,23 @@ export type VerifiedBadgeProps = {
   className?: string;
 };
 
+/**
+ * VerifiedBadgeHost — the minimal AUTH-09 badge-host seam (D-07).
+ *
+ * Surfaces that show a caller handle spread this into their data type so a
+ * <VerifiedBadge> can render next to the handle. The full Duel page (Phase 3)
+ * and Leaderboard page (Phase 7) are out of scope here — this type is the prop
+ * seam those pages will populate. ProfileHeaderUser, CallCardData, and
+ * ReceiptData already carry these fields inline; this type is the shared
+ * contract for not-yet-built surfaces.
+ */
+export type VerifiedBadgeHost = {
+  /** AUTH-09 badge host — full Duel page Phase 3 / Leaderboard page Phase 7 */
+  verifiedX?: boolean;
+  /** AUTH-09 badge host — full Duel page Phase 3 / Leaderboard page Phase 7 */
+  verifiedFc?: boolean;
+};
+
 export function VerifiedBadge({ verifiedX, verifiedFc, className }: VerifiedBadgeProps): React.JSX.Element | null {
   if (!verifiedX && !verifiedFc) return null;
 
