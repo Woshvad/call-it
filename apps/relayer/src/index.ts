@@ -51,6 +51,9 @@ import { duelLiveStateRoute } from './routes/duel-live-state.js';
 import { duelsRoute } from './routes/duels.js';
 // Phase 01.5 — Plan 02: social-link service (Twitter/Farcaster link + unlink-purge)
 import { socialLinkRoute } from './routes/social-link.js';
+// Phase 01.5 — Plan 05: "From your X / Farcaster" feed sections (viewer-only follow-graph)
+import { feedFromYourXRoute } from './routes/feed-from-your-x.js';
+import { feedFromYourFarcasterRoute } from './routes/feed-from-your-fc.js';
 import { sendAlert } from './workers/alerts.js';
 import { startPaymasterConfirmer } from './workers/paymaster-confirmer.js';
 import { startNotificationFanout } from './workers/notification-fanout.js';
@@ -182,6 +185,12 @@ export async function buildApp(): Promise<FastifyInstance> {
   // Phase 01.5 — Plan 02: social-link service (AUTH-06/07/12/13/17 — session-gated;
   // Twitter (Privy proof) + Farcaster (SIWF) link via KMS oauth-proof wallet + unlink-purge)
   await app.register(socialLinkRoute);
+  // ── Plan 01.5-05 routes ───────────────────────────────────
+  // Phase 01.5 — Plan 05: "From your X / Farcaster" feed sections (AUTH-14/15/18,
+  // viewer-only follow-graph; session-gated; degrade-to-empty so the main feed
+  // never blocks). X API tier / Neynar key are FEED-wave operator gates.
+  await app.register(feedFromYourXRoute);
+  await app.register(feedFromYourFarcasterRoute);
   // ─────────────────────────────────────────────────────────
 
   // 5. Boot-time BullMQ compatibility smoke (Pitfall A mitigation)
