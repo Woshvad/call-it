@@ -33,6 +33,7 @@ import { useRouter } from 'next/navigation';
 import { useFeed } from '@/hooks/useFeed';
 import { FeedList } from '@/components/FeedList';
 import { ChallengeFormModal } from '@/app/components/ChallengeFormModal';
+import { FromYourNetworkSections } from '@/app/components/FromYourNetworkSections';
 import type { FeedItem } from '@/lib/relayer-client';
 
 // Import the global CSS for feed card stagger animation (UI-53)
@@ -829,6 +830,10 @@ export default function HomePage() {
       {/* ── Live tab ─────────────────────────────────────────────────────────── */}
       {activeTab === 'Live' && (
         <div style={{ display: 'flex', flexDirection: 'column' }}>
+          {/* "From your X / Farcaster" sections — render above the main feed for
+              opted-in viewers only (AUTH-16 gate inside; self-hides otherwise). */}
+          <FromYourNetworkSections />
+
           {/* Live tab filter chips: All / ⚔ Challengeable */}
           <div
             style={{
