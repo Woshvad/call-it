@@ -83,7 +83,7 @@ Call It ships as a person-first onchain social prediction product on Arbitrum ma
   3. "From your X" feed section shows up to 10 calls (active + active duels, excludes settled), ordered by recency, refreshed when feed opens with a 1-hour cache; "From your Farcaster" mirrors with collapse toggles; explicit opt-in screen shown during onboarding and never bypassed.
   4. User can unlink Twitter/Farcaster directly (no relayer required) via Profile → Settings; badge and handle reference removed; onchain history retained; X/FC follow-graph data is server-side only, visible only to the viewer, and cleared on disconnect.
 **Plans**: 5 plans across 4 waves (CORE first, FEED gated)
-  - [ ] 01.5-01-PLAN.md — Wave 1: [BLOCKING] setRelayer(relayerKms) on canonical PR 0xF66C0AFE (owner gate) + social-linking env surface
+  - [ ] 01.5-01-PLAN.md — Wave 1: [BLOCKING] setRelayer(relayerKms) on canonical PR 0xF66C0AFE (owner gate) + social-linking env surface — ⏳ IN PROGRESS (2026-06-06): Task 1 (env surface) DONE + committed `3fbf88d`; Task 2 setRelayer DEFERRED to operator (live owner-key tx from treasury 0xDa8c5726 — gate still open, plan intentionally incomplete, NO SUMMARY)
   - [ ] 01.5-02-PLAN.md — Wave 2: relayer link-proof service (Twitter/Privy + Farcaster/auth-client) + D-06 uniqueness + D-05 proofHash + KMS submit + unlink-purge + SocialUnlinked watcher + /api/profile enrichment
   - [ ] 01.5-03-PLAN.md — Wave 1: <VerifiedBadge> primitive + wiring (Profile/Feed/Receipt + Duel/Leaderboard hosts) + AUTH-10 zero-mechanical-effect parity test
   - [ ] 01.5-04-PLAN.md — Wave 3: link/unlink UI (onboarding + Settings) + Farcaster AuthKitProvider below PrivyProvider + AUTH-16 opt-in consent (D-14)
