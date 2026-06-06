@@ -9,17 +9,15 @@ pragma solidity =0.8.30;
  * PHASE-6 PLACEHOLDER ADDRESSES — READ BEFORE RUNNING
  * ============================================================================
  *
- * The 6 address constants in this contract are currently set to the
- * Phase-05.1 Sepolia cluster values (deployed 2026-06-02). They are
- * PLACEHOLDERS for two distinct reasons:
+ * The 6 address constants in this contract are set to the CANONICAL Phase-6
+ * Arbitrum Sepolia cluster (settle-blocker redeploy 2026-06-04). For the
+ * Sepolia rehearsal they are READY AS-IS; for mainnet they are placeholders:
  *
  * GATE 1 — Sepolia rehearsal:
- *   Plan 06-02 broadcast (full Phase-6 Sepolia cluster redeploy with
- *   Circle USDC) has NOT yet run. Before executing the Sepolia rehearsal
- *   (Task 2 of this plan), ALL 6 address constants MUST be updated to the
- *   Phase-6 Sepolia cluster addresses produced by the 06-02 broadcast.
- *   The Phase-05.1 addresses below will cause post-broadcast require()
- *   failures if you run this script against the Phase-6 cluster.
+ *   The Phase-6 Sepolia cluster redeploy (settle-blocker fix, 2026-06-04) has
+ *   run; its addresses are filled in below and verified against
+ *   packages/shared/src/constants/addresses.ts. No address update is needed to
+ *   run the Sepolia rehearsal (Task 2 of plan 06-06) — only set SAFE_ADDRESS.
  *
  * GATE 2 — Phase-7 mainnet ownership transfer:
  *   This script can only be run on Arbitrum One mainnet AFTER the Phase-7
@@ -32,11 +30,11 @@ pragma solidity =0.8.30;
  *   pendingOwner / owner), but gas will have been spent and the transfer
  *   will NOT be complete.
  *
- * PHASE-7 MAINNET USE: Before broadcasting on Arbitrum One, update all 6
- * address constants to mainnet values. Current values are Phase-05.1
- * Sepolia cluster PLACEHOLDERS. Mainnet contract addresses will be
- * assigned during Phase-7 deploy. Do NOT broadcast this script to mainnet
- * without updating these constants.
+ * MAINNET USE (Phase 10 — mainnet multisig promotion): Before broadcasting on
+ * Arbitrum One, update all 6 address constants to mainnet values. Current values
+ * are the Phase-6 Arbitrum Sepolia canonical cluster. Mainnet contract addresses
+ * will be assigned during the mainnet deploy. Do NOT broadcast this script to
+ * mainnet without updating these constants.
  * ============================================================================
  *
  * DUAL OWNERSHIP MECHANISM — CRITICAL:
@@ -64,7 +62,7 @@ pragma solidity =0.8.30;
  *
  * ============================================================================
  *
- * Usage (after updating address constants above):
+ * Usage (Sepolia constants are filled in; update them only for mainnet — GATE 2):
  *
  *   Sepolia rehearsal:
  *     export SAFE_ADDRESS=<address from deploy-safe.ts --network sepolia --execute>
@@ -110,35 +108,35 @@ import { ProfileRegistry } from "../src/ProfileRegistry.sol";
 contract TransferOwnershipToSafe is Script {
     // ─────────────────────────────────────────────────────────────────────────
     // Address constants
-    // IMPORTANT: See the PLACEHOLDER ADDRESSES block comment at the top of this
-    // file. These are Phase-05.1 Sepolia values. Update before running.
+    // CANONICAL Phase-6 Arbitrum Sepolia cluster (settle-blocker redeploy
+    // 2026-06-04), verified against packages/shared/src/constants/addresses.ts.
+    // Ready for the Sepolia rehearsal as-is; for the Arbitrum One mainnet transfer
+    // (Phase 10) REPLACE all 6 with the mainnet deploy addresses first (GATE 2).
     // ─────────────────────────────────────────────────────────────────────────
 
-    // Phase-05.1 Sepolia cluster addresses (2026-06-02 deploy).
-    // REPLACE with Phase-6 Sepolia addresses from 06-02 broadcast before Sepolia rehearsal.
-    // REPLACE with Arbitrum One mainnet addresses from Phase-7 deploy before mainnet transfer.
-
-    /// @notice CallRegistry on Sepolia (Phase-05.1 placeholder).
+    /// @notice CallRegistry on Sepolia (Phase-6 canonical cluster).
     address public constant CALL_REGISTRY =
-        0x9E3E467e5D1F1266354444CEaC67651c7e9CACEc;
+        0xb864308D7214f98d60C5811F451fa96a49619150;
 
-    /// @notice FollowFadeMarket on Sepolia (Phase-05.1 placeholder).
+    /// @notice FollowFadeMarket on Sepolia (Phase-6 canonical cluster).
     address public constant FOLLOW_FADE_MARKET =
-        0x5Aa7bC9ee202AD9197CB109e7EcF3d7d99C72a48;
+        0xBDaD3F1E608452fea36a7861cDd8BBb73D9D10c1;
 
-    /// @notice ChallengeEscrow on Sepolia (Phase-05.1 placeholder).
+    /// @notice ChallengeEscrow on Sepolia (Phase-6 canonical cluster).
     address public constant CHALLENGE_ESCROW =
-        0xf0D65BFd5dFa4e40c81d198DD7ED78423a26Fdea;
+        0x2E11fD3E03acE074D855661Bc4320bddbE897714;
 
-    /// @notice SettlementManager on Sepolia (Phase-05.1 placeholder).
+    /// @notice SettlementManager on Sepolia (Phase-6 canonical cluster).
     address public constant SETTLEMENT_MANAGER =
-        0x765f6ecd85059CF8eF59286DF578AEC0B13230fC;
+        0x9235003d9C9F38539a41d9798c32C72e7615428A;
 
-    /// @notice ProfileRegistry on Sepolia (unchanged from Phase 05.1; not redeployed by Phase 6).
+    /// @notice ProfileRegistry on Sepolia (Phase-6 canonical cluster; redeployed in the
+    ///         settle-blocker fix to add the globalRep(address) getter SM.settle staticcalls).
     address public constant PROFILE_REGISTRY =
-        0xAfe239a3606b89Ef65DbBcDb1b87a920052c359E;
+        0xE82308B350013fA0dcc11fEF10B3F0bf684EFd14;
 
-    /// @notice ProxyAdmin (auto-created by OZ 5.x proxy; unchanged from Phase 5 deploy).
+    /// @notice ProxyAdmin (auto-created by OZ 5.x proxy; unchanged from Phase 5 — the Stylus
+    ///         proxy was NOT redeployed by Phase 6). == PROXY_ADMIN_ARBITRUM_SEPOLIA in addresses.ts.
     /// @dev Plain Ownable — transferOwnership is immediate, not 2-step.
     address public constant PROXY_ADMIN_ADDR =
         0xAeA5a279DDF1625490c5F4284eF0D735BB56044a;
@@ -158,8 +156,8 @@ contract TransferOwnershipToSafe is Script {
         console.log("  Safe address:", safe);
         console.log("  Deployer:   ", vm.addr(deployerKey));
         console.log("---");
-        console.log("WARNING: These address constants are Phase-05.1 Sepolia PLACEHOLDERS.");
-        console.log("         Update before running against Phase-6 cluster or mainnet.");
+        console.log("NOTE: Address constants are the Phase-6 Sepolia canonical cluster (ready");
+        console.log("      for the Sepolia rehearsal). For Arbitrum One mainnet, update all 6 first.");
         console.log("---");
 
         vm.startBroadcast(deployerKey);

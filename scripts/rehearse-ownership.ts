@@ -23,9 +23,9 @@
  *   RPC_URL_ARBITRUM_ONE      Alchemy RPC (when --network arbitrum-one)
  *
  * Contract addresses (Ownable2Step targets):
- *   Read from env or fall back to Phase-05.1 Sepolia PLACEHOLDER constants below.
- *   UPDATE the constants (or provide via env) before running against the Phase-6 cluster.
- *   UPDATE again before running against Arbitrum One mainnet.
+ *   Read from env (CONTRACT_*) or fall back to the Phase-6 Sepolia canonical
+ *   cluster defaults below (settle-blocker redeploy 2026-06-04).
+ *   Replace the defaults (or provide via env) before running against Arbitrum One mainnet.
  *
  *   Env overrides:
  *     CONTRACT_CALL_REGISTRY
@@ -100,17 +100,19 @@ const OWNABLE2STEP_ABI = [
 ] as const;
 
 // ---------------------------------------------------------------------------
-// Phase-05.1 Sepolia PLACEHOLDER addresses
-// UPDATE before running against Phase-6 cluster or Arbitrum One mainnet.
+// Default contract addresses — the CANONICAL Phase-6 Arbitrum Sepolia cluster
+// (settle-blocker redeploy 2026-06-04), verified against
+// packages/shared/src/constants/addresses.ts. Override any of them via the
+// CONTRACT_* env vars; replace all five for Arbitrum One mainnet (Phase 10).
 // See the two-gate note in TransferOwnershipToSafe.s.sol.
 // ---------------------------------------------------------------------------
 
-const PLACEHOLDER_ADDRESSES = {
-  CALL_REGISTRY:        '0x9E3E467e5D1F1266354444CEaC67651c7e9CACEc' as Address,
-  FOLLOW_FADE_MARKET:   '0x5Aa7bC9ee202AD9197CB109e7EcF3d7d99C72a48' as Address,
-  CHALLENGE_ESCROW:     '0xf0D65BFd5dFa4e40c81d198DD7ED78423a26Fdea' as Address,
-  SETTLEMENT_MANAGER:   '0x765f6ecd85059CF8eF59286DF578AEC0B13230fC' as Address,
-  PROFILE_REGISTRY:     '0xAfe239a3606b89Ef65DbBcDb1b87a920052c359E' as Address,
+const DEFAULT_SEPOLIA_ADDRESSES = {
+  CALL_REGISTRY:        '0xb864308D7214f98d60C5811F451fa96a49619150' as Address,
+  FOLLOW_FADE_MARKET:   '0xBDaD3F1E608452fea36a7861cDd8BBb73D9D10c1' as Address,
+  CHALLENGE_ESCROW:     '0x2E11fD3E03acE074D855661Bc4320bddbE897714' as Address,
+  SETTLEMENT_MANAGER:   '0x9235003d9C9F38539a41d9798c32C72e7615428A' as Address,
+  PROFILE_REGISTRY:     '0xE82308B350013fA0dcc11fEF10B3F0bf684EFd14' as Address,
 } as const;
 
 // ---------------------------------------------------------------------------
@@ -169,17 +171,17 @@ export function resolveContractAddresses(): ContractAddresses {
       return envVal as Address;
     }
     console.warn(
-      `  [warn] ${envKey} not set — using Phase-05.1 placeholder: ${placeholder}`,
+      `  [warn] ${envKey} not set — using Phase-6 Sepolia canonical default: ${placeholder}`,
     );
     return placeholder;
   };
 
   return {
-    callRegistry:      resolve('CONTRACT_CALL_REGISTRY',        PLACEHOLDER_ADDRESSES.CALL_REGISTRY),
-    followFadeMarket:  resolve('CONTRACT_FOLLOW_FADE_MARKET',   PLACEHOLDER_ADDRESSES.FOLLOW_FADE_MARKET),
-    challengeEscrow:   resolve('CONTRACT_CHALLENGE_ESCROW',     PLACEHOLDER_ADDRESSES.CHALLENGE_ESCROW),
-    settlementManager: resolve('CONTRACT_SETTLEMENT_MANAGER',   PLACEHOLDER_ADDRESSES.SETTLEMENT_MANAGER),
-    profileRegistry:   resolve('CONTRACT_PROFILE_REGISTRY',     PLACEHOLDER_ADDRESSES.PROFILE_REGISTRY),
+    callRegistry:      resolve('CONTRACT_CALL_REGISTRY',        DEFAULT_SEPOLIA_ADDRESSES.CALL_REGISTRY),
+    followFadeMarket:  resolve('CONTRACT_FOLLOW_FADE_MARKET',   DEFAULT_SEPOLIA_ADDRESSES.FOLLOW_FADE_MARKET),
+    challengeEscrow:   resolve('CONTRACT_CHALLENGE_ESCROW',     DEFAULT_SEPOLIA_ADDRESSES.CHALLENGE_ESCROW),
+    settlementManager: resolve('CONTRACT_SETTLEMENT_MANAGER',   DEFAULT_SEPOLIA_ADDRESSES.SETTLEMENT_MANAGER),
+    profileRegistry:   resolve('CONTRACT_PROFILE_REGISTRY',     DEFAULT_SEPOLIA_ADDRESSES.PROFILE_REGISTRY),
   };
 }
 
@@ -231,8 +233,8 @@ export async function runRehearsal(network: NetworkName): Promise<RehearsalResul
   console.log(`  Threshold:      2-of-3 (signing with signer 1 + signer 2)`);
   console.log('');
   console.log(
-    '  NOTE: If contract addresses above show Phase-05.1 placeholders, set\n' +
-    '  CONTRACT_* env vars to the Phase-6 cluster addresses from 06-02 broadcast.',
+    '  NOTE: Addresses default to the Phase-6 Sepolia canonical cluster. Override\n' +
+    '  any via CONTRACT_* env vars (and replace all 5 for Arbitrum One mainnet).',
   );
   console.log('');
 
