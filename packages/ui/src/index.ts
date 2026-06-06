@@ -4,7 +4,7 @@
  * All primitives, compounds, and hooks are exported from here.
  * apps/web imports from '@call-it/ui' directly.
  *
- * Primitives: Button, Card, Tag, Toast, ToastProvider, CornerBrackets, Skeleton, Stamp
+ * Primitives: Button, Card, Tag, VerifiedBadge, Toast, ToastProvider, CornerBrackets, Skeleton, Stamp
  * Compounds: Receipt, ConvictionBar, CallCard, ProfileHeader
  * Hooks: useToast
  * Tokens: colors, typography, spacing
@@ -14,6 +14,7 @@
 export { Button, type ButtonProps } from './primitives/Button';
 export { Card, type CardProps } from './primitives/Card';
 export { Tag, type TagProps } from './primitives/Tag';
+export { VerifiedBadge, type VerifiedBadgeProps } from './primitives/VerifiedBadge';
 export { CornerBrackets } from './primitives/CornerBrackets';
 export {
   Skeleton,
