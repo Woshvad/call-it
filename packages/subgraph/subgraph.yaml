@@ -10,9 +10,9 @@ dataSources:
     source:
       # Phase 2 v2: Redeployed CallRegistry on Arbitrum Sepolia (2026-05-30, DeployPhase2.s.sol).
       # Matches CALL_REGISTRY_ARBITRUM_SEPOLIA in packages/shared/src/constants/addresses.ts.
-      address: "0xb864308D7214f98d60C5811F451fa96a49619150"
+      address: "0xc79bB19dBCA44D8b467b9f7bbb191b56e9fb3CB0"
       abi: CallRegistry
-      startBlock: 273884588
+      startBlock: 274393587
     mapping:
       kind: ethereum/events
       apiVersion: 0.0.9
@@ -66,9 +66,9 @@ dataSources:
     source:
       # Phase 2 v2: Redeployed ProfileRegistry on Arbitrum Sepolia (2026-05-30, DeployPhase2.s.sol).
       # Matches PROFILE_REGISTRY_ARBITRUM_SEPOLIA in packages/shared/src/constants/addresses.ts.
-      address: "0xE82308B350013fA0dcc11fEF10B3F0bf684EFd14"
+      address: "0xF66C0AFEf03b43338FC5aE282e45C0Cf6A3c4820"
       abi: ProfileRegistry
-      startBlock: 273884585
+      startBlock: 274393587
     mapping:
       kind: ethereum/events
       apiVersion: 0.0.9
@@ -107,9 +107,9 @@ dataSources:
       # DEPLOYED 2026-06-01 via DeployPhase4.s.sol. Block: 272912507.
       # Supersedes Phase 2 v1 address (0x12aafa5a70c3aD8Bd3a52252744f9F7Aa073E362, block 272458674).
       # Matches FOLLOW_FADE_MARKET_ARBITRUM_SEPOLIA in packages/shared/src/constants/addresses.ts.
-      address: "0xBDaD3F1E608452fea36a7861cDd8BBb73D9D10c1"
+      address: "0x188Db2970A46D1541EB712A2302e4a9F67740d82"
       abi: FollowFadeMarket
-      startBlock: 273884592
+      startBlock: 274393587
     mapping:
       kind: ethereum/events
       apiVersion: 0.0.9
@@ -142,9 +142,9 @@ dataSources:
       # Phase 3: Deployed ChallengeEscrow on Arbitrum Sepolia (2026-06-01, DeployPhase3.s.sol).
       # Matches CHALLENGE_ESCROW_ARBITRUM_SEPOLIA in packages/shared/src/constants/addresses.ts.
       # Tx: 0x507d8e265338c87ee8e80281bc496b1fd6b7dff26e2b5fd3de8554183da48748.
-      address: "0x2E11fD3E03acE074D855661Bc4320bddbE897714"
+      address: "0xC738dBcDBC3aCDCF7E25EB9B7E15bB3911aFf5e6"
       abi: ChallengeEscrow
-      startBlock: 273884596
+      startBlock: 274393587
     mapping:
       kind: ethereum/events
       apiVersion: 0.0.9
@@ -181,9 +181,9 @@ dataSources:
       # Phase 4: SettlementManager deployed 2026-06-01 via DeployPhase4.s.sol. Block: 272912513.
       # Funded 0.05 ETH for Pyth VAA fees at deploy.
       # Matches SETTLEMENT_MANAGER_ARBITRUM_SEPOLIA in packages/shared/src/constants/addresses.ts.
-      address: "0x9235003d9C9F38539a41d9798c32C72e7615428A"
+      address: "0x2E26eEb3b4CC9FA49B543846ea2E01B7600897e7"
       abi: SettlementManager
-      startBlock: 273884600
+      startBlock: 274393587
     mapping:
       kind: ethereum/events
       apiVersion: 0.0.9

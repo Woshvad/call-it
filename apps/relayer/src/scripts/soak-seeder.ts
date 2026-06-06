@@ -26,9 +26,10 @@
  *
  * Owner-gated actions:
  *   Phase F's resolveDispute is restricted by Ownable2Step to the contract owner
- *   (0xF4ee61950B63cCA5C82f1146484d018Ac95Bd0F2 — NOT any SOAK_WALLET). Provide the
- *   owner key via SOAK_OWNER_PRIVATE_KEY to run it; if unset, resolveDispute is
- *   skipped gracefully (NOT counted as an error).
+ *   (0xDa8c5726f596E8dae99e6dDEBa8AEa1c8bE9A4a5 = treasury = SOAK_WALLET_0 after the
+ *   2026-06-06 owner-key-recovery redeploy). Provide the owner key via
+ *   SOAK_OWNER_PRIVATE_KEY to run it; if unset, resolveDispute is skipped gracefully
+ *   (NOT counted as an error).
  *
  * Phase subsetting (E/F standalone):
  *   "challenge needs a Live+unexpired call" and "dispute needs a settled call" are
@@ -63,8 +64,8 @@
  *                            correct ONLY for a fresh full-run contract — set it explicitly for a
  *                            standalone Phase E against a pre-existing call.
  *   - SOAK_DISPUTER_INDEX    Integer 0-9 — Phase F disputer wallet. Default 4 (proven SAFETY-27 run).
- *   - SOAK_OWNER_PRIVATE_KEY Owner key for 0xF4ee61950B63cCA5C82f1146484d018Ac95Bd0F2 — required
- *                            to run Phase F resolveDispute; if unset, resolveDispute is skipped.
+ *   - SOAK_OWNER_PRIVATE_KEY Owner key for 0xDa8c5726f596E8dae99e6dDEBa8AEa1c8bE9A4a5 (treasury /
+ *                            SOAK_WALLET_0) — required to run Phase F resolveDispute; if unset, skipped.
  *   - SOAK_CALL_EXPIRY_SECONDS  Phase A call expiry offset (default 2h).
  *
  * Compile check: cd apps/relayer && npx tsc --noEmit
@@ -173,9 +174,10 @@ const SOAK_WALLET_COUNT = 10;
 
 /**
  * Canonical owner of all 5 contracts (Ownable2Step). resolveDispute is restricted
- * to this address — NOT any SOAK_WALLET. Provide its key via SOAK_OWNER_PRIVATE_KEY.
+ * to this address. After the 2026-06-06 owner-key-recovery redeploy this is the
+ * treasury 0xDa8c5726 (== SOAK_WALLET_0), so SOAK_OWNER_PRIVATE_KEY can be that key.
  */
-const SOAK_OWNER_ADDRESS = '0xF4ee61950B63cCA5C82f1146484d018Ac95Bd0F2' as const;
+const SOAK_OWNER_ADDRESS = '0xDa8c5726f596E8dae99e6dDEBa8AEa1c8bE9A4a5' as const;
 
 /** Minimum USDC for a Phase E/F stake or bond: $5 = 5_000000 (6-decimal USDC) */
 const MIN_STAKE_USDC = 5_000000n;
@@ -931,9 +933,10 @@ async function phaseE_challengeCycle(
 // Disputer wallet: SOAK_DISPUTER_INDEX (0-9) → 4 (default; matches the proven SAFETY-27
 // run). A full A/B run drains the disputer below the $5 bond minimum, so it is self-healed:
 // if the chosen wallet holds < $5 USDC, the highest-balance funded wallet is substituted.
-// resolveDispute is Ownable2Step-gated to 0xF4ee61950B63cCA5C82f1146484d018Ac95Bd0F2 (NOT
-// any SOAK_WALLET): it is sent from SOAK_OWNER_PRIVATE_KEY. If that env is unset,
-// resolveDispute is skipped gracefully (NOT counted as an error).
+// resolveDispute is Ownable2Step-gated to the owner SOAK_OWNER_ADDRESS (= treasury
+// 0xDa8c5726 == SOAK_WALLET_0 after the 2026-06-06 redeploy): it is sent from
+// SOAK_OWNER_PRIVATE_KEY. If that env is unset, resolveDispute is skipped gracefully
+// (NOT counted as an error).
 
 async function phaseF_disputeResolve(
   publicClient: ReturnType<typeof buildPublicClient>,
@@ -1003,8 +1006,8 @@ async function phaseF_disputeResolve(
     return;
   }
 
-  // resolveDispute is Ownable2Step-restricted to the contract owner
-  // (0xF4ee61950B63cCA5C82f1146484d018Ac95Bd0F2 — NOT any SOAK_WALLET). It must be sent
+  // resolveDispute is Ownable2Step-restricted to the contract owner SOAK_OWNER_ADDRESS
+  // (= treasury 0xDa8c5726 == SOAK_WALLET_0 after the 2026-06-06 redeploy). It must be sent
   // from SOAK_OWNER_PRIVATE_KEY. When that env is unset, this step is operator-gated and
   // skipped gracefully (NOT an error), so the seeder still exits 0.
   const ownerKeyRaw = process.env.SOAK_OWNER_PRIVATE_KEY;

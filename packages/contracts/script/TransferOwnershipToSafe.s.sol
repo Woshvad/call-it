@@ -116,24 +116,24 @@ contract TransferOwnershipToSafe is Script {
 
     /// @notice CallRegistry on Sepolia (Phase-6 canonical cluster).
     address public constant CALL_REGISTRY =
-        0xb864308D7214f98d60C5811F451fa96a49619150;
+        0xc79bB19dBCA44D8b467b9f7bbb191b56e9fb3CB0;
 
     /// @notice FollowFadeMarket on Sepolia (Phase-6 canonical cluster).
     address public constant FOLLOW_FADE_MARKET =
-        0xBDaD3F1E608452fea36a7861cDd8BBb73D9D10c1;
+        0x188Db2970A46D1541EB712A2302e4a9F67740d82;
 
     /// @notice ChallengeEscrow on Sepolia (Phase-6 canonical cluster).
     address public constant CHALLENGE_ESCROW =
-        0x2E11fD3E03acE074D855661Bc4320bddbE897714;
+        0xC738dBcDBC3aCDCF7E25EB9B7E15bB3911aFf5e6;
 
     /// @notice SettlementManager on Sepolia (Phase-6 canonical cluster).
     address public constant SETTLEMENT_MANAGER =
-        0x9235003d9C9F38539a41d9798c32C72e7615428A;
+        0x2E26eEb3b4CC9FA49B543846ea2E01B7600897e7;
 
     /// @notice ProfileRegistry on Sepolia (Phase-6 canonical cluster; redeployed in the
     ///         settle-blocker fix to add the globalRep(address) getter SM.settle staticcalls).
     address public constant PROFILE_REGISTRY =
-        0xE82308B350013fA0dcc11fEF10B3F0bf684EFd14;
+        0xF66C0AFEf03b43338FC5aE282e45C0Cf6A3c4820;
 
     /// @notice ProxyAdmin (auto-created by OZ 5.x proxy; unchanged from Phase 5 — the Stylus
     ///         proxy was NOT redeployed by Phase 6). == PROXY_ADMIN_ARBITRUM_SEPOLIA in addresses.ts.
