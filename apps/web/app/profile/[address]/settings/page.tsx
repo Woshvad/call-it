@@ -22,6 +22,7 @@ import { useRouter } from 'next/navigation';
 import { profileRegistryAbi } from '@/lib/abis/ProfileRegistry';
 import { CustodyDisclosureCard } from '@/components/CustodyDisclosureCard';
 import { AddressBookManager } from '@/components/AddressBookManager';
+import { SocialLinkControls } from '@/app/components/SocialLinkControls';
 import { Card } from '@call-it/ui';
 
 // ProfileRegistry address from env
@@ -214,17 +215,20 @@ export default function ProfileSettingsPage({ params }: SettingsPageProps) {
           </button>
         </Card>
 
-        {/* ── Section 4: Connect / Disconnect socials (Phase 1.5 stubs) ────────── */}
+        {/* ── Section 4: Connect / Disconnect socials (AUTH-07/12, D-07/13) ────── */}
         <Card style={{ padding: '20px' }}>
           <h2 style={{ fontFamily: 'monospace', fontWeight: 700, fontSize: '0.875rem', color: '#E8F542', margin: '0 0 12px 0' }}>
             Connected Accounts
           </h2>
-          <p style={{ fontFamily: 'monospace', fontSize: '0.75rem', color: '#52525B', margin: 0 }}>
-            Social linking (Twitter / Farcaster) ships in Phase 1.5.
-            {/* TODO Phase 1.5: wire useLinkAccount() from @privy-io/react-auth */}
-            {/* Twitter: useLinkAccount({ type: 'twitter_oauth' }) */}
-            {/* Farcaster: useLinkAccount({ type: 'farcaster' }) */}
+          <p style={{ fontFamily: 'monospace', fontSize: '0.75rem', color: '#A1A1AA', margin: '0 0 16px 0' }}>
+            Link Twitter / X or Farcaster to earn a VERIFIED badge (D-07). Unlinking removes
+            the badge + handle reference on-chain (your call history is retained) and clears
+            your follow-graph data from our servers (AUTH-12 / AUTH-17). Verification has no
+            effect on your stakes, fees, or reputation.
           </p>
+          {/* settings mode renders link AND unlink controls for both platforms.
+              Unlink = wagmi unlinkTwitter/unlinkFarcaster (user wallet) + relayer purge. */}
+          <SocialLinkControls mode="settings" />
         </Card>
 
         {/* ── Section 5: Address Book (AUTH-31, Plan 07 component) ─────────────── */}
