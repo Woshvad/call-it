@@ -60,6 +60,31 @@ export interface SubgraphProfileSocials {
   farcasterHandle: string | null;
 }
 
+/** A linked Call It profile matched during follow-graph cross-reference (D-11). */
+export interface SubgraphLinkedProfile {
+  /** Profile id = lowercased on-chain address. */
+  id: string;
+  /** Normalized twitter handle on the profile (lowercased), or null. */
+  twitterHandle: string | null;
+  /** Farcaster handle on the profile (e.g. `fid:123` in the CORE wave), or null. */
+  farcasterHandle: string | null;
+}
+
+/** An active "From your X / Farcaster" feed item (AUTH-15 content rules). */
+export interface SubgraphActiveCall {
+  /** Call id (on-chain callId). */
+  id: string;
+  /** Caller address (lowercased). */
+  caller: string;
+  marketType: number;
+  asset: string;
+  stake: string;
+  expiry: string;
+  conviction: number;
+  status: string;
+  createdAt: string;
+}
+
 // ── GraphQL Queries ───────────────────────────────────────────────────────────
 
 const FEED_QUERY = `
@@ -110,6 +135,61 @@ query ProfileCalls($caller: Bytes!, $first: Int!, $skip: Int!) {
     where: { caller: $caller }
   ) {
     id
+    marketType
+    asset
+    stake
+    expiry
+    conviction
+    status
+    createdAt
+  }
+}
+`;
+
+/**
+ * Cross-reference query (D-11): find linked Call It profiles whose twitterHandle
+ * is in the viewer's followed-handle set. Handle matching is case-normalized at
+ * link time (the relayer stores lowercased handles) — we pass lowercased handles.
+ */
+const LINKED_PROFILES_BY_TWITTER_QUERY = `
+query LinkedProfilesByTwitter($handles: [String!]!, $first: Int!) {
+  profiles(first: $first, where: { twitterHandle_in: $handles }) {
+    id
+    twitterHandle
+    farcasterHandle
+  }
+}
+`;
+
+/**
+ * Cross-reference query (D-11): find linked Call It profiles whose farcasterHandle
+ * is in the viewer's followed-fid set. The CORE wave stores Farcaster handles as
+ * `fid:<fid>` (01.5-02), so the caller passes `fid:<fid>` strings.
+ */
+const LINKED_PROFILES_BY_FARCASTER_QUERY = `
+query LinkedProfilesByFarcaster($handles: [String!]!, $first: Int!) {
+  profiles(first: $first, where: { farcasterHandle_in: $handles }) {
+    id
+    twitterHandle
+    farcasterHandle
+  }
+}
+`;
+
+/**
+ * Active calls + active duels for a set of caller addresses (AUTH-15 content rules).
+ * EXCLUDES settled — status_not_in filters terminal states. Recency desc; capped.
+ */
+const ACTIVE_CALLS_BY_CALLERS_QUERY = `
+query ActiveCallsByCallers($callers: [Bytes!]!, $excluded: [String!]!, $first: Int!) {
+  calls(
+    first: $first,
+    orderBy: createdAt,
+    orderDirection: desc,
+    where: { caller_in: $callers, status_not_in: $excluded }
+  ) {
+    id
+    caller
     marketType
     asset
     stake
@@ -277,6 +357,69 @@ export async function queryProfileCalls(
     caller: userAddress.toLowerCase(),
     first: limit,
     skip: offset,
+  });
+
+  return data.calls ?? [];
+}
+
+/** Status values EXCLUDED from the "From your X / Farcaster" feed (AUTH-15: exclude settled). */
+export const EXCLUDED_FEED_STATUSES = ['settled', 'Settled', 'draft', 'Draft'] as const;
+
+/**
+ * Cross-reference followed handles against linked Call It profiles (D-11, AUTH-14).
+ *
+ * Given the viewer's followed handle/fid set, returns the Call It profiles that are
+ * linked to those handles. The relayer stores normalized (lowercased, @-stripped)
+ * twitter handles on-chain, so the caller MUST pass normalized handles for twitter;
+ * for farcaster the caller passes `fid:<fid>` strings (CORE-wave handle shape).
+ *
+ * @param handles The viewer's followed handles (twitter: normalized; farcaster: `fid:<fid>`).
+ * @param platform 'twitter' | 'farcaster' — selects which Profile field to match.
+ * @returns The matched linked profiles (id = lowercased address) — empty if none.
+ */
+export async function queryLinkedProfilesByHandles(
+  handles: string[],
+  platform: 'twitter' | 'farcaster',
+): Promise<SubgraphLinkedProfile[]> {
+  if (handles.length === 0) return [];
+
+  type LinkedData = { profiles: SubgraphLinkedProfile[] };
+  const query =
+    platform === 'twitter'
+      ? LINKED_PROFILES_BY_TWITTER_QUERY
+      : LINKED_PROFILES_BY_FARCASTER_QUERY;
+
+  const data = await executeQuery<LinkedData>(query, {
+    // De-dupe + cap to keep the GraphQL `_in` list bounded.
+    handles: Array.from(new Set(handles)).slice(0, 1000),
+    first: 1000,
+  });
+
+  return data.profiles ?? [];
+}
+
+/**
+ * Query active calls + active duels for a set of caller addresses (AUTH-15).
+ *
+ * EXCLUDES settled (and draft) calls via status_not_in; orders by recency desc;
+ * caps at `limit` (the route slices to ≤10). Active duels are included because a
+ * challenged-but-not-settled call keeps a non-terminal status.
+ *
+ * @param callerAddresses Lowercased addresses of the matched linked profiles.
+ * @param limit Max items to fetch (the route enforces the ≤10 cap).
+ * @returns Active calls for those callers — empty if none / no callers.
+ */
+export async function queryActiveCallsByCallers(
+  callerAddresses: string[],
+  limit: number,
+): Promise<SubgraphActiveCall[]> {
+  if (callerAddresses.length === 0) return [];
+
+  type ActiveData = { calls: SubgraphActiveCall[] };
+  const data = await executeQuery<ActiveData>(ACTIVE_CALLS_BY_CALLERS_QUERY, {
+    callers: Array.from(new Set(callerAddresses.map((a) => a.toLowerCase()))),
+    excluded: [...EXCLUDED_FEED_STATUSES],
+    first: limit,
   });
 
   return data.calls ?? [];
