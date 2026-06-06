@@ -30,7 +30,7 @@ import { initEnv } from './env.js';
 import { createLogger, setLogger } from './lib/logger.js';
 import { pingWithBullMQCompat } from './lib/redis.js';
 import { getDb } from './db/client.js';
-import { FOLLOW_FADE_MARKET_ARBITRUM_SEPOLIA } from '@call-it/shared';
+import { FOLLOW_FADE_MARKET_ARBITRUM_SEPOLIA, PROFILE_REGISTRY_ARBITRUM_SEPOLIA } from '@call-it/shared';
 import { healthRoute } from './routes/health.js';
 import { internalTestAlertRoute } from './routes/internal-test-alert.js';
 import { paymasterAdminRoute } from './routes/admin-paymaster.js';
@@ -56,6 +56,8 @@ import { startPaymasterConfirmer } from './workers/paymaster-confirmer.js';
 import { startNotificationFanout } from './workers/notification-fanout.js';
 import { startDuelTrendingWorker } from './workers/duel-trending-worker.js';
 import { startDuelKingWorker } from './workers/duel-king-worker.js';
+// Phase 01.5 — Plan 02: SocialUnlinked backstop purge watcher (D-13, AUTH-17)
+import { startSocialUnlinkWatcher } from './workers/social-unlink-watcher.js';
 // Phase 4 — Plan 04-04: Settlement watcher (BullMQ + Pyth 30×60s retry)
 import { startSettlementWatcher, type SettlementWatcherHandle } from './workers/settlement-watcher.js';
 // Phase 4 — Plan 04-08: Settlement provenance + dispute routes (D-10, D-06/07)
@@ -275,6 +277,23 @@ export async function buildApp(): Promise<FastifyInstance> {
       app.log.error(
         { event: 'duel_king_worker_start_failed', err: String(err) },
         'Failed to start Duel King worker',
+      );
+    }
+    // Start SocialUnlinked backstop watcher (Plan 01.5-02 — D-13, AUTH-17)
+    // Polls ProfileRegistry SocialUnlinked events (chunked ≤9-block getLogs) and
+    // purges follow_graph + Redis + marks social_link_index unlinked. Idle while
+    // PROFILE_REGISTRY_ARBITRUM_SEPOLIA is zero-address (route zero-guards too).
+    try {
+      startSocialUnlinkWatcher({
+        publicClient: notificationFanoutClient,
+        profileRegistryAddress: PROFILE_REGISTRY_ARBITRUM_SEPOLIA as `0x${string}`,
+        db: notificationFanoutDb,
+        intervalMs: 30_000,
+      });
+    } catch (err) {
+      app.log.error(
+        { event: 'social_unlink_watcher_start_failed', err: String(err) },
+        'Failed to start SocialUnlinked backstop watcher',
       );
     }
     // Start settlement watcher (Phase 4 — Plan 04-04 — D-04)

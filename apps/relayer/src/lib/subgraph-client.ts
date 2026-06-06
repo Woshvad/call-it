@@ -54,6 +54,12 @@ export interface SubgraphProfileCall {
   createdAt: string;
 }
 
+/** Social verification handles for a single Profile (D-08). */
+export interface SubgraphProfileSocials {
+  twitterHandle: string | null;
+  farcasterHandle: string | null;
+}
+
 // ── GraphQL Queries ───────────────────────────────────────────────────────────
 
 const FEED_QUERY = `
@@ -81,6 +87,15 @@ query Feed($first: Int!, $cursor_time: BigInt, $cursor_id: ID) {
     block {
       number
     }
+  }
+}
+`;
+
+const PROFILE_SOCIALS_QUERY = `
+query ProfileSocials($id: ID!) {
+  profile(id: $id) {
+    twitterHandle
+    farcasterHandle
   }
 }
 `;
@@ -210,6 +225,34 @@ export async function queryFeed({
     items,
     nextCursor,
     _meta: data._meta ?? { block: { number: 0 } },
+  };
+}
+
+/**
+ * Query a single Profile's social verification handles (D-08).
+ *
+ * The Profile entity is keyed by the lowercased hex address (subgraph mapping
+ * sets id = event.params.user.toHexString()). twitterHandle/farcasterHandle are
+ * set on SocialLinked and cleared (null) on SocialUnlinked — so a null handle
+ * correctly reflects an unlinked / never-linked state.
+ *
+ * @param userAddress Ethereum address of the profile owner
+ * @returns { twitterHandle, farcasterHandle } — both null if no Profile / not linked
+ */
+export async function queryProfileSocials(
+  userAddress: string,
+): Promise<SubgraphProfileSocials> {
+  type ProfileSocialsData = {
+    profile: { twitterHandle: string | null; farcasterHandle: string | null } | null;
+  };
+
+  const data = await executeQuery<ProfileSocialsData>(PROFILE_SOCIALS_QUERY, {
+    id: userAddress.toLowerCase(),
+  });
+
+  return {
+    twitterHandle: data.profile?.twitterHandle ?? null,
+    farcasterHandle: data.profile?.farcasterHandle ?? null,
   };
 }
 

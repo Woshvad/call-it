@@ -30,6 +30,7 @@ import { arbitrumSepolia } from 'viem/chains';
 import { getRedis } from '../lib/redis.js';
 import { getLogger } from '../lib/logger.js';
 import { resolveEns } from '../lib/ens-resolver.js';
+import { queryProfileSocials } from '../lib/subgraph-client.js';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -147,8 +148,8 @@ export async function profileRoute(
         logger.warn({ event: 'profile_cache_read_failed', err: String(cacheErr) }, 'Cache read failed');
       }
 
-      // ── Concurrent reads: ENS + ProfileRegistry ─────────────────────────────
-      const [ensName, displayHandle, settledCallsRaw] = await Promise.allSettled([
+      // ── Concurrent reads: ENS + ProfileRegistry + subgraph socials ──────────
+      const [ensName, displayHandle, settledCallsRaw, socials] = await Promise.allSettled([
         resolveEns(address as `0x${string}`, redis),
         (async () => {
           try {
@@ -174,17 +175,34 @@ export async function profileRoute(
             return BigInt(0);
           }
         })(),
+        // D-08: social verification handles from the subgraph Profile entity.
+        // Wrapped so a subgraph failure degrades to null (never breaks the public
+        // profile read — Pitfall 5).
+        (async () => {
+          try {
+            return await queryProfileSocials(address);
+          } catch (socialsErr) {
+            logger.warn(
+              { event: 'profile_socials_read_failed', address: normalizedAddress, err: String(socialsErr) },
+              'Subgraph social read failed — degrading verifiedX/verifiedFc to false',
+            );
+            return { twitterHandle: null, farcasterHandle: null };
+          }
+        })(),
       ]);
 
       const resolvedEns = ensName.status === 'fulfilled' ? ensName.value : null;
       const resolvedDisplayHandle = displayHandle.status === 'fulfilled' ? (displayHandle.value as string) : '';
       const resolvedSettledCalls = settledCallsRaw.status === 'fulfilled' ? Number(settledCallsRaw.value as bigint) : 0;
 
-      // Phase 1: social handles are not yet stored on-chain (Phase 1.5 wires linkTwitter/linkFarcaster)
-      // The _socials mapping is not yet readable from this route.
-      // For Phase 1, twitter/farcaster handles come from Privy OAuth links in the future.
-      const twitterHandle: string | null = null;
-      const farcasterHandle: string | null = null;
+      // D-08: social handles derived from the subgraph (set on SocialLinked, cleared
+      // to null on SocialUnlinked — so unlink correctly flips verified flags to false).
+      const resolvedSocials =
+        socials.status === 'fulfilled'
+          ? socials.value
+          : { twitterHandle: null, farcasterHandle: null };
+      const twitterHandle: string | null = resolvedSocials.twitterHandle;
+      const farcasterHandle: string | null = resolvedSocials.farcasterHandle;
 
       // ── AUTH-11 handle priority chain ────────────────────────────────────────
       let handle: string;
@@ -223,8 +241,10 @@ export async function profileRoute(
         losses: 0,
         streak: 0,
         globalRep: 100, // Phase 1 initial value (REP-01)
-        verifiedX: false,   // Phase 1.5 wires onchain social link verification
-        verifiedFc: false,
+        // D-08: verification flags derived from the subgraph-linked handles.
+        // null handle (never linked / unlinked) → false; AUTH-10 zero mechanical effect.
+        verifiedX: !!twitterHandle,
+        verifiedFc: !!farcasterHandle,
       };
 
       // ── Cache the response ────────────────────────────────────────────────────
