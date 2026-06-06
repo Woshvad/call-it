@@ -78,4 +78,22 @@ export interface RelayerEnv {
 
   // ── Internal HMAC for synthetic-event endpoint (D-16) ────────────────────
   RELAYER_INTERNAL_HMAC: string;
+
+  // ── Phase 1.5 — Social linking (CORE wave, D-01..D-09) ───────────────────
+  // All optional: CORE links don't require the FEED secrets, and the relayer
+  // boots in CI/dev without these. RELAYER_OAUTH_PROOF_ADDRESS is the expected
+  // address of the `oauth-proof` KMS key — consumed by the 01.5-02 link service
+  // and verified against the on-chain ProfileRegistry.relayer() value.
+  /** Expected Ethereum address of the GCP `oauth-proof` KMS signing wallet (Pitfall 1) */
+  RELAYER_OAUTH_PROOF_ADDRESS?: string;
+  /** Farcaster relay URL for @farcaster/auth-client (default https://relay.farcaster.xyz) */
+  FARCASTER_RELAY_URL?: string;
+  /** AuthKitProvider domain asserted in verifySignInMessage (Pitfall 3) */
+  FARCASTER_AUTH_DOMAIN?: string;
+
+  // ── Phase 1.5 — FEED-wave secrets (01.5-05, gated behind checkpoint) ─────
+  /** X API Bearer token (follows.read scope) — "From your X" (AUTH-14/15) */
+  X_API_BEARER_TOKEN?: string;
+  /** Neynar API key — "From your Farcaster" follow graph (AUTH-18) */
+  NEYNAR_API_KEY?: string;
 }

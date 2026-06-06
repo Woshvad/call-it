@@ -99,6 +99,40 @@ export const EnvConfigSchema = z
      * Separate from Arbitrum keys — per-network IAM isolation (D-09).
      */
     ENS_MAINNET_RPC_URL: z.string().url().optional(),
+
+    // ── Phase 1.5 — Social linking (CORE wave, D-01..D-09) ───────────────────
+    // ALL optional: the relayer runs in CI/dev without these, and the on-chain
+    // social surface is already deployed (D-01). These are network-agnostic — no
+    // mainnet superRefine applies (they hold the same value on Sepolia + mainnet).
+    /**
+     * Expected Ethereum address derived from the GCP `oauth-proof` KMS key.
+     * Passed as `expectedAddress` to `gcpKmsAccount({ keyId: 'oauth-proof' })` (01.5-02)
+     * and verified by `verifyKmsAddress()` at boot (RESEARCH Q2 / T-00-17).
+     * MUST match the on-chain `ProfileRegistry.relayer()` value set via the
+     * owner-gated `setRelayer` tx on the canonical PR — drift here = NotRelayer
+     * at link time (Pitfall 1, T-01.5-01-02).
+     */
+    RELAYER_OAUTH_PROOF_ADDRESS: z.string().regex(/^0x[0-9a-fA-F]{40}$/).optional(),
+    /**
+     * Farcaster relay URL consumed by `@farcaster/auth-client` createAppClient
+     * in 01.5-02. Documented default: https://relay.farcaster.xyz
+     */
+    FARCASTER_RELAY_URL: z.string().url().optional(),
+    /**
+     * AuthKitProvider domain asserted inside `verifySignInMessage` (Pitfall 3).
+     * MUST equal the frontend AuthKitProvider domain set in 01.5-04 — a mismatch
+     * makes every SIWF verification fail (replay/cross-app guard).
+     */
+    FARCASTER_AUTH_DOMAIN: z.string().min(1).optional(),
+
+    // ── Phase 1.5 — FEED-wave secrets (01.5-05, gated) ──────────────────────
+    // Optional so CORE never depends on them. Held in GCP Secret Manager in
+    // production (Security Domain table); fall back to process.env in dev. The
+    // FEED wave (X API / Neynar) is gated behind a checkpoint:human-verify.
+    /** X API Bearer token (follows.read scope) — "From your X" (AUTH-14/15) */
+    X_API_BEARER_TOKEN: z.string().min(1).optional(),
+    /** Neynar API key — "From your Farcaster" follow graph (AUTH-18) */
+    NEYNAR_API_KEY: z.string().min(1).optional(),
   })
   .superRefine((data, ctx) => {
     if (data.NEXT_PUBLIC_NETWORK === 'mainnet') {

@@ -186,6 +186,22 @@ export async function loadSecrets(): Promise<RelayerEnv> {
     fetchSecret('ALCHEMY_PAYMASTER_ADDRESS'),
   ]);
 
+  // Phase 1.5 — Social-linking secrets (all optional; CORE never hard-depends
+  // on them, and the FEED secrets are gated behind a checkpoint in 01.5-05).
+  const [
+    relayerOauthProofAddress,
+    farcasterRelayUrl,
+    farcasterAuthDomain,
+    xApiBearerToken,
+    neynarApiKey,
+  ] = await Promise.all([
+    fetchSecret('RELAYER_OAUTH_PROOF_ADDRESS'),
+    fetchSecret('FARCASTER_RELAY_URL'),
+    fetchSecret('FARCASTER_AUTH_DOMAIN'),
+    fetchSecret('X_API_BEARER_TOKEN'),
+    fetchSecret('NEYNAR_API_KEY'),
+  ]);
+
   // Build the env object from process.env for non-secret fields + fetched secrets
   const network = (process.env.NEXT_PUBLIC_NETWORK ?? 'sepolia') as 'mainnet' | 'sepolia';
   const chainId = process.env.NEXT_PUBLIC_CHAIN_ID ?? (network === 'mainnet' ? '42161' : '421614');
@@ -251,5 +267,12 @@ export async function loadSecrets(): Promise<RelayerEnv> {
 
     // Internal HMAC (D-16)
     RELAYER_INTERNAL_HMAC: relayerInternalHmac,
+
+    // Phase 1.5 — Social linking (CORE) + FEED secrets (all optional)
+    RELAYER_OAUTH_PROOF_ADDRESS: relayerOauthProofAddress,
+    FARCASTER_RELAY_URL: farcasterRelayUrl,
+    FARCASTER_AUTH_DOMAIN: farcasterAuthDomain,
+    X_API_BEARER_TOKEN: xApiBearerToken,
+    NEYNAR_API_KEY: neynarApiKey,
   };
 }
