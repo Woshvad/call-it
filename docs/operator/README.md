@@ -19,6 +19,7 @@ This directory contains the operational substrate for Call It.
 |----------|---------|
 | [../better-stack-dashboards.md](../better-stack-dashboards.md) | 5 Better Stack dashboard configurations (OPS-06) |
 | [../demo-seed-plan.md](../demo-seed-plan.md) | 10-call seed plan for Phase 6 Sepolia staging (OPS-20) |
+| [phase-6-soak-tail-runbook.md](phase-6-soak-tail-runbook.md) | Owner-gated soak-tail commands: SAFETY-27 resolve, SAFETY-42 Stylus drill, 06-06 multisig rehearsal |
 
 ## Pre-Tag Checklist
 
