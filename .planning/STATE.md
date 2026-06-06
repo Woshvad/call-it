@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: milestone
 status: executing
-stopped_at: Phase 6 CI-safe code built; 3 live operator gates + deploy-safe.ts migration pending
-last_updated: "2026-06-05T00:00:00.000Z"
-last_activity: 2026-06-05 -- Quick task 260605-r9e: synthetic-alert CI verifies relayer send-confirmation (not getUpdates)
+stopped_at: Phase 6 context gathered
+last_updated: "2026-06-06T17:33:05.193Z"
+last_activity: 2026-06-06
 progress:
-  total_phases: 9
+  total_phases: 14
   completed_phases: 7
-  total_plans: 58
-  completed_plans: 57
-  percent: 98
+  total_plans: 63
+  completed_plans: 59
+  percent: 50
 ---
 
 # Project State
@@ -21,16 +21,18 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-21)
 
 **Core value:** Every call is permanent, public, and tied to identity. The receipt — created, settled, and shared — must be unfakeable, undeletable, and visually unmistakable.
-**Current focus:** Phase 06 — safety-review-sepolia-48h-multisig-promotion
+**Current focus:** Phase 01.5 — social-linking-parallel-to-phase-2
 
 ## Current Position
 
-Phase: 06 (safety-review-sepolia-48h-multisig-promotion) — **CLUSTER REDEPLOYED + LIVE; SOAK TAIL + MULTISIG PENDING**
+Phase: 01.5 (social-linking-parallel-to-phase-2) — EXECUTING
+Plan: 2 of 5
 
 > **⚡ CURRENT REALITY (2026-06-05) — supersedes the 06-02 cluster details below.** The settle-blocker (preserved Phase-2 ProfileRegistry lacked `globalRep`) was root-caused + fixed by a full cluster REDEPLOY. **Canonical Sepolia cluster:** PR `0xE82308B350013fA0dcc11fEF10B3F0bf684EFd14` · CR `0xb864308D7214f98d60C5811F451fa96a49619150` · FFM `0xBDaD3F1E608452fea36a7861cDd8BBb73D9D10c1` · CE `0x2E11fD3E03acE074D855661Bc4320bddbE897714` · SM `0x9235003d9C9F38539a41d9798c32C72e7615428A` (blks ~273884585-600). **SAFETY-22/23/24 PROVEN** (10 calls all types + 30 follow/fade + **5 settled "CALLED IT" receipts**, 0 failed — settle() works end-to-end). **GO-LIVE COMPLETE:** subgraph v0.7.0 indexing the new cluster (calls #1/#2 = Settled); relayer rebuilt+redeployed (machine v6, /health 200) polling new FFM; **notification-fanout eth_getLogs free-tier bug FIXED + live-verified** (quick 260605-a4i, commit 79ca33c — chunked ≤9-block getLogs; new worker pid 644 ticks clean, 0 get_logs errors). The old 06-02 addrs (CR 0x015758Cb…) below are SUPERSEDED.
-Last activity: 2026-06-05 — Completed quick task 260605-r9e (synthetic-alert CI verifies relayer send-confirmation, not Telegram getUpdates — fixes the daily cron; no relayer redeploy needed). Prior: 260605-a4i notification-fanout getLogs fix; SAFETY-26 + 27-raise proven on the canonical cluster
+Last activity: 2026-06-06
 
 **CI-safe code built this session (on master):**
+
 - 06-01 ✅ COMPLETE — resolveUsdc() gate + CI allowlist + **critical security fix**: routed ALL USDC transfers in CR/FFM/CE/SM through a chainid-resolved `usdc` immutable (the constructor validated `_usdc` but transfers hardcoded mainnet USDC → would revert every Sepolia money flow). 421614 routing regression test added. Security review PASSED. (11d16d2, c25c175)
 - 06-02 ✅ Task 2 DONE (2026-06-04) — DeployPhase6 broadcast to Sepolia, cluster LIVE + verified (all 4 usdc()=Circle Sepolia 0x75faf114; usdc.decimals()=6; signers+adapters wired). New addrs: CR 0x015758Cb, FFM 0x3129a7E3, CE 0xD2688514, SM 0x998CC092. addresses.ts + subgraph.yaml retargeted. Subgraph v0.6.0 PUBLISHED (2026-06-04). **Remaining go-live: relayer env-retarget + worker restart (operator platform creds) — the only step left before the Gate-2 soak.**
 - 06-03 ✅ COMPLETE — SAFETY-29–43 matrix tests; SAFETY-31 TVL aggregate confirmed; fork suite skips gracefully (7a32405, 97ae83c, 54d1836)
@@ -41,9 +43,9 @@ forge test: 222 pass / 0 fail / 2 skip (excl. 2 RPC-gated fork suites which skip
 
 **Pending — operator gates (all genuinely gated on funds/time/secrets, NOT code):** (1) **SOAK TAIL** — SAFETY-21 (48h duration, time), SAFETY-25 (callerExit: wait 24h post-create then exit; today's revert `0x27404ae3` = the EXPECTED `CallerExitLocked(uint64)` 24h guard, NOT a bug), SAFETY-26 ✅ PROVEN + SAFETY-27 raise ✅ PROVEN (2026-06-05, targeted cast: challenge #2 on Live call #12 propose+accept; raiseDispute on settled call #8). **SAFETY-27 RESOLVE pending** — resolveDispute is onlyOwner and the cluster owner = `0xF4ee61950B63cCA5C82f1146484d018Ac95Bd0F2` (operator deploy key, NOT a soak wallet / not treasury 0xDa8c5726) → operator runs `resolveDispute(8,2)` from it. **0xF4ee6195 owns ALL 5 contracts** → same key gates the 06-06 multisig promotion + the SAFETY-42 destruction drill. SAFETY-28 (Pyth-confidence-wide variant). (2) **synthetic-alert cron FAILING daily** — `synthetic-alert.yml` needs 4 GH Actions secrets set (`RELAYER_URL`=https://call-it-relayer-sepolia.fly.dev, `RELAYER_INTERNAL_HMAC`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID_P0`); none set (`gh secret list` empty) — the Telegram secrets live only on GCP/Fly, not GitHub. (3) **06-06 Task 2** multisig promotion (Safe rehearsal on Sepolia → production Arbitrum One Safe). DeployPhase6 broadcast + go-live DONE. See OPERATOR-RUNBOOK.md.
 **Pending — code:** deploy-safe.ts needs SafeFactory→protocol-kit-v7 migration (or use the Safe UI for the actual deploys) — see deferred-items.md.
-Status: Paused for operator — resume per runbook.
+Status: Ready to execute
 
-Progress: [██████████] 98%
+Progress: [█████████░] 94%
 
 ## Known Plan Issues — Phase 03 (RESOLVED at execution, 2026-06-01)
 
@@ -136,6 +138,7 @@ All 3 operator actions were run this session (user explicitly authorized "run al
 | Phase 05.1 P01 | 12min | 2 tasks | 3 files |
 | Phase 05.1 P03 | 17min | 3 tasks | 7 files |
 | Phase 06 P04 | 584 | 2 tasks | 4 files |
+| Phase 01.5 P03 | 6min | 3 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -260,6 +263,9 @@ completed: 2026-05-29
 - [Phase ?]: OZ v5 ProxyAdmin removed getProxyImplementation() -- CutoffFallback uses vm.load(EIP-1967 IMPL_SLOT) for post-upgrade verification
 - [Phase ?]: Option A EventSubtype split: Governance_Snapshot=6 and Governance_Tally=7 as distinct adapterMap keys; ProtocolMilestone renumbered to 8 (Phase 05.1-01)
 - [Phase ?]: 06-04-SUMMARY.md
+- [Phase ?]: [Phase 01.5-03]: VerifiedBadge reuses Tag intent=warning (brand-accent); returns null when both flags false; inline-flex preserved for Satori/OG (Pitfall 15)
+- [Phase ?]: [Phase 01.5-03]: AUTH-10 zero-mechanical-effect locked as an invariant guard — verified vs unverified mechanicalInputsFor() deep-equal + static guard on fees/call-gates/follow-fade-gates (D-09)
+- [Phase ?]: [Phase 01.5-03]: VerifiedBadgeHost is a typed prop seam only — full Duel page Phase 3, Leaderboard Phase 7 (D-07); Receipt settled-mode badge wiring deferred to Phase 4
 
 ## Performance
 
@@ -401,6 +407,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-06-03T23:40:17.039Z
+Last session: 2026-06-06T17:30:08.064Z
 Stopped at: Phase 6 context gathered
 Resume file: None

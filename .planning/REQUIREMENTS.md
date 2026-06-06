@@ -32,8 +32,8 @@ Requirements for the v1 mainnet release. Each line is an atomic, testable behavi
 - [ ] **AUTH-06**: After sign-in, user can optionally link Twitter via OAuth → ProfileRegistry.linkTwitter (relayer-mediated) (§9.3, §11.5, §12.5)
 - [ ] **AUTH-07**: After sign-in, user can optionally link Farcaster via Farcaster Auth Kit → ProfileRegistry.linkFarcaster (relayer-mediated) (§9.3, §11.5, §12.5)
 - [ ] **AUTH-08**: User can skip social linking and return to it later via Profile → Settings (§9.3, §15.4)
-- [ ] **AUTH-09**: VERIFIED · X / VERIFIED · FC / VERIFIED · X · FC badges render next to the handle on profile, feed cards, receipts, duel page, leaderboard rows (§9.4, §15.1, §15.3, §15.4, §15.6, §15.7)
-- [ ] **AUTH-10**: Connected social verification has zero mechanical effect — no rep boost, no stake-limit unlock, no fee discount, no payout effect (§9.5)
+- [x] **AUTH-09**: VERIFIED · X / VERIFIED · FC / VERIFIED · X · FC badges render next to the handle on profile, feed cards, receipts, duel page, leaderboard rows (§9.4, §15.1, §15.3, §15.4, §15.6, §15.7)
+- [x] **AUTH-10**: Connected social verification has zero mechanical effect — no rep boost, no stake-limit unlock, no fee discount, no payout effect (§9.5)
 - [ ] **AUTH-11**: Handle resolution priority is ENS → Twitter → Farcaster → truncated 0x address, with user-overridable preferred display handle in profile settings (§9.6)
 - [ ] **AUTH-12**: Users can unlink socials via Profile → Settings — removes badge and handle reference, does not delete onchain history (§9.7, §12.5)
 - [ ] **AUTH-13**: ProfileRegistry stores `SocialIdentity` per user (twitterHandle, farcasterHandle, twitterProofHash, farcasterProofHash, twitterLinkedAt, farcasterLinkedAt) capped at 50 bytes per handle (§9.8, §12.5, App.A.1)
@@ -576,8 +576,8 @@ Which phases cover which requirements. Updated during roadmap creation by the ro
 | AUTH-06 | Phase 1.5 | Pending |
 | AUTH-07 | Phase 1.5 | Pending |
 | AUTH-08 | Phase 1 | Pending |
-| AUTH-09 | Phase 1.5 | Pending |
-| AUTH-10 | Phase 1.5 | Pending |
+| AUTH-09 | Phase 1.5 | Complete |
+| AUTH-10 | Phase 1.5 | Complete |
 | AUTH-11 | Phase 1 | Pending |
 | AUTH-12 | Phase 1.5 | Pending |
 | AUTH-13 | Phase 1.5 | Pending |
