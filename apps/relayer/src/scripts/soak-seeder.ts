@@ -24,14 +24,48 @@
  *   Keys read from SOAK_WALLET_0..SOAK_WALLET_9 env vars — NEVER stored in repo.
  *   FAUCET_RATE_LIMIT_MS (2h) guard between faucet-dependent actions per wallet.
  *
+ * Owner-gated actions:
+ *   Phase F's resolveDispute is restricted by Ownable2Step to the contract owner
+ *   (0xF4ee61950B63cCA5C82f1146484d018Ac95Bd0F2 — NOT any SOAK_WALLET). Provide the
+ *   owner key via SOAK_OWNER_PRIVATE_KEY to run it; if unset, resolveDispute is
+ *   skipped gracefully (NOT counted as an error).
+ *
+ * Phase subsetting (E/F standalone):
+ *   "challenge needs a Live+unexpired call" and "dispute needs a settled call" are
+ *   mutually exclusive within one run, so E and F can be run on their own against
+ *   pre-existing callIds via SOAK_PHASES + SOAK_CALL_IDS.
+ *
  * Usage:
- *   # From apps/relayer:
+ *   # From apps/relayer — full A-F run:
  *   npx tsx src/scripts/soak-seeder.ts
+ *   # Phase E standalone (challenge a pre-existing Live+unexpired call #5 created by wallet 4):
+ *   SOAK_PHASES=E SOAK_CHALLENGE_CALL_ID=5 SOAK_CALLER_INDEX=4 npx tsx src/scripts/soak-seeder.ts
+ *   # Phase F standalone (dispute+resolve a pre-existing settled call #8):
+ *   SOAK_PHASES=F SOAK_CALL_IDS=8 SOAK_OWNER_PRIVATE_KEY=0x... npx tsx src/scripts/soak-seeder.ts
  *
  * Prerequisites:
  *   - ARBITRUM_SEPOLIA_RPC_URL, SOAK_WALLET_0..SOAK_WALLET_9 env vars set
  *   - CALL_REGISTRY_ADDRESS, FFM_ADDRESS, CE_ADDRESS, SM_ADDRESS set (or uses addresses.ts defaults)
  *   - Wallets funded with Circle Sepolia USDC + Sepolia ETH
+ *
+ * Env vars (new — phase subsetting + funding + owner gating):
+ *   - SOAK_PHASES            Comma-separated, case-insensitive subset of A,B,C,D,E,F
+ *                            (default "A,B,C,D,E,F"). Only enabled phases run.
+ *   - SOAK_CALL_IDS          Comma-separated integers — pre-existing callIds for B-F when
+ *                            Phase A is skipped. If A runs, its output is preferred and
+ *                            SOAK_CALL_IDS is used only as a fallback.
+ *   - SOAK_CHALLENGE_CALL_ID Explicit Phase E target (must be Live+unexpired). Falls back
+ *                            to callIds[1].
+ *   - SOAK_DISPUTE_CALL_ID   Explicit Phase F target (must be settled). Falls back to callIds[0].
+ *   - SOAK_CHALLENGER_INDEX  Integer 0-9 — Phase E challenger wallet. Default (callerIndex+1)%10.
+ *   - SOAK_CALLER_INDEX      Integer 0-9 — Phase E caller wallet (the one that created the target
+ *                            call; acceptChallenge is caller-restricted). Default (callId-1)%10,
+ *                            correct ONLY for a fresh full-run contract — set it explicitly for a
+ *                            standalone Phase E against a pre-existing call.
+ *   - SOAK_DISPUTER_INDEX    Integer 0-9 — Phase F disputer wallet. Default 4 (proven SAFETY-27 run).
+ *   - SOAK_OWNER_PRIVATE_KEY Owner key for 0xF4ee61950B63cCA5C82f1146484d018Ac95Bd0F2 — required
+ *                            to run Phase F resolveDispute; if unset, resolveDispute is skipped.
+ *   - SOAK_CALL_EXPIRY_SECONDS  Phase A call expiry offset (default 2h).
  *
  * Compile check: cd apps/relayer && npx tsc --noEmit
  *
@@ -137,10 +171,89 @@ const SM_ADDRESS: `0x${string}` =
 /** 10 soak wallets — keys from env SOAK_WALLET_0..SOAK_WALLET_9 */
 const SOAK_WALLET_COUNT = 10;
 
+/**
+ * Canonical owner of all 5 contracts (Ownable2Step). resolveDispute is restricted
+ * to this address — NOT any SOAK_WALLET. Provide its key via SOAK_OWNER_PRIVATE_KEY.
+ */
+const SOAK_OWNER_ADDRESS = '0xF4ee61950B63cCA5C82f1146484d018Ac95Bd0F2' as const;
+
+/** Minimum USDC for a Phase E/F stake or bond: $5 = 5_000000 (6-decimal USDC) */
+const MIN_STAKE_USDC = 5_000000n;
+
 function getSoakWalletKey(index: number): `0x${string}` | null {
   const key = process.env[`SOAK_WALLET_${index}`];
   if (!key) return null;
   return key.startsWith('0x') ? (key as `0x${string}`) : (`0x${key}` as `0x${string}`);
+}
+
+/** Normalize an arbitrary private-key string to a 0x-prefixed hex key. */
+function normalizePrivateKey(key: string): `0x${string}` {
+  return key.startsWith('0x') ? (key as `0x${string}`) : (`0x${key}` as `0x${string}`);
+}
+
+// ── Phase subsetting (SOAK_PHASES) ─────────────────────────────────────────────
+
+type PhaseId = 'A' | 'B' | 'C' | 'D' | 'E' | 'F';
+
+/** Parse SOAK_PHASES (comma-separated, case-insensitive). Default: all phases A-F. */
+function parseEnabledPhases(): Set<PhaseId> {
+  const raw = process.env.SOAK_PHASES;
+  if (!raw || !raw.trim()) {
+    return new Set<PhaseId>(['A', 'B', 'C', 'D', 'E', 'F']);
+  }
+  const valid: PhaseId[] = ['A', 'B', 'C', 'D', 'E', 'F'];
+  const enabled = new Set<PhaseId>();
+  for (const token of raw.split(',')) {
+    const p = token.trim().toUpperCase();
+    if ((valid as string[]).includes(p)) {
+      enabled.add(p as PhaseId);
+    } else if (p) {
+      console.warn(`soak-seeder: SOAK_PHASES — ignoring unknown phase '${token.trim()}'`);
+    }
+  }
+  return enabled;
+}
+
+/** Parse SOAK_CALL_IDS (comma-separated integers). Returns [] when unset/empty. */
+function parseSoakCallIds(): number[] {
+  const raw = process.env.SOAK_CALL_IDS;
+  if (!raw || !raw.trim()) return [];
+  const ids: number[] = [];
+  for (const token of raw.split(',')) {
+    const t = token.trim();
+    if (!t) continue;
+    const n = Number(t);
+    if (Number.isInteger(n) && n >= 0) {
+      ids.push(n);
+    } else {
+      console.warn(`soak-seeder: SOAK_CALL_IDS — ignoring non-integer '${t}'`);
+    }
+  }
+  return ids;
+}
+
+/** Parse an integer wallet-index env var (0-9). Returns null when unset/invalid. */
+function parseWalletIndexEnv(name: string): number | null {
+  const raw = process.env[name];
+  if (raw === undefined || raw.trim() === '') return null;
+  const n = Number(raw.trim());
+  if (!Number.isInteger(n) || n < 0 || n >= SOAK_WALLET_COUNT) {
+    console.warn(`soak-seeder: ${name}='${raw}' is not an integer in 0-${SOAK_WALLET_COUNT - 1} — ignoring`);
+    return null;
+  }
+  return n;
+}
+
+/** Parse an explicit override callId env var (Phase E/F target). Returns null when unset/invalid. */
+function parseCallIdEnv(name: string): number | null {
+  const raw = process.env[name];
+  if (raw === undefined || raw.trim() === '') return null;
+  const n = Number(raw.trim());
+  if (!Number.isInteger(n) || n < 0) {
+    console.warn(`soak-seeder: ${name}='${raw}' is not a non-negative integer — ignoring`);
+    return null;
+  }
+  return n;
 }
 
 // ── Minimal ABIs (inline — no external ABI files needed) ─────────────────────
@@ -228,6 +341,85 @@ async function ensureUsdcApproval(
     chain: arbitrumSepolia,
   });
   console.log(`[approve] wallet[${walletIndex}] approved ${spender}`);
+}
+
+// ── Funded-wallet self-heal ─────────────────────────────────────────────────────
+
+/** Read a wallet's USDC balance (returns 0n on RPC error). */
+async function usdcBalanceOf(
+  publicClient: ReturnType<typeof buildPublicClient>,
+  address: `0x${string}`,
+): Promise<bigint> {
+  try {
+    return (await publicClient.readContract({
+      address: USDC_ARB_SEPOLIA,
+      abi: USDC_ABI,
+      functionName: 'balanceOf',
+      args: [address],
+    })) as bigint;
+  } catch (err) {
+    console.warn(`[balance] balanceOf(${address}) failed: ${String(err)}`);
+    return 0n;
+  }
+}
+
+/**
+ * Self-heal: given a preferred wallet index, ensure it holds >= `required` USDC.
+ * If underfunded (or excluded), scan all 10 soak wallets and substitute the highest-balance
+ * one that meets the requirement, skipping `excludeIndex` (e.g. the caller in Phase E, which
+ * acceptChallenge restricts and so must never become the challenger). Returns the chosen
+ * { index, key } or null if none qualify. Logs both the balance check and any substitution.
+ */
+async function pickFundedWallet(
+  publicClient: ReturnType<typeof buildPublicClient>,
+  walletKeys: (`0x${string}` | null)[],
+  preferredIndex: number,
+  required: bigint,
+  phaseLabel: string,
+  excludeIndex?: number,
+): Promise<{ index: number; key: `0x${string}` } | null> {
+  const preferredKey = preferredIndex === excludeIndex ? null : walletKeys[preferredIndex];
+  if (preferredKey) {
+    const { account } = buildWalletClient(preferredKey);
+    const bal = await usdcBalanceOf(publicClient, account.address);
+    if (bal >= required) {
+      return { index: preferredIndex, key: preferredKey };
+    }
+    console.warn(
+      `[${phaseLabel}] wallet[${preferredIndex}] underfunded ($${Number(bal) / 1e6}), scanning for a funded substitute (need $${Number(required) / 1e6})...`,
+    );
+  } else if (preferredIndex === excludeIndex) {
+    console.warn(`[${phaseLabel}] preferred wallet[${preferredIndex}] is excluded (e.g. the caller) — scanning for a funded substitute...`);
+  } else {
+    console.warn(`[${phaseLabel}] wallet[${preferredIndex}] key not set — scanning for a funded substitute...`);
+  }
+
+  // Scan all wallets (except excludeIndex) for the highest balance that meets the requirement.
+  let best: { index: number; key: `0x${string}`; bal: bigint } | null = null;
+  for (let i = 0; i < SOAK_WALLET_COUNT; i++) {
+    if (i === excludeIndex) continue;
+    const key = walletKeys[i];
+    if (!key) continue;
+    const { account } = buildWalletClient(key);
+    const bal = await usdcBalanceOf(publicClient, account.address);
+    if (bal >= required && (best === null || bal > best.bal)) {
+      best = { index: i, key, bal };
+    }
+  }
+
+  if (best === null) {
+    return null;
+  }
+
+  if (best.index !== preferredIndex) {
+    const prefBal = preferredKey
+      ? await usdcBalanceOf(publicClient, buildWalletClient(preferredKey).account.address)
+      : 0n;
+    console.log(
+      `[${phaseLabel}] wallet[${preferredIndex}] underfunded ($${Number(prefBal) / 1e6}), substituting funded wallet[${best.index}] ($${Number(best.bal) / 1e6})`,
+    );
+  }
+  return { index: best.index, key: best.key };
 }
 
 // ── TX receipt helper ─────────────────────────────────────────────────────────
@@ -542,7 +734,7 @@ async function phaseD_callerExit(
   const walletIndex = (callId - 1) % SOAK_WALLET_COUNT; // actual caller: call #N was created by wallet (N-1)%10 (fixes NotCallerOfCall)
   const key = walletKeys[walletIndex];
   if (!key) {
-    console.warn('[Phase D] wallet[0] key not set — skipping callerExit');
+    console.warn(`[Phase D] caller wallet[${walletIndex}] key not set — skipping callerExit`);
     return;
   }
 
@@ -577,6 +769,17 @@ async function phaseD_callerExit(
 }
 
 // ── Phase E: Challenge cycle ──────────────────────────────────────────────────
+//
+// Target call must be Live + unexpired. Resolution order for the target:
+//   SOAK_CHALLENGE_CALL_ID (explicit override) → callIds[1] (default).
+// Challenger wallet: SOAK_CHALLENGER_INDEX (0-9) → (callerIndex+1)%10 (default).
+// Caller wallet:     SOAK_CALLER_INDEX (0-9) → (callId-1)%10 (default; correct only for a fresh
+//   full-run contract — set it for a standalone run against a pre-existing call).
+// A full A/B run drains every call-creating wallet below the $5 minimum, so the
+// challenger is self-healed: if the chosen wallet holds < $5 USDC, the highest-balance
+// funded wallet is substituted (logged). The CALLER (acceptChallenge) CANNOT be
+// substituted — the contract restricts acceptChallenge to the call's actual caller — so
+// its balance is only logged + warned when underfunded.
 
 async function phaseE_challengeCycle(
   publicClient: ReturnType<typeof buildPublicClient>,
@@ -585,20 +788,52 @@ async function phaseE_challengeCycle(
 ): Promise<void> {
   console.log('[Phase E] Challenge cycle (propose → accept → settle duel)...');
 
-  if (callIds.length < 2) {
-    console.warn('[Phase E] Need ≥2 callIds for challenge cycle — skipping');
+  // Target: explicit SOAK_CHALLENGE_CALL_ID override, else callIds[1] (default).
+  const challengeCallIdOverride = parseCallIdEnv('SOAK_CHALLENGE_CALL_ID');
+  let callId: number;
+  if (challengeCallIdOverride !== null) {
+    callId = challengeCallIdOverride;
+    console.log(`[Phase E] Using SOAK_CHALLENGE_CALL_ID=${callId} (must be Live+unexpired)`);
+  } else if (callIds.length >= 2) {
+    callId = callIds[1]; // use second call for challenge
+  } else {
+    console.warn('[Phase E] No usable callId (need ≥2 callIds or SOAK_CHALLENGE_CALL_ID) — skipping');
     return;
   }
 
-  const callId = callIds[1]; // use second call for challenge
-  const callerIndex = (callId - 1) % SOAK_WALLET_COUNT;          // actual caller of call #N
-  const challengerIndex = (callerIndex + 1) % SOAK_WALLET_COUNT; // a DIFFERENT wallet (fixes SelfChallenge)
+  // Caller of call #N. Default derivation (callId-1)%10 holds ONLY for a fresh full-run
+  // contract; for standalone Phase E against a pre-existing call, override with
+  // SOAK_CALLER_INDEX (acceptChallenge is caller-restricted, so this must be the real caller).
+  const callerEnv = parseWalletIndexEnv('SOAK_CALLER_INDEX');
+  const callerIndex = callerEnv ?? (callId - 1) % SOAK_WALLET_COUNT;
+  const challengerEnv = parseWalletIndexEnv('SOAK_CHALLENGER_INDEX');
+  let challengerIndex = challengerEnv ?? (callerIndex + 1) % SOAK_WALLET_COUNT; // a DIFFERENT wallet (fixes SelfChallenge)
 
-  const challengerKey = walletKeys[challengerIndex];
+  let challengerKey = walletKeys[challengerIndex];
   const callerKey = walletKeys[callerIndex];
-  if (!challengerKey || !callerKey) {
-    console.warn('[Phase E] wallet[0] or wallet[1] key not set — skipping challenge cycle');
+  if (!callerKey) {
+    console.warn(`[Phase E] caller wallet[${callerIndex}] key not set — skipping challenge cycle`);
     return;
+  }
+
+  // Self-heal the CHALLENGER (never the caller — acceptChallenge is caller-restricted):
+  // a full A/B run drains it below the $5 minimum. excludeIndex=callerIndex guarantees any
+  // substitute is some wallet OTHER than the caller, so we never accidentally self-challenge.
+  const picked = await pickFundedWallet(publicClient, walletKeys, challengerIndex, MIN_STAKE_USDC, 'Phase E', callerIndex);
+  if (picked === null) {
+    console.warn('[Phase E] no funded non-caller soak wallet holds the $5 challenge stake — skipping challenge cycle');
+    return;
+  }
+  challengerIndex = picked.index;
+  challengerKey = picked.key;
+
+  // The CALLER cannot be substituted (acceptChallenge is caller-restricted) — only warn.
+  const callerBal = await usdcBalanceOf(publicClient, buildWalletClient(callerKey).account.address);
+  console.log(`[Phase E] caller wallet[${callerIndex}] balance $${Number(callerBal) / 1e6}`);
+  if (callerBal < MIN_STAKE_USDC) {
+    console.warn(
+      `[Phase E] caller wallet[${callerIndex}] underfunded ($${Number(callerBal) / 1e6} < $5) — acceptChallenge may revert (cannot substitute the caller)`,
+    );
   }
 
   // Approve ChallengeEscrow for both wallets
@@ -612,7 +847,7 @@ async function phaseE_challengeCycle(
 
   let challengeId: number | null = null;
 
-  // Propose challenge from wallet[1]
+  // Propose the challenge from the (self-healed) challenger wallet
   const { client: challengerClient, account: challengerAccount } = buildWalletClient(challengerKey);
   try {
     const txHash = await challengerClient.writeContract({
@@ -660,7 +895,7 @@ async function phaseE_challengeCycle(
     return;
   }
 
-  // Accept challenge from wallet[0] (the caller)
+  // Accept the challenge from the call's actual caller (caller-restricted)
   const { client: callerClient, account: callerAccount } = buildWalletClient(callerKey);
   try {
     const txHash = await callerClient.writeContract({
@@ -690,6 +925,15 @@ async function phaseE_challengeCycle(
 }
 
 // ── Phase F: Dispute + owner resolution ──────────────────────────────────────
+//
+// Target call must be settled. Resolution order for the target:
+//   SOAK_DISPUTE_CALL_ID (explicit override) → callIds[0] (default).
+// Disputer wallet: SOAK_DISPUTER_INDEX (0-9) → 4 (default; matches the proven SAFETY-27
+// run). A full A/B run drains the disputer below the $5 bond minimum, so it is self-healed:
+// if the chosen wallet holds < $5 USDC, the highest-balance funded wallet is substituted.
+// resolveDispute is Ownable2Step-gated to 0xF4ee61950B63cCA5C82f1146484d018Ac95Bd0F2 (NOT
+// any SOAK_WALLET): it is sent from SOAK_OWNER_PRIVATE_KEY. If that env is unset,
+// resolveDispute is skipped gracefully (NOT counted as an error).
 
 async function phaseF_disputeResolve(
   publicClient: ReturnType<typeof buildPublicClient>,
@@ -698,21 +942,31 @@ async function phaseF_disputeResolve(
 ): Promise<void> {
   console.log('[Phase F] Dispute + owner resolution...');
 
-  if (callIds.length === 0) {
-    console.warn('[Phase F] No callIds — skipping');
+  // Target: explicit SOAK_DISPUTE_CALL_ID override, else callIds[0] (default).
+  const disputeCallIdOverride = parseCallIdEnv('SOAK_DISPUTE_CALL_ID');
+  let callId: number;
+  if (disputeCallIdOverride !== null) {
+    callId = disputeCallIdOverride;
+    console.log(`[Phase F] Using SOAK_DISPUTE_CALL_ID=${callId} (must be settled)`);
+  } else if (callIds.length > 0) {
+    callId = callIds[0]; // use first call (should be settled by Phase C)
+  } else {
+    console.warn('[Phase F] No usable callId (need ≥1 callId or SOAK_DISPUTE_CALL_ID) — skipping');
     return;
   }
 
-  const callId = callIds[0]; // use first call (should be settled by Phase C)
-  const disputerIndex = 2;   // wallet[2] = disputer (SAFETY-26)
-  const ownerIndex = 0;      // wallet[0] = owner (has resolveDispute rights)
+  // Disputer: SOAK_DISPUTER_INDEX override, else 4 (default — proven SAFETY-27 run).
+  const disputerEnv = parseWalletIndexEnv('SOAK_DISPUTER_INDEX');
+  let disputerIndex = disputerEnv ?? 4; // wallet[4] = disputer (SAFETY-27)
 
-  const disputerKey = walletKeys[disputerIndex];
-  const ownerKey = walletKeys[ownerIndex];
-  if (!disputerKey || !ownerKey) {
-    console.warn('[Phase F] wallet[0] or wallet[2] key not set — skipping dispute');
+  // Self-heal the DISPUTER: a full A/B run drains call-creating wallets below the $5 bond.
+  const picked = await pickFundedWallet(publicClient, walletKeys, disputerIndex, MIN_STAKE_USDC, 'Phase F');
+  if (picked === null) {
+    console.warn('[Phase F] no soak wallet holds the $5 dispute bond — skipping dispute');
     return;
   }
+  disputerIndex = picked.index;
+  const disputerKey = picked.key;
 
   // Approve SM for disputer (needs $5 USDC bond)
   try {
@@ -721,7 +975,7 @@ async function phaseF_disputeResolve(
     console.warn(`[Phase F] SM approval failed wallet[${disputerIndex}]: ${String(err)}`);
   }
 
-  // raiseDispute from wallet[2]
+  // raiseDispute from the (self-healed) disputer wallet
   const { client: disputerClient, account: disputerAccount } = buildWalletClient(disputerKey);
   try {
     const txHash = await disputerClient.writeContract({
@@ -749,10 +1003,29 @@ async function phaseF_disputeResolve(
     return;
   }
 
-  // resolveDispute from wallet[0] (owner)
-  // Note: wallet[0] must be the owner of SettlementManager; in the live soak
-  // the operator uses the deployer key which is SOAK_WALLET_0 by convention.
+  // resolveDispute is Ownable2Step-restricted to the contract owner
+  // (0xF4ee61950B63cCA5C82f1146484d018Ac95Bd0F2 — NOT any SOAK_WALLET). It must be sent
+  // from SOAK_OWNER_PRIVATE_KEY. When that env is unset, this step is operator-gated and
+  // skipped gracefully (NOT an error), so the seeder still exits 0.
+  const ownerKeyRaw = process.env.SOAK_OWNER_PRIVATE_KEY;
+  if (!ownerKeyRaw || !ownerKeyRaw.trim()) {
+    console.log(
+      `[Phase F] resolveDispute is operator-gated: set SOAK_OWNER_PRIVATE_KEY (owner ${SOAK_OWNER_ADDRESS}) to run it — skipping`,
+    );
+    console.log('[Phase F] Done.');
+    return;
+  }
+
+  const ownerKey = normalizePrivateKey(ownerKeyRaw.trim());
   const { client: ownerClient, account: ownerAccount } = buildWalletClient(ownerKey);
+
+  // Warn (don't hard-fail) if the supplied key does not derive the canonical owner.
+  if (ownerAccount.address.toLowerCase() !== SOAK_OWNER_ADDRESS.toLowerCase()) {
+    console.warn(
+      `[Phase F] SOAK_OWNER_PRIVATE_KEY derives ${ownerAccount.address} but the contract owner is ${SOAK_OWNER_ADDRESS} — resolveDispute will likely revert OwnableUnauthorizedAccount`,
+    );
+  }
+
   try {
     const txHash = await ownerClient.writeContract({
       address: SM_ADDRESS,
@@ -768,11 +1041,10 @@ async function phaseF_disputeResolve(
       action: 'disputeResolved',
       txHash,
       callId,
-      walletIndex: ownerIndex,
       timestamp: Date.now(),
       block: Number(blockNumber),
     });
-    console.log(`[Phase F] Dispute resolved on call #${callId} — tx ${txHash}`);
+    console.log(`[Phase F] Dispute resolved on call #${callId} (owner ${ownerAccount.address}) — tx ${txHash}`);
   } catch (err) {
     console.error(`[Phase F] resolveDispute failed callId=${callId}: ${String(err)}`);
   }
@@ -812,55 +1084,98 @@ async function main(): Promise<void> {
 
   const publicClient = buildPublicClient();
 
+  // Phase subsetting (SOAK_PHASES) — only enabled phases run.
+  const enabledPhases = parseEnabledPhases();
+  // A provided-but-all-invalid SOAK_PHASES yields an empty set (parseEnabledPhases returns
+  // the full A-F set only for unset/empty input). Fail loudly so an operator typo
+  // (e.g. SOAK_PHASES=foo) doesn't look like a passing run that silently did nothing.
+  if (enabledPhases.size === 0) {
+    console.error(
+      `soak-seeder: SOAK_PHASES='${process.env.SOAK_PHASES}' matched no valid phases (A-F). Exiting.`,
+    );
+    process.exit(1);
+  }
+  const phaseEnabled = (p: PhaseId): boolean => enabledPhases.has(p);
+  console.log(
+    `soak-seeder: phases enabled = [${(['A', 'B', 'C', 'D', 'E', 'F'] as const).filter(phaseEnabled).join(', ')}]`,
+  );
+
+  // Pre-existing callIds for B-F when Phase A is skipped (or as a fallback for A).
+  const presetCallIds = parseSoakCallIds();
+  if (presetCallIds.length > 0) {
+    console.log(`soak-seeder: SOAK_CALL_IDS = [${presetCallIds.join(', ')}]`);
+  }
+
   let errors = 0;
 
   // Phase A: Create calls
   let callIds: number[] = [];
-  try {
-    callIds = await phaseA_createCalls(publicClient, walletKeys);
-  } catch (err) {
-    console.error('[Phase A] Fatal error:', err);
-    errors++;
+  if (phaseEnabled('A')) {
+    try {
+      callIds = await phaseA_createCalls(publicClient, walletKeys);
+    } catch (err) {
+      console.error('[Phase A] Fatal error:', err);
+      errors++;
+    }
+    // Prefer A's output; fall back to SOAK_CALL_IDS if A produced nothing.
+    if (callIds.length === 0 && presetCallIds.length > 0) {
+      console.log('[Phase A] produced no callIds — falling back to SOAK_CALL_IDS');
+      callIds = presetCallIds;
+    }
+  } else {
+    // A skipped — B-F operate on the pre-existing callIds from SOAK_CALL_IDS.
+    callIds = presetCallIds;
+    console.log(`soak-seeder: Phase A skipped — using SOAK_CALL_IDS callIds=[${callIds.join(', ')}]`);
   }
 
   // Phase B: Follow/fade
-  try {
-    await phaseB_followFade(publicClient, walletKeys, callIds);
-  } catch (err) {
-    console.error('[Phase B] Fatal error:', err);
-    errors++;
+  if (phaseEnabled('B')) {
+    try {
+      await phaseB_followFade(publicClient, walletKeys, callIds);
+    } catch (err) {
+      console.error('[Phase B] Fatal error:', err);
+      errors++;
+    }
   }
 
   // Phase C: Settle
-  try {
-    await phaseC_settle(publicClient, walletKeys, callIds);
-  } catch (err) {
-    console.error('[Phase C] Fatal error:', err);
-    errors++;
+  if (phaseEnabled('C')) {
+    try {
+      await phaseC_settle(publicClient, walletKeys, callIds);
+    } catch (err) {
+      console.error('[Phase C] Fatal error:', err);
+      errors++;
+    }
   }
 
   // Phase D: Caller-exit
-  try {
-    await phaseD_callerExit(publicClient, walletKeys, callIds);
-  } catch (err) {
-    console.error('[Phase D] Fatal error:', err);
-    errors++;
+  if (phaseEnabled('D')) {
+    try {
+      await phaseD_callerExit(publicClient, walletKeys, callIds);
+    } catch (err) {
+      console.error('[Phase D] Fatal error:', err);
+      errors++;
+    }
   }
 
   // Phase E: Challenge cycle
-  try {
-    await phaseE_challengeCycle(publicClient, walletKeys, callIds);
-  } catch (err) {
-    console.error('[Phase E] Fatal error:', err);
-    errors++;
+  if (phaseEnabled('E')) {
+    try {
+      await phaseE_challengeCycle(publicClient, walletKeys, callIds);
+    } catch (err) {
+      console.error('[Phase E] Fatal error:', err);
+      errors++;
+    }
   }
 
   // Phase F: Dispute + owner resolution
-  try {
-    await phaseF_disputeResolve(publicClient, walletKeys, callIds);
-  } catch (err) {
-    console.error('[Phase F] Fatal error:', err);
-    errors++;
+  if (phaseEnabled('F')) {
+    try {
+      await phaseF_disputeResolve(publicClient, walletKeys, callIds);
+    } catch (err) {
+      console.error('[Phase F] Fatal error:', err);
+      errors++;
+    }
   }
 
   console.log(`soak-seeder: complete. phases_errored=${errors}, evidence_log=${EVIDENCE_LOG_PATH}`);
