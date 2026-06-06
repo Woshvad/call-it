@@ -3,28 +3,30 @@
 # Schedule: 12:00 UTC daily
 # Manual trigger: workflow_dispatch (for operator testing)
 #
-# The job fires a synthetic `rep_fallback` event through the full alert pipeline:
-#   1. POSTs HMAC-signed request to relayer /internal/test-alert
-#   2. Polls Telegram getUpdates every 5s for up to 60s
-#   3. Expects to find the UUID nonce in the P0 channel message
+# The job fires a synthetic `rep_fallback` event through the full alert pipeline and
+# verifies it via the relayer's SEND-CONFIRMATION response:
+#   1. POSTs an HMAC-signed request to the relayer /internal/test-alert
+#   2. The relayer dispatches the alert (awaits bot.sendMessage; re-throws on failure)
+#      and returns HTTP 200 { ok, nonce, delivered:true } only after Telegram accepts it
+#   3. The script verifies that 200 + echoed nonce — NO Telegram getUpdates polling
 #
-# If the nonce is not seen within 60s → build FAILS (Pitfall D mitigation).
-# This means the alert pipeline is broken and the operator is notified via CI failure.
+# Why not getUpdates: a Telegram bot cannot read its own OUTGOING messages via getUpdates
+# (only incoming updates + channel posts where it is an admin). P0 alerts are delivered to
+# a private DM, so getUpdates can never see them. Send-confirmation is the correct check and
+# works for a DM or a channel.
+#
+# If the relayer is unreachable, returns non-200 (HMAC fail / Telegram send fail), or omits
+# the nonce → build FAILS (Pitfall D mitigation): the operator is notified via CI failure.
 #
 # Required GitHub Secrets (operator configures via `gh secret set`):
-#   RELAYER_URL                  - Deployed relayer URL (e.g., https://call-it-relayer-sepolia.fly.dev)
-#   RELAYER_INTERNAL_HMAC        - HMAC secret matching RELAYER_INTERNAL_HMAC_SECRET in relayer env
-#   TELEGRAM_BOT_TOKEN           - Telegram bot token (bot must be admin of P0 channel)
-#   TELEGRAM_CHAT_ID_P0          - P0 Telegram channel chat ID (negative, e.g., -1001234567890)
-#
-# Open Question 5 (resolution):
-#   The Telegram bot MUST be added as a channel administrator with "Post Messages" and
-#   "Read Messages" rights. Without admin rights, getUpdates does not return channel posts.
+#   RELAYER_URL            - Deployed relayer URL (e.g., https://call-it-relayer-sepolia.fly.dev)
+#   RELAYER_INTERNAL_HMAC  - HMAC secret matching RELAYER_INTERNAL_HMAC_SECRET in the relayer env
+#   (Telegram credentials live in the relayer only — the CI no longer calls Telegram directly.)
 #
 # Security:
-#   All secrets are injected via GitHub Secrets → only available to repository admins.
+#   Secrets are injected via GitHub Secrets → available only to repository admins.
 #   The HMAC secret provides a 5-minute replay window on the relayer side.
-#   A fresh UUID nonce is generated per run — old nonces in Telegram history are ignored.
+#   A fresh UUID nonce is generated per run.
 
 name: Synthetic Alert Verification
 
@@ -38,7 +40,7 @@ permissions:
 
 jobs:
   fire-and-verify:
-    name: Fire synthetic alert + verify Telegram round-trip
+    name: Fire synthetic alert + verify relayer send-confirmation
     runs-on: ubuntu-latest
     timeout-minutes: 5
 
@@ -57,16 +59,12 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Fire synthetic alert + verify Telegram nonce (60s timeout)
+      - name: Fire synthetic alert + verify relayer send-confirmation
         env:
           RELAYER_URL: ${{ secrets.RELAYER_URL }}
           RELAYER_INTERNAL_HMAC_SECRET: ${{ secrets.RELAYER_INTERNAL_HMAC }}
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID_P0: ${{ secrets.TELEGRAM_CHAT_ID_P0 }}
         run: |
           pnpm tsx scripts/fire-synthetic-alert.ts \
-            --event rep_fallback \
-            --wait-seconds 60 \
-            --expect-chat-id "$TELEGRAM_CHAT_ID_P0"
+            --event rep_fallback
         # Exit 1 from the script = build FAILS = CI fails = operator notified via GitHub notification
         # This is intentional per D-16: the CI build failing IS the alert.

@@ -2,37 +2,39 @@
  * fire-synthetic-alert.ts — CI helper for daily Telegram alert pipeline verification (D-16, Pitfall D)
  *
  * Usage:
- *   tsx scripts/fire-synthetic-alert.ts --event rep_fallback --wait-seconds 60
- *   tsx scripts/fire-synthetic-alert.ts --event rep_fallback --wait-seconds 60 --expect-chat-id "-1001234567890"
- *   tsx scripts/fire-synthetic-alert.ts --event rep_fallback --wait-seconds 60 --seed-dashboards
+ *   tsx scripts/fire-synthetic-alert.ts --event rep_fallback
+ *   tsx scripts/fire-synthetic-alert.ts --event rep_fallback --seed-dashboards
  *
  * Flow:
- *   1. Generate fresh UUID nonce + current timestamp
+ *   1. Generate a fresh UUID nonce + current timestamp
  *   2. Compute HMAC-SHA256 over {event, nonce, timestamp} with RELAYER_INTERNAL_HMAC_SECRET
- *   3. POST /internal/test-alert to relayer — if non-200, exit 1 (build-failer)
- *   4. Poll Telegram getUpdates every 5s up to --wait-seconds
- *      If nonce found in P0 channel → exit 0
- *      If timeout → exit 1 with "Nonce not seen in P0 channel within Xs — alert pipeline broken"
+ *   3. POST /internal/test-alert to the relayer
+ *   4. Verify the relayer's SEND-CONFIRMATION response:
+ *        success iff HTTP 200 AND body.ok === true AND body.nonce === <sent nonce>
+ *        AND body.delivered !== false
+ *      The relayer handler returns 200 ONLY after sendAlert() resolves — and sendAlert
+ *      `await`s bot.sendMessage(...) and re-throws on failure (→ HTTP 500). So a 200 means
+ *      Telegram accepted the send. We deliberately do NOT poll getUpdates: a bot cannot read
+ *      its OWN outgoing messages via getUpdates (only incoming updates + channel posts where
+ *      the bot is an admin), so getUpdates can never confirm a direct-message the bot sent.
+ *      Send-confirmation is the correct end-to-end check for the DM alert setup (and works
+ *      equally for a channel). The `delivered` field is tolerated-when-absent so this passes
+ *      against a relayer that predates the explicit flag.
  *   5. If --seed-dashboards: emit synthetic Pino log lines for 5 Better Stack dashboard dimensions
  *
  * Required env vars:
  *   RELAYER_URL                  Base URL of the relayer (e.g. http://localhost:8080)
- *   RELAYER_INTERNAL_HMAC_SECRET HMAC secret shared with relayer /internal/test-alert endpoint
- *   TELEGRAM_BOT_TOKEN           Telegram bot token (must have getUpdates permission on P0 channel)
- *   TELEGRAM_CHAT_ID_P0          P0 channel chat ID (negative for channels, e.g. -1001234567890)
+ *   RELAYER_INTERNAL_HMAC_SECRET HMAC secret shared with the relayer /internal/test-alert endpoint
+ *
+ * (TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID_P0 are no longer needed here — the relayer holds the
+ *  Telegram credentials and performs the send; CI only confirms the relayer's response.)
  *
  * Security (T-00-28):
  *   RELAYER_INTERNAL_HMAC_SECRET is sourced from GCP Secret Manager; never log it.
- *   TELEGRAM_BOT_TOKEN is sourced from GCP Secret Manager; never log it.
  *
  * CI integration:
  *   This script exits 0/1. CI workflow (.github/workflows/synthetic-alert.yml)
  *   treats exit 1 as a build failure — the alert pipeline IS broken.
- *
- * Open Question 5 (resolved): Telegram bot getUpdates requires the bot to be added as
- *   an administrator of the P0 channel (not just a member). The bot must have "Post Messages"
- *   and "Read Messages" admin rights. Without these, getUpdates returns empty even when
- *   the bot's own messages appear.
  */
 
 import { createHmac, randomUUID } from 'node:crypto';
@@ -55,8 +57,10 @@ export type AlertEvent =
 
 export interface FireAndVerifyOptions {
   event: AlertEvent;
-  waitSeconds: number;
-  expectChatId: string;
+  /** @deprecated Retained for CLI back-compat; verification no longer polls, so this is unused. */
+  waitSeconds?: number;
+  /** @deprecated Retained for CLI back-compat; verification no longer reads Telegram, so this is unused. */
+  expectChatId?: string;
   seedDashboards?: boolean;
   fetchFn?: typeof fetch; // Injectable for testing
 }
@@ -89,38 +93,6 @@ export function buildHmac(
   return createHmac('sha256', secret).update(payload).digest('hex');
 }
 
-/**
- * Parse Telegram getUpdates response and check if any message in the given chat
- * contains `nonce:<expectedNonce>` or the nonce as part of a JSON payload.
- */
-export function nonceFoundInUpdates(
-  updates: unknown[],
-  expectedNonce: string,
-  expectChatId: string,
-): boolean {
-  const chatIdNum = parseInt(expectChatId, 10);
-
-  for (const update of updates as Record<string, unknown>[]) {
-    const post = update.channel_post as Record<string, unknown> | undefined;
-    if (!post) continue;
-
-    const chat = post.chat as Record<string, unknown> | undefined;
-    if (!chat) continue;
-
-    const chatId = chat.id;
-    if (chatId !== chatIdNum && String(chatId) !== expectChatId) continue;
-
-    const text = (post.text as string) ?? '';
-    // Match nonce in various formats:
-    // - "nonce:uuid" (our injected format)
-    // - JSON {"nonce":"uuid"} embedded in the Telegram message
-    if (text.includes(`nonce:${expectedNonce}`) || text.includes(`"nonce":"${expectedNonce}"`) || text.includes(`"nonce": "${expectedNonce}"`)) {
-      return true;
-    }
-  }
-  return false;
-}
-
 // ─────────────────────────────────────────────────────────────────────────────
 // Synthetic Pino log lines for Better Stack dashboard seeding (OPS-06)
 // ─────────────────────────────────────────────────────────────────────────────
@@ -150,25 +122,22 @@ function emitDashboardSeedLogs(): void {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export async function fireAndVerify(opts: FireAndVerifyOptions): Promise<FireAndVerifyResult> {
-  const { event, waitSeconds, expectChatId, seedDashboards = false } = opts;
+  const { event } = opts;
   const fetchFn = opts.fetchFn ?? fetch;
+  const seedDashboards = opts.seedDashboards ?? false;
 
   const relayerUrl = process.env.RELAYER_URL;
   const hmacSecret = process.env.RELAYER_INTERNAL_HMAC_SECRET;
-  const botToken = process.env.TELEGRAM_BOT_TOKEN;
 
   if (!relayerUrl) return { success: false, exitCode: 1, error: 'RELAYER_URL not set' };
   if (!hmacSecret) return { success: false, exitCode: 1, error: 'RELAYER_INTERNAL_HMAC_SECRET not set' };
-  if (!botToken) return { success: false, exitCode: 1, error: 'TELEGRAM_BOT_TOKEN not set' };
 
-  // Step 1: Generate nonce + timestamp
+  // Step 1-2: nonce + timestamp + HMAC
   const nonce = generateNonce();
   const timestamp = Math.floor(Date.now() / 1000);
-
-  // Step 2: Compute HMAC
   const hmac = buildHmac(hmacSecret, { event, nonce, timestamp });
 
-  // Step 3: POST to relayer /internal/test-alert
+  // Step 3: POST the HMAC-signed synthetic alert to the relayer
   let relayerResponse: Response;
   try {
     relayerResponse = await fetchFn(`${relayerUrl}/internal/test-alert`, {
@@ -181,68 +150,52 @@ export async function fireAndVerify(opts: FireAndVerifyOptions): Promise<FireAnd
     });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
-    return {
-      success: false,
-      exitCode: 1,
-      error: `Relayer connection error: ${msg}`,
-    };
+    return { success: false, exitCode: 1, error: `Relayer connection error: ${msg}` };
   }
 
   if (!relayerResponse.ok) {
     let detail = `status ${relayerResponse.status}`;
     try {
-      const body = await relayerResponse.json() as Record<string, unknown>;
-      detail += ` — ${body.message ?? body.error ?? JSON.stringify(body)}`;
+      const errBody = (await relayerResponse.json()) as Record<string, unknown>;
+      detail += ` — ${errBody.message ?? errBody.error ?? JSON.stringify(errBody)}`;
     } catch {
       // Ignore JSON parse error
     }
-    return {
-      success: false,
-      exitCode: 1,
-      error: `Relayer returned non-200: ${detail}`,
-    };
+    return { success: false, exitCode: 1, nonce, error: `Relayer returned non-200: ${detail}` };
   }
 
-  // Step 4: Poll Telegram getUpdates every 5s up to waitSeconds
-  const pollIntervalMs = 5_000;
-  const deadline = Date.now() + waitSeconds * 1000;
-  const telegramApiBase = `https://api.telegram.org/bot${botToken}`;
-
-  while (Date.now() < deadline) {
-    // Poll getUpdates with offset=-100 to get recent messages
-    let updatesResponse: Response;
-    try {
-      updatesResponse = await fetchFn(`${telegramApiBase}/getUpdates?offset=-100&limit=50`);
-    } catch {
-      // Network error during polling — wait and retry
-      await sleep(pollIntervalMs);
-      continue;
-    }
-
-    if (updatesResponse.ok) {
-      const data = await updatesResponse.json() as { ok: boolean; result: unknown[] };
-      if (data.ok && nonceFoundInUpdates(data.result, nonce, expectChatId)) {
-        // Nonce found — alert pipeline confirmed working
-        if (seedDashboards) emitDashboardSeedLogs();
-        return { success: true, exitCode: 0, nonce };
-      }
-    }
-
-    await sleep(pollIntervalMs);
+  // Step 4: Verify delivery via the relayer's send-confirmation response.
+  // The handler returns 200 ONLY after sendAlert() resolves — sendAlert awaits
+  // bot.sendMessage() and re-throws on failure (which surfaces as the 500 handled
+  // above). It echoes the nonce and (post-redeploy) `delivered: true`. A bot cannot
+  // read its own outgoing DM via getUpdates, so this send-confirmation is the correct
+  // end-to-end check for the DM alert setup.
+  let body: Record<string, unknown>;
+  try {
+    body = (await relayerResponse.json()) as Record<string, unknown>;
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return { success: false, exitCode: 1, nonce, error: `Relayer 200 but body not JSON: ${msg}` };
   }
 
-  // Timeout — nonce never seen
-  const channelId = expectChatId;
+  const okFlag = body.ok === true;
+  const nonceMatches = body.nonce === nonce;
+  const notUndelivered = body.delivered !== false; // tolerant: absent => treat as delivered
+
+  if (okFlag && nonceMatches && notUndelivered) {
+    if (seedDashboards) emitDashboardSeedLogs();
+    return { success: true, exitCode: 0, nonce };
+  }
+
   return {
     success: false,
     exitCode: 1,
     nonce,
-    error: `Nonce not seen in P0 channel (${channelId}) within ${waitSeconds}s — alert pipeline broken`,
+    error:
+      `Relayer 200 but send not confirmed ` +
+      `(ok=${String(body.ok)}, nonceMatch=${nonceMatches}, delivered=${String(body.delivered)}) ` +
+      `— alert pipeline not verified`,
   };
-}
-
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -254,6 +207,7 @@ async function main(): Promise<void> {
     args: process.argv.slice(2),
     options: {
       event: { type: 'string', default: 'rep_fallback' },
+      // Accepted for back-compat; verification no longer waits/polls or reads Telegram.
       'wait-seconds': { type: 'string', default: '60' },
       'expect-chat-id': { type: 'string' },
       'seed-dashboards': { type: 'boolean', default: false },
@@ -262,21 +216,16 @@ async function main(): Promise<void> {
   });
 
   const event = (values.event ?? 'rep_fallback') as AlertEvent;
-  const waitSeconds = parseInt(values['wait-seconds'] as string ?? '60', 10);
-  const expectChatId = (values['expect-chat-id'] as string | undefined) ?? process.env.TELEGRAM_CHAT_ID_P0 ?? '';
+  const waitSeconds = parseInt((values['wait-seconds'] as string) ?? '60', 10);
+  const expectChatId = (values['expect-chat-id'] as string | undefined) ?? process.env.TELEGRAM_CHAT_ID_P0;
   const seedDashboards = values['seed-dashboards'] as boolean;
 
-  if (!expectChatId) {
-    console.error('Error: --expect-chat-id or TELEGRAM_CHAT_ID_P0 env var required');
-    process.exit(1);
-  }
-
-  console.error(`[fire-synthetic-alert] Firing ${event} alert, waiting ${waitSeconds}s for Telegram confirmation...`);
+  console.error(`[fire-synthetic-alert] Firing ${event} alert; verifying relayer send-confirmation...`);
 
   const result = await fireAndVerify({ event, waitSeconds, expectChatId, seedDashboards });
 
   if (result.success) {
-    console.error(`[fire-synthetic-alert] SUCCESS: Nonce ${result.nonce} confirmed in P0 channel`);
+    console.error(`[fire-synthetic-alert] SUCCESS: relayer confirmed send of nonce ${result.nonce}`);
     process.exit(0);
   } else {
     console.error(`[fire-synthetic-alert] FAILURE: ${result.error}`);

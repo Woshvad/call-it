@@ -105,7 +105,11 @@ export async function syntheticEventHandler(
       { event: 'synthetic_alert_dispatched', alertEvent: body.event, nonce: body.nonce },
       'Synthetic alert dispatched',
     );
-    await reply.status(200).send({ ok: true, event: body.event, nonce: body.nonce });
+    // 200 is returned ONLY after sendAlert() resolved — i.e. bot.sendMessage()
+    // succeeded (it re-throws on failure → caught below → 500). `delivered: true`
+    // makes that send-confirmation explicit so the CI self-test can assert on it
+    // without polling getUpdates (a bot can't read its own outgoing DM that way).
+    await reply.status(200).send({ ok: true, event: body.event, nonce: body.nonce, delivered: true });
   } catch (err) {
     getLogger().error(
       { event: 'synthetic_alert_dispatch_failed', err: err instanceof Error ? err.message : String(err) },
