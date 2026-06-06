@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: milestone
 status: executing
-stopped_at: Completed 01.5-04-PLAN.md
-last_updated: "2026-06-06T18:11:04.018Z"
+stopped_at: "Phase 01.5 — CORE shipped (01.5-02/03/04 complete); 01.5-01 + 01.5-05 CI-safe code committed, 2 operator gates open (setRelayer + X-API/Neynar)"
+last_updated: "2026-06-06T18:49:42.000Z"
 last_activity: 2026-06-06
 progress:
   total_phases: 14
@@ -25,8 +25,10 @@ See: .planning/PROJECT.md (updated 2026-05-21)
 
 ## Current Position
 
-Phase: 01.5 (social-linking-parallel-to-phase-2) — EXECUTING
-Plan: 4 of 5
+Phase: 01.5 (social-linking-parallel-to-phase-2) — EXECUTING (CORE shipped; 2 operator gates open)
+Plan: 5 of 5 (3 complete + 2 CI-safe/operator-deferred)
+
+> **Phase 01.5 status (2026-06-06):** CORE complete — **01.5-02** (relayer social-link service), **01.5-03** (VerifiedBadge + AUTH-10 invariant), **01.5-04** (link/unlink UI + AuthKitProvider + opt-in) all have SUMMARYs. **01.5-01** (env surface, commit `3fbf88d`) and **01.5-05** (FEED CI-safe: `7960dce`/`d02e694`/`e1076a3`) deliver committed, tested code but stay IN-PROGRESS (no SUMMARY) pending 2 operator gates: (1) **setRelayer** live owner-key tx on canonical PR `0xF66C0AFE…` from treasury `0xDa8c5726`; (2) **X API tier/follows.read + Neynar key** provisioning. Also pending: relayer drizzle migration `0005_warm_ego.sql` (`db:migrate`). Phase verification/completion intentionally SKIPPED until gates clear. Full relayer suite 189✓/1 skipped; relayer+web+ui+shared builds 0.
 
 > **⚡ CURRENT REALITY (2026-06-05) — supersedes the 06-02 cluster details below.** The settle-blocker (preserved Phase-2 ProfileRegistry lacked `globalRep`) was root-caused + fixed by a full cluster REDEPLOY. **Canonical Sepolia cluster:** PR `0xE82308B350013fA0dcc11fEF10B3F0bf684EFd14` · CR `0xb864308D7214f98d60C5811F451fa96a49619150` · FFM `0xBDaD3F1E608452fea36a7861cDd8BBb73D9D10c1` · CE `0x2E11fD3E03acE074D855661Bc4320bddbE897714` · SM `0x9235003d9C9F38539a41d9798c32C72e7615428A` (blks ~273884585-600). **SAFETY-22/23/24 PROVEN** (10 calls all types + 30 follow/fade + **5 settled "CALLED IT" receipts**, 0 failed — settle() works end-to-end). **GO-LIVE COMPLETE:** subgraph v0.7.0 indexing the new cluster (calls #1/#2 = Settled); relayer rebuilt+redeployed (machine v6, /health 200) polling new FFM; **notification-fanout eth_getLogs free-tier bug FIXED + live-verified** (quick 260605-a4i, commit 79ca33c — chunked ≤9-block getLogs; new worker pid 644 ticks clean, 0 get_logs errors). The old 06-02 addrs (CR 0x015758Cb…) below are SUPERSEDED.
 Last activity: 2026-06-06
