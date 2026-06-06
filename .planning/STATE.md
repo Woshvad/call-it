@@ -5,7 +5,7 @@ milestone_name: milestone
 status: executing
 stopped_at: Phase 6 CI-safe code built; 3 live operator gates + deploy-safe.ts migration pending
 last_updated: "2026-06-05T00:00:00.000Z"
-last_activity: 2026-06-05 -- Quick task 260605-a4i: notification-fanout eth_getLogs free-tier chunking fix (relayer redeploy pending)
+last_activity: 2026-06-05 -- Quick task 260605-r9e: synthetic-alert CI verifies relayer send-confirmation (not getUpdates)
 progress:
   total_phases: 9
   completed_phases: 7
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-05-21)
 Phase: 06 (safety-review-sepolia-48h-multisig-promotion) — **CLUSTER REDEPLOYED + LIVE; SOAK TAIL + MULTISIG PENDING**
 
 > **⚡ CURRENT REALITY (2026-06-05) — supersedes the 06-02 cluster details below.** The settle-blocker (preserved Phase-2 ProfileRegistry lacked `globalRep`) was root-caused + fixed by a full cluster REDEPLOY. **Canonical Sepolia cluster:** PR `0xE82308B350013fA0dcc11fEF10B3F0bf684EFd14` · CR `0xb864308D7214f98d60C5811F451fa96a49619150` · FFM `0xBDaD3F1E608452fea36a7861cDd8BBb73D9D10c1` · CE `0x2E11fD3E03acE074D855661Bc4320bddbE897714` · SM `0x9235003d9C9F38539a41d9798c32C72e7615428A` (blks ~273884585-600). **SAFETY-22/23/24 PROVEN** (10 calls all types + 30 follow/fade + **5 settled "CALLED IT" receipts**, 0 failed — settle() works end-to-end). **GO-LIVE COMPLETE:** subgraph v0.7.0 indexing the new cluster (calls #1/#2 = Settled); relayer rebuilt+redeployed (machine v6, /health 200) polling new FFM; **notification-fanout eth_getLogs free-tier bug FIXED + live-verified** (quick 260605-a4i, commit 79ca33c — chunked ≤9-block getLogs; new worker pid 644 ticks clean, 0 get_logs errors). The old 06-02 addrs (CR 0x015758Cb…) below are SUPERSEDED.
-Last activity: 2026-06-05 — Completed quick task 260605-a4i (notification-fanout eth_getLogs free-tier 10-block chunking fix; relayer redeploy pending). Prior: 260604-jt2 soak scaffolding + Telegram alerts LIVE (@calllitbot, secrets v2)
+Last activity: 2026-06-05 — Completed quick task 260605-r9e (synthetic-alert CI verifies relayer send-confirmation, not Telegram getUpdates — fixes the daily cron; no relayer redeploy needed). Prior: 260605-a4i notification-fanout getLogs fix; SAFETY-26 + 27-raise proven on the canonical cluster
 
 **CI-safe code built this session (on master):**
 - 06-01 ✅ COMPLETE — resolveUsdc() gate + CI allowlist + **critical security fix**: routed ALL USDC transfers in CR/FFM/CE/SM through a chainid-resolved `usdc` immutable (the constructor validated `_usdc` but transfers hardcoded mainnet USDC → would revert every Sepolia money flow). 421614 routing regression test added. Security review PASSED. (11d16d2, c25c175)
@@ -389,6 +389,7 @@ None yet.
 |---|-------------|------|--------|-----------|
 | 260604-jt2 | Prep Phase 6 Gate-2 soak scaffolding (ritual checker, wallet-gen, evidence-log skeleton) | 2026-06-04 | ec106ba | [260604-jt2-prep-phase-6-gate-2-soak-scaffolding-rit](./quick/260604-jt2-prep-phase-6-gate-2-soak-scaffolding-rit/) |
 | 260605-a4i | Fix notification-fanout eth_getLogs free-tier 10-block chunking | 2026-06-05 | 79ca33c | [260605-a4i-fix-notification-fanout-eth-getlogs-free](./quick/260605-a4i-fix-notification-fanout-eth-getlogs-free/) |
+| 260605-r9e | Synthetic-alert CI verifies relayer send-confirmation (not getUpdates) | 2026-06-05 | b502841 | [260605-r9e-synthetic-alert-ci-verifies-relayer-send](./quick/260605-r9e-synthetic-alert-ci-verifies-relayer-send/) |
 
 ## Deferred Items
 
