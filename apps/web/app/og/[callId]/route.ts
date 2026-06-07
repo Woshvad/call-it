@@ -38,6 +38,7 @@ import {
 } from '@call-it/shared';
 import { followFadeMarketAbi } from '@/lib/abis/FollowFadeMarket';
 import { getOutcomeWordResult } from '@/lib/outcome-word';
+import { getMarketLine, getSettledFields } from '@/lib/relayer-client';
 
 // ── Minimal CallRegistry getCall ABI ──────────────────────────────────────────
 // getCall is not in the main ABI stub (stub captures Plan 08 surface only).
@@ -105,6 +106,56 @@ function formatTimeLeft(secondsLeft: number): string {
 function formatUsdc(raw: bigint): string {
   const whole = Number(raw) / 1_000_000;
   return `$${whole.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
+}
+
+// ── Settled-stat formatting (D-03) ──────────────────────────────────────────────
+// Pyth/oracle prices are scaled 1e8 in the SettlementManager finalPrice/priceDelta.
+const PRICE_SCALE = 1e8;
+const EM_DASH = '—';
+
+/** Format a raw subgraph BigInt-string oracle price (1e8 scale) as "$X,XXX.XX". */
+function formatOraclePrice(raw: string | null): string {
+  if (raw === null) return EM_DASH;
+  try {
+    const n = Number(BigInt(raw)) / PRICE_SCALE;
+    if (!Number.isFinite(n)) return EM_DASH;
+    return `$${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  } catch {
+    return EM_DASH;
+  }
+}
+
+/** Format a signed price-delta (1e8 scale) as a P&L string "+$X" / "-$X". */
+function formatPriceDeltaPnl(raw: string | null): string {
+  if (raw === null) return EM_DASH;
+  try {
+    const v = BigInt(raw);
+    const n = Number(v) / PRICE_SCALE;
+    if (!Number.isFinite(n)) return EM_DASH;
+    const sign = n >= 0 ? '+' : '-';
+    const abs = Math.abs(n);
+    return `${sign}$${abs.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  } catch {
+    return EM_DASH;
+  }
+}
+
+/** Format a signed rep delta integer as "+N REP" / "-N REP". */
+function formatRepDelta(delta: number | null): string {
+  if (delta === null) return EM_DASH;
+  const sign = delta >= 0 ? '+' : '-';
+  return `${sign}${Math.abs(delta)} REP`;
+}
+
+/** Resolve the statement: relayer marketLine (D-05) → subgraph mirror (D-03) → safe generic. */
+function resolveStatement(
+  marketLine: string | null,
+  subgraphStatement: string | null,
+  callIdStr: string,
+): string {
+  if (marketLine && marketLine.trim().length > 0) return marketLine;
+  if (subgraphStatement && subgraphStatement.trim().length > 0) return subgraphStatement;
+  return `Call #${callIdStr}`;
 }
 
 // ── Corner bracket renderer ────────────────────────────────────────────────────
@@ -772,9 +823,18 @@ export async function GET(
     const conviction = Number(callData.conviction);
     const stakeRaw = BigInt(callData.stake);
 
-    // Market statement: not available from on-chain data alone (no string field in Call struct).
-    // Use a representative placeholder; Phase 7 will wire the full subgraph lookup.
-    const callStatement = `Call #${callIdStr}`;
+    // ── D-03: real statement + settled stats ─────────────────────────────────
+    // Statement: relayer marketLine (authoritative, D-05) → subgraph Call.statement
+    // templated mirror (D-03) → generic safe string. Settled stats: subgraph
+    // Settlement.finalPrice/priceDelta + RepEvent.delta. Both fetches are
+    // fail-safe (return null/em-dash) so the card NEVER crashes (SHARE-10).
+    // NOTE: the RPC status/outcome read above stays the freshness source of
+    // truth (Pitfall 8) — the subgraph supplies display fields only.
+    const [marketLine, settledFields] = await Promise.all([
+      getMarketLine(callIdStr),
+      getSettledFields(callIdStr),
+    ]);
+    const callStatement = resolveStatement(marketLine, settledFields.statement, callIdStr);
 
     // ── Phase 4: Branch on call status ────────────────────────────────────
     // CallStatus enum (ICallRegistry.sol): Live=0, Settled=1, Disputed=2, CallerExited=3.
@@ -793,25 +853,34 @@ export async function GET(
       // Outcome: default to 'CallerWon' (the outcome enum is not in getCall result — it's in CallRegistry.outcome field)
       const outcomeNum = Number(callData.outcome ?? 0); // outcome field from CallRegistry
       const callerWon = outcomeNum === 1; // Outcome.CallerWon = 1 per spec
+      // D-03: real rep delta from subgraph RepEvent; fadeRealShare needs the
+      // settled fade pool (not on-chain post-settlement) so it stays 0 here —
+      // the §14.1 word/color logic is driven by callerWon + the real repDelta.
+      const realRepDelta = settledFields.repDelta ?? 0;
       const outcomeResult = getOutcomeWordResult({
         callerWon,
-        fadeRealShare: 0,  // Phase 7 wires subgraph read
-        repDelta: 0,       // Phase 7 wires SettlementManager.RepCalculated
+        fadeRealShare: 0,
+        repDelta: realRepDelta,
         viewerIsWinningFader: isViewerFader && !callerWon,
       });
+
+      // Target value: on-chain call target (1e8 oracle scale for price markets).
+      const targetStr = formatOraclePrice(
+        callData.targetValue !== undefined ? String(callData.targetValue) : null,
+      );
 
       cardJsx = buildSettledCard({
         callStatement,
         handle,
         conviction,
-        repRaw: 0,
+        repRaw: Math.abs(realRepDelta),
         outcomeWord: outcomeResult.word,
         outcomeColor: outcomeResult.color,
         outcomeLozenge: outcomeResult.lozenge,
-        pnlStr: '—',       // Phase 7 wires P&L
-        repDeltaStr: '—',  // Phase 7 wires rep delta
-        finalValue: '—',   // Phase 7 wires oracle final price
-        targetValue: '—',  // Phase 7 wires call target
+        pnlStr: formatPriceDeltaPnl(settledFields.priceDelta),  // D-03: Settlement.priceDelta
+        repDeltaStr: formatRepDelta(settledFields.repDelta),    // D-03: RepEvent.delta
+        finalValue: formatOraclePrice(settledFields.finalPrice), // D-03: Settlement.finalPrice
+        targetValue: targetStr,                                  // D-03: on-chain call target
         isViewerFader: isViewerFader && !callerWon,
         footerBrand,
       });
@@ -827,12 +896,17 @@ export async function GET(
         ? new Date(expiryNum * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
         : '—';
 
+      // D-03: caller-exit rep impact from the subgraph RepEvent when present,
+      // else the documented -35 baseline (computeCallerExitRepDelta default).
+      const exitRepImpact =
+        settledFields.repDelta !== null ? formatRepDelta(settledFields.repDelta) : '-35 REP';
+
       cardJsx = buildCallerExitedCard({
         callStatement,
         handle,
         timeBeforeExit,
-        stakeSlashed: formatUsdc(BigInt(stakeRaw / 2n)), // ~50% slash estimate; Phase 7 wires exact
-        repImpact: '-35 REP',  // Phase 7 wires computeCallerExitRepDelta
+        stakeSlashed: formatUsdc(BigInt(stakeRaw / 2n)), // ~50% slash estimate; exact slash needs the settled event
+        repImpact: exitRepImpact,  // D-03: RepEvent.delta when present
         expiryStr: expiryDate,
         footerBrand,
       });

@@ -95,6 +95,142 @@ export async function getFeed(cursor?: string): Promise<FeedResponse> {
   return relayerFetch<FeedResponse>(`/api/feed${qs}`);
 }
 
+// ─── Live state / market line (OG real-data wiring, D-05) ───────────────────────
+
+/**
+ * Subset of GET /api/calls/:id/live-state used by the OG route.
+ * `marketLine` is the authoritative human-readable statement (D-05). It is
+ * OMITTED by the relayer when no statement is stored — the OG route then falls
+ * back to the subgraph templated mirror (D-03).
+ */
+export interface LiveStateLite {
+  id: string;
+  status: string;
+  marketLine?: string;
+  targetValue?: string;
+}
+
+/**
+ * GET /api/calls/:id/live-state — return ONLY the authoritative marketLine (D-05).
+ *
+ * Returns `null` when the relayer is unreachable, the call is unknown, or no
+ * statement has been stored. The caller (OG route) treats `null` as "fall back
+ * to the subgraph templated Call.statement, then to a generic safe string" so
+ * the card NEVER crashes (SHARE-10 / UI-SPEC error-state row).
+ *
+ * Server-side only (the OG route is a Node-runtime Route Handler). No secrets
+ * leave the bundle — RELAYER_BASE is the same proxy used everywhere else (D-27).
+ */
+export async function getMarketLine(callId: string | number): Promise<string | null> {
+  try {
+    const data = await relayerFetch<LiveStateLite>(
+      `/api/calls/${encodeURIComponent(String(callId))}/live-state`,
+    );
+    const line = data.marketLine;
+    if (typeof line === 'string' && line.trim().length > 0) return line;
+    return null;
+  } catch {
+    // Relayer outage / unknown call → null → subgraph templated fallback (D-03).
+    return null;
+  }
+}
+
+// ─── Settled-field subgraph read (OG real-data wiring, D-03) ─────────────────────
+
+const SUBGRAPH_URL = (process.env['NEXT_PUBLIC_SUBGRAPH_URL'] ?? '').replace(/\/$/, '');
+
+/**
+ * Real settled stats for a single call, read from the subgraph Settlement +
+ * RepEvent entities. Each field is OPTIONAL — any absent field stays a safe
+ * em-dash in the OG card. `statement` is the subgraph templated Call.statement
+ * mirror (D-03), used as the marketLine fallback.
+ */
+export interface SettledFields {
+  /** subgraph Call.statement templated mirror (D-03 fallback for marketLine). */
+  statement: string | null;
+  /** Settlement.finalPrice (oracle price at settlement), raw string. */
+  finalPrice: string | null;
+  /** Settlement.priceDelta (signed), raw string. */
+  priceDelta: string | null;
+  /** RepEvent.delta for the caller (signed integer). */
+  repDelta: number | null;
+  /** RepEvent.fallback flag (Stylus-fallback rep path), informational. */
+  repFallback: boolean | null;
+}
+
+const SETTLED_FIELDS_QUERY = `
+query SettledFields($callId: ID!) {
+  call(id: $callId) {
+    statement
+  }
+  settlements(first: 1, where: { call: $callId }, orderBy: settledAt, orderDirection: desc) {
+    finalPrice
+    priceDelta
+  }
+  repEvents(first: 1, where: { callId: $callId }, orderBy: timestamp, orderDirection: desc) {
+    delta
+    fallback
+  }
+}
+`;
+
+/**
+ * Query the subgraph for a call's settled stats + templated statement (D-03).
+ *
+ * Returns all-null fields (never throws) on any error / missing subgraph URL so
+ * the OG card degrades to safe em-dashes instead of 500ing (SHARE-10).
+ * Server-side only — the subgraph URL is read from NEXT_PUBLIC_SUBGRAPH_URL
+ * (the public Studio query URL; the privileged Studio key stays relayer-side).
+ */
+export async function getSettledFields(callId: string | number): Promise<SettledFields> {
+  const empty: SettledFields = {
+    statement: null,
+    finalPrice: null,
+    priceDelta: null,
+    repDelta: null,
+    repFallback: null,
+  };
+  if (!SUBGRAPH_URL) return empty;
+
+  try {
+    const res = await fetch(SUBGRAPH_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        query: SETTLED_FIELDS_QUERY,
+        variables: { callId: String(callId) },
+      }),
+    });
+    if (!res.ok) return empty;
+
+    const json = (await res.json()) as {
+      data?: {
+        call?: { statement?: string | null } | null;
+        settlements?: Array<{ finalPrice?: string | null; priceDelta?: string | null }>;
+        repEvents?: Array<{ delta?: number | null; fallback?: boolean | null }>;
+      };
+      errors?: unknown;
+    };
+    if (json.errors || !json.data) return empty;
+
+    const d = json.data;
+    const settlement = d.settlements?.[0];
+    const repEvent = d.repEvents?.[0];
+
+    return {
+      statement: d.call?.statement ?? null,
+      finalPrice: settlement?.finalPrice ?? null,
+      priceDelta: settlement?.priceDelta ?? null,
+      repDelta:
+        typeof repEvent?.delta === 'number' ? repEvent.delta : null,
+      repFallback:
+        typeof repEvent?.fallback === 'boolean' ? repEvent.fallback : null,
+    };
+  } catch {
+    return empty;
+  }
+}
+
 // ─── Profile ───────────────────────────────────────────────────────────────────
 
 export interface ProfileResponse {
