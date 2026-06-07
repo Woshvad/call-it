@@ -406,9 +406,9 @@ Requirements for the v1 mainnet release. Each line is an atomic, testable behavi
 
 ### Off-chain Receipt Card & Share (SHARE)
 
-- [ ] **SHARE-01**: Off-chain OG image service generates 1200×630px PNG cards via Node.js using Satori or `@vercel/og` (§16.1, §18.2)
-- [ ] **SHARE-02**: OG service is hosted at `api.callitapp.xyz/og/[callId]` (§19 Phase 7)
-- [ ] **SHARE-03**: OG images are cached on CDN and regenerated when call state changes — new follow/fade activity or settlement (§16.1, §19 Phase 7)
+- [x] **SHARE-01**: Off-chain OG image service generates 1200×630px PNG cards via Node.js using Satori or `@vercel/og` (§16.1, §18.2)
+- [x] **SHARE-02**: OG service is hosted at `api.callitapp.xyz/og/[callId]` (§19 Phase 7)
+- [x] **SHARE-03**: OG images are cached on CDN and regenerated when call state changes — new follow/fade activity or settlement (§16.1, §19 Phase 7)
 - [x] **SHARE-04**: Live State Card (variant 1) — Call It wordmark top-left + Arbitrum logo top-right + center call statement + "by [caller] · X% conviction · stake $XXX" + follow%/fade% progress bar + time-left countdown + corner bracket motif (§16.2)
 - [x] **SHARE-05**: Settled State Card (variant 2) — Call It wordmark + Arbitrum logo + center outcome word as visual hero (Syne display) + original call statement below + P&L / Rep change / Final / Conviction stats row + caller avatar + handle + current global rep + corner brackets (§16.3)
 - [x] **SHARE-06**: Outcome word color mapping on cards matches §15.7 — CALLED IT green, LOUD AND WRONG red, CONTRARIAN HIT accent, COLD CALL muted, FADED CORRECTLY accent (§16.3)
@@ -425,7 +425,7 @@ Requirements for the v1 mainnet release. Each line is an atomic, testable behavi
 - [ ] **SHARE-17**: Auto-post never modifies user's X account beyond posting — read-only graph access elsewhere (§9.9)
 - [x] **SHARE-18**: Farcaster cast URL construction is supported parallel to Twitter intent (§18.3, §16)
 - [ ] **SHARE-19**: Farcaster Frames are added in Phase 8 as the final phase if time permits — Frame buttons enable Follow / Fade / Challenge from a Farcaster post; OpenGraph meta tags + Frame server endpoint (§18.3, §19 Phase 8)
-- [ ] **SHARE-20**: Receipts are off-chain OG images referenced onchain by hash for verification — NOT NFTs in v1 (§18.2)
+- [x] **SHARE-20**: Receipts are off-chain OG images referenced onchain by hash for verification — NOT NFTs in v1 (§18.2)
 - [ ] **SHARE-21**: Receipt page loads without auth (public-by-default per §18.1); sign-in CTA prominent for unauthenticated viewers (§18.1)
 
 ### Operations & Observability (OPS)
@@ -929,9 +929,9 @@ Which phases cover which requirements. Updated during roadmap creation by the ro
 | UI-54 | Phase 4 | Complete |
 | UI-55 | Phase 1 | Pending |
 | UI-56 | Phase 1 | Pending |
-| SHARE-01 | Phase 7 | Pending |
-| SHARE-02 | Phase 7 | Pending |
-| SHARE-03 | Phase 7 | Pending |
+| SHARE-01 | Phase 7 | Complete |
+| SHARE-02 | Phase 7 | Complete |
+| SHARE-03 | Phase 7 | Complete |
 | SHARE-04 | Phase 2 | Complete |
 | SHARE-05 | Phase 4 | Complete |
 | SHARE-06 | Phase 4 | Complete |
@@ -948,7 +948,7 @@ Which phases cover which requirements. Updated during roadmap creation by the ro
 | SHARE-17 | Phase 7 | Pending |
 | SHARE-18 | Phase 7 | Complete |
 | SHARE-19 | Phase 8 | Pending |
-| SHARE-20 | Phase 7 | Pending |
+| SHARE-20 | Phase 7 | Complete |
 | SHARE-21 | Phase 7 | Pending |
 | OPS-01 | Phase 0 | Complete |
 | OPS-02 | Phase 0 | Complete |
