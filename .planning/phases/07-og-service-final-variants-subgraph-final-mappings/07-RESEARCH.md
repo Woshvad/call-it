@@ -391,18 +391,27 @@ export function warpcastComposeUrl(receiptUrl: string, text: string) {
 | A5 | Pitfall-18 reconciliation outcome (claim-delay vs default-ON) is recorded in the Phase-4 runbook | Pitfalls | If the runbook left it open, the planner must surface a decision to the user before enabling default-ON auto-post. |
 | A6 | Leaderboard needs a data source that does not yet exist (no `/leaderboard` route; `LeaderboardEntry` entity exists in schema but no mapping populates it) | Open Questions Q3 | If unaddressed, UI-12/13 ships with empty data. Needs a rep-ranking source (subgraph `Profile.globalRep` sort, or relayer aggregation). |
 
-## Open Questions
+## Open Questions (RESOLVED)
+
+> All four open questions are RESOLVED in 07-CONTEXT.md (post-research decision session, 2026-06-07). Original question text is preserved below for traceability; each carries an inline RESOLVED → D-0X pointer.
 
 1. **How does the human-readable market statement reach the subgraph `Call.statement` field?**
+   **RESOLVED → D-05 (see 07-CONTEXT.md):** Relayer-authoritative prose read via `/api/calls/:id/live-state` `marketLine`; the subgraph `Call.statement` field holds an in-mapping templated mirror as the indexed safe fallback (reconciles D-03 + "no IPFS on hot path" with the AssemblyScript constraint).
    - What we know: `CallCreated` event = `(id, caller, marketType, stake)` — NO string. The `Call` struct has no statement string (only numeric `assetA`/`assetB`/`targetValue`/hashes). The relayer already persists per-call off-chain data (`call_oracle_criteria`, `quote_stance`) and runs `calls-preflight` after `CallCreated`. The frontend `/new` flow knows the prose at compose time.
    - What's unclear: D-03 says the field lives on the subgraph `Call` entity, but AssemblyScript mappings can only read event/contract data — they cannot read the relayer DB. So either (a) the relayer enriches via a separate path the subgraph can index (e.g. a future on-chain enrichment event — out of scope, contracts are frozen), (b) the OG/receipt reads the statement from the **relayer** and the "subgraph field" is conceptual, or (c) the subgraph mapping writes a **templated** statement from numerics and the relayer/IPFS supplies the prose elsewhere.
    - Recommendation: **Confirm with the user.** Most likely intended path given D-03 + "no IPFS on hot path": the relayer stores the statement (it already has the criteria table — add a `statement` column), and the OG route + receipt read it via the relayer `/api/calls/:id/live-state` (which the receipt layout ALREADY reads `marketLine` from — see `live-state.ts:18-20` IN-03 note). The subgraph `Call.statement` then holds a **templated fallback** for queryability/feed, and the authoritative prose comes from the relayer. This reconciles "subgraph field" + "single-source, no IPFS" with the AssemblyScript constraint. **The planner should treat the relayer `marketLine` as the real statement source and add the subgraph field as the indexed/templated mirror.**
 
-2. **Pitfall-18 / claim-delay reconciliation for default-ON auto-post.** What did the Phase-4 settlement runbook decide? The auto-post trigger MUST be consistent with it. If the runbook deferred it, surface a decision to the user (default-ON now vs gate behind claim window).
+2. **Pitfall-18 / claim-delay reconciliation for default-ON auto-post.**
+   **RESOLVED → D-07 (see 07-CONTEXT.md):** Build the full mechanism, default-ON, fires after cache-warm succeeds; reconciled against the Phase-4 runbook (no on-chain claim-delay exists — reversal affects unclaimed funds only) with a configurable post-settle delay; the X write still degrades to a no-op when keys are absent (D-02).
+   What did the Phase-4 settlement runbook decide? The auto-post trigger MUST be consistent with it. If the runbook deferred it, surface a decision to the user (default-ON now vs gate behind claim window).
 
-3. **Leaderboard data source (UI-12/13).** `LeaderboardEntry` exists in `schema.graphql` but no mapping populates `rank`/`score`/`window` (it's an empty entity). Options: (a) frontend/relayer sorts `Profile.globalRep` from the subgraph at read time (simplest, works for All-time; 7d/30d windows need time-bounded rep aggregation the subgraph doesn't currently compute); (b) a relayer worker computes windowed leaderboards into Postgres (like `duel-king-worker`). Recommend (a) for All-time + a documented limitation on 7d/30d for v1, OR confirm scope with the user.
+3. **Leaderboard data source (UI-12/13).**
+   **RESOLVED → D-06 (see 07-CONTEXT.md):** All-time leaderboard sorts `Profile.globalRep` from the subgraph at read time (no new worker infra); the 7d/30d toggles ship wired but backed by All-time data with a documented v1 limitation. The windowed-aggregation worker is deferred (not Phase 7 scope).
+   `LeaderboardEntry` exists in `schema.graphql` but no mapping populates `rank`/`score`/`window` (it's an empty entity). Options: (a) frontend/relayer sorts `Profile.globalRep` from the subgraph at read time (simplest, works for All-time; 7d/30d windows need time-bounded rep aggregation the subgraph doesn't currently compute); (b) a relayer worker computes windowed leaderboards into Postgres (like `duel-king-worker`). Recommend (a) for All-time + a documented limitation on 7d/30d for v1, OR confirm scope with the user.
 
-4. **Twitter Card Validator automation.** It needs a public URL and isn't cleanly scriptable. Plan as a post-deploy operator checklist (5 variant URLs), not a CI gate — confirm that satisfies SHARE-13's "pre-flight smoke test" intent.
+4. **Twitter Card Validator automation.**
+   **RESOLVED → D-08 (see 07-CONTEXT.md):** SHARE-13 pre-flight is a post-deploy operator checklist (the 5 variant receipt URLs run through `cards-dev.twitter.com/validator`), NOT a CI gate — it needs a public URL and isn't cleanly scriptable.
+   It needs a public URL and isn't cleanly scriptable. Plan as a post-deploy operator checklist (5 variant URLs), not a CI gate — confirm that satisfies SHARE-13's "pre-flight smoke test" intent.
 
 ## Environment Availability
 
