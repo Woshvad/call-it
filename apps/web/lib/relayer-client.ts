@@ -231,6 +231,101 @@ export async function getSettledFields(callId: string | number): Promise<Settled
   }
 }
 
+// ─── Duel settled-field subgraph read (OG real-data wiring, D-03) ────────────────
+
+/**
+ * Real settled fields for a duel OG card, read from the subgraph.
+ * Each field is OPTIONAL — absent fields stay safe defaults in the card.
+ */
+export interface DuelSettledFields {
+  /** subgraph Call.statement templated mirror (D-03) for the underlying call. */
+  statement: string | null;
+  /** Asset of the underlying call (e.g. "BTC"), for the meta row. */
+  asset: string | null;
+  /** RepEvent.delta for the caller address (signed). */
+  callerRepDelta: number | null;
+  /** RepEvent.delta for the challenger address (signed). */
+  challengerRepDelta: number | null;
+}
+
+const DUEL_SETTLED_FIELDS_QUERY = `
+query DuelSettledFields($callId: String!, $caller: Bytes!, $challenger: Bytes!) {
+  call(id: $callId) {
+    statement
+    asset
+  }
+  callerRep: repEvents(first: 1, where: { callId: $callId, user: $caller }, orderBy: timestamp, orderDirection: desc) {
+    delta
+  }
+  challengerRep: repEvents(first: 1, where: { callId: $callId, user: $challenger }, orderBy: timestamp, orderDirection: desc) {
+    delta
+  }
+}
+`;
+
+/**
+ * Query the subgraph for a duel's settled rep deltas + underlying call statement.
+ *
+ * Returns all-null fields (never throws) on any error / missing subgraph URL so
+ * the duel OG card degrades to safe defaults instead of 500ing (SHARE-10).
+ * Server-side only.
+ *
+ * @param callId The underlying call id (challenge.callId).
+ * @param caller The caller address (lowercased for the Bytes match).
+ * @param challenger The challenger address (lowercased for the Bytes match).
+ */
+export async function getDuelSettledFields(
+  callId: string | number,
+  caller: string,
+  challenger: string,
+): Promise<DuelSettledFields> {
+  const empty: DuelSettledFields = {
+    statement: null,
+    asset: null,
+    callerRepDelta: null,
+    challengerRepDelta: null,
+  };
+  if (!SUBGRAPH_URL) return empty;
+
+  try {
+    const res = await fetch(SUBGRAPH_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        query: DUEL_SETTLED_FIELDS_QUERY,
+        variables: {
+          callId: String(callId),
+          caller: caller.toLowerCase(),
+          challenger: challenger.toLowerCase(),
+        },
+      }),
+    });
+    if (!res.ok) return empty;
+
+    const json = (await res.json()) as {
+      data?: {
+        call?: { statement?: string | null; asset?: string | null } | null;
+        callerRep?: Array<{ delta?: number | null }>;
+        challengerRep?: Array<{ delta?: number | null }>;
+      };
+      errors?: unknown;
+    };
+    if (json.errors || !json.data) return empty;
+
+    const d = json.data;
+    return {
+      statement: d.call?.statement ?? null,
+      asset: d.call?.asset ?? null,
+      callerRepDelta:
+        typeof d.callerRep?.[0]?.delta === 'number' ? d.callerRep[0]!.delta : null,
+      challengerRepDelta:
+        typeof d.challengerRep?.[0]?.delta === 'number' ? d.challengerRep[0]!.delta : null,
+    };
+  } catch {
+    return empty;
+  }
+}
+
 // ─── Profile ───────────────────────────────────────────────────────────────────
 
 export interface ProfileResponse {

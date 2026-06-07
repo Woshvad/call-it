@@ -44,6 +44,14 @@ import {
   CHALLENGE_ESCROW_ARBITRUM_SEPOLIA,
   PROFILE_REGISTRY_ARBITRUM_SEPOLIA,
 } from '@call-it/shared';
+import { getDuelSettledFields } from '@/lib/relayer-client';
+
+/** Format a signed rep delta integer as "+N REP" / "-N REP". */
+function formatRepDelta(delta: number | null): string | null {
+  if (delta === null) return null;
+  const sign = delta >= 0 ? '+' : '-';
+  return `${sign}${Math.abs(delta)} REP`;
+}
 
 // ── Minimal ChallengeEscrow ABI — getChallenge(uint256) ────────────────────────
 // Inline minimal ABI for the OG server-side read path (consistent with og/[callId] pattern).
@@ -575,20 +583,34 @@ export async function GET(
     // callerIsWinner = true when winner address === caller address
     const callerIsWinner = settled && challenge.winner.toLowerCase() === challenge.caller.toLowerCase();
 
-    // Phase 4: real rep deltas — from challenge pot as a proxy (subgraph RepCalculated
-    // events not yet wired in this route; Phase 7 will add the subgraph lookup).
-    // For now show winner/loser labels with the pot-derived estimate.
-    const winnerDelta = settled ? '+REP' : '?';
-    const loserDelta = settled ? '-REP' : '?';
-    const callerRepDelta = settled ? (callerIsWinner ? winnerDelta : loserDelta) : '?';
-    const challengerRepDelta = settled ? (callerIsWinner ? loserDelta : winnerDelta) : '?';
+    // ── D-03: real rep deltas + statement from the subgraph ─────────────────
+    // RepEvent.delta per participant (keyed by callId + user); the underlying
+    // call's templated statement (D-03) + asset for the meta row. Fail-safe:
+    // getDuelSettledFields returns all-null on any error → safe defaults below.
+    const callIdForSubgraph = challenge.callId.toString();
+    const duelFields = settled
+      ? await getDuelSettledFields(callIdForSubgraph, challenge.caller, challenge.challenger)
+      : { statement: null, asset: null, callerRepDelta: null, challengerRepDelta: null };
+
+    // Rep delta display: real RepEvent.delta when present, else "?" pre-settle.
+    const callerRepDelta = settled
+      ? (formatRepDelta(duelFields.callerRepDelta) ?? (callerIsWinner ? '+REP' : '-REP'))
+      : '?';
+    const challengerRepDelta = settled
+      ? (formatRepDelta(duelFields.challengerRepDelta) ?? (callerIsWinner ? '-REP' : '+REP'))
+      : '?';
+
+    // Underlying call statement (D-03) + asset for the meta row; fall back to
+    // the Duel #N label when the subgraph has no statement yet.
+    const callQuestion = duelFields.statement ?? `Duel #${challengeIdStr}`;
+    const assetPair = duelFields.asset ?? '';
 
     const cardJsx = buildDuelCard({
       callerHandle,
       challengerHandle,
       potRaw,
-      assetPair: '',        // Phase 7 will wire subgraph lookup for real asset pair
-      callQuestion: `Duel #${challengeIdStr}`,  // Phase 7 wires subgraph market statement
+      assetPair,        // D-03: subgraph Call.asset
+      callQuestion,     // D-03: subgraph Call.statement templated mirror
       footerBrand,
       settled,
       callerIsWinner,
