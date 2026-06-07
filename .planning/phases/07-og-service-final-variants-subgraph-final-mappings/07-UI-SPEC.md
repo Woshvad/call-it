@@ -1,10 +1,11 @@
 ---
 phase: 7
 slug: og-service-final-variants-subgraph-final-mappings
-status: draft
+status: approved
 shadcn_initialized: false
 preset: none
 created: 2026-06-07
+reviewed_at: 2026-06-07
 ---
 
 # Phase 7 — UI Design Contract
