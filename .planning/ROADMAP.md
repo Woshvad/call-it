@@ -232,7 +232,13 @@ Plans:
   3. Subgraph is published to The Graph Decentralized Network on Arbitrum (Studio → Decentralized Network with ~3,000 GRT curation, ~$100-300 cost from ops budget); all events from §12.1–12.5 (CallCreated, CallSettled, CallQuoted, ConvictionCapped, CallerExited, Followed, Faded, PayoutClaimed, PositionExited, ChallengeProposed/Accepted/Rejected/Refunded/Settled, DisputeRaised/Resolved, CallForceSettled, RepCalculated, RepCalculatedFallback, SettlementDelayed, ProfileUpdated, SocialLinked, SocialUnlinked) are indexed; CallCreated is indexed within ~30s of emission for share-loop dependency; polled-events fallback from Phase 0 stays live for the 48–72h post-publish indexer-sync gap.
   4. Profile page Overview tab renders 5-stat row (Accuracy / Calibration / ROI / Contrarian hits / Streak), CATEGORY REPUTATION grid (3 cards), recent calls list with filter chips, most-followed-by list, notable receipts trophy cards; Leaderboard page renders "The Tape · Top of book" title, 7d/30d/All-time toggle, #1 Hero card with massive faded "01" watermark, category filter chips (All / Majors / DeFi / Other), leaderboard table with viewer's row highlighted; Quote Composer + Quote success screen render with parent context card + thread preview.
   5. Receipt page server-renders OpenGraph meta tags referencing the OG card URL with the `?v={statusVersion}` cache-buster; receipts are off-chain OG images referenced onchain by hash for verification (NOT NFTs); receipt page loads without auth (public-by-default per §18.1) with sign-in CTA prominent for unauthenticated viewers.
-**Plans**: TBD
+**Plans**: 6 plans across 4 waves
+  - [ ] 07-01-PLAN.md — Wave 0: custom no-display-grid eslint rule + 200px visual-regression scaffold + share-text builders (SHARE-15/18) + auto-post/subgraph RED scaffolds
+  - [ ] 07-02-PLAN.md — Wave 1: [BLOCKING] relayer statement column + migration + live-state marketLine (D-05) + subgraph Call.statement templated mirror (D-03, v0.9.0 build)
+  - [ ] 07-03-PLAN.md — Wave 2: wire og/[callId] + duel OG real data (statement + settled stats, D-03) + committed 200px baselines (SC1)
+  - [ ] 07-04-PLAN.md — Wave 2: auto-post worker (Pitfall-8 cache-warm + Pitfall-18 trigger reconciled + key-gated no-op) + x-write-client + Farcaster cast (D-02/D-07)
+  - [ ] 07-05-PLAN.md — Wave 2: Profile Overview (UI-09) + Leaderboard /leaderboard (UI-12/13, D-06 All-time) + Quote Composer (UI-26/27/28) + Share button (SHARE-15)
+  - [ ] 07-06-PLAN.md — Wave 3: [OPERATOR] Studio v0.9.0 deploy (D-01) + Vercel web deploy + Fly CORS (D-04) + receipt-meta/public-load + ~20-event coverage (OPS-04) + Twitter Card Validator checklist (D-08)
 **UI hint**: yes
 **Pitfalls mitigated**: 8 (cache-warm-verified auto-post), 15 (Satori grid lint rule + 200px visual regression)
 
@@ -303,7 +309,7 @@ Phases execute in numeric order: 0 → 1 → 1.5 (parallel with 2) → 2 → 3 �
 | 4. SettlementManager + 7 oracle paths + Solidity baseline rep delta | 9/9 | Complete | 2026-06-02 |
 | 5. StylusScoreEngine + 48h cutoff | 7/7 | Complete | 2026-06-02 |
 | 6. Safety review + Sepolia ≥48h + multisig rehearsal | 4/6 | In Progress | - |
-| 7. OG service final variants + Subgraph final mappings | 0/TBD | Not started | - |
+| 7. OG service final variants + Subgraph final mappings | 0/6 | Planned | - |
 | 8. Farcaster Mini Apps | 0/TBD | Not started | - |
 | 9. Mobile responsive on 7 critical pages | 0/TBD | Not started | - |
 | 10. Mainnet deploy gate | 0/TBD | Not started | - |
