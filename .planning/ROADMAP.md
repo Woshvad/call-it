@@ -2,13 +2,13 @@
 
 ## Overview
 
-Call It ships as a person-first onchain social prediction product on Arbitrum mainnet — full v1 scope, no trims, hackathon-ready AND mainnet-grade in the same build. The roadmap derives from `CALL_IT_SPEC1.md` §19 ("Build Order") with five research-driven deltas applied: a new Phase 0 lays continuously-live foundation (monorepo, multisig prep, IPFS, CDN, subgraph schema, relayer skeleton, monitoring, OG fallback) so the receipt loop is never blocked by infra; Phase 1.5 runs social linking in parallel with Phase 2 to surface VERIFIED badges sooner; the Solidity baseline reputation delta ships in Phase 4 (not as a Phase 5 fallback) so the 48h Stylus cutoff becomes a mechanical `upgradeTo(...)`; Safe 2-of-3 multisig promotion is pulled from "before v1.1" into Phase 6 as a hard gate before mainnet promotion; and OG service + subgraph mappings are scaffolded in Phase 0 and finalized in Phase 7. Phases 1–7 converge on the 9-step receipt critical path (Sign-up → Fund → Sponsored tx → Compose → Publish → Live receipt → Settlement → Settled receipt → Share). Phase 7.5 is the 20-minute mainnet smoke test gate. Phases 8 (Farcaster Mini Apps) and 9 (mobile responsive on 7 critical pages) are distribution/UX enhancements that follow mainnet promotion.
+Call It ships as a person-first onchain social prediction product on Arbitrum mainnet — full v1 scope, no trims, hackathon-ready AND mainnet-grade in the same build. The roadmap derives from `CALL_IT_SPEC1.md` §19 ("Build Order") with five research-driven deltas applied: a new Phase 0 lays continuously-live foundation (monorepo, multisig prep, IPFS, CDN, subgraph schema, relayer skeleton, monitoring, OG fallback) so the receipt loop is never blocked by infra; Phase 1.5 runs social linking in parallel with Phase 2 to surface VERIFIED badges sooner; the Solidity baseline reputation delta ships in Phase 4 (not as a Phase 5 fallback) so the 48h Stylus cutoff becomes a mechanical `upgradeTo(...)`; Safe 2-of-3 multisig promotion is pulled from "before v1.1" into Phase 6 as a hard gate before mainnet promotion; and OG service + subgraph mappings are scaffolded in Phase 0 and finalized in Phase 7. Phases 1–7 converge on the 9-step receipt critical path (Sign-up → Fund → Sponsored tx → Compose → Publish → Live receipt → Settlement → Settled receipt → Share). Phase 10 (reordered from 7.5 per operator decision 2026-06-07) is the 20-minute mainnet smoke-test/deploy gate — now placed after Phases 8–9 so the distribution/UX phases ship on testnet first and mainnet deploys last; the final Phase 10.5 locks ownership down via the production multisig. Phases 8 (Farcaster Mini Apps) and 9 (mobile responsive on 7 critical pages) are distribution/UX enhancements built on testnet before mainnet promotion.
 
 ## Phases
 
 **Phase Numbering:**
 - Integer phases (0, 1, 2, ...): Planned milestone work
-- Decimal phases (1.5, 7.5): Parallel-stream phase (1.5) and mainnet-deploy gate (7.5)
+- Decimal phases (1.5, 10.5): Parallel-stream phase (1.5) and final multisig-lockdown phase (10.5). (Phase 7.5 was renumbered to Phase 10 on 2026-06-07.)
 
 - [x] **Phase 0: Foundation** - Always-live infra: monorepo, multisig prep, IPFS, CDN, subgraph schema, relayer skeleton, monitoring stack, env-var matrix, USDC single source-of-truth, OG fallback variant (completed 2026-05-22)
 - [ ] **Phase 1: Core contracts + auth + frontend skeleton** - CallRegistry + ProfileRegistry contracts, Privy 3-path sign-in, onboarding, paymaster (5 free tx), address book + 24h cooldown, New Call flow, design system, loading skeleton + toast
@@ -19,10 +19,10 @@ Call It ships as a person-first onchain social prediction product on Arbitrum ma
 - [x] **Phase 5: StylusScoreEngine + 48h cutoff** - Rust reputation engine behind Solidity `TransparentUpgradeableProxy`, full-fidelity `compute_rep_change`, 365-day reactivation runbook integrated with Phase 0 alerts, parallel-built `RevertingStylusEngine` test fixture
 - [ ] **Phase 6: Safety review + Sepolia ≥48h + multisig rehearsal** - Stylus destruction drill, TVL cap aggregation boundary tests, full "Looks Done But Isn't" checklist, Sepolia ≥48h with seeded calls/follows/settles/exits/challenges/disputes, Safe 2-of-3 multisig REHEARSAL on the Sepolia cluster (production mainnet Safe + ownership transfer moved to final Phase 10, per operator decision 2026-06-04)
 - [ ] **Phase 7: OG service final variants + Subgraph final mappings** - 5 OG card variants finalized (Live, Settled, DuelSettled, CallerExited, Fallback) via @vercel/og + Satori, subgraph published to Decentralized Network on Arbitrum, auto-post-to-X gated by cache-warm verification, Twitter Card Validator pre-flight, 200px readability QA gate
-- [ ] **Phase 7.5: Mainnet deploy gate** - 20-minute §19.11 smoke test checklist; deploy + verify (under the deployer key — multisig transfer is the final Phase 10) + first authenticated session + funding + first sponsored tx + receipt share Twitter Card Validator
 - [ ] **Phase 8: Farcaster Mini Apps** - `fc:frame` meta tags, Mini App manifest, Farcaster receipt rendering, Follow/Fade/Challenge actions from Frame
 - [ ] **Phase 9: Mobile responsive on 7 critical pages** - 375px breakpoint on Feed, Live Receipt, Settled Receipt, Profile, Leaderboard, Sign-in, Onboarding; desktop-only banner on Duel, Quote composer, New Call
-- [ ] **Phase 10: Mainnet multisig promotion (ownership lockdown)** - FINAL phase. Deploy the production Safe 2-of-3 on Arbitrum One; transfer ownership of all 6 mainnet surfaces from the deployer key to the Safe via Ownable2Step; prove Safe-gated pause + upgrade; single-owner-key path closed (Risk #2). The multisig mechanism was rehearsed on Sepolia in Phase 6.
+- [ ] **Phase 10: Mainnet deploy gate** - 20-minute §19.11 smoke test checklist; deploy + verify (under the deployer key — multisig transfer is the final Phase 10.5) + first authenticated session + funding + first sponsored tx + receipt share Twitter Card Validator (reordered from 7.5 to after 8–9 per operator decision 2026-06-07)
+- [ ] **Phase 10.5: Mainnet multisig promotion (ownership lockdown)** - FINAL phase. Deploy the production Safe 2-of-3 on Arbitrum One; transfer ownership of all 6 mainnet surfaces from the deployer key to the Safe via Ownable2Step; prove Safe-gated pause + upgrade; single-owner-key path closed (Risk #2). The multisig mechanism was rehearsed on Sepolia in Phase 6.
 
 ## Phase Details
 
@@ -236,23 +236,10 @@ Plans:
 **UI hint**: yes
 **Pitfalls mitigated**: 8 (cache-warm-verified auto-post), 15 (Satori grid lint rule + 200px visual regression)
 
-### Phase 7.5: Mainnet deploy gate
-**Goal**: 20-minute post-deploy smoke test per §19.11 — non-optional before public announcement. This is a hard gate, not a building phase: contracts and frontend deploy to mainnet **under the deployer key** (the multisig ownership transfer is deferred to the final Phase 10 per operator decision 2026-06-04 — note this leaves a single-owner-key window live on mainnet from launch until Phase 10), and the operator walks the 20-minute checklist. If any item fails, contracts pause immediately and no public announcement is made.
-**Mode:** mvp
-**Depends on**: Phase 7
-**Requirements**: SAFETY-44, SAFETY-45, SAFETY-46, SAFETY-47, SAFETY-48, SAFETY-49, SAFETY-50, SAFETY-51, SAFETY-52, SAFETY-53, SAFETY-54, SAFETY-55, SAFETY-56
-**Success Criteria** (what must be TRUE):
-  1. All contracts deploy to Arbitrum One mainnet; ownership is the **deployer key** at this stage (multisig transfer is the final Phase 10), verified via `cast call <each_contract> "owner()"`; contract bytecode is verified on Arbiscan via `forge verify-contract`; Pyth feed bytes32 in-contract pinning is re-verified against live Hermes (Pitfall 4 final check).
-  2. Smoke test verifies `pause()` + `unpause()` execute from the owner key (deployer at this stage; multisig in Phase 10) and `paused()` view reflects state; deposit while paused reverts `Paused`; withdrawal while paused succeeds per §10.3 carve-out; `setTvlCap` and TVL boundary deposit ($4,901 + $99 succeeds, next $1 reverts `TvlCapReached`); min-stake ($4 reverts, $5 succeeds); max-stake ($101 reverts, $100 succeeds); all 5 oracle adapters exercised with synthetic test calls (Pyth/BTC, DefiLlama TVL, Snapshot/Tally proposal, CEX scrape, Alchemy CryptoPunks floor); `forceSettle` is NOT callable within cooldown window (reverts `ForceSettleCooldownActive`).
-  3. End-to-end user-path smoke: all 3 sign-in paths complete to first authenticated session; funding via Coinbase Onramp AND direct USDC transfer both succeed; first sponsored transaction succeeds via paymaster and counter increments; receipt-link share works on Twitter and passes Twitter Card Validator; OG image renders all 5 outcome words at 200px viewport thumbnail size.
-  4. If any smoke test item fails: contracts are paused immediately via the owner key, no public announcement is made, root cause is diagnosed, fix is shipped, gate is re-run from item 1. Only on full pass does Phase 8 (Mini Apps) and Phase 9 (mobile responsive) work begin.
-**Plans**: TBD
-**Pitfalls mitigated**: 1 (USDC final paste-failure check), 4 (Pyth feed final check), 5 (env config final check), 6 (single-owner-key launch window documented; multisig promotion deferred to final Phase 10)
-
 ### Phase 8: Farcaster Mini Apps
 **Goal**: Distribution extension via Farcaster Mini Apps (per SUMMARY.md Delta 4 — renamed from Frames v2 with 3-month deprecation notice; `fc:frame` meta tag still works for compat). Frame buttons enable Follow / Fade / Challenge from a Farcaster cast; OpenGraph meta tags + Frame server endpoint + Mini App manifest.
 **Mode:** mvp
-**Depends on**: Phase 7.5
+**Depends on**: Phase 7
 **Requirements**: SHARE-19
 **Success Criteria** (what must be TRUE):
   1. Receipt page server-renders `fc:frame` meta tags AND Farcaster Mini App manifest pointing at the Frame server endpoint; a Farcaster client (Warpcast) loads the cast, renders the Settled receipt OG card, and shows the Follow / Fade / Challenge action buttons.
@@ -264,7 +251,7 @@ Plans:
 ### Phase 9: Mobile responsive on 7 critical pages
 **Goal**: 375px breakpoint pass on the 7 critical pages — Feed (§15.1), Live Receipt (§15.3), Profile (§15.4), Settled Receipt (§15.7), Sign-in (§15.8), Onboarding (§15.9), Leaderboard (§15.6). Non-critical pages (Duel §15.5, Quote composer §15.10, New Call §15.2) get a "Best viewed on desktop" banner per spec scope cut. Per the spec the share-link landing experience is the priority — viewers arriving from a Twitter/Farcaster share must land on a usable mobile Settled Receipt or feed.
 **Mode:** mvp
-**Depends on**: Phase 7.5
+**Depends on**: Phase 8
 **Requirements**: UI-48, UI-49, UI-50
 **Success Criteria** (what must be TRUE):
   1. At 375px viewport width, each of the 7 critical pages renders single-column with full-width action buttons; left sidebar (on pages that have one) collapses behind a hamburger menu; no horizontal scroll on any page; touch targets meet the 44×44px minimum.
@@ -273,14 +260,29 @@ Plans:
 **Plans**: TBD
 **UI hint**: yes
 
-### Phase 10: Mainnet multisig promotion (ownership lockdown)
-**Goal**: The FINAL phase and the close of Risk #2 (single-owner-key). Deploy the production Safe 2-of-3 multisig on Arbitrum One, then transfer ownership of all 6 mainnet surfaces (CallRegistry, FollowFadeMarket, ChallengeEscrow, SettlementManager, ProfileRegistry, StylusScoreEngine `TransparentUpgradeableProxy` admin) from the deployer key to the Safe via Ownable2Step `acceptOwnership`. The multisig mechanism was already rehearsed end-to-end on the Sepolia cluster in Phase 6 (deploy → transfer → Safe-gated pause + upgrade proven), so this phase reuses the proven runbook + scripts (`deploy-safe.ts`, `TransferOwnershipToSafe.s.sol` with mainnet addresses, `rehearse-ownership.ts`). NOTE: moving this out of Phase 7.5 leaves a single-owner-key window live on mainnet from launch (7.5) through Phases 8–9 until this phase — accepted per operator decision 2026-06-04 (iterate fast under the deployer key, lock down last).
+### Phase 10: Mainnet deploy gate
+> **Reordered after Phases 8–9 (operator decision 2026-06-07)** — was Phase 7.5; distribution/UX phases now ship on testnet first, then mainnet deploys last.
+**Goal**: 20-minute post-deploy smoke test per §19.11 — non-optional before public announcement. This is a hard gate, not a building phase: contracts and frontend deploy to mainnet **under the deployer key** (the multisig ownership transfer is deferred to the final Phase 10.5 per operator decision 2026-06-04 — note this leaves a single-owner-key window live on mainnet from launch until Phase 10.5), and the operator walks the 20-minute checklist. If any item fails, contracts pause immediately and no public announcement is made.
 **Mode:** mvp
-**Depends on**: Phase 9 (runs last); requires the Phase 7.5 mainnet contract deploy
+**Depends on**: Phase 9
+**Requirements**: SAFETY-44, SAFETY-45, SAFETY-46, SAFETY-47, SAFETY-48, SAFETY-49, SAFETY-50, SAFETY-51, SAFETY-52, SAFETY-53, SAFETY-54, SAFETY-55, SAFETY-56
+**Success Criteria** (what must be TRUE):
+  1. All contracts deploy to Arbitrum One mainnet; ownership is the **deployer key** at this stage (multisig transfer is the final Phase 10.5), verified via `cast call <each_contract> "owner()"`; contract bytecode is verified on Arbiscan via `forge verify-contract`; Pyth feed bytes32 in-contract pinning is re-verified against live Hermes (Pitfall 4 final check).
+  2. Smoke test verifies `pause()` + `unpause()` execute from the owner key (deployer at this stage; multisig in Phase 10.5) and `paused()` view reflects state; deposit while paused reverts `Paused`; withdrawal while paused succeeds per §10.3 carve-out; `setTvlCap` and TVL boundary deposit ($4,901 + $99 succeeds, next $1 reverts `TvlCapReached`); min-stake ($4 reverts, $5 succeeds); max-stake ($101 reverts, $100 succeeds); all 5 oracle adapters exercised with synthetic test calls (Pyth/BTC, DefiLlama TVL, Snapshot/Tally proposal, CEX scrape, Alchemy CryptoPunks floor); `forceSettle` is NOT callable within cooldown window (reverts `ForceSettleCooldownActive`).
+  3. End-to-end user-path smoke: all 3 sign-in paths complete to first authenticated session; funding via Coinbase Onramp AND direct USDC transfer both succeed; first sponsored transaction succeeds via paymaster and counter increments; receipt-link share works on Twitter and passes Twitter Card Validator; OG image renders all 5 outcome words at 200px viewport thumbnail size.
+  4. If any smoke test item fails: contracts are paused immediately via the owner key, no public announcement is made, root cause is diagnosed, fix is shipped, gate is re-run from item 1. Only on full pass does the public announcement proceed and the final Phase 10.5 (multisig lockdown) begin.
+**Plans**: TBD
+**Pitfalls mitigated**: 1 (USDC final paste-failure check), 4 (Pyth feed final check), 5 (env config final check), 6 (single-owner-key launch window documented; multisig promotion deferred to final Phase 10.5)
+
+### Phase 10.5: Mainnet multisig promotion (ownership lockdown)
+> **Renumbered from Phase 10 (operator decision 2026-06-07)** — remains the FINAL phase, now after the reordered Phase 10 mainnet deploy gate.
+**Goal**: The FINAL phase and the close of Risk #2 (single-owner-key). Deploy the production Safe 2-of-3 multisig on Arbitrum One, then transfer ownership of all 6 mainnet surfaces (CallRegistry, FollowFadeMarket, ChallengeEscrow, SettlementManager, ProfileRegistry, StylusScoreEngine `TransparentUpgradeableProxy` admin) from the deployer key to the Safe via Ownable2Step `acceptOwnership`. The multisig mechanism was already rehearsed end-to-end on the Sepolia cluster in Phase 6 (deploy → transfer → Safe-gated pause + upgrade proven), so this phase reuses the proven runbook + scripts (`deploy-safe.ts`, `TransferOwnershipToSafe.s.sol` with mainnet addresses, `rehearse-ownership.ts`). NOTE: deferring this past the Phase 10 mainnet deploy leaves a single-owner-key window live on mainnet from launch (Phase 10) through this phase — accepted per operator decision 2026-06-04 (iterate fast under the deployer key, lock down last).
+**Mode:** mvp
+**Depends on**: Phase 10 (the mainnet deploy gate)
 **Requirements**: SAFETY-19, SAFETY-20
 **Success Criteria** (what must be TRUE):
   1. Production Safe 2-of-3 is deployed on Arbitrum One (owners = the 3 signer addresses, threshold 2), via the Safe UI (recommended) or `deploy-safe.ts --network arbitrum-one`; `getOwners()` + `getThreshold()` verified.
-  2. `TransferOwnershipToSafe.s.sol` (address constants updated to the Phase-7.5 mainnet contracts) is broadcast on Arbitrum One; the Safe executes `acceptOwnership()` on the 5 Ownable2Step contracts; ProxyAdmin ownership transfers immediately; `cast call <each of 6 surfaces> "owner()"` returns the Safe address.
+  2. `TransferOwnershipToSafe.s.sol` (address constants updated to the Phase-10 mainnet contracts) is broadcast on Arbitrum One; the Safe executes `acceptOwnership()` on the 5 Ownable2Step contracts; ProxyAdmin ownership transfers immediately; `cast call <each of 6 surfaces> "owner()"` returns the Safe address.
   3. Safe-gated `pause()`/`unpause()` and `ProxyAdmin.upgradeAndCall` are each proven via a Safe transaction on mainnet; the deployer key can no longer call any owner-only function (reverts `OwnableUnauthorizedAccount`).
   4. Single-owner-key path is DEAD on mainnet (Risk #2 closed); the change is documented and the deployer key is retired from owner duties.
 **Plans**: TBD
@@ -289,7 +291,7 @@ Plans:
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 0 → 1 → 1.5 (parallel with 2) → 2 → 3 → 4 → 5 → 6 → 7 → 7.5 → 8 → 9 → 10
+Phases execute in numeric order: 0 → 1 → 1.5 (parallel with 2) → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9 → 10 → 10.5
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
@@ -302,7 +304,7 @@ Phases execute in numeric order: 0 → 1 → 1.5 (parallel with 2) → 2 → 3 �
 | 5. StylusScoreEngine + 48h cutoff | 7/7 | Complete | 2026-06-02 |
 | 6. Safety review + Sepolia ≥48h + multisig rehearsal | 4/6 | In Progress | - |
 | 7. OG service final variants + Subgraph final mappings | 0/TBD | Not started | - |
-| 7.5. Mainnet deploy gate | 0/TBD | Not started | - |
 | 8. Farcaster Mini Apps | 0/TBD | Not started | - |
 | 9. Mobile responsive on 7 critical pages | 0/TBD | Not started | - |
-| 10. Mainnet multisig promotion (ownership lockdown) | 0/TBD | Not started | - |
+| 10. Mainnet deploy gate | 0/TBD | Not started | - |
+| 10.5. Mainnet multisig promotion (ownership lockdown) | 0/TBD | Not started | - |
