@@ -82,8 +82,39 @@ Exceptions:
 ## Typography
 
 Font roles are LOCKED (`packages/ui/src/tokens/typography.ts` + `tailwind.preset.ts`). Three families,
-each with a fixed role. Weight discipline: **2 weights per family** (regular 400 + bold 700) — neobrutalist
-treatment uses bold heavily; do not introduce 500/600 intermediate weights.
+each with a fixed role. Weight discipline: **2 weights total** (regular 400 + bold 700) — neobrutalist
+treatment uses bold heavily; do not introduce 500/600 intermediate weights. (Weight discipline PASSES.)
+
+> ### ⚠️ Locked-System Typography Exemption (recorded, deliberate — NOT visual drift)
+>
+> The on-page type scale below declares **6 distinct font sizes** (12 / 14 / 16 / 18 / 20 / 28px),
+> which exceeds the GSD mechanical 4-size maximum. This is a **documented, recorded exemption**, not a
+> redesign target, for the following reasons:
+>
+> 1. **The scale is LOCKED and inherited, not newly proposed.** These six sizes are the *already-shipped*
+>    tokens of the `@call-it/ui` neobrutalist design system (`packages/ui/src/tokens/typography.ts` +
+>    `tailwind.preset.ts`) and spec §14.6. They were **detected from the shipped tokens, not authored by
+>    this phase.** Phase 7 is the *finalization* of live, shipped UI; collapsing the type scale would mean
+>    redesigning production surfaces — explicitly out of scope and the wrong move.
+> 2. **Each of the 6 sizes serves a distinct, already-implemented role** (justified per-size in the table
+>    below). None is redundant; removing any would change the appearance of live primitives (`ProfileHeader`,
+>    `CallCard`, `Receipt`, `Tag`, `Stamp`).
+> 3. The OG display size (≥64px, Satori canvas) is a **separate render surface** and is correctly NOT
+>    counted toward the on-page scale.
+>
+> **Decision: the 4-size maximum is waived for this phase as a locked-system exception. The shipped token
+> values MUST NOT be altered.**
+
+### Per-size justification (each maps to a distinct, shipped role)
+
+| # | Size | Tailwind | Family / Weight | Distinct shipped role | Where it appears across Phase-7 surfaces |
+|---|------|----------|-----------------|------------------------|-------------------------------------------|
+| 1 | 12px | `text-xs` | Space Grotesk / JetBrains Mono · 400 | **Uppercase stat/section labels, chip & lozenge text, metadata captions** | Profile Overview 5-stat labels (`Accuracy`/`Calibration`/`ROI`/`Contrarian hits`/`Streak`), `CATEGORY REPUTATION`/`RECENT CALLS` section labels, filter chips, Leaderboard category chips, `Tag`/`Stamp` lozenge labels |
+| 2 | 14px | `text-sm` | JetBrains Mono · 700 (values) / muted handles | **Mono numeric values in dense rows + `@handle` lines** | Leaderboard table cells (rank/rep in mono bold), Profile stat values in compact blocks, `@handle` muted (`ProfileHeader`), Quote Composer parent-context metadata |
+| 3 | 16px | `text-base` | Space Grotesk · 400 | **Body copy / list rows / descriptions** | `CallCard` statement body, Quote Composer text input + thread preview body, empty-state body copy, `MOST FOLLOWED BY` rows |
+| 4 | 18px | `text-lg` | JetBrains Mono · 700 / Syne · 700 | **Emphasized values & sub-headings / card titles** | Larger mono values (Hero card #1 rep, headline P&L), `Card` titles in `CATEGORY REPUTATION` and `NOTABLE RECEIPTS`, Quote success sub-heading |
+| 5 | 20px | `text-xl` | Syne · 700 | **Section headings / profile display name** | Profile display name (`ProfileHeader`), section headings on Profile tab, `Quote this call` / `Quote posted` headings |
+| 6 | 28px | `text-3xl` | Syne · 700 | **Page / display headings** | Leaderboard `The Tape` page title, large display headings on the Profile/Leaderboard surfaces (the giant faded "01" watermark and OG outcome word scale ABOVE this on their own canvas) |
 
 | Role | Family | Size | Weight | Line Height | Usage |
 |------|--------|------|--------|-------------|-------|
@@ -99,6 +130,8 @@ treatment uses bold heavily; do not introduce 500/600 intermediate weights.
 - Headings/titles/outcome words ALWAYS Syne bold.
 - Handles render `@handle` in mono muted (`font-mono text-sm text-brand-muted`) per `ProfileHeader`.
 - Heading line-height 1.2; body 1.5 (matches existing components).
+- **Type scale (6 sizes) is LOCKED — see the Locked-System Typography Exemption above. Do not collapse
+  or alter the shipped token values; the 4-size maximum is waived for this finalization phase.**
 
 ---
 
