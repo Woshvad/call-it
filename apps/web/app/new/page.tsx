@@ -20,6 +20,8 @@ import { DuplicateWarning } from './components/DuplicateWarning';
 import { PublishConfirmModal } from './components/PublishConfirmModal';
 import { useDebouncedDupCheck } from './hooks/useDebouncedDupCheck';
 import { usePublishCall } from './hooks/usePublishCall';
+import { QuoteParentCard } from './components/QuoteParentCard';
+import { QuoteSuccess } from './components/QuoteSuccess';
 
 /**
  * /new page — New Call composer.
@@ -30,14 +32,23 @@ import { usePublishCall } from './hooks/usePublishCall';
  * RHF + zodResolver(createCallSchema) from @call-it/shared (D-29 parity).
  * The form NEVER duplicates gate logic — always imports from @call-it/shared.
  *
- * Requirements: CALL-37..70, UI-01..03, UI-51, UI-55, UI-56
+ * `?quote=[parentCallId]` mode (UI-26/27/28): renders a read-only parent context
+ * card, the YOUR THESIS textarea ABOVE the market-type buttons (UI-27 — forces
+ * articulation before composition), Post quote / Cancel CTAs, and on submit a
+ * success screen with a stacked thread preview + a Twitter-intent Share button
+ * (SHARE-15). Quote stance persists via the existing quote_stance route.
+ *
+ * Requirements: CALL-37..70, UI-01..03, UI-51, UI-55, UI-56, UI-26, UI-27, UI-28, SHARE-15
  */
 export default function NewCallPage() {
   const searchParams = useSearchParams();
   const quoteId = searchParams?.get('quote');
+  const isQuoteMode = !!quoteId;
   const { getAccessToken } = usePrivy();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [token, setToken] = useState<string | undefined>(undefined);
+  // Quote success screen state (UI-28). Holds the new quote-call id once published.
+  const [quotePosted, setQuotePosted] = useState<{ quoteCallId: string } | null>(null);
 
   // Initialize form with zodResolver (D-29 parity — same schema as relayer preflight)
   const form = useForm<CreateCallInput>({
@@ -89,8 +100,168 @@ export default function NewCallPage() {
     const values = form.getValues();
     await publish(values);
     setIsModalOpen(false);
-  }, [form, publish]);
+    // In quote mode, surface the success screen (UI-28) once the publish flow reports
+    // success. The quote_stance write is keyed to the on-chain CallQuoted event
+    // (parent + new quote-call ids); the success thread anchors on the parent call.
+    if (isQuoteMode && publishStep === 'success') {
+      setQuotePosted({ quoteCallId: quoteId ?? '' });
+    }
+  }, [form, publish, isQuoteMode, quoteId, publishStep]);
 
+  // Build the live preview market line (shared by the right-rail Receipt + thread preview).
+  const previewMarketLine = `${formValues.assetA || 'Asset'} ${
+    formValues.marketType === 'spreadVs' ? 'vs' : '>='
+  } ${
+    formValues.targetValue ? (Number(formValues.targetValue) / 1_000_000).toLocaleString() : '?'
+  }`;
+
+  // ── Success screen (UI-28) ──────────────────────────────────────────────────
+  if (isQuoteMode && quotePosted) {
+    return (
+      <QuoteSuccess
+        parentCallId={quoteId!}
+        quoteMarketLine={previewMarketLine}
+        quoteConviction={formValues.conviction ?? 50}
+        thesis={formValues.criteriaText ?? ''}
+      />
+    );
+  }
+
+  // ── Quote Composer mode (UI-26/27) ────────────────────────────────────────────
+  if (isQuoteMode) {
+    return (
+      <div style={{ display: 'flex', gap: '2rem', alignItems: 'flex-start' }}>
+        {/* Left: parent card + composer — flex-1 */}
+        <div style={{ flex: 1 }}>
+          <h1 className="text-2xl font-display font-bold text-brand-text uppercase tracking-wide mb-6">
+            Quote this call
+          </h1>
+
+          {/* UI-26: read-only parent context card (NO corner brackets on the parent card) */}
+          <QuoteParentCard parentCallId={quoteId!} />
+
+          <form onSubmit={handleSubmit(onPublish)} className="flex flex-col gap-6 mt-6">
+            {/* UI-27: YOUR THESIS textarea ABOVE the market-type buttons (forces articulation) */}
+            <div className="flex flex-col gap-2">
+              <label
+                htmlFor="quote-thesis"
+                className="text-sm font-mono text-brand-text uppercase tracking-wide"
+              >
+                Your thesis
+              </label>
+              <textarea
+                id="quote-thesis"
+                value={formValues.criteriaText ?? ''}
+                onChange={(e) => setValue('criteriaText', e.target.value)}
+                placeholder="Why are you following or fading this call?"
+                rows={3}
+                className="border-2 border-brand-border bg-brand-surface text-brand-text font-body px-3 py-2 focus:outline-none focus:border-brand-accent"
+              />
+            </div>
+
+            {/* Market type switcher (BELOW the thesis per UI-27) */}
+            <div className="flex flex-col gap-2">
+              <label className="text-sm font-mono text-brand-text uppercase tracking-wide">
+                Call Type
+              </label>
+              <MarketTypeSwitcher value={marketType} setValue={setValue} />
+            </div>
+
+            {marketType === 'priceTarget' && (
+              <PriceTargetFields control={control} errors={errors} />
+            )}
+            {marketType === 'spreadVs' && <SpreadVsFields control={control} errors={errors} />}
+            {marketType === 'event' && (
+              <EventFields control={control} setValue={setValue} errors={errors} />
+            )}
+
+            <DeadlinePicker control={control} error={errors.expiry} />
+
+            {/* Stake input */}
+            <div className="flex flex-col gap-1">
+              <label className="text-sm font-mono text-brand-text uppercase tracking-wide">
+                Stake (USDC)
+              </label>
+              <input
+                type="number"
+                min={5}
+                max={100}
+                step={1}
+                value={formValues.stake ? Number(formValues.stake) / 1_000_000 : 5}
+                onChange={(e) => {
+                  const usd = parseFloat(e.target.value);
+                  if (!isNaN(usd)) setValue('stake', BigInt(Math.round(usd * 1_000_000)));
+                }}
+                className={[
+                  'border-2 bg-brand-surface text-brand-text font-mono px-3 py-2',
+                  'focus:outline-none focus:border-brand-accent',
+                  errors.stake ? 'border-red-500' : 'border-brand-border',
+                ].join(' ')}
+              />
+              {errors.stake && (
+                <div className="text-red-500 text-xs font-mono">{String(errors.stake.message)}</div>
+              )}
+            </div>
+
+            <ConvictionSliderField control={control} error={errors.conviction} />
+
+            <AdvancedSettings control={control} />
+
+            {/* Quote-submit error state (UI-SPEC error-states table) */}
+            {errors.root && (
+              <div className="p-3 border-2 border-red-500 text-red-600 text-sm font-mono">
+                Quote didn&apos;t post. Check your connection and try again.
+              </div>
+            )}
+
+            {/* CTAs: Post quote (accent) + Cancel (ghost) */}
+            <div className="flex flex-row gap-3">
+              <Button intent="primary" size="lg" type="submit" disabled={isPublishing}>
+                {isPublishing ? 'Posting...' : 'Post quote'}
+              </Button>
+              <Button
+                intent="secondary"
+                size="lg"
+                type="button"
+                onClick={() => history.back()}
+                disabled={isPublishing}
+              >
+                Cancel
+              </Button>
+            </div>
+          </form>
+        </div>
+
+        {/* Right: live Receipt preview of the quote — flex-1, sticky */}
+        <div style={{ flex: 1, position: 'sticky', top: '2rem' }}>
+          <h2 className="text-sm font-mono text-brand-muted uppercase tracking-wide mb-3">
+            Your quote preview
+          </h2>
+          <Receipt
+            mode="preview"
+            data={{
+              handle: '@you',
+              marketLine: previewMarketLine,
+              conviction: formValues.conviction ?? 50,
+              deadline: new Date(Number(formValues.expiry ?? 0n) * 1000),
+              stake: formValues.stake ?? 0n,
+            }}
+          />
+        </div>
+
+        <PublishConfirmModal
+          isOpen={isModalOpen}
+          formValues={form.getValues()}
+          isPublishing={isPublishing}
+          publishStep={publishStep}
+          onConfirm={onConfirmPublish}
+          onCancel={() => setIsModalOpen(false)}
+        />
+      </div>
+    );
+  }
+
+  // ── Standard New Call mode ────────────────────────────────────────────────────
   return (
     <div style={{ display: 'flex', gap: '2rem', alignItems: 'flex-start' }}>
       {/* Left: Form — flex-1 */}
@@ -98,13 +269,6 @@ export default function NewCallPage() {
         <h1 className="text-2xl font-display font-bold text-brand-text uppercase tracking-wide mb-6">
           New Call
         </h1>
-
-        {/* Quote context card */}
-        {quoteId && (
-          <div className="mb-4 p-3 border-2 border-brand-accent bg-brand-surface font-mono text-sm text-brand-text">
-            Quote mode — quoting call #{quoteId}
-          </div>
-        )}
 
         <form onSubmit={handleSubmit(onPublish)} className="flex flex-col gap-6">
           {/* Market type switcher */}
@@ -194,11 +358,7 @@ export default function NewCallPage() {
           mode="preview"
           data={{
             handle: '@you',
-            marketLine: `${formValues.assetA || 'Asset'} ${formValues.marketType === 'spreadVs' ? 'vs' : '>='} ${
-              formValues.targetValue
-                ? (Number(formValues.targetValue) / 1_000_000).toLocaleString()
-                : '?'
-            }`,
+            marketLine: previewMarketLine,
             conviction: formValues.conviction ?? 50,
             deadline: new Date(Number(formValues.expiry ?? 0n) * 1000),
             stake: formValues.stake ?? 0n,
