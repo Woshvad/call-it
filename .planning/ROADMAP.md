@@ -72,7 +72,7 @@ Call It ships as a person-first onchain social prediction product on Arbitrum ma
 **UI hint**: yes
 **Pitfalls mitigated**: 1 (USDC hardcoded address gate in every transfer path), 5 (Phase 0 env config consumed end-to-end), 12 (UTC duplicate-hash boundary surfaced inline in New Call form), 13 (Privy provider order locked + AST test), 14 (per-user 5-tx cap as primary defense alongside Phase 0 paymaster $50/day cap), 16 (Connect Wallet fallback UX present from day one), 20 (24h new-auth-link cooldown enforced server-side in relayer)
 
-### Phase 1.5: Social linking (parallel to Phase 2)
+### Phase 1.5: Social linking (parallel to Phase 2) — ✅ COMPLETE + VERIFIED (2026-06-07)
 **Goal**: Optional Twitter/Farcaster linking enriches identity so VERIFIED · X / VERIFIED · FC / VERIFIED · X · FC badges land on every surface (profile, feed card, receipt, duel, leaderboard) before FollowFadeMarket goes live. Twitter follow-graph powers "From your X" feed section; Farcaster follow-graph mirrors as "From your Farcaster". Zero mechanical effect on rep, stake limits, fees, or payouts.
 **Mode:** mvp
 **Depends on**: Phase 1 (ProfileRegistry skeleton must exist; can run in parallel with Phase 2)
