@@ -14,10 +14,10 @@ JSONL. Source of truth for the gate remains `EVIDENCE-LOG.md`; this file is the 
   **treasury key `0xDa8c5726` (held by the operator)**. The earlier blocker — "SAFETY-27
   resolve / SAFETY-42 need the lost `0xF4ee6195` key" — is gone, and **both were then RUN AND
   PROVEN** on the recovery cluster (verified on-chain 2026-06-07).
-- **On the recovery cluster, SAFETY-22/23/24/25/27/42 are ALL green** (SAFETY-25 caller-exit
-  proven 2026-06-07, call #12). What remains is wall-clock (48h soak), one time-gated variant
-  (Pyth-wide), one re-run (challenge), manual UAT, and the operator-only multisig rehearsal —
-  **not code.**
+- **On the recovery cluster, SAFETY-22/23/24/25/26/27/42 are ALL green** (SAFETY-25 caller-exit
+  proven 2026-06-07 call #12; SAFETY-26 challenge cycle proven 2026-06-07 call #13). What remains
+  is wall-clock (48h soak), one time-gated variant (Pyth-wide SAFETY-28), manual UAT, and the
+  operator-only multisig rehearsal — **not code.**
 
 ## 1. Canonical cluster (owner-key-recovery redeploy 2026-06-06, block 274393587)
 
@@ -62,7 +62,7 @@ Superseded (do not use): old lost-owner-key cluster CR `0xb864308D…` / SM `0x9
 | SAFETY-23 — ≥30 follow/fade | ✅ | Re-proven 2026-06-06 (15 follow + 15 fade, calls 1–10). |
 | SAFETY-24 — ≥3 settles/type, rep verified | ✅ | Re-proven 2026-06-06: calls 1,2,8,9,10,11 settled outcome=CallerWon; 3–7 attestation-pending (Event path); 0 failed. `globalRep` persists. |
 | SAFETY-25 — caller-exit | ✅ PROVEN | 2026-06-07: `callerExit(12)` from treasury, tx `0xc5dc9a04…`, `CallerExited` event emitted, $3.55 USDC returned, rep −24 (globalRep 100→76 verified). |
-| SAFETY-26 — full challenge cycle | ⬜ RE-RUN on new cluster | Proven only on the superseded cluster. New cluster is empty of challenges. Run seeder Phase E or runbook §A. Not blocked. |
+| SAFETY-26 — full challenge cycle | ✅ PROVEN | 2026-06-07 on the recovery cluster: call #13 (caller wallet[0], openToChallenges), challenge #1 propose tx `0xdb1f6dd9…` + accept tx `0x1b7b9de8…`; ChallengeAccepted event + CE escrow $10 verified. |
 | SAFETY-27 — dispute raise + owner-resolve | ✅ PROVEN | 2026-06-06 on the recovery cluster: raise tx `0x6bb72713…` + resolve tx `0x353f03b7…` on call #1; verified `SM.disputes(1).resolved=true` (disputer treasury, $5 bond). |
 | SAFETY-28 — Pyth confidence-wide retry | ⬜ PENDING | Needs a settle reaching `_settlePyth` with wide confidence (30×60s relayer retry). Time/market-gated. |
 | SAFETY-42 — Stylus destruction drill | ✅ PROVEN | 2026-06-06 on the recovery cluster: wired reverting engine (tx `0xcbe13904…`) → settled call #11 via fallback (tx `0x7a3cb02b…`, `RepCalculatedFallback`) → restored normal engine (tx `0x07215588…`); verified `stylusScoreEngine()=0xe7e15980` on-chain. |
