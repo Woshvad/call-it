@@ -281,7 +281,7 @@ Plans:
 
 **Wave 1**
 
-  - [ ] 07-01-PLAN.md — Wave 0: custom no-display-grid eslint rule + 200px visual-regression scaffold + share-text builders (SHARE-15/18) + auto-post/subgraph RED scaffolds
+  - [x] 07-01-PLAN.md — Wave 0: custom no-display-grid eslint rule + 200px visual-regression scaffold + share-text builders (SHARE-15/18) + auto-post/subgraph RED scaffolds
   - [ ] 07-02-PLAN.md — Wave 1: [BLOCKING] relayer statement column + migration + live-state marketLine (D-05) + subgraph Call.statement templated mirror (D-03, v0.9.0 build)
 
 **Wave 2** *(blocked on Wave 1 completion)*
@@ -376,7 +376,7 @@ Phases execute in numeric order: 0 → 1 → 1.5 (parallel with 2) → 2 → 3 �
 | 4. SettlementManager + 7 oracle paths + Solidity baseline rep delta | 9/9 | Complete | 2026-06-02 |
 | 5. StylusScoreEngine + 48h cutoff | 7/7 | Complete | 2026-06-02 |
 | 6. Safety review + Sepolia ≥48h + multisig rehearsal | 4/6 | In Progress | - |
-| 7. OG service final variants + Subgraph final mappings | 0/6 | Planned | - |
+| 7. OG service final variants + Subgraph final mappings | 1/6 | In Progress|  |
 | 8. Farcaster Mini Apps | 0/TBD | Not started | - |
 | 9. Mobile responsive on 7 critical pages | 0/TBD | Not started | - |
 | 10. Mainnet deploy gate | 0/TBD | Not started | - |

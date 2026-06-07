@@ -420,10 +420,10 @@ Requirements for the v1 mainnet release. Each line is an atomic, testable behavi
 - [x] **SHARE-12**: 200px-viewport thumbnail readability QA gate runs on every outcome word variant before mainnet announce (§15.7, §16.3, §19.11)
 - [ ] **SHARE-13**: Receipt OG cards must pass the Twitter Card Validator (`cards-dev.twitter.com/validator`) smoke test before mainnet announcement (§19.11)
 - [ ] **SHARE-14**: Receipt page server-renders OpenGraph meta tags referencing the OG card URL (§18.2, §19 Phase 7)
-- [ ] **SHARE-15**: Share button on receipt page generates Twitter intent URL (verified to pass Twitter Card Validator) (§15.7, §19.11)
+- [x] **SHARE-15**: Share button on receipt page generates Twitter intent URL (verified to pass Twitter Card Validator) (§15.7, §19.11)
 - [ ] **SHARE-16**: Auto-post receipt to socials on settle is default ON per Advanced Settings toggle (§15.2, §16)
 - [ ] **SHARE-17**: Auto-post never modifies user's X account beyond posting — read-only graph access elsewhere (§9.9)
-- [ ] **SHARE-18**: Farcaster cast URL construction is supported parallel to Twitter intent (§18.3, §16)
+- [x] **SHARE-18**: Farcaster cast URL construction is supported parallel to Twitter intent (§18.3, §16)
 - [ ] **SHARE-19**: Farcaster Frames are added in Phase 8 as the final phase if time permits — Frame buttons enable Follow / Fade / Challenge from a Farcaster post; OpenGraph meta tags + Frame server endpoint (§18.3, §19 Phase 8)
 - [ ] **SHARE-20**: Receipts are off-chain OG images referenced onchain by hash for verification — NOT NFTs in v1 (§18.2)
 - [ ] **SHARE-21**: Receipt page loads without auth (public-by-default per §18.1); sign-in CTA prominent for unauthenticated viewers (§18.1)
@@ -943,10 +943,10 @@ Which phases cover which requirements. Updated during roadmap creation by the ro
 | SHARE-12 | Phase 4 | Complete |
 | SHARE-13 | Phase 7 | Pending |
 | SHARE-14 | Phase 7 | Pending |
-| SHARE-15 | Phase 7 | Pending |
+| SHARE-15 | Phase 7 | Complete |
 | SHARE-16 | Phase 7 | Pending |
 | SHARE-17 | Phase 7 | Pending |
-| SHARE-18 | Phase 7 | Pending |
+| SHARE-18 | Phase 7 | Complete |
 | SHARE-19 | Phase 8 | Pending |
 | SHARE-20 | Phase 7 | Pending |
 | SHARE-21 | Phase 7 | Pending |
@@ -977,8 +977,8 @@ Which phases cover which requirements. Updated during roadmap creation by the ro
 | OPS-25 | Phase 0 | Complete |
 | OPS-26 | Phase 0 | Complete |
 
-
 **Coverage:**
+
 - v1 requirements: 408 total — AUTH 44 · CALL 70 · SOCIAL 51 · REP 29 · SETTLE 53 · SAFETY 58 · UI 56 · SHARE 21 · OPS 26
 - Mapped to phases: 407 / 407 (100%)
 - Unmapped: 0
