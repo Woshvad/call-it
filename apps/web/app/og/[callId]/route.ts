@@ -468,7 +468,11 @@ function buildSettledCard(props: SettledCardProps): ReactElement {
         key: cell.label,
         style: {
           display: 'flex', flexDirection: 'column', flex: 1, padding: '10px 16px', gap: 4,
-          borderRight: i < arr.length - 1 ? '1px solid #2E2E42' : undefined,
+          // Omit borderRight entirely on the last cell — satori throws
+          // "Cannot read properties of undefined (reading 'trim')" on an
+          // explicit `undefined` style value (and the error escapes the
+          // handler try/catch because it fires during response piping).
+          ...(i < arr.length - 1 ? { borderRight: '1px solid #2E2E42' } : {}),
         },
       },
         h('div', {
@@ -589,7 +593,11 @@ function buildCallerExitedCard(props: CallerExitedCardProps): ReactElement {
         key: cell.label,
         style: {
           display: 'flex', flexDirection: 'column', flex: 1, padding: '10px 16px', gap: 4,
-          borderRight: i < arr.length - 1 ? '1px solid #2E2E42' : undefined,
+          // Omit borderRight entirely on the last cell — satori throws
+          // "Cannot read properties of undefined (reading 'trim')" on an
+          // explicit `undefined` style value (and the error escapes the
+          // handler try/catch because it fires during response piping).
+          ...(i < arr.length - 1 ? { borderRight: '1px solid #2E2E42' } : {}),
         },
       },
         h('div', {
@@ -769,11 +777,11 @@ export async function GET(
     const callStatement = `Call #${callIdStr}`;
 
     // ── Phase 4: Branch on call status ────────────────────────────────────
-    // Status ordinal from on-chain: 0=Live, 1=Disputed, 2=CallerExited, 3=Settled (check spec)
-    // callData.status is a uint8 enum — 3=Settled, 2=CallerExited, 1=Disputed per CallStatus
+    // CallStatus enum (ICallRegistry.sol): Live=0, Settled=1, Disputed=2, CallerExited=3.
+    // Settled + Disputed → settled card; CallerExited → caller-exited card; else Live.
     const statusNum = Number(callData.status);
-    const isOnChainSettled = statusNum === 3 || statusNum === 1; // Settled or Disputed
-    const isOnChainCallerExited = statusNum === 2;
+    const isOnChainSettled = statusNum === 1 || statusNum === 2; // Settled or Disputed
+    const isOnChainCallerExited = statusNum === 3;
 
     let cardJsx: ReactElement;
     let xVariant: string;

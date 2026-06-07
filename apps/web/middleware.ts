@@ -54,6 +54,15 @@ const PUBLIC_PREFIXES = [
   '/_next',
   '/favicon.ico',
   '/fonts',
+  // Public read surfaces — receipts/profiles/duels/leaderboard MUST be viewable by
+  // unauthenticated users (spec §18.1: "the receipt URL is permanent and works for
+  // unauthenticated users"; PITFALLS share-loop check). Action pages (/new, /settings,
+  // /onboarding) stay gated below. Without these, a shared receipt link bounces a
+  // logged-out visitor to /signin and the share→loop-back funnel breaks.
+  '/call',
+  '/duel',
+  '/profile',
+  '/leaderboard',
   // Dev-only showcase + visual-snapshot target. Gated by NEXT_PUBLIC_DEV_ROUTES=1
   // at the page level — in production (DEV_ROUTES unset) the page returns a
   // disabled-state message, so listing the prefix here doesn't leak anything.
