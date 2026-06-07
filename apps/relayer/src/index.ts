@@ -30,7 +30,7 @@ import { initEnv } from './env.js';
 import { createLogger, setLogger } from './lib/logger.js';
 import { pingWithBullMQCompat } from './lib/redis.js';
 import { getDb } from './db/client.js';
-import { FOLLOW_FADE_MARKET_ARBITRUM_SEPOLIA, PROFILE_REGISTRY_ARBITRUM_SEPOLIA } from '@call-it/shared';
+import { FOLLOW_FADE_MARKET_ARBITRUM_SEPOLIA, PROFILE_REGISTRY_ARBITRUM_SEPOLIA, SETTLEMENT_MANAGER_ARBITRUM_SEPOLIA } from '@call-it/shared';
 import { healthRoute } from './routes/health.js';
 import { internalTestAlertRoute } from './routes/internal-test-alert.js';
 import { paymasterAdminRoute } from './routes/admin-paymaster.js';
@@ -66,6 +66,8 @@ import { startSettlementWatcher, type SettlementWatcherHandle } from './workers/
 // Phase 4 — Plan 04-08: Settlement provenance + dispute routes (D-10, D-06/07)
 import { settleRoute } from './routes/settle.js';
 import { disputesRoute } from './routes/disputes.js';
+// Phase 7 — Plan 07-04: auto-post share-loop worker (D-02, SHARE-16/17/18)
+import { startAutoPostWorker } from './workers/auto-post-worker.js';
 
 /**
  * Build and configure the Fastify application.
@@ -322,6 +324,33 @@ export async function buildApp(): Promise<FastifyInstance> {
         { event: 'settlement_watcher_start_failed', err: String(err) },
         'Failed to start settlement watcher',
       );
+    }
+    // Start auto-post share-loop worker (Phase 7 — Plan 07-04 — D-02, SHARE-16/17/18)
+    // Default-ON (SHARE-16); set AUTO_POST_ENABLED=false to disable (non-destructive).
+    // Posts a settled receipt to X at most once per call (posted_receipts dedup) after
+    // the Pitfall-8 cache-warm gate + the Pitfall-18 post-settle delay. Key-gated:
+    // degrades to a no-op until X_API_WRITE_TOKEN is budgeted. The Farcaster cast URL
+    // is constructed in parallel (SHARE-18; landing the cast is Phase 8).
+    if (process.env.AUTO_POST_ENABLED !== 'false') {
+      try {
+        const ogBaseUrl = env.NEXT_PUBLIC_OG_BASE_URL ?? process.env.NEXT_PUBLIC_OG_BASE_URL ?? 'http://localhost:3000';
+        startAutoPostWorker({
+          publicClient: notificationFanoutClient,
+          settlementManagerAddress: SETTLEMENT_MANAGER_ARBITRUM_SEPOLIA as `0x${string}`,
+          ffmAddress: FOLLOW_FADE_MARKET_ARBITRUM_SEPOLIA as `0x${string}`,
+          db: notificationFanoutDb,
+          ogBaseUrl,
+          intervalMs: 30_000,
+        });
+        app.log.info({ event: 'auto_post_worker_started' }, 'Auto-post worker started (default-ON, SHARE-16)');
+      } catch (err) {
+        app.log.error(
+          { event: 'auto_post_worker_start_failed', err: String(err) },
+          'Failed to start auto-post worker',
+        );
+      }
+    } else {
+      app.log.info({ event: 'auto_post_worker_disabled' }, 'Auto-post worker disabled via AUTO_POST_ENABLED=false');
     }
     try {
       const result = await pingWithBullMQCompat();
