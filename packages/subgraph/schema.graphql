@@ -22,6 +22,13 @@ type Call @entity(immutable: false) {
   status: String!
   outcome: String
   reasoning: String
+  # Templated market-statement mirror (D-05 / D-03). Distinct from `reasoning`
+  # (the caller's argument): `statement` is the human-readable market line. The
+  # AUTHORITATIVE prose comes from the relayer (live-state marketLine); the mapping
+  # cannot read the relayer DB, so it sets a SAFE templated default from the
+  # numerics on the CallCreated event — guaranteeing the OG/receipt never crash
+  # before enrichment runs. Nullable for forward-compat with pre-v0.9.0 rows.
+  statement: String
   createdAt: BigInt!
   settledAt: BigInt
   quoteOf: Call

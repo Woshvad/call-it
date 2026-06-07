@@ -23,6 +23,28 @@ import {
 
 import { Call, Profile, ConvictionCap } from '../generated/schema';
 
+// ── Helper: human-readable market-type label (flat — AssemblyScript) ─────────
+// MarketType ordinals mirror the on-chain enum (CallRegistry / ICallRegistry):
+//   0=PriceTarget 1=RelativePerformance 2=Event. Flat if/else (no map literal,
+//   no closures) per the graph-ts AssemblyScript constraints noted above.
+function marketTypeLabel(marketType: i32): string {
+  if (marketType == 0) return 'Price target';
+  if (marketType == 1) return 'Relative performance';
+  if (marketType == 2) return 'Event';
+  return 'Call';
+}
+
+// ── Helper: templated statement default (D-05 / D-03 safe fallback) ──────────
+// The CallCreated event carries NO prose and NO targetValue/asset string — only
+// id, caller, marketType, stake. So the templated mirror is built FLATLY from the
+// data actually on the event: the market-type label + the callId. This is the
+// SAFE default ONLY — the authoritative human-readable statement comes from the
+// relayer (live-state marketLine, D-05). It is deterministic for a given
+// (marketType, callId) so receipts are stable before enrichment lands.
+function templateStatement(marketType: i32, callId: string): string {
+  return marketTypeLabel(marketType) + ' call #' + callId;
+}
+
 // ── Helper: lazy-init a Profile entity ──────────────────────────────────────
 
 function ensureProfile(id: string): Profile {
@@ -72,6 +94,10 @@ export function handleCallCreated(event: CallCreated): void {
   call.status = 'Live';
   call.outcome = null;
   call.reasoning = null;
+  // D-05/D-03: safe templated market-statement default so the OG/receipt never
+  // crash before relayer enrichment (live-state marketLine) lands. Deterministic
+  // for a given (marketType, callId).
+  call.statement = templateStatement(event.params.marketType as i32, callId);
   call.createdAt = event.block.timestamp;
   call.settledAt = null;
   call.quoteOf = null;
@@ -101,6 +127,9 @@ export function handleCallQuoted(event: CallQuoted): void {
     quoteCall.status = 'Live';
     quoteCall.outcome = null;
     quoteCall.reasoning = null;
+    // Forward-compat stub: set the same safe templated default (D-05/D-03) so a
+    // quote indexed before its CallCreated still renders without crashing.
+    quoteCall.statement = templateStatement(0, quoteId);
     quoteCall.createdAt = event.block.timestamp;
     quoteCall.settledAt = null;
   }
