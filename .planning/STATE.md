@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: milestone
 status: executing
-stopped_at: Completed 07-04-PLAN.md
-last_updated: "2026-06-07T21:41:16.560Z"
-last_activity: 2026-06-07 -- Phase 07 execution started
+stopped_at: 07-06 CI-safe code complete — PAUSED at operator deploy checkpoint
+last_updated: "2026-06-07T22:30:00.000Z"
+last_activity: 2026-06-07 -- 07-06 CI-safe artifacts shipped; live deploy operator-gated
 progress:
   total_phases: 14
   completed_phases: 8
@@ -148,6 +148,7 @@ All 3 operator actions were run this session (user explicitly authorized "run al
 | Phase 07 P03 | 12min | 2 tasks | 5 files |
 | Phase 07 P04 | ~30min | 2 tasks | 11 files |
 | Phase 07 P05 | ~12min | 2 tasks | 11 files |
+| Phase 07 P06 (CI-safe; operator-gated) | ~20min | 1 of 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -297,6 +298,7 @@ completed: 2026-05-29
 - [Phase ?]: 07-05: Leaderboard sorts subgraph Profile.globalRep at read time (D-06); 7D/30D toggles wired but All-time-backed with a documented v1 limitation; LeaderboardEntry entity not used
 - [Phase ?]: 07-05: getLeaderboard in dedicated leaderboard-client.ts reads public Studio query URL server-side; privileged Studio key stays relayer-side (D-27)
 - [Phase ?]: 07-05: reusable ShareButton -> twitter intent via shared @call-it/shared share-text builders (SHARE-15); statement URL-encoded
+- [Phase 07-06]: CI-safe share-loop verify artifacts shipped (1aed14e): receipt-meta.spec.ts (Tier-1 og:image ?v={statusVersion}+twitter:card+/call,/leaderboard carve-out SHARE-14/21; Tier-2 incognito env-gated), verify-event-coverage.ts (~20-event OPS-03 + CallCreated <30s OPS-04; configurable endpoint, non-zero on core gap/lag), phase-7-deploy-runbook.md. layout.tsx ?v= + middleware /leaderboard already correct — asserted as tests-of-record, no edit. LIVE deploy (Studio v0.9.0, Vercel, Fly CORS, BOTH relayer migrations 0006+0007, CORS smoke, Twitter Card Validator) PAUSED at human-action operator checkpoint — NOT executed, NOT marked passed.
 
 ## Performance
 
@@ -439,6 +441,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-06-07T21:40:44.155Z
-Stopped at: Completed 07-04-PLAN.md
-Resume file: None
+Last session: 2026-06-07T22:30:00.000Z
+Stopped at: 07-06 CI-safe code complete — PAUSED at operator deploy checkpoint (Task 2 human-action)
+Resume file: docs/operator/phase-7-deploy-runbook.md (operator runs the 6 live steps; reply "approved" to close 07-06)

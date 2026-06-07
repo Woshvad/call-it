@@ -292,7 +292,7 @@ Plans:
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
-  - [ ] 07-06-PLAN.md — Wave 3: [OPERATOR] Studio v0.9.0 deploy (D-01) + Vercel web deploy + Fly CORS (D-04) + receipt-meta/public-load + ~20-event coverage (OPS-04) + Twitter Card Validator checklist (D-08)
+  - [~] 07-06-PLAN.md — Wave 3: CI-safe code SHIPPED (1aed14e — receipt-meta spec SHARE-14/21, verify-event-coverage.ts OPS-04, phase-7-deploy-runbook.md); [OPERATOR] PAUSED at human-action checkpoint — Studio v0.9.0 deploy (D-01) + Vercel web deploy + Fly CORS (D-04) + BOTH relayer migrations (0006+0007) + Twitter Card Validator checklist (D-08) remain
 
 **UI hint**: yes
 **Pitfalls mitigated**: 8 (cache-warm-verified auto-post), 15 (Satori grid lint rule + 200px visual regression)
