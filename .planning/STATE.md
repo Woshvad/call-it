@@ -408,6 +408,7 @@ None yet.
 | 260604-jt2 | Prep Phase 6 Gate-2 soak scaffolding (ritual checker, wallet-gen, evidence-log skeleton) | 2026-06-04 | ec106ba | [260604-jt2-prep-phase-6-gate-2-soak-scaffolding-rit](./quick/260604-jt2-prep-phase-6-gate-2-soak-scaffolding-rit/) |
 | 260605-a4i | Fix notification-fanout eth_getLogs free-tier 10-block chunking | 2026-06-05 | 79ca33c | [260605-a4i-fix-notification-fanout-eth-getlogs-free](./quick/260605-a4i-fix-notification-fanout-eth-getlogs-free/) |
 | 260605-r9e | Synthetic-alert CI verifies relayer send-confirmation (not getUpdates) | 2026-06-05 | b502841 | [260605-r9e-synthetic-alert-ci-verifies-relayer-send](./quick/260605-r9e-synthetic-alert-ci-verifies-relayer-send/) |
+| 260607-o9y | Sync STATE.md to Phase 6 recovery cluster | 2026-06-07 | 1ad8e0a | [260607-o9y-sync-state-md-to-phase-6-recovery-cluste](./quick/260607-o9y-sync-state-md-to-phase-6-recovery-cluste/) |
 
 ## Deferred Items
 
