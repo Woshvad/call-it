@@ -17,9 +17,8 @@
  */
 
 import { test, expect } from '@playwright/test';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync } from 'node:fs';
 import { join } from 'node:path';
-import { execSync } from 'node:child_process';
 
 test.describe('SHARE-09: Fallback OG card route', () => {
   test('Test 1: returns 200 image/png at 1200x630', async ({ request, baseURL }) => {
@@ -73,33 +72,20 @@ test.describe('SHARE-09: Fallback OG card route', () => {
     expect(xVariant).toBe('fallback');
   });
 
-  test('Test 5: route source passes no-display-grid check (no display:grid)', () => {
-    // This test validates the ESLint rule is effective by inspecting source
+  test('Test 5: route source files still exist for the no-display-grid rule to lint', () => {
+    // SUPERSEDED (Phase 7 / SC1): the old string-match + console.warn-escape "rule"
+    // that lived here is OBSOLETE. The real enforcement is now the custom flat-config
+    // eslint rule `call-it-og/no-display-grid` (apps/web/eslint-rules/no-display-grid-in-og.js),
+    // wired in eslint.config.js scoped to app/og/**, app/api/og/**, lib/og-*.ts.
+    // CI gate (Wave-0 truth): `pnpm --filter @call-it/web exec eslint app/og` exits
+    // non-zero on a planted `display:'grid'`, 0 on the real flexbox-only sources.
+    //
+    // This test now only asserts the OG source files the rule targets still exist —
+    // the grid ban itself is owned by the eslint rule, not this string match.
     const routePath = join(process.cwd(), 'app/api/og/fallback/route.ts');
     const renderPath = join(process.cwd(), 'lib/og-fallback-render.ts');
 
     expect(existsSync(routePath)).toBe(true);
     expect(existsSync(renderPath)).toBe(true);
-
-    const routeSource = readFileSync(routePath, 'utf-8');
-    const renderSource = readFileSync(renderPath, 'utf-8');
-
-    expect(routeSource).not.toContain("display: 'grid'");
-    expect(routeSource).not.toContain('display: "grid"');
-    expect(renderSource).not.toContain("display: 'grid'");
-    expect(renderSource).not.toContain('display: "grid"');
-
-    // Also verify ESLint exits 0 (proves the rule fires correctly)
-    // Note: ESLint may not be fully configured in Phase 0; if it fails, mark as warning
-    try {
-      execSync('pnpm exec eslint app/api/og/fallback/route.ts --max-warnings 0', {
-        cwd: process.cwd(),
-        stdio: 'pipe',
-      });
-    } catch {
-      // ESLint config may not yet be wired to run the no-display-grid rule in Phase 0
-      // The source inspection above is the primary assertion
-      console.warn('[og-fallback.spec] ESLint check skipped — not configured in Phase 0');
-    }
   });
 });
