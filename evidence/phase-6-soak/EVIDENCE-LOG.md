@@ -72,7 +72,7 @@ Flip ⬜ → ✅ with evidence (tx hash / test name / screenshot) as the soak pr
 - ⬜ **Twitter Card Validator**: returns the correct card variant for a settled mainnet call? (§19.11) — run cards-dev.twitter.com/validator manually.
 - ⬜ **Receipt `og:image` meta tag**: server-rendered, not client-only? — view-source on `/call/[id]` and confirm presence.
 - ⬜ **5 OG variants**: Live, Settled, Duel Settled, Caller Exited, Fallback — each rendered, cached, invalidated correctly? (§16.1-6) — manual fixture for each.
-- ⬜ **Receipt URL is permanent**: same URL works for unauthenticated users? (§18.1) — open in incognito; verify no auth redirect.
+- ⬜ **Receipt URL is permanent**: same URL works for unauthenticated users? (§18.1) — open in incognito; verify no auth redirect. **FOUND 2026-06-07: `/call/[id]` 307-redirected unauthenticated users to /signin (middleware PUBLIC_PREFIXES lacked /call,/duel,/profile,/leaderboard) — share loop broken. FIXED in working tree (`apps/web/middleware.ts`); /call/1 now returns 200. Re-verify on the deployed app before flipping ✅.**
 
 #### Settlement Path (Phase 4)
 
@@ -138,13 +138,15 @@ Flip ⬜ → ✅ with evidence (tx hash / test name / screenshot) as the soak pr
 
 These 5 items were deferred from Phase 4 (env-blocked live UAT). Verified manually by the operator through the UI during the soak. No automated proxy — human judgment required (D-04).
 
+Re-run 2026-06-07 against the recovery cluster via local `next dev` (see `.planning/phases/04-…/04-UAT.md`). **3 bugs found + fixed during this pass** (working-tree, uncommitted): OG satori `borderRight: undefined` 500; OG CallStatus ordinal inversion (CallerExited never rendered); middleware missing public-route carve-out (shared receipts bounced to /signin).
+
 | Item | Description | Status | Evidence (screenshot filename or observation note) |
 |------|-------------|--------|---------------------------------------------------|
-| UAT-1 | Live settlement E2E: stake a call, wait for settlement, verify payout received in wallet (check Arbiscan for claimPayout tx) | ⬜ PENDING | `__________` |
-| UAT-2 | Dispute flow E2E: raise dispute through UI, wait for owner resolution, verify payout reversal shown in UI | ⬜ PENDING | `__________` |
-| UAT-3 | Provenance modal D-10: open Provenance modal on a settled Pyth call, verify oracle URL + tx hash + raw price data + EIP-712 sig all present and correct | ⬜ PENDING | `__________` |
-| UAT-4 | OG card 200px readability QA: open /og/[callId] at 200px viewport, verify all outcome words are legible (SHARE-12/UI-18) | ⬜ PENDING | `__________` |
-| UAT-5 | Live OG render for settled/exited calls: curl -I /og/[callId] returns X-Variant: settled (or exited) with correct card layout | ⬜ PENDING | `__________` |
+| UAT-1 | Live settlement E2E: stake a call, wait for settlement, verify payout received in wallet (check Arbiscan for claimPayout tx) | ⬜ PARTIAL | On-chain settle VERIFIED via cast (#1,#2,#8–11 CallerWon, #1 tx `0xa2c32f26…`; globalRep persists). Receipt PAGE now public (HTTP 200 after middleware fix) but client render CORS-blocked from localhost → visual half needs deployed web app / local relayer. |
+| UAT-2 | Dispute flow E2E: raise dispute through UI, wait for owner resolution, verify payout reversal shown in UI | ⬜ PARTIAL | On-chain VERIFIED via cast: `SM.disputes(1)` disputer=treasury, bond $5, resolved=true (raise `0x6bb72713…`/resolve `0x353f03b7…`). Reversal real: #1 outcome→CallerLost, settled OG card now renders "LOUD AND WRONG". UI flow needs deployed app + wallet. |
+| UAT-3 | Provenance modal D-10: open Provenance modal on a settled Pyth call, verify oracle URL + tx hash + raw price data + EIP-712 sig all present and correct | ⬜ BLOCKED | ProvenanceModal needs the rendered receipt page (CORS-blocked locally) + interaction; needs deployed web app / local relayer. |
+| UAT-4 | OG card 200px readability QA: open /og/[callId] at 200px viewport, verify all outcome words are legible (SHARE-12/UI-18) | ✅ | Rendered real cards locally (after Gap1+Gap2 fixes): /og/1 "LOUD AND WRONG" (88px red), /og/12 "CALLER EXITED" (88px amber), /og/1?as=fader "FADED CORRECTLY"+FADER WIN. Oversized high-contrast outcome words legible at 200px. (Stat values = documented Phase-7 stubs.) |
+| UAT-5 | Live OG render for settled/exited calls: curl -I /og/[callId] returns X-Variant: settled (or exited) with correct card layout | ✅ | After fixes: /og/1 → 200 `X-Variant: settled`; /og/12 → 200 `X-Variant: caller-exited`; /og/1?as=fader → 200 (FADED CORRECTLY); live #13 → 200 `X-Variant: live`. (Pre-fix: 500 on settled/exited; #12 mislabeled "settled".) |
 
 ---
 
