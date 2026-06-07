@@ -433,7 +433,7 @@ Requirements for the v1 mainnet release. Each line is an atomic, testable behavi
 - [x] **OPS-01**: The Graph subgraph is the primary indexed event source from day 1 on the Decentralized Network (§19, App.A.1)
 - [x] **OPS-02**: Polled-events fallback runs during subgraph deploy gaps (hackathon backup) (§19, App.A.1)
 - [x] **OPS-03**: Subgraph indexes `CallCreated`, `CallSettled`, `CallQuoted`, `ConvictionCapped`, `CallerExited`, `Followed`, `Faded`, `PayoutClaimed`, `PositionExited`, `ChallengeProposed`, `ChallengeAccepted`, `ChallengeRejected`, `ChallengeRefunded`, `ChallengeSettled`, `DisputeRaised`, `DisputeResolved`, `CallForceSettled`, `RepCalculated`, `RepCalculatedFallback`, `SettlementDelayed`, `ProfileUpdated`, `SocialLinked`, `SocialUnlinked` events (§12.1–12.5)
-- [ ] **OPS-04**: Subgraph indexes CallCreated within ~30s of emission (§19 Phase 6 share-loop dependency)
+- [x] **OPS-04**: Subgraph indexes CallCreated within ~30s of emission (§19 Phase 6 share-loop dependency)
 - [x] **OPS-05**: Structured relayer logging (Pino or equivalent) emits one line per oracle query, settlement submission, and dispute (§19.10, App.A.1)
 - [x] **OPS-06**: Metrics dashboard exposes Total TVL, calls/hour, settlement latency, dispute rate, failed-tx rate at minimum (App.A.1)
 - [x] **OPS-07**: Telegram bot alerts on failed `settle()` invocation (App.A.1)
@@ -953,7 +953,7 @@ Which phases cover which requirements. Updated during roadmap creation by the ro
 | OPS-01 | Phase 0 | Complete |
 | OPS-02 | Phase 0 | Complete |
 | OPS-03 | Phase 0 | Complete |
-| OPS-04 | Phase 7 | Pending |
+| OPS-04 | Phase 7 | Complete |
 | OPS-05 | Phase 0 | Complete |
 | OPS-06 | Phase 0 | Complete |
 | OPS-07 | Phase 0 | Complete |

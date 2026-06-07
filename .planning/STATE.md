@@ -4,13 +4,13 @@ milestone: v1.1
 milestone_name: milestone
 status: executing
 stopped_at: Phase 7 UI-SPEC approved
-last_updated: "2026-06-07T20:35:27.868Z"
+last_updated: "2026-06-07T20:48:33.620Z"
 last_activity: 2026-06-07 -- Phase 07 execution started
 progress:
   total_phases: 14
   completed_phases: 8
   total_plans: 69
-  completed_plans: 64
+  completed_plans: 65
   percent: 57
 ---
 
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-05-21)
 ## Current Position
 
 Phase: 07 (og-service-final-variants-subgraph-final-mappings) — EXECUTING
-Plan: 2 of 6
+Plan: 3 of 6
 
 > **Phase 01.5 status (2026-06-07):** ✅ **ALL 5 plans COMPLETE** — **01.5-02** (relayer social-link service), **01.5-03** (VerifiedBadge + AUTH-10 invariant), **01.5-04** (link/unlink UI + AuthKitProvider + opt-in), **01.5-05** (FEED sections — complete-with-documented-deferral: X/Neynar keys deferred, AUTH-14 live data dormant until keys set; AUTH-15/16/17/18 satisfied + tested), and **01.5-01** (env surface + setRelayer). **setRelayer gate CLEARED on-chain (2026-06-07):** derived oauth-proof KMS `0xdFc80922FAbc51a08350c0b371917e6EaB8b550A` (scaffold `9b41f0f`), funded 0.05 ETH, operator broadcast `setRelayer` from treasury `0xDa8c5726`; verified `relayer()` == `0xdFc80922…` (was `0x0`), `owner()` unchanged. `RELAYER_OAUTH_PROOF_ADDRESS` set in local `.env.local`. **Remaining follow-ups (non-gating):** (1) deployed Fly relayer `fly secrets set RELAYER_OAUTH_PROOF_ADDRESS=0xdFc80922… -a call-it-relayer-sepolia` — deferred to avoid restarting the relayer mid Phase-6 soak; (2) X API + Neynar key provisioning to activate live feed data. **Local DB:** ✅ provisioned `callit-postgres` (127.0.0.1:5434), all 6 migrations applied (`follow_graph` + `social_link_index`). **Phase ✅ VERIFIED + COMPLETE (2026-06-07)** — goal-backward verification PASSED: 4/4 ROADMAP success criteria, 11/11 requirements (8 PASS, 3 documented deferrals: AUTH-14 live X data, live FC data, Fly secret), 0 FAILs (see `01.5-VERIFICATION.md`). Full relayer suite 189✓/1 skipped; relayer+web+ui+shared builds 0.
 
@@ -144,6 +144,7 @@ All 3 operator actions were run this session (user explicitly authorized "run al
 | Phase 01.5 P02 | 18min | 3 tasks | 20 files |
 | Phase 01.5 P04 | 10min | 3 tasks | 8 files |
 | Phase 07 P01 | 20min | 2 tasks | 8 files |
+| Phase 07 P02 | 25min | 2 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -282,6 +283,7 @@ completed: 2026-05-29
 - [Phase ?]: [Phase 07-01]: @typescript-eslint/parser wired into the OG-scoped eslint block so the custom no-display-grid rule can parse TS/TSX OG sources (Rule 3 blocking auto-fix)
 - [Phase ?]: [Phase 07-01]: 200px og-thumbnail spec is env-gated skip (OG_200PX_BASELINES=1), not test.fixme — runnable structure now, enabled once 07-03 seeds settled-call IDs + baselines
 - [Phase ?]: [Phase 07-01]: share-text.ts builders are pure (no env/fetch/secret) so web Share button (07-05) + relayer auto-post worker (07-04) share one source; purity asserted by source-grep test (T-07-01-02)
+- [Phase ?]: 07-02: relayer call_statement store serves live-state marketLine (D-05); subgraph Call.statement templated mirror is the safe fallback (D-03); migration 0006 applied to local dev DB, remote apply operator-gated in 07-06
 
 ## Performance
 
@@ -424,6 +426,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-06-07T20:35:27.845Z
+Last session: 2026-06-07T20:48:25.477Z
 Stopped at: Phase 7 UI-SPEC approved
 Resume file: .planning/phases/07-og-service-final-variants-subgraph-final-mappings/07-UI-SPEC.md
