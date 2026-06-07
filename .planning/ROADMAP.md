@@ -288,7 +288,7 @@ Plans:
 
   - [x] 07-03-PLAN.md — Wave 2: wire og/[callId] + duel OG real data (statement + settled stats, D-03) + committed 200px baselines (SC1)
   - [x] 07-04-PLAN.md — Wave 2: auto-post worker (Pitfall-8 cache-warm + Pitfall-18 trigger reconciled + key-gated no-op) + x-write-client + Farcaster cast (D-02/D-07)
-  - [ ] 07-05-PLAN.md — Wave 2: Profile Overview (UI-09) + Leaderboard /leaderboard (UI-12/13, D-06 All-time) + Quote Composer (UI-26/27/28) + Share button (SHARE-15)
+  - [x] 07-05-PLAN.md — Wave 2: Profile Overview (UI-09) + Leaderboard /leaderboard (UI-12/13, D-06 All-time) + Quote Composer (UI-26/27/28) + Share button (SHARE-15)
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
@@ -376,7 +376,7 @@ Phases execute in numeric order: 0 → 1 → 1.5 (parallel with 2) → 2 → 3 �
 | 4. SettlementManager + 7 oracle paths + Solidity baseline rep delta | 9/9 | Complete | 2026-06-02 |
 | 5. StylusScoreEngine + 48h cutoff | 7/7 | Complete | 2026-06-02 |
 | 6. Safety review + Sepolia ≥48h + multisig rehearsal | 4/6 | In Progress | - |
-| 7. OG service final variants + Subgraph final mappings | 4/6 | In Progress|  |
+| 7. OG service final variants + Subgraph final mappings | 5/6 | In Progress|  |
 | 8. Farcaster Mini Apps | 0/TBD | Not started | - |
 | 9. Mobile responsive on 7 critical pages | 0/TBD | Not started | - |
 | 10. Mainnet deploy gate | 0/TBD | Not started | - |

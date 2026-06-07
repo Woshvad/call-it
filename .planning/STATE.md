@@ -4,13 +4,13 @@ milestone: v1.1
 milestone_name: milestone
 status: executing
 stopped_at: Completed 07-04-PLAN.md
-last_updated: "2026-06-07T21:24:49.685Z"
+last_updated: "2026-06-07T21:41:16.560Z"
 last_activity: 2026-06-07 -- Phase 07 execution started
 progress:
   total_phases: 14
   completed_phases: 8
   total_plans: 69
-  completed_plans: 67
+  completed_plans: 68
   percent: 57
 ---
 
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-05-21)
 ## Current Position
 
 Phase: 07 (og-service-final-variants-subgraph-final-mappings) — EXECUTING
-Plan: 5 of 6
+Plan: 6 of 6
 
 > **Phase 01.5 status (2026-06-07):** ✅ **ALL 5 plans COMPLETE** — **01.5-02** (relayer social-link service), **01.5-03** (VerifiedBadge + AUTH-10 invariant), **01.5-04** (link/unlink UI + AuthKitProvider + opt-in), **01.5-05** (FEED sections — complete-with-documented-deferral: X/Neynar keys deferred, AUTH-14 live data dormant until keys set; AUTH-15/16/17/18 satisfied + tested), and **01.5-01** (env surface + setRelayer). **setRelayer gate CLEARED on-chain (2026-06-07):** derived oauth-proof KMS `0xdFc80922FAbc51a08350c0b371917e6EaB8b550A` (scaffold `9b41f0f`), funded 0.05 ETH, operator broadcast `setRelayer` from treasury `0xDa8c5726`; verified `relayer()` == `0xdFc80922…` (was `0x0`), `owner()` unchanged. `RELAYER_OAUTH_PROOF_ADDRESS` set in local `.env.local`. **Remaining follow-ups (non-gating):** (1) deployed Fly relayer `fly secrets set RELAYER_OAUTH_PROOF_ADDRESS=0xdFc80922… -a call-it-relayer-sepolia` — deferred to avoid restarting the relayer mid Phase-6 soak; (2) X API + Neynar key provisioning to activate live feed data. **Local DB:** ✅ provisioned `callit-postgres` (127.0.0.1:5434), all 6 migrations applied (`follow_graph` + `social_link_index`). **Phase ✅ VERIFIED + COMPLETE (2026-06-07)** — goal-backward verification PASSED: 4/4 ROADMAP success criteria, 11/11 requirements (8 PASS, 3 documented deferrals: AUTH-14 live X data, live FC data, Fly secret), 0 FAILs (see `01.5-VERIFICATION.md`). Full relayer suite 189✓/1 skipped; relayer+web+ui+shared builds 0.
 
@@ -147,6 +147,7 @@ All 3 operator actions were run this session (user explicitly authorized "run al
 | Phase 07 P02 | 25min | 2 tasks | 9 files |
 | Phase 07 P03 | 12min | 2 tasks | 5 files |
 | Phase 07 P04 | ~30min | 2 tasks | 11 files |
+| Phase 07 P05 | ~12min | 2 tasks | 11 files |
 
 ## Accumulated Context
 
@@ -293,6 +294,9 @@ completed: 2026-05-29
 - [Phase ?]: [Phase 07-04]: Pitfall-18 reconciled vs Phase-4 runbook (04-RESEARCH.md:652-654 — no on-chain claim-delay); default-ON trigger fires AFTER cache-warm gated by configurable AUTO_POST_DELAY_MS
 - [Phase ?]: [Phase 07-04]: posted_receipts row written even on a key-gated no-op so a later key-budget never retroactively re-posts historical settled calls (NEW settlements only)
 - [Phase ?]: [Phase 07-04]: 0007 posted_receipts migration generated+committed; local dev DB apply deferred (:5434 ECONNREFUSED), remote apply operator-gated in 07-06
+- [Phase ?]: 07-05: Leaderboard sorts subgraph Profile.globalRep at read time (D-06); 7D/30D toggles wired but All-time-backed with a documented v1 limitation; LeaderboardEntry entity not used
+- [Phase ?]: 07-05: getLeaderboard in dedicated leaderboard-client.ts reads public Studio query URL server-side; privileged Studio key stays relayer-side (D-27)
+- [Phase ?]: 07-05: reusable ShareButton -> twitter intent via shared @call-it/shared share-text builders (SHARE-15); statement URL-encoded
 
 ## Performance
 
@@ -435,6 +439,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-06-07T21:24:49.669Z
+Last session: 2026-06-07T21:40:44.155Z
 Stopped at: Completed 07-04-PLAN.md
 Resume file: None

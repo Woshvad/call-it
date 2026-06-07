@@ -355,11 +355,11 @@ Requirements for the v1 mainnet release. Each line is an atomic, testable behavi
 - [x] **UI-06**: Live Receipt page (`/call/[id]`) renders sticky caller header, THE CALL hero, 4-stat row (Current Spread + progress bar / Time Left / Stake / Conviction), market positioning bar, 3 action buttons (Follow filled / Fade outline / Challenge orange outline), REASONING block, optional RESOLUTION CRITERIA collapsible block (§15.3)
 - [x] **UI-07**: Live Receipt CALLER EXITED variant renders amber banner "⚠ CALLER EXITED · veda exited this call [X] ago · $XX slashed", dims call statement, keeps market positioning bar live, retains action buttons for non-caller participants (§15.3, §8.7.3)
 - [ ] **UI-08**: Profile page (`/profile/[address]`) renders top header (avatar + handle + verified badges + TOP X% GLOBAL + wallet address + joined date + counts), Connect socials card (own profile, conditional), Global Reputation hero card, Overview/Calls/Duels tabs (§15.4)
-- [ ] **UI-09**: Profile Overview tab renders 5-stat row (Accuracy with benchmark / Calibration / ROI / Contrarian hits / Streak), CATEGORY REPUTATION grid (3 equal-width cards with strongest highlighted), recent calls list with filter chips, most followed by list, notable receipts trophy cards (§15.4)
+- [x] **UI-09**: Profile Overview tab renders 5-stat row (Accuracy with benchmark / Calibration / ROI / Contrarian hits / Streak), CATEGORY REPUTATION grid (3 equal-width cards with strongest highlighted), recent calls list with filter chips, most followed by list, notable receipts trophy cards (§15.4)
 - [ ] **UI-10**: Profile Settings exposes edit display handle, connect/disconnect Twitter, connect/disconnect Farcaster, export embedded wallet (§15.4)
 - [x] **UI-11**: Duel page (`/duel/[id]`) renders "THE MARKET" hero block (asset pair in massive type, question line, 3-stat row: live spread / pot / settles in), two-column duel card (CALLER left yellow-green / VS divider / CHALLENGER right orange) with parallel stat rows, MARKET CONSENSUS bar, Riding sections both sides, "Side with [caller]" / "Side with [challenger]" bottom CTAs (§15.5)
-- [ ] **UI-12**: Leaderboard page (`/leaderboard`) renders "The Tape · Top of book" title, 7d/30d/All-time toggle, #1 Hero card with massive faded "01" watermark, category filter chips (All / Majors / DeFi / Other in v1), leaderboard table with podium treatment for ranks 02/03 (§15.6)
-- [ ] **UI-13**: Leaderboard table columns: # / CALLER (avatar + handle + call count) / REP / ACC / BEST category / Δ 7D sparkline; viewer's own row gets `#1A1A24` background + yellow left border accent (§15.6)
+- [x] **UI-12**: Leaderboard page (`/leaderboard`) renders "The Tape · Top of book" title, 7d/30d/All-time toggle, #1 Hero card with massive faded "01" watermark, category filter chips (All / Majors / DeFi / Other in v1), leaderboard table with podium treatment for ranks 02/03 (§15.6)
+- [x] **UI-13**: Leaderboard table columns: # / CALLER (avatar + handle + call count) / REP / ACC / BEST category / Δ 7D sparkline; viewer's own row gets `#1A1A24` background + yellow left border accent (§15.6)
 - [x] **UI-14**: Settled Receipt page (`/call/[id]` when status == Settled or Disputed) renders 3px page frame with 4px accent corner brackets, sticky caller header (NO wallet address per §15.7), Watch + Share + "Preview share card" button group (§15.7)
 - [x] **UI-15**: Settled Receipt call statement is Syne 48px with target value in accent yellow-green; subline "settled [N] ago · settles automatically from [oracle link]" (§15.7)
 - [x] **UI-16**: Settled Receipt outcome block is the visual hero — Syne 96px outcome word, 3px-bordered with matching hard offset shadow on `#111118` background, "by [caller] · ±X rep" subline (§15.7)
@@ -372,9 +372,9 @@ Requirements for the v1 mainnet release. Each line is an atomic, testable behavi
 - [x] **UI-23**: Settled Receipt Disputed variant replaces outcome block with "PENDING DISPUTE" amber-styled block; body explains who filed, when, evidence link, owner-review state, 24h SLA reminder (§15.7)
 - [ ] **UI-24**: Sign-in screen (`/signin`) renders 3px `#2E2E42` frame border, 4px accent corner brackets at all 4 viewport corners, centered max-width 480px column, CALL IT wordmark (Syne 64px accent), tagline "Be right in public." (Space Grotesk 24px muted) (§15.8)
 - [ ] **UI-25**: Onboarding flow (`/onboarding`) runs 4 screens (Handle / Connect Socials skippable / Follow-graph opt-in conditional / Tagline commitment) with STEP N OF 4 indicator and 3-screen square progress at top (§15.9)
-- [ ] **UI-26**: Quote Call Composer (`/new?quote=[parentCallId]`) renders parent context card above the standard form with QUOTING label, parent caller info, parent statement italic Syne 20px, stake/conviction/follow/fade row, "settles in / view original" link; no corner brackets on parent card (§15.10)
-- [ ] **UI-27**: Quote Composer renders YOUR THESIS textarea ABOVE the market-type segmented buttons (forces articulation before composition) (§15.10)
-- [ ] **UI-28**: Quote Composer success screen shows thread preview + Share button (parent + quote as separate stacked OG cards in v1 thread) (§15.10)
+- [x] **UI-26**: Quote Call Composer (`/new?quote=[parentCallId]`) renders parent context card above the standard form with QUOTING label, parent caller info, parent statement italic Syne 20px, stake/conviction/follow/fade row, "settles in / view original" link; no corner brackets on parent card (§15.10)
+- [x] **UI-27**: Quote Composer renders YOUR THESIS textarea ABOVE the market-type segmented buttons (forces articulation before composition) (§15.10)
+- [x] **UI-28**: Quote Composer success screen shows thread preview + Share button (parent + quote as separate stacked OG cards in v1 thread) (§15.10)
 - [ ] **UI-29**: Shared Loading Skeleton component supports 6 variants: `<CallCardSkeleton />`, `<ReceiptHeroSkeleton />`, `<ProfileHeaderSkeleton />`, `<LeaderboardRowSkeleton />`, `<DuelCardSkeleton />`, `<StatRowSkeleton />` (§15A.1)
 - [ ] **UI-30**: Loading skeleton blocks use `#1A1A24` fill matching tertiary background, same outer dimensions and 2px `#1E1E2E` border as rendered card (no layout shift on load) (§15A.1)
 - [ ] **UI-31**: Loading skeleton animation is subtle horizontal shimmer `#1A1A24 → #1E1E2E → #1A1A24` over 1500ms loop with very low contrast — no pulse, no spin, no corner brackets (§15A.1)
@@ -881,11 +881,11 @@ Which phases cover which requirements. Updated during roadmap creation by the ro
 | UI-06 | Phase 2 | Complete |
 | UI-07 | Phase 2 | Complete |
 | UI-08 | Phase 1 | Pending |
-| UI-09 | Phase 7 | Pending |
+| UI-09 | Phase 7 | Complete |
 | UI-10 | Phase 1 | Pending |
 | UI-11 | Phase 3 | Complete |
-| UI-12 | Phase 7 | Pending |
-| UI-13 | Phase 7 | Pending |
+| UI-12 | Phase 7 | Complete |
+| UI-13 | Phase 7 | Complete |
 | UI-14 | Phase 4 | Complete |
 | UI-15 | Phase 4 | Complete |
 | UI-16 | Phase 4 | Complete |
@@ -898,9 +898,9 @@ Which phases cover which requirements. Updated during roadmap creation by the ro
 | UI-23 | Phase 4 | Complete |
 | UI-24 | Phase 1 | Pending |
 | UI-25 | Phase 1 | Pending |
-| UI-26 | Phase 7 | Pending |
-| UI-27 | Phase 7 | Pending |
-| UI-28 | Phase 7 | Pending |
+| UI-26 | Phase 7 | Complete |
+| UI-27 | Phase 7 | Complete |
+| UI-28 | Phase 7 | Complete |
 | UI-29 | Phase 1 | Pending |
 | UI-30 | Phase 1 | Pending |
 | UI-31 | Phase 1 | Pending |
