@@ -445,3 +445,34 @@ export const callStatement = pgTable('call_statement', {
   statement: text('statement').notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });
+
+// ---------------------------------------------------------------------------
+// posted_receipts  (Phase 07 — D-02 auto-post dedup)
+// ---------------------------------------------------------------------------
+
+/**
+ * Auto-post "posted-once" dedup ledger (D-02, SHARE-17, T-07-04-04).
+ *
+ * The auto-post worker (apps/relayer/src/workers/auto-post-worker.ts) posts a
+ * settled receipt to X/Farcaster at most ONCE per call. A re-processed
+ * CallSettled / CallerExited event (capped-range overlap, worker restart, RPC
+ * retry, dispute re-settle replay) must NOT produce a second public post.
+ *
+ * callId is the PRIMARY KEY = the idempotency key. The worker writes a row with
+ * `onConflictDoNothing` AFTER a successful (or key-gated no-op) post; a row's
+ * existence means "already handled — do not post again". This mirrors the
+ * notifications WR-05 unique-index / call_oracle_criteria PK discipline.
+ *
+ * The row is written even on a key-gated no-op so that, when keys later land,
+ * the worker does not retroactively re-post historical settled calls — the
+ * mechanism activates for NEW settlements only, which is the intended behavior.
+ *
+ * PK on call_id is sufficient (single-key existence check before posting). No
+ * secondary indexes needed.
+ */
+export const postedReceipts = pgTable('posted_receipts', {
+  /** On-chain callId — the posted-once dedup key (one public post per call). */
+  callId: integer('call_id').primaryKey().notNull(),
+  /** When the auto-post worker handled this call (post or key-gated no-op). */
+  postedAt: timestamp('posted_at').defaultNow().notNull(),
+});

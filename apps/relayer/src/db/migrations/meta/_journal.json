@@ -50,6 +50,13 @@
       "when": 1780864887534,
       "tag": "0006_mean_lady_deathstrike",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1780866623279,
+      "tag": "0007_light_pretty_boy",
+      "breakpoints": true
     }
   ]
 }

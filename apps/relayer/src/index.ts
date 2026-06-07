@@ -94,6 +94,8 @@ export async function buildApp(): Promise<FastifyInstance> {
           'UPSTASH_REDIS_REST_TOKEN',
           'PINATA_JWT',
           'BETTERSTACK_SOURCE_TOKEN',
+          'X_API_WRITE_TOKEN',
+          'X_API_BEARER_TOKEN',
           '*.privateKey',
           '*.private_key',
           'headers.authorization',
