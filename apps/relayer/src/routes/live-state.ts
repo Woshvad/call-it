@@ -15,9 +15,13 @@
  *   3. Compute followPct from reserves
  *   4. Cache result with 4s TTL
  *
- * NOTE: subgraph/IPFS display fields (handle, marketLine, reasoning, criteriaText,
- * repScore) are not on-chain and remain Phase 7 subgraph wiring (IN-03); the client
- * falls back to its defaults for those while all on-chain facts are real.
+ * NOTE: `marketLine` (the authoritative human-readable market statement, D-05) is
+ * now served from the relayer call_statement store via resolveCallStatement, closing
+ * the IN-03 omission. The remaining subgraph/IPFS display fields (handle, reasoning,
+ * criteriaText, repScore) are not on-chain and remain Phase 7 subgraph wiring; the
+ * client falls back to its defaults for those while all on-chain facts are real.
+ * When no statement is stored, marketLine is omitted and the client/OG falls back to
+ * the subgraph templated mirror (D-03 — no IPFS on the hot path).
  *
  * Log events:
  *   { event: 'live_state_cache_hit' }   — served from Redis
@@ -36,6 +40,7 @@ import { createPublicClient, http } from 'viem';
 import { arbitrumSepolia } from 'viem/chains';
 import { getRedis } from '../lib/redis.js';
 import { getLogger } from '../lib/logger.js';
+import { resolveCallStatement } from '../db/criteria-store.js';
 import {
   FOLLOW_FADE_MARKET_ARBITRUM_SEPOLIA,
   CALL_REGISTRY_ARBITRUM_SEPOLIA,
@@ -156,10 +161,10 @@ interface LiveStateResponse {
   followPct: number;
   // ── Call metadata (CallRegistry.getCall — CR-04) ──
   // These are the fields page.tsx#fetchCallData and layout.tsx#fetchCallMeta read.
-  // Subgraph/IPFS-sourced display fields (handle, marketLine, reasoning,
-  // criteriaText, repScore) are NOT on-chain and remain Phase 7 subgraph wiring
-  // (IN-03); they are intentionally omitted so the client uses its defaults for
-  // those, while every on-chain fact below is now real instead of a placeholder.
+  // The remaining subgraph/IPFS-sourced display fields (handle, reasoning,
+  // criteriaText, repScore) are NOT on-chain and remain Phase 7 subgraph wiring;
+  // they are intentionally omitted so the client uses its defaults for those,
+  // while every on-chain fact below is now real instead of a placeholder.
   id: string;
   caller: string;
   category: string;
@@ -170,6 +175,11 @@ interface LiveStateResponse {
   criteriaHash: string | null;
   status: string;
   callerExitedAt: string | null;
+  // marketLine: the authoritative human-readable market statement (D-05, IN-03
+  // closure). Sourced from the relayer call_statement store via resolveCallStatement.
+  // Omitted (undefined) when no statement has been stored yet — the client/OG then
+  // falls back to the subgraph templated mirror (D-03; no IPFS on the hot path).
+  marketLine?: string;
   // statusVersion drives the OG cache-bust (/og/{id}?v={statusVersion}, D-09).
   statusVersion: number;
 }
@@ -328,6 +338,21 @@ export async function liveStateRoute(
           );
         }
 
+        // ── marketLine (D-05) — authoritative statement from the relayer store ──
+        // FAIL-SAFE: a DB outage here must not 502 the whole live-state read (all the
+        // on-chain facts above are still valid). On any error, leave marketLine
+        // undefined so the client/OG falls back to the subgraph templated mirror (D-03).
+        let marketLine: string | undefined;
+        try {
+          const stored = await resolveCallStatement(Number(callId));
+          if (stored !== null) marketLine = stored;
+        } catch (statementErr) {
+          logger.warn(
+            { event: 'live_state_statement_read_failed', error: String(statementErr), callId: callId.toString() },
+            'call_statement read failed — marketLine omitted, client falls back to subgraph templated mirror (D-03)',
+          );
+        }
+
         const total = followReserveBn + fadeReserveBn;
         const followPct = total > 0n
           ? Number((followReserveBn * 10000n) / total) / 100
@@ -357,6 +382,9 @@ export async function liveStateRoute(
           status: call ? statusLabel(call.status) : 'Live',
           callerExitedAt:
             call && call.callerExitedAt > 0n ? call.callerExitedAt.toString() : null,
+          // marketLine (D-05) — only present when an authoritative statement is stored;
+          // otherwise omitted so the spread keeps it undefined (subgraph fallback, D-03).
+          ...(marketLine !== undefined ? { marketLine } : {}),
           statusVersion,
         };
 

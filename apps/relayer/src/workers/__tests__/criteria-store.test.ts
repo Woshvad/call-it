@@ -10,7 +10,13 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { resolveCriteria, insertCriteria } from '../../db/criteria-store.js';
+import {
+  resolveCriteria,
+  insertCriteria,
+  insertCallStatement,
+  resolveCallStatement,
+  STATEMENT_MAX_LEN,
+} from '../../db/criteria-store.js';
 
 // ── Drizzle DB client mock ────────────────────────────────────────────────────
 //
@@ -170,5 +176,77 @@ describe('criteria-store', () => {
       const requiresCriteriaStore = CRITERIA_STORE_TYPES.includes(oracleType);
       expect(requiresCriteriaStore).toBe(true);
     }
+  });
+});
+
+// ── call_statement store (Phase 07 — D-05 authoritative market statement) ─────────
+
+describe('call-statement store (D-05)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockWhere.mockReturnValue({ limit: mockLimit });
+    mockFrom.mockReturnValue({ where: mockWhere });
+    mockSelect.mockReturnValue({ from: mockFrom });
+    mockValues.mockReturnValue({ onConflictDoNothing: mockOnConflictDoNothing });
+    mockInsert.mockReturnValue({ values: mockValues });
+  });
+
+  // ── insertCallStatement writes the (capped) statement idempotently ──────────
+
+  it('insertCallStatement writes the statement with onConflictDoNothing', async () => {
+    mockOnConflictDoNothing.mockResolvedValue(undefined);
+
+    await insertCallStatement(7, 'BTC above $100k by EOY');
+
+    expect(mockInsert).toHaveBeenCalledTimes(1);
+    expect(mockValues).toHaveBeenCalledWith({
+      callId: 7,
+      statement: 'BTC above $100k by EOY',
+    });
+    expect(mockOnConflictDoNothing).toHaveBeenCalledTimes(1);
+  });
+
+  // ── V5: length-cap on persist (untrusted prose) ─────────────────────────────
+
+  it('insertCallStatement length-caps the statement at STATEMENT_MAX_LEN (V5)', async () => {
+    mockOnConflictDoNothing.mockResolvedValue(undefined);
+
+    const longStatement = 'x'.repeat(STATEMENT_MAX_LEN + 50);
+    await insertCallStatement(8, longStatement);
+
+    const calls = mockValues.mock.calls as unknown as Array<[{ statement: string }]>;
+    const writtenArg = calls[0]![0];
+    expect(writtenArg.statement.length).toBe(STATEMENT_MAX_LEN);
+  });
+
+  // ── empty/whitespace statement → no row written (clean null fallback) ───────
+
+  it('insertCallStatement skips the write for an empty/whitespace statement', async () => {
+    await insertCallStatement(9, '   ');
+
+    expect(mockInsert).not.toHaveBeenCalled();
+  });
+
+  // ── resolveCallStatement returns the stored prose when found ────────────────
+
+  it('resolveCallStatement returns the statement when a row is found', async () => {
+    mockLimit.mockResolvedValue([
+      { callId: 42, statement: 'ETH flips BTC in market cap', createdAt: new Date() },
+    ]);
+
+    const result = await resolveCallStatement(42);
+
+    expect(result).toBe('ETH flips BTC in market cap');
+    expect(mockLimit).toHaveBeenCalledWith(1);
+  });
+
+  // ── FAIL-SAFE: null when absent → caller falls back to subgraph mirror (D-03) ─
+
+  it('resolveCallStatement returns null when no row found (D-03 fallback contract)', async () => {
+    mockLimit.mockResolvedValue([]);
+
+    const result = await resolveCallStatement(999);
+
+    expect(result).toBeNull();
   });
 });

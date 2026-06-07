@@ -406,3 +406,42 @@ export const duelKings = pgTable(
     duelKingsWeekIdx: uniqueIndex('duel_kings_week_anchor_idx').on(table.weekAnchor),
   }),
 );
+
+// ---------------------------------------------------------------------------
+// call_statement  (Phase 07 — D-05 relayer-authoritative statement)
+// ---------------------------------------------------------------------------
+
+/**
+ * Off-chain authoritative human-readable market statement (prose) per call (D-05).
+ *
+ * The on-chain Call struct carries no prose — only numerics (marketType, assetA,
+ * targetValue, etc.). This table is the SINGLE SOURCE of the human-readable
+ * "what is being called" line that the OG card + receipt page render via
+ * /api/calls/:id/live-state `marketLine` (IN-03 closure). It is the analog of
+ * call_oracle_criteria (the off-chain string bridge for oracle adapters), kept as
+ * a DISTINCT table — it is NOT the `reasoning` field (D-05 discretion: reasoning is
+ * the caller's argument; statement is the market line).
+ *
+ *   Writer: apps/relayer/src/workers/calls-preflight.ts (handleCallCreated)
+ *           via insertCallStatement() at call-create time. The write is FAIL-SAFE
+ *           non-fatal — a DB outage logs + continues, never blocks call creation
+ *           (T-07-02-02).
+ *
+ *   Reader: apps/relayer/src/routes/live-state.ts via resolveCallStatement(callId)
+ *           → response.marketLine (authoritative prose, D-05). When null, marketLine
+ *           is omitted so the client/OG falls back to the subgraph templated mirror
+ *           (D-03 — no IPFS on the hot path).
+ *
+ * Security (V5, T-07-02-01): the statement is caller-supplied untrusted prose. It is
+ * length-capped on persist (STATEMENT_MAX_LEN) before storage; Satori renders it as
+ * text (not HTML) and the OG truncates further at render time.
+ *
+ * PK on call_id is sufficient (single-key lookup at render time). No secondary indexes.
+ */
+export const callStatement = pgTable('call_statement', {
+  /** On-chain callId (assigned post-tx from the CallCreated event) */
+  callId: integer('call_id').primaryKey().notNull(),
+  /** Authoritative human-readable market statement (untrusted, length-capped on persist) */
+  statement: text('statement').notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});

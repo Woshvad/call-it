@@ -21,7 +21,7 @@
 
 import { eq } from 'drizzle-orm';
 import { getDb } from './client.js';
-import { callOracleCriteria } from './schema.js';
+import { callOracleCriteria, callStatement } from './schema.js';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -100,4 +100,79 @@ export async function insertCriteria(
       targetUnit: targetUnit ?? null,
     })
     .onConflictDoNothing();
+}
+
+// ── call_statement store (Phase 07 — D-05 authoritative market statement) ────────
+
+/**
+ * Maximum stored statement length (V5, T-07-02-01).
+ *
+ * The statement is caller-supplied untrusted prose. We hard-cap it before storage
+ * so a hostile caller cannot bloat the table or the OG/receipt render. The OG card
+ * truncates much shorter at render time (~77/87 chars); this ceiling is the storage
+ * backstop, set generously above the render truncation so a full prose line survives
+ * intact while pathological input is rejected/clipped.
+ */
+export const STATEMENT_MAX_LEN = 280;
+
+/**
+ * Insert the authoritative human-readable market statement for a call (D-05).
+ *
+ * Idempotent via ON CONFLICT DO NOTHING so re-processing a CallCreated event
+ * (worker restart, RPC retry, re-submitted enrichment) is a no-op on the second
+ * write — the first authoritative statement wins.
+ *
+ * Caller contract: the statement is untrusted prose. It is length-capped here
+ * (STATEMENT_MAX_LEN) before storage (V5) — callers do NOT need to pre-truncate,
+ * but an empty/whitespace-only statement is skipped (no row written) so a null
+ * resolve cleanly falls through to the subgraph templated mirror (D-03).
+ *
+ * @param callId - on-chain call ID (integer)
+ * @param statement - human-readable market statement (untrusted; capped on persist)
+ */
+export async function insertCallStatement(callId: number, statement: string): Promise<void> {
+  const trimmed = statement.trim();
+  if (trimmed.length === 0) {
+    // Nothing meaningful to store — leave the row absent so resolve returns null
+    // and the OG/receipt falls back to the subgraph templated mirror (D-03).
+    return;
+  }
+
+  const capped = trimmed.length > STATEMENT_MAX_LEN ? trimmed.slice(0, STATEMENT_MAX_LEN) : trimmed;
+
+  const db = getDb();
+  await db
+    .insert(callStatement)
+    .values({
+      callId,
+      statement: capped,
+    })
+    .onConflictDoNothing();
+}
+
+/**
+ * Resolve the authoritative market statement for a call (D-05).
+ *
+ * Returns the stored prose when a row exists, or null when absent.
+ *
+ * CALLER CONTRACT: null means "no authoritative statement stored yet". The caller
+ * (live-state marketLine) MUST leave marketLine undefined on null so the client/OG
+ * falls back to the subgraph templated mirror (D-03) — never crash, never invent prose.
+ *
+ * @param callId - on-chain call ID (integer)
+ * @returns the statement string if found; null if absent
+ */
+export async function resolveCallStatement(callId: number): Promise<string | null> {
+  const db = getDb();
+  const rows = await db
+    .select()
+    .from(callStatement)
+    .where(eq(callStatement.callId, callId))
+    .limit(1);
+
+  if (rows.length === 0 || !rows[0]) {
+    return null;
+  }
+
+  return rows[0].statement;
 }

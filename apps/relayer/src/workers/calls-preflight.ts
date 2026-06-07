@@ -25,7 +25,7 @@
  */
 
 import { getLogger } from '../lib/logger.js';
-import { insertCriteria } from '../db/criteria-store.js';
+import { insertCriteria, insertCallStatement } from '../db/criteria-store.js';
 import { OracleType } from './oracle-adapters/oracle-attestation.js';
 
 // ── Guard: which oracle types use the criteria store ──────────────────────────
@@ -67,6 +67,16 @@ export interface CallCreatedParams {
    *   CexScraper: null (binary confirmed/not; no unit needed)
    */
   targetUnit?: string;
+  /**
+   * Optional authoritative human-readable market statement (prose) for the call (D-05).
+   *
+   * Stored in call_statement and served via /api/calls/:id/live-state marketLine.
+   * Applies to ALL oracle types (every call has a market line) — unlike the criteria
+   * store which only covers DefiLlama/RpcMetrics/CexScraper. Untrusted; length-capped
+   * on persist (V5). Omitted/empty → no row → OG/receipt falls back to the subgraph
+   * templated mirror (D-03).
+   */
+  statement?: string;
 }
 
 // ── Handler ───────────────────────────────────────────────────────────────────
@@ -88,7 +98,26 @@ export interface CallCreatedParams {
  */
 export async function handleCallCreated(params: CallCreatedParams): Promise<void> {
   const logger = getLogger();
-  const { callId, oracleType, identifier, targetUnit } = params;
+  const { callId, oracleType, identifier, targetUnit, statement } = params;
+
+  // ── D-05: persist the authoritative market statement (ALL oracle types) ──────
+  // FAIL-SAFE (T-07-02-02): wrapped in its own try/log/continue so a DB outage
+  // here NEVER blocks call creation or the criteria insert below. Applies to every
+  // call (each has a market line), so it runs before the criteria-store guard.
+  if (statement !== undefined && callId !== undefined && callId !== null) {
+    try {
+      await insertCallStatement(callId, statement);
+      logger.info(
+        { event: 'calls_preflight_statement_inserted', callId },
+        'calls-preflight: authoritative market statement stored for call',
+      );
+    } catch (err) {
+      logger.error(
+        { err, event: 'calls_preflight_statement_insert_failed', callId },
+        'call_statement_insert_failed — OG/receipt will fall back to the subgraph templated mirror (D-03)',
+      );
+    }
+  }
 
   const requiresCriteriaStore = (CRITERIA_STORE_ORACLE_TYPES as readonly number[]).includes(oracleType);
 
