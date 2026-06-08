@@ -424,7 +424,7 @@ Requirements for the v1 mainnet release. Each line is an atomic, testable behavi
 - [x] **SHARE-16**: Auto-post receipt to socials on settle is default ON per Advanced Settings toggle (§15.2, §16)
 - [x] **SHARE-17**: Auto-post never modifies user's X account beyond posting — read-only graph access elsewhere (§9.9)
 - [x] **SHARE-18**: Farcaster cast URL construction is supported parallel to Twitter intent (§18.3, §16)
-- [ ] **SHARE-19**: Farcaster Frames are added in Phase 8 as the final phase if time permits — Frame buttons enable Follow / Fade / Challenge from a Farcaster post; OpenGraph meta tags + Frame server endpoint (§18.3, §19 Phase 8)
+- [x] **SHARE-19**: Farcaster Frames are added in Phase 8 as the final phase if time permits — Frame buttons enable Follow / Fade / Challenge from a Farcaster post; OpenGraph meta tags + Frame server endpoint (§18.3, §19 Phase 8)
 - [x] **SHARE-20**: Receipts are off-chain OG images referenced onchain by hash for verification — NOT NFTs in v1 (§18.2)
 - [ ] **SHARE-21**: Receipt page loads without auth (public-by-default per §18.1); sign-in CTA prominent for unauthenticated viewers (§18.1)
 
@@ -947,7 +947,7 @@ Which phases cover which requirements. Updated during roadmap creation by the ro
 | SHARE-16 | Phase 7 | Complete |
 | SHARE-17 | Phase 7 | Complete |
 | SHARE-18 | Phase 7 | Complete |
-| SHARE-19 | Phase 8 | Pending |
+| SHARE-19 | Phase 8 | Complete |
 | SHARE-20 | Phase 7 | Complete |
 | SHARE-21 | Phase 7 | Pending |
 | OPS-01 | Phase 0 | Complete |
