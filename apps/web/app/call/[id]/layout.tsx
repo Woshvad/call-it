@@ -14,6 +14,7 @@
 
 import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
+import { buildFarcasterEmbeds } from '@/lib/farcaster-embed';
 
 type Props = {
   params: Promise<{ id: string }>;
@@ -69,9 +70,27 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   // No inline contract addresses — uses callId from route params only
   const ogImageUrl = `/og/${id}?v=${statusVersion}`;
 
+  // Farcaster Mini App embed meta (SHARE-19 SC1, D-03/D-04).
+  // Origin is env-derived only (NEXT_PUBLIC_OG_BASE_URL — T-08-02-01 origin-lock;
+  // Phase-10 mainnet cutover re-points automatically). The embed reuses the SAME
+  // `statusVersion` already fetched above — NO second relayer call (Pitfall 4 /
+  // T-08-02-02 — the cast image cannot go stale relative to og:image).
+  const base = process.env['NEXT_PUBLIC_OG_BASE_URL'] ?? '';
+  const { miniappEmbed, frameEmbed } = buildFarcasterEmbeds({
+    callId: id,
+    statusVersion: String(statusVersion),
+    baseUrl: base,
+  });
+
   return {
     title,
     description,
+    // fc:miniapp (primary) + fc:frame (legacy compat) — only action.type differs (D-03).
+    // JSON.stringify-escaped; contains only URLs + brand constants, no raw user strings (T-08-02-03).
+    other: {
+      'fc:miniapp': miniappEmbed,
+      'fc:frame': frameEmbed,
+    },
     openGraph: {
       title,
       description,
