@@ -307,7 +307,7 @@ export const AAVE_V3_POOL_ARBITRUM_ONE =
  *   PR.authorizedRepWriters(sm)    -> true                               ✓
  */
 export const SUBGRAPH_URL_SEPOLIA =
-  'https://api.studio.thegraph.com/query/1754389/call-it-sepolia/v0.8.0' as const; // Phase 6 owner-key-recovery redeploy: indexes the new cluster (PR 0xF66C0AFE / CR 0xc79bB19d / FFM 0x188Db297 / CE 0xC738dBcD / SM 0x2E26eEb3), published 2026-06-06; supersedes v0.7.0 (lost-owner-key cluster)
+  'https://api.studio.thegraph.com/query/1754389/call-it-sepolia/v0.9.0' as const; // Phase 7 (07-06 Step 1): adds Call.statement templated mirror (Plan 07-02, D-03/D-05); published to Sepolia Studio 2026-06-08 (build QmYrrSgVxrpgg3Bgc7P1e2ZjdGNSjW3fhExcsieVPgcimJ). Supersedes v0.8.0 (Phase 6 owner-key-recovery redeploy of cluster PR 0xF66C0AFE / CR 0xc79bB19d / FFM 0x188Db297 / CE 0xC738dBcD / SM 0x2E26eEb3). DN publish stays Phase 10 (D-01).
 
 /**
  * Subgraph Decentralized Network URL (Arbitrum One mainnet).
