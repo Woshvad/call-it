@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: milestone
 status: executing
-stopped_at: 07-06 CI-safe code complete — PAUSED at operator deploy checkpoint
-last_updated: "2026-06-07T22:30:00.000Z"
-last_activity: 2026-06-07 -- 07-06 CI-safe artifacts shipped; live deploy operator-gated
+stopped_at: 07-06 COMPLETE — Task 2 live deploy done 2026-06-08 (operator+orchestrator); Phase 7 6/6 plans complete
+last_updated: "2026-06-08T08:53:01.518Z"
+last_activity: 2026-06-07 -- Phase 07 execution started
 progress:
   total_phases: 14
-  completed_phases: 8
+  completed_phases: 9
   total_plans: 69
-  completed_plans: 68
-  percent: 57
+  completed_plans: 69
+  percent: 64
 ---
 
 # Project State
@@ -25,8 +25,10 @@ See: .planning/PROJECT.md (updated 2026-05-21)
 
 ## Current Position
 
-Phase: 07 (og-service-final-variants-subgraph-final-mappings) — EXECUTING
-Plan: 6 of 6
+Phase: 07 (og-service-final-variants-subgraph-final-mappings) — 6/6 PLANS COMPLETE (live deploy done 2026-06-08)
+Plan: 6 of 6 (all summaries written)
+
+> **Phase 07 status (2026-06-08):** ✅ **ALL 6 plans COMPLETE.** 07-06 Task 2 (operator-gated live deploy) was executed LIVE by operator + orchestrator on 2026-06-08: subgraph **v0.9.0 published to Sepolia Studio** (D-01 — no DN; build `QmYrrSgVxr…`, `SUBGRAPH_URL_SEPOLIA` bumped, commit `1b0f9ff`; `_meta` block 275026674 `hasIndexingErrors:false`), **BOTH relayer migrations applied** to remote Sepolia Postgres `call_it_relayer_sepolia` (`0006 call_statement` + `0007 posted_receipts`, both verified present), **`apps/web` deployed to Vercel `call-it-web-sepolia`** (`https://call-it-web-sepolia.vercel.app`; net-new monorepo deploy config `apps/web/vercel.json` + root `.vercelignore`; `/feed`/`/leaderboard` 200, fallback OG 200 image/png), **Fly CORS allowlist** = exact Vercel origin (`X_API_WRITE_TOKEN` still UNSET, D-02), **CORS OPTIONS preflight PASSED** (204, exact origin not `*`). Deploy commits: `1b0f9ff`, `2d1d93e`, `8b82d70`, `0d2aa40`, `046cca9`, `f7f495b`. **3 residuals operator-pending (NOT marked passed):** Twitter Card Validator 5/5 (SHARE-13/D-08, browser-only), SC1 200px outcome-word baselines + authoritative `verify-event-coverage.ts` live run (OPS-04, needs a fresh seeded-settled run), and the incognito visual hydration spot-check (CORS + 200s already curl-confirmed). Evidence in `docs/operator/phase-7-deploy-runbook.md` § Outputs to record + `07-06-SUMMARY.md`. This unblocks the parked Phase-4 UAT-1/2/3.
 
 > **Phase 01.5 status (2026-06-07):** ✅ **ALL 5 plans COMPLETE** — **01.5-02** (relayer social-link service), **01.5-03** (VerifiedBadge + AUTH-10 invariant), **01.5-04** (link/unlink UI + AuthKitProvider + opt-in), **01.5-05** (FEED sections — complete-with-documented-deferral: X/Neynar keys deferred, AUTH-14 live data dormant until keys set; AUTH-15/16/17/18 satisfied + tested), and **01.5-01** (env surface + setRelayer). **setRelayer gate CLEARED on-chain (2026-06-07):** derived oauth-proof KMS `0xdFc80922FAbc51a08350c0b371917e6EaB8b550A` (scaffold `9b41f0f`), funded 0.05 ETH, operator broadcast `setRelayer` from treasury `0xDa8c5726`; verified `relayer()` == `0xdFc80922…` (was `0x0`), `owner()` unchanged. `RELAYER_OAUTH_PROOF_ADDRESS` set in local `.env.local`. **Remaining follow-ups (non-gating):** (1) deployed Fly relayer `fly secrets set RELAYER_OAUTH_PROOF_ADDRESS=0xdFc80922… -a call-it-relayer-sepolia` — deferred to avoid restarting the relayer mid Phase-6 soak; (2) X API + Neynar key provisioning to activate live feed data. **Local DB:** ✅ provisioned `callit-postgres` (127.0.0.1:5434), all 6 migrations applied (`follow_graph` + `social_link_index`). **Phase ✅ VERIFIED + COMPLETE (2026-06-07)** — goal-backward verification PASSED: 4/4 ROADMAP success criteria, 11/11 requirements (8 PASS, 3 documented deferrals: AUTH-14 live X data, live FC data, Fly secret), 0 FAILs (see `01.5-VERIFICATION.md`). Full relayer suite 189✓/1 skipped; relayer+web+ui+shared builds 0.
 
@@ -149,6 +151,7 @@ All 3 operator actions were run this session (user explicitly authorized "run al
 | Phase 07 P04 | ~30min | 2 tasks | 11 files |
 | Phase 07 P05 | ~12min | 2 tasks | 11 files |
 | Phase 07 P06 (CI-safe; operator-gated) | ~20min | 1 of 2 tasks | 3 files |
+| Phase 07 P06 (Task 2 live deploy, operator+orchestrator 2026-06-08) | — | 2 of 2 tasks | 2 deploy-config files + 6 commits |
 
 ## Accumulated Context
 
@@ -299,6 +302,7 @@ completed: 2026-05-29
 - [Phase ?]: 07-05: getLeaderboard in dedicated leaderboard-client.ts reads public Studio query URL server-side; privileged Studio key stays relayer-side (D-27)
 - [Phase ?]: 07-05: reusable ShareButton -> twitter intent via shared @call-it/shared share-text builders (SHARE-15); statement URL-encoded
 - [Phase 07-06]: CI-safe share-loop verify artifacts shipped (1aed14e): receipt-meta.spec.ts (Tier-1 og:image ?v={statusVersion}+twitter:card+/call,/leaderboard carve-out SHARE-14/21; Tier-2 incognito env-gated), verify-event-coverage.ts (~20-event OPS-03 + CallCreated <30s OPS-04; configurable endpoint, non-zero on core gap/lag), phase-7-deploy-runbook.md. layout.tsx ?v= + middleware /leaderboard already correct — asserted as tests-of-record, no edit. LIVE deploy (Studio v0.9.0, Vercel, Fly CORS, BOTH relayer migrations 0006+0007, CORS smoke, Twitter Card Validator) PAUSED at human-action operator checkpoint — NOT executed, NOT marked passed.
+- [Phase ?]: [Phase 07-06]: live deploy DONE 2026-06-08 (operator+orchestrator) — Studio v0.9.0 (D-01 no DN) + both remote relayer migrations (0006 call_statement + 0007 posted_receipts) + Vercel call-it-web-sepolia (apps/web/vercel.json + root .vercelignore) + Fly CORS exact-origin allowlist; X_API_WRITE_TOKEN UNSET (D-02). 3 residuals operator-pending: Twitter Card Validator 5/5, SC1 200px baselines + live coverage run, incognito visual spot-check.
 
 ## Performance
 
@@ -441,6 +445,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-06-07T22:30:00.000Z
-Stopped at: 07-06 CI-safe code complete — PAUSED at operator deploy checkpoint (Task 2 human-action)
-Resume file: docs/operator/phase-7-deploy-runbook.md (operator runs the 6 live steps; reply "approved" to close 07-06)
+Last session: 2026-06-08T08:53:01.491Z
+Stopped at: 07-06 COMPLETE — Task 2 live deploy done 2026-06-08 (operator+orchestrator); Phase 7 6/6 plans complete
+Resume file: docs/operator/phase-7-deploy-runbook.md (3 residuals operator-pending: Twitter Card Validator 5/5, SC1 200px baselines + live coverage run, incognito visual spot-check). Next: Phase 8 (Farcaster Mini Apps) when ready.

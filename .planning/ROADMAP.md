@@ -19,7 +19,7 @@ Call It ships as a person-first onchain social prediction product on Arbitrum ma
 - [x] **Phase 4: SettlementManager + 7 oracle paths + Solidity baseline rep delta** - 14-step atomic settle dispatch hub, Pyth pull + multicall, NFT TWAP via Alchemy + KMS-signed relayer, DefiLlama, RPC, Snapshot/Tally, 8 CEX scrapers, dispute window with $5 bond, forceSettle 7d cooldown, Settled Receipt page, in-contract Solidity baseline rep math (completed 2026-06-02 — security threats_open: 0 + validation 18/18 GREEN; Pyth settlement spine live; live UAT + non-Pyth functional rail acknowledged-deferred per 04-VERIFICATION.md)
 - [x] **Phase 5: StylusScoreEngine + 48h cutoff** - Rust reputation engine behind Solidity `TransparentUpgradeableProxy`, full-fidelity `compute_rep_change`, 365-day reactivation runbook integrated with Phase 0 alerts, parallel-built `RevertingStylusEngine` test fixture
 - [ ] **Phase 6: Safety review + Sepolia ≥48h + multisig rehearsal** - Stylus destruction drill, TVL cap aggregation boundary tests, full "Looks Done But Isn't" checklist, Sepolia ≥48h with seeded calls/follows/settles/exits/challenges/disputes, Safe 2-of-3 multisig REHEARSAL on the Sepolia cluster (production mainnet Safe + ownership transfer moved to final Phase 10, per operator decision 2026-06-04)
-- [ ] **Phase 7: OG service final variants + Subgraph final mappings** - 5 OG card variants finalized (Live, Settled, DuelSettled, CallerExited, Fallback) via @vercel/og + Satori, subgraph published to Decentralized Network on Arbitrum, auto-post-to-X gated by cache-warm verification, Twitter Card Validator pre-flight, 200px readability QA gate
+- [x] **Phase 7: OG service final variants + Subgraph final mappings** - 5 OG card variants finalized (Live, Settled, DuelSettled, CallerExited, Fallback) via @vercel/og + Satori, subgraph published to Decentralized Network on Arbitrum, auto-post-to-X gated by cache-warm verification, Twitter Card Validator pre-flight, 200px readability QA gate (completed 2026-06-08)
 - [ ] **Phase 8: Farcaster Mini Apps** - `fc:frame` meta tags, Mini App manifest, Farcaster receipt rendering, Follow/Fade/Challenge actions from Frame
 - [ ] **Phase 9: Mobile responsive on 7 critical pages** - 375px breakpoint on Feed, Live Receipt, Settled Receipt, Profile, Leaderboard, Sign-in, Onboarding; desktop-only banner on Duel, Quote composer, New Call
 - [ ] **Phase 10: Mainnet deploy gate** - 20-minute §19.11 smoke test checklist; deploy + verify (under the deployer key — multisig transfer is the final Phase 10.5) + first authenticated session + funding + first sponsored tx + receipt share Twitter Card Validator (reordered from 7.5 to after 8–9 per operator decision 2026-06-07)
@@ -376,7 +376,7 @@ Phases execute in numeric order: 0 → 1 → 1.5 (parallel with 2) → 2 → 3 �
 | 4. SettlementManager + 7 oracle paths + Solidity baseline rep delta | 9/9 | Complete | 2026-06-02 |
 | 5. StylusScoreEngine + 48h cutoff | 7/7 | Complete | 2026-06-02 |
 | 6. Safety review + Sepolia ≥48h + multisig rehearsal | 4/6 | In Progress | - |
-| 7. OG service final variants + Subgraph final mappings | 5/6 | In Progress|  |
+| 7. OG service final variants + Subgraph final mappings | 6/6 | Complete   | 2026-06-08 |
 | 8. Farcaster Mini Apps | 0/TBD | Not started | - |
 | 9. Mobile responsive on 7 critical pages | 0/TBD | Not started | - |
 | 10. Mainnet deploy gate | 0/TBD | Not started | - |
