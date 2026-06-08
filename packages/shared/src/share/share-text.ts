@@ -15,10 +15,12 @@
  * (Plan 07-04); it never passes through this module. Untrusted statement strings
  * are URL-encoded.
  *
- * [ASSUMED] Warpcast compose-intent URL shape: `warpcast.com/~/compose?text=…&embeds[]=…`
- * (07-RESEARCH A3). Warpcast intent URLs have changed historically — verify against
- * current Farcaster docs when X/FC keys are budgeted. Phase 7 only CONSTRUCTS the
- * cast URL (D-02); programmatically landing the cast is Phase 8 (Mini App).
+ * Farcaster compose-intent URL shape: `farcaster.xyz/~/compose?text=…&embeds[]=…`
+ * (Open Q3, verified live 2026-06-08). The legacy `warpcast.com/~/compose` host now
+ * 301-redirects to `farcaster.xyz/~/compose` (Warpcast → Farcaster rebrand); the path
+ * and `?text=…&embeds[]=…` query shape are preserved across the migration. Pointing
+ * directly at the canonical `farcaster.xyz` host avoids the redirect hop. Phase 7 only
+ * CONSTRUCTS the cast URL (D-02); programmatically landing the cast is Phase 8 (Mini App).
  */
 
 /** Twitter web-intent share URL (SHARE-15). Both args are URL-encoded. */
@@ -31,7 +33,7 @@ export function twitterIntentUrl(receiptUrl: string, text: string): string {
  * `embeds[]=receiptUrl` renders the OG card as a cast embed.
  */
 export function warpcastComposeUrl(receiptUrl: string, text: string): string {
-  return `https://warpcast.com/~/compose?text=${encodeURIComponent(text)}&embeds[]=${encodeURIComponent(receiptUrl)}`;
+  return `https://farcaster.xyz/~/compose?text=${encodeURIComponent(text)}&embeds[]=${encodeURIComponent(receiptUrl)}`;
 }
 
 export interface ShareTextInput {

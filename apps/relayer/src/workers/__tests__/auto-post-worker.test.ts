@@ -196,7 +196,26 @@ describe('SC2: auto-post worker (Plan 07-04 GREEN)', () => {
     expect(res.posted).toBe(false);
     expect(res.reason).toBe('no_key');
     // SHARE-18: the Farcaster cast URL is still constructed (Phase 7 constructs it).
-    expect(res.warpcastUrl).toContain('warpcast.com/~/compose');
+    expect(res.warpcastUrl).toContain('farcaster.xyz/~/compose');
+  });
+
+  // ── (f) SC3/D-04: the auto-post cast carries the embed-bearing receipt URL ──────
+  // The Farcaster Mini App embed is a property of the receipt URL's HTML (Plan 08-02
+  // fc:miniapp/fc:frame meta). It rides the receipt URL inside warpcastComposeUrl's
+  // embeds[]= param — NO worker payload/embeds-array change is needed. This asserts the
+  // produced warpcastUrl carries the URL-encoded receipt URL `${base}/call/${callId}`
+  // so the auto-landed cast renders the Mini App embed automatically.
+  it('builds a Farcaster cast URL whose embeds[] carries the embed-bearing receipt URL (SC3/D-04)', async () => {
+    const fetchImpl = makeOgFetch({ variant: 'settled' });
+    // ogBaseUrl 'https://callit.test' → receiptUrl 'https://callit.test/call/7'.
+    const worker = startAutoPostWorker(baseConfig({ fetchImpl, ogBaseUrl: 'https://callit.test' }));
+
+    const res = await worker.processCall({ callId: '7', expectedVariant: 'settled', outcomeWord: 'CALLED IT', caller: '' });
+    worker.stop();
+
+    // The embed rides the receipt URL inside the compose intent's embeds[]= param.
+    expect(res.warpcastUrl).toContain(encodeURIComponent('https://callit.test/call/7'));
+    expect(res.warpcastUrl).toContain('embeds[]=');
   });
 
   // ── (d) Pitfall-18 gate: posts AFTER cache-warm + post-settle delay (D-07) ──────

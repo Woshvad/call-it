@@ -37,7 +37,7 @@ describe('SHARE-18: warpcastComposeUrl', () => {
       'CONTRARIAN HIT — @veda',
     );
     expect(url).toBe(
-      'https://warpcast.com/~/compose' +
+      'https://farcaster.xyz/~/compose' +
         `?text=${encodeURIComponent('CONTRARIAN HIT — @veda')}` +
         `&embeds[]=${encodeURIComponent('https://callit.app/call/42')}`,
     );
