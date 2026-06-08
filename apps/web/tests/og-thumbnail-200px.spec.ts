@@ -85,21 +85,19 @@ test.describe('SHARE-01: wired OG variants render 1200×630 PNG', () => {
 
 // ── SC1: 200px outcome-word legibility (env-gated; baselines seeded 2026-06-08) ──
 // Real seeded Arbitrum-Sepolia settled-call IDs (one per outcome word):
-//   CALLED IT       = call 8  (CallerWon, repDelta +10)
+//   CALLED IT       = call 2  (CallerWon, fade$1/follow$2 -> fadeRealShare 0.333, repDelta +8)
 //   COLD CALL       = call 11 (CallerWon, repDelta +2, 0 faders -> cold-start)
 //   LOUD AND WRONG  = call 14 (CallerLost, seeded via seed-loss-call.ts)
 //   FADED CORRECTLY = call 14 ?as=fader (D-09 per-viewer fader render on the loss call)
-//   CONTRARIAN HIT  = DEFERRED — the OG route hardcodes fadeRealShare:0
-//     (apps/web/app/og/[callId]/route.ts), and outcome-word.ts requires
-//     fadeRealShare >= 0.5 for CONTRARIAN HIT, so the card cannot render that word
-//     until the route wires fadeRealShare from subgraph positions. Tracked in
-//     docs/operator/phase-7-deploy-runbook.md (Phase 7 SC1 deferral).
+//   CONTRARIAN HIT  = call 9  (CallerWon, fade$2/follow$1 -> majority real fade
+//     fadeRealShare 0.667 >= 0.5, repDelta +10). Now wired via fadeRealShare from
+//     subgraph Positions in getSettledFields, so the card renders this word.
 // Baselines generated against the deployed endpoint (PLAYWRIGHT_BASE_URL) with
 // OG_200PX_BASELINES=1 --update-snapshots.
 const VARIANTS = [
-  { word: 'CALLED IT', url: '/og/8', deferred: false },
+  { word: 'CALLED IT', url: '/og/2', deferred: false },
   { word: 'LOUD AND WRONG', url: '/og/14', deferred: false },
-  { word: 'CONTRARIAN HIT', url: '/og/8', deferred: true },
+  { word: 'CONTRARIAN HIT', url: '/og/9', deferred: false },
   { word: 'COLD CALL', url: '/og/11', deferred: false },
   { word: 'FADED CORRECTLY', url: '/og/14?as=fader', deferred: false },
 ] as const;

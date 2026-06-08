@@ -20,7 +20,7 @@
  * CI gate: .github/workflows/phase-1-gates.yml runs this on every PR touching apps/web
  */
 
-import { Project, SyntaxKind, Node } from 'ts-morph';
+import { Project, SyntaxKind } from 'ts-morph';
 import { describe, it, expect } from 'vitest';
 import path from 'node:path';
 import { readFileSync } from 'node:fs';

@@ -90,8 +90,8 @@ async function mockRelayerRoutes(page: Page): Promise<void> {
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
 test.describe('Visual smoke: Phase 1 baseline pages', () => {
-  // Disable animations for deterministic snapshots
-  test.use({ reducedMotion: 'reduce' });
+  // Animations are disabled for deterministic snapshots via the global
+  // reducedMotion: 'reduce' option in playwright.config.ts `use`.
 
   test('Home feed shell (/)', async ({ page }) => {
     await mockRelayerRoutes(page);

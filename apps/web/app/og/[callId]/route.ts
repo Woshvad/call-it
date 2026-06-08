@@ -853,13 +853,15 @@ export async function GET(
       // Outcome: default to 'CallerWon' (the outcome enum is not in getCall result — it's in CallRegistry.outcome field)
       const outcomeNum = Number(callData.outcome ?? 0); // outcome field from CallRegistry
       const callerWon = outcomeNum === 1; // Outcome.CallerWon = 1 per spec
-      // D-03: real rep delta from subgraph RepEvent; fadeRealShare needs the
-      // settled fade pool (not on-chain post-settlement) so it stays 0 here —
-      // the §14.1 word/color logic is driven by callerWon + the real repDelta.
+      // D-03: real rep delta from subgraph RepEvent. fadeRealShare is now read
+      // from the subgraph Position pool via getSettledFields (the real, non-virtual
+      // fade share of the settled fade+follow pool), degrading to 0 on absence —
+      // this is what unblocks CONTRARIAN HIT (D-08: fadeRealShare >= 0.5). The
+      // §14.1 word/color logic is driven by callerWon + the real repDelta + this.
       const realRepDelta = settledFields.repDelta ?? 0;
       const outcomeResult = getOutcomeWordResult({
         callerWon,
-        fadeRealShare: 0,
+        fadeRealShare: settledFields.fadeRealShare ?? 0,
         repDelta: realRepDelta,
         viewerIsWinningFader: isViewerFader && !callerWon,
       });

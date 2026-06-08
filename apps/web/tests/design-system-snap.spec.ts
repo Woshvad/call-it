@@ -43,8 +43,8 @@
 import { test, expect } from '@playwright/test';
 
 test.describe('Design-system snapshot: @call-it/ui primitives', () => {
-  // Disable animations for deterministic snapshots
-  test.use({ reducedMotion: 'reduce' });
+  // Animations are disabled for deterministic snapshots via the global
+  // reducedMotion: 'reduce' (contextOptions) in playwright.config.ts `use`.
 
   test('Full design-system page baseline', async ({ page }) => {
     await page.goto('/dev/design-system');

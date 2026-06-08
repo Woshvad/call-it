@@ -156,10 +156,16 @@ export interface SettledFields {
   repDelta: number | null;
   /** RepEvent.fallback flag (Stylus-fallback rep path), informational. */
   repFallback: boolean | null;
+  /**
+   * Real (non-virtual) fade share of the settled fade+follow pool, range [0,1].
+   * Computed from subgraph Position deposits (fade / (fade+follow)). Drives the
+   * CONTRARIAN HIT threshold (D-08: >= 0.5). Null on any error (SHARE-10).
+   */
+  fadeRealShare: number | null;
 }
 
 const SETTLED_FIELDS_QUERY = `
-query SettledFields($callId: ID!) {
+query SettledFields($callId: ID!, $callIdStr: String!) {
   call(id: $callId) {
     statement
   }
@@ -170,6 +176,10 @@ query SettledFields($callId: ID!) {
   repEvents(first: 1, where: { callId: $callId }, orderBy: timestamp, orderDirection: desc) {
     delta
     fallback
+  }
+  positions(first: 1000, where: { callId: $callIdStr }) {
+    side
+    usdcDeposited
   }
 }
 `;
@@ -189,6 +199,7 @@ export async function getSettledFields(callId: string | number): Promise<Settled
     priceDelta: null,
     repDelta: null,
     repFallback: null,
+    fadeRealShare: null,
   };
   if (!SUBGRAPH_URL) return empty;
 
@@ -198,7 +209,8 @@ export async function getSettledFields(callId: string | number): Promise<Settled
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         query: SETTLED_FIELDS_QUERY,
-        variables: { callId: String(callId) },
+        // call(id:) is ID!, Position.callId is String — pass both forms.
+        variables: { callId: String(callId), callIdStr: String(callId) },
       }),
     });
     if (!res.ok) return empty;
@@ -208,6 +220,7 @@ export async function getSettledFields(callId: string | number): Promise<Settled
         call?: { statement?: string | null } | null;
         settlements?: Array<{ finalPrice?: string | null; priceDelta?: string | null }>;
         repEvents?: Array<{ delta?: number | null; fallback?: boolean | null }>;
+        positions?: Array<{ side?: string | null; usdcDeposited?: string | null }>;
       };
       errors?: unknown;
     };
@@ -217,6 +230,26 @@ export async function getSettledFields(callId: string | number): Promise<Settled
     const settlement = d.settlements?.[0];
     const repEvent = d.repEvents?.[0];
 
+    // Real fade share from subgraph Position deposits (fade / (fade+follow)).
+    // BigInt accumulation avoids float drift on raw 6-dp USDC amounts; malformed
+    // entries are skipped so a bad value can never throw out of the success path.
+    let fadeSum = 0n;
+    let followSum = 0n;
+    for (const p of d.positions ?? []) {
+      const raw = p?.usdcDeposited;
+      if (typeof raw !== 'string' || raw.trim().length === 0) continue;
+      let amount: bigint;
+      try {
+        amount = BigInt(raw);
+      } catch {
+        continue; // non-parseable usdcDeposited — skip, never throw
+      }
+      if (p.side === 'fade') fadeSum += amount;
+      else if (p.side === 'follow') followSum += amount;
+    }
+    const denom = fadeSum + followSum;
+    const fadeRealShare = denom > 0n ? Number(fadeSum) / Number(denom) : 0;
+
     return {
       statement: d.call?.statement ?? null,
       finalPrice: settlement?.finalPrice ?? null,
@@ -225,6 +258,7 @@ export async function getSettledFields(callId: string | number): Promise<Settled
         typeof repEvent?.delta === 'number' ? repEvent.delta : null,
       repFallback:
         typeof repEvent?.fallback === 'boolean' ? repEvent.fallback : null,
+      fadeRealShare,
     };
   } catch {
     return empty;

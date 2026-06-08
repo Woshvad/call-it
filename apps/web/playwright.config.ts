@@ -26,6 +26,10 @@ export default defineConfig({
   use: {
     baseURL: process.env['PLAYWRIGHT_BASE_URL'] ?? 'http://localhost:3000',
     trace: 'on-first-retry',
+    // Global reduced-motion for deterministic visual snapshots across all suites.
+    // In @playwright/test 1.60 reducedMotion is a context option (not a top-level
+    // `use` key), so it is set via contextOptions — the documented type-safe form.
+    contextOptions: { reducedMotion: 'reduce' },
   },
   projects: [
     {
