@@ -309,6 +309,7 @@ completed: 2026-05-29
 - [Phase 08-farcaster-mini-apps]: 08-02: buildFarcasterEmbeds follows the Wave-0 RED scaffold signature ({callId,statusVersion,baseUrl} -> JSON strings) as the authoritative GREEN target (not the PLAN prose); Next 16 registers the dotted /.well-known/farcaster.json segment natively, no next.config rewrite fallback needed (Pitfall 5)
 - [Phase ?]: [Phase 08-03]: Frame tx route emits real on-chain follow/fade(uint256,uint256,uint256) calldata — Wave-0 scaffold's assumed follow(uint256,uint96,uint8) had a different selector + would revert; test decode ABI reconciled (args [id,1_000_000n,0n] unchanged)
 - [Phase ?]: [Phase 08-03]: one-tap Follow/Fade hardcoded $1 (MIN_POSITION_USDC) + Challenge $5, never from the untrusted Frame POST body (D-07/T-08-03-04); to ALWAYS a pinned Sepolia addr; settled Follow+Quote deep-link only (D-06a)
+- [Phase 08-04]: Open Q3 RESOLVED — Warpcast compose host MIGRATED warpcast.com → farcaster.xyz (legacy /~/compose 301-redirects; verified live 2026-06-08). One-line host change to the pure warpcastComposeUrl in @call-it/shared (signature + purity preserved); ?text=…&embeds[]=… shape unchanged; share-text test expectation updated. Auto-post embed rides the receipt URL — worker verify-only, no payload change (D-04/SC3). SHARE AS FRAME outline control on the settled receipt action row reuses the shared builders, omitted (no dead button) when NEXT_PUBLIC_OG_BASE_URL or a real handle is missing (UI-SPEC). Task 2 PAUSED at human-verify checkpoint.
 
 ## Performance
 
@@ -455,6 +456,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-06-08T22:19:18.055Z
-Stopped at: Phase 8 UI-SPEC approved
-Resume file: .planning/phases/08-farcaster-mini-apps/08-UI-SPEC.md
+Last session: 2026-06-08T23:30:00.000Z
+Stopped at: Phase 08 Plan 04 — Task 1 complete (ad81ea3); Task 2 (SHARE AS FRAME control) implemented + committed (83aeae9) and builds clean — PAUSED at the Task-2 human-verify checkpoint (visual/behavioral verify on a deployed Sepolia settled receipt). Resume signal: "approved" or describe the issue.
+Resume file: .planning/phases/08-farcaster-mini-apps/08-04-SUMMARY.md
