@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: milestone
 status: executing
-stopped_at: 07-06 COMPLETE — Task 2 live deploy done 2026-06-08 (operator+orchestrator); Phase 7 6/6 plans complete
-last_updated: "2026-06-08T08:53:01.518Z"
-last_activity: 2026-06-07 -- Phase 07 execution started
+stopped_at: Phase 8 context gathered
+last_updated: "2026-06-08T18:16:50.026Z"
+last_activity: 2026-06-08 - SC1 true 5/5 (CONTRARIAN HIT live via fadeRealShare) + subgraph repointed to v0.9.1 (Studio dropped v0.9.0 label)
 progress:
   total_phases: 14
   completed_phases: 9
@@ -449,6 +449,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-06-08T08:53:01.491Z
-Stopped at: 07-06 COMPLETE — Task 2 live deploy done 2026-06-08 (operator+orchestrator); Phase 7 6/6 plans complete
-Resume file: docs/operator/phase-7-deploy-runbook.md (3 residuals operator-pending: Twitter Card Validator 5/5, SC1 200px baselines + live coverage run, incognito visual spot-check). Next: Phase 8 (Farcaster Mini Apps) when ready.
+Last session: 2026-06-08T18:16:50.000Z
+Stopped at: Phase 8 context gathered
+Resume file: .planning/phases/08-farcaster-mini-apps/08-CONTEXT.md
