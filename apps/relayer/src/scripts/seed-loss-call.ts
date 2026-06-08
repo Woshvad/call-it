@@ -66,10 +66,14 @@ const USDC = '0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d' as const satisfies `0x
 /** ETH/USD Pyth feed id (allowlisted on CallRegistry); passed as assetA via BigInt(ETH_FEED) */
 const ETH_FEED = '0xff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace';
 
-/** $5 min stake (6-dp USDC) */
+/** $5 min stake (6-dp USDC) — the createCall `stake` argument */
 const MIN_STAKE = 5_000000n;
-/** Consolidation top-up ceiling */
-const TOPUP_CEILING = 5_500000n;
+/** $10 flat market-creation fee pulled alongside stake (CallRegistry.CREATION_FEE) */
+const CREATION_FEE = 10_000000n;
+/** USDC the caller must hold + approve: createCall pulls stake + CREATION_FEE = $15 */
+const REQUIRED_USDC = MIN_STAKE + CREATION_FEE;
+/** Consolidation top-up ceiling — REQUIRED_USDC plus a small buffer */
+const TOPUP_CEILING = REQUIRED_USDC + 500000n;
 
 /** CallRegistry — env override precedence over the shared Sepolia constant (matches soak-seeder) */
 const CALL_REGISTRY: `0x${string}` =
@@ -155,8 +159,8 @@ async function main(): Promise<void> {
     args: [caller, CALL_REGISTRY],
   })) as bigint;
 
-  const needsConsolidation = callerBal < MIN_STAKE;
-  const needsApproval = allowance < MIN_STAKE;
+  const needsConsolidation = callerBal < REQUIRED_USDC;
+  const needsApproval = allowance < REQUIRED_USDC;
 
   const nowSec = Math.floor(Date.now() / 1000);
   const expiry = BigInt(nowSec + Number(process.env.SEED_EXPIRY_SECONDS ?? 150));
@@ -169,8 +173,9 @@ async function main(): Promise<void> {
     console.log(`  caller index:        ${callerIndex}`);
     console.log(`  caller address:      ${caller}`);
     console.log(`  caller USDC balance: ${callerBal} (raw) = $${Number(callerBal) / 1e6}`);
-    console.log(`  needs consolidation: ${needsConsolidation} (balance < $5 min stake)`);
-    console.log(`  needs approval:      ${needsApproval} (allowance < $5 min stake)`);
+    console.log(`  required USDC:        ${REQUIRED_USDC} ($${Number(REQUIRED_USDC) / 1e6} = $5 stake + $10 creation fee)`);
+    console.log(`  needs consolidation: ${needsConsolidation} (balance < $15 stake+fee)`);
+    console.log(`  needs approval:      ${needsApproval} (allowance < $15 stake+fee)`);
     console.log(`  target:              ${target} ($1,000,000 Pyth 8-dp — guarantees CallerLost)`);
     console.log(`  expiry:              ${expiry} (${Number(expiry) - nowSec}s from now)`);
     console.log('seed-loss-call: dry run complete — exiting 0 without broadcasting.');
@@ -225,9 +230,9 @@ async function main(): Promise<void> {
     }
   }
 
-  if (bal < MIN_STAKE) {
+  if (bal < REQUIRED_USDC) {
     console.error(
-      `caller ${caller} balance $${Number(bal) / 1e6} < $5 min stake after consolidation — fund a soak wallet via the Circle Sepolia faucet.`,
+      `caller ${caller} balance $${Number(bal) / 1e6} < $15 (stake + creation fee) after consolidation — fund a soak wallet via the Circle Sepolia faucet.`,
     );
     process.exit(1);
   }
@@ -239,17 +244,17 @@ async function main(): Promise<void> {
     functionName: 'allowance',
     args: [caller, CALL_REGISTRY],
   })) as bigint;
-  if (curAllowance < MIN_STAKE) {
+  if (curAllowance < REQUIRED_USDC) {
     const txHash = await callerWallet.writeContract({
       address: USDC,
       abi: ERC20_ABI,
       functionName: 'approve',
-      args: [CALL_REGISTRY, MIN_STAKE],
+      args: [CALL_REGISTRY, REQUIRED_USDC],
       account: callerAccount,
       chain: arbitrumSepolia,
     });
     await publicClient.waitForTransactionReceipt({ hash: txHash });
-    console.log(`  approved CallRegistry for $${Number(MIN_STAKE) / 1e6} USDC`);
+    console.log(`  approved CallRegistry for $${Number(REQUIRED_USDC) / 1e6} USDC`);
   }
 
   // (c) createCall — PriceTarget (0), ETH/USD assetA, target = $1M (8-dp) → CallerLost
