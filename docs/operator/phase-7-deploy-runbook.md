@@ -151,17 +151,21 @@ Then, in an **incognito** window (no Privy session), load and confirm hydration 
 
 ## Step 6 — Twitter Card Validator checklist (SHARE-13, D-08 — operator checklist, NOT CI)
 
-Run each of the **5 variant receipt URLs** through `https://cards-dev.twitter.com/validator` and confirm the card preview + image render. Record pass/fail:
+> ⚠️ **`cards-dev.twitter.com/validator` was shut down by X in 2022 — it no longer exists.** Validate the modern equivalent instead: (a) `curl <url>` and confirm the `<head>` emits `twitter:card content="summary_large_image"` + an absolute `og:image`/`twitter:image`, (b) `curl` that image URL → expect `200 image/png`, and (c) paste the URL into an X post composer (or opengraph.xyz) for the human visual preview. The table's "twitter card preview" column = the step-(c) browser check.
 
-| Variant | Receipt URL | og:image renders | twitter card preview | Pass/Fail |
-|---------|-------------|------------------|----------------------|-----------|
-| Live | `<vercel-origin>/call/<live-id>` | ☐ | ☐ | |
-| Settled | `<vercel-origin>/call/<settled-id>` | ☐ | ☐ | |
-| DuelSettled | `<vercel-origin>/duel/<challenge-id>` | ☐ | ☐ | |
-| CallerExited | `<vercel-origin>/call/<exited-id>` | ☐ | ☐ | |
-| Fallback | `<vercel-origin>/call/<unknown-id>` (catch-all → fallback) | ☐ | ☐ | |
+Confirm the card preview + image render for each of the **5 variant receipt URLs**. Record pass/fail:
 
-> The `?v={statusVersion}` cache-buster on the receipt meta (T-07-06-04) ensures Twitter's crawler fetches the current variant. If a stale card shows, bump statusVersion (a status transition) and re-validate.
+| Variant | Receipt URL | card meta wired | og:image renders | preview (browser) | Pass/Fail |
+|---------|-------------|-----------------|------------------|-------------------|-----------|
+| Live | `<vercel-origin>/call/<live-id>` | ✅ verified 2026-06-08 (curl) | ✅ 200 image/png | ☐ | |
+| Settled | `<vercel-origin>/call/<settled-id>` | ✅ same `/call/[id]` layout | ☐ (needs seeded settled call) | ☐ | |
+| DuelSettled | `<vercel-origin>/duel/<challenge-id>` | ✅ **FIXED 2026-06-08** (commit `57a402c`) — was missing entirely | ✅ `/og/duel/<id>` 200 image/png | ☐ | |
+| CallerExited | `<vercel-origin>/call/<exited-id>` | ✅ same `/call/[id]` layout | ☐ (needs seeded exited call) | ☐ | |
+| Fallback | `<vercel-origin>/call/<unknown-id>` (catch-all → fallback) | ✅ verified 2026-06-08 (curl) | ✅ 200 image/png | ☐ | |
+
+> **DuelSettled gap found + fixed during this residual (quick task `260608-ep8`).** The `/duel/[challengeId]` route was a `'use client'` page with no metadata layout, so it emitted only Next's default `twitter:card=summary` with NO `og:image` — a duel link pasted into X showed a tiny imageless card. Added `apps/web/app/duel/[challengeId]/layout.tsx` (server component, mirrors `/call/[id]/layout.tsx`) emitting `summary_large_image` → `/og/duel/<id>?v=<statusOrdinal>`. **Redeploy required** before the DuelSettled row can be confirmed live.
+
+> The `?v={statusVersion}` cache-buster on the receipt meta (T-07-06-04) ensures Twitter's crawler fetches the current variant. If a stale card shows, bump statusVersion (a status transition) and re-validate. (Duel cache-buster: the relayer duel endpoint returns a status *label*, mapped to an ordinal Proposed=0…Settled=4 in the duel layout.)
 
 ---
 
@@ -172,7 +176,7 @@ Run each of the **5 variant receipt URLs** through `https://cards-dev.twitter.co
 - Coverage script result (exit code + table): `__________` (run after a fresh seed + indexer sync)
 - Migration confirmation (`\d posted_receipts` + `\d call_statement`): ✅ both applied to remote Sepolia DB `call_it_relayer_sepolia` 2026-06-08 via `db:migrate` (0006 + 0007); verified `call_statement(call_id PK, statement text, created_at)` + `posted_receipts(call_id PK, posted_at)` exist. Applied over a `fly proxy 5499:5432 -a call-it-pg-sepolia` tunnel. NOTE: relayer reads the DB via `DATABASE_URL`; drizzle-kit reads `POSTGRES_URL`.
 - CORS OPTIONS preflight `Access-Control-Allow-Origin` value: ✅ `https://call-it-web-sepolia.vercel.app` (exact origin, NOT `*`) — 204 preflight, methods `GET, POST, PATCH, OPTIONS`, `vary: Origin`. Set via `fly secrets set CORS_ALLOWED_ORIGINS=… -a call-it-relayer-sepolia` 2026-06-08 (machine restarted healthy). Incognito hydration spot-check (visual) still operator-pending but CORS+200s confirmed by curl.
-- Twitter Card Validator results (5/5): ⏳ **OPERATOR-PENDING** (browser-only, D-08) — run the 5 variant receipt URLs through `cards-dev.twitter.com/validator`.
+- Twitter Card Validator results (5/5): 🟡 **CARD META VERIFIED 2026-06-08; browser preview + redeploy pending.** Curl ground-truth from `call-it-web-sepolia.vercel.app`: 4/5 variants emit correct `summary_large_image` + absolute `og:image` (Live/Settled/CallerExited share `/call/[id]/layout.tsx`; Fallback ✅). **DuelSettled was broken (no card meta at all) — fixed in quick task `260608-ep8` (commit `57a402c`); needs a Vercel redeploy to go live.** `cards-dev.twitter.com/validator` is dead (X shut it down 2022) — use X post-composer / opengraph.xyz for the browser preview. Remaining: redeploy, then browser-preview all 5 (Settled/Exited/DuelSettled rendered images also need seeded data).
 - 200px outcome-word baselines (SC1) + authoritative `verify-event-coverage.ts` (OPS-04 live): ⏳ **PENDING SEEDED DATA** — need a fresh seed run of settled calls on the deployed app, then `npm run` the 200px spec with `--update-snapshots` and the coverage script with `--endpoint <v0.9.0> --seeded-call-id <id>`.
 
 ---
