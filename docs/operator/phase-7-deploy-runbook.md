@@ -168,9 +168,9 @@ Run each of the **5 variant receipt URLs** through `https://cards-dev.twitter.co
 ## Outputs to record (paste back into this runbook + the SUMMARY when done)
 
 - Deployed Vercel origin: `__________`
-- v0.9.0 Studio query endpoint: `__________`
-- Coverage script result (exit code + table): `__________`
-- Migration confirmation (`\d posted_receipts` + `\d call_statement`): `__________`
+- v0.9.0 Studio query endpoint: `https://api.studio.thegraph.com/query/1754389/call-it-sepolia/v0.9.0` ✅ published 2026-06-08 (build `QmYrrSgVxrpgg3Bgc7P1e2ZjdGNSjW3fhExcsieVPgcimJ`); `SUBGRAPH_URL_SEPOLIA` bumped in commit `1b0f9ff`
+- Coverage script result (exit code + table): `__________` (run after a fresh seed + indexer sync)
+- Migration confirmation (`\d posted_receipts` + `\d call_statement`): ✅ both applied to remote Sepolia DB `call_it_relayer_sepolia` 2026-06-08 via `db:migrate` (0006 + 0007); verified `call_statement(call_id PK, statement text, created_at)` + `posted_receipts(call_id PK, posted_at)` exist. Applied over a `fly proxy 5499:5432 -a call-it-pg-sepolia` tunnel. NOTE: relayer reads the DB via `DATABASE_URL`; drizzle-kit reads `POSTGRES_URL`.
 - CORS OPTIONS preflight `Access-Control-Allow-Origin` value: `__________`
 - Twitter Card Validator results (5/5): `__________`
 
