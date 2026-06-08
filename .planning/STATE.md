@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: milestone
 status: executing
-stopped_at: Phase 8 context gathered
-last_updated: "2026-06-08T18:16:50.026Z"
+stopped_at: Phase 8 UI-SPEC approved
+last_updated: "2026-06-08T20:57:49.950Z"
 last_activity: 2026-06-08 - SC1 true 5/5 (CONTRARIAN HIT live via fadeRealShare) + subgraph repointed to v0.9.1 (Studio dropped v0.9.0 label)
 progress:
   total_phases: 14
@@ -449,6 +449,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-06-08T18:16:50.000Z
-Stopped at: Phase 8 context gathered
-Resume file: .planning/phases/08-farcaster-mini-apps/08-CONTEXT.md
+Last session: 2026-06-08T18:23:20.769Z
+Stopped at: Phase 8 UI-SPEC approved
+Resume file: .planning/phases/08-farcaster-mini-apps/08-UI-SPEC.md
