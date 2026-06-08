@@ -1,0 +1,35 @@
+# Vercel deploy ignore — keep the upload to what the @call-it/web build needs
+# (apps/web + workspace packages shared/ui/config + root config + lockfile).
+# node_modules is auto-ignored by Vercel; the entries below drop the GB-scale
+# build artifacts and non-web packages that were bloating the upload to ~3GB.
+
+# Rust / Stylus build output
+**/target
+
+# Solidity / Foundry contracts package (not a web dependency)
+packages/contracts/out
+packages/contracts/cache
+packages/contracts/lib
+packages/contracts/broadcast
+packages/contracts/artifacts
+
+# Subgraph compiled artifacts
+packages/subgraph/build
+packages/subgraph/generated
+
+# Relayer is deployed to Fly, not Vercel
+apps/relayer/dist
+
+# Next.js local build cache (rebuilt on Vercel)
+**/.next
+**/.turbo
+
+# Repo bulk that has no role in the web build
+.git
+.planning
+evidence
+docs
+**/*.tsbuildinfo
+**/coverage
+**/playwright-report
+**/test-results
