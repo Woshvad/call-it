@@ -4,13 +4,13 @@ milestone: v1.1
 milestone_name: milestone
 status: executing
 stopped_at: Phase 8 UI-SPEC approved
-last_updated: "2026-06-08T21:58:59.236Z"
+last_updated: "2026-06-08T22:08:45.919Z"
 last_activity: 2026-06-08 -- Phase 08 execution started
 progress:
   total_phases: 14
   completed_phases: 9
   total_plans: 73
-  completed_plans: 70
+  completed_plans: 71
   percent: 64
 ---
 
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-05-21)
 ## Current Position
 
 Phase: 08 (farcaster-mini-apps) — EXECUTING
-Plan: 2 of 4
+Plan: 3 of 4
 
 > **Phase 07 status (2026-06-08):** ✅ **ALL 6 plans COMPLETE.** 07-06 Task 2 (operator-gated live deploy) was executed LIVE by operator + orchestrator on 2026-06-08: subgraph **v0.9.0 published to Sepolia Studio** (D-01 — no DN; build `QmYrrSgVxr…`, `SUBGRAPH_URL_SEPOLIA` bumped, commit `1b0f9ff`; `_meta` block 275026674 `hasIndexingErrors:false`), **BOTH relayer migrations applied** to remote Sepolia Postgres `call_it_relayer_sepolia` (`0006 call_statement` + `0007 posted_receipts`, both verified present), **`apps/web` deployed to Vercel `call-it-web-sepolia`** (`https://call-it-web-sepolia.vercel.app`; net-new monorepo deploy config `apps/web/vercel.json` + root `.vercelignore`; `/feed`/`/leaderboard` 200, fallback OG 200 image/png), **Fly CORS allowlist** = exact Vercel origin (`X_API_WRITE_TOKEN` still UNSET, D-02), **CORS OPTIONS preflight PASSED** (204, exact origin not `*`). Deploy commits: `1b0f9ff`, `2d1d93e`, `8b82d70`, `0d2aa40`, `046cca9`, `f7f495b`. **3 residuals operator-pending (NOT marked passed):** Twitter Card Validator 5/5 (SHARE-13/D-08, browser-only), SC1 200px outcome-word baselines + authoritative `verify-event-coverage.ts` live run (OPS-04, needs a fresh seeded-settled run), and the incognito visual hydration spot-check (CORS + 200s already curl-confirmed). Evidence in `docs/operator/phase-7-deploy-runbook.md` § Outputs to record + `07-06-SUMMARY.md`. This unblocks the parked Phase-4 UAT-1/2/3.
 
@@ -153,6 +153,7 @@ All 3 operator actions were run this session (user explicitly authorized "run al
 | Phase 07 P06 (CI-safe; operator-gated) | ~20min | 1 of 2 tasks | 3 files |
 | Phase 07 P06 (Task 2 live deploy, operator+orchestrator 2026-06-08) | — | 2 of 2 tasks | 2 deploy-config files + 6 commits |
 | Phase 08 P01 | 14min | 2 tasks | 8 files |
+| Phase 08-farcaster-mini-apps P02 | 7min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -304,6 +305,7 @@ completed: 2026-05-29
 - [Phase ?]: 07-05: reusable ShareButton -> twitter intent via shared @call-it/shared share-text builders (SHARE-15); statement URL-encoded
 - [Phase 07-06]: CI-safe share-loop verify artifacts shipped (1aed14e): receipt-meta.spec.ts (Tier-1 og:image ?v={statusVersion}+twitter:card+/call,/leaderboard carve-out SHARE-14/21; Tier-2 incognito env-gated), verify-event-coverage.ts (~20-event OPS-03 + CallCreated <30s OPS-04; configurable endpoint, non-zero on core gap/lag), phase-7-deploy-runbook.md. layout.tsx ?v= + middleware /leaderboard already correct — asserted as tests-of-record, no edit. LIVE deploy (Studio v0.9.0, Vercel, Fly CORS, BOTH relayer migrations 0006+0007, CORS smoke, Twitter Card Validator) PAUSED at human-action operator checkpoint — NOT executed, NOT marked passed.
 - [Phase ?]: [Phase 07-06]: live deploy DONE 2026-06-08 (operator+orchestrator) — Studio v0.9.0 (D-01 no DN) + both remote relayer migrations (0006 call_statement + 0007 posted_receipts) + Vercel call-it-web-sepolia (apps/web/vercel.json + root .vercelignore) + Fly CORS exact-origin allowlist; X_API_WRITE_TOKEN UNSET (D-02). 3 residuals operator-pending: Twitter Card Validator 5/5, SC1 200px baselines + live coverage run, incognito visual spot-check.
+- [Phase 08-farcaster-mini-apps]: 08-02: buildFarcasterEmbeds follows the Wave-0 RED scaffold signature ({callId,statusVersion,baseUrl} -> JSON strings) as the authoritative GREEN target (not the PLAN prose); Next 16 registers the dotted /.well-known/farcaster.json segment natively, no next.config rewrite fallback needed (Pitfall 5)
 
 ## Performance
 
@@ -450,6 +452,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-06-08T21:58:59.225Z
+Last session: 2026-06-08T22:07:52.624Z
 Stopped at: Phase 8 UI-SPEC approved
 Resume file: .planning/phases/08-farcaster-mini-apps/08-UI-SPEC.md

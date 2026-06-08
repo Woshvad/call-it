@@ -313,7 +313,7 @@ Plans:
 **Wave 1**
 
 - [x] 08-01-PLAN.md — Wave 0: static assets (icon 1024x1024 / splash 200x200) + middleware /.well-known public carve-out + RED test scaffolds + shared per-status button-set fixtures
-- [ ] 08-02-PLAN.md — Wave 1 (Slice A): fc:miniapp + legacy fc:frame embed meta (Metadata.other, D-03) + /.well-known/farcaster.json manifest body, no accountAssociation (D-05) — renders as a Frame in a validator
+- [x] 08-02-PLAN.md — Wave 1 (Slice A): fc:miniapp + legacy fc:frame embed meta (Metadata.other, D-03) + /.well-known/farcaster.json manifest body, no accountAssociation (D-05) — renders as a Frame in a validator
 - [ ] 08-03-PLAN.md — Wave 1 (Slice B): legacy Frame tx wire endpoint (status-aware buttons D-02/D-06/D-06a, origin-locked calldata,  one-tap D-07) + promoted challengeEscrowAbi — eip155:421614 wire well-formed (live broadcast = Phase 10, D-01)
 
 **Wave 2** *(blocked on Wave 1 completion)*
@@ -387,7 +387,7 @@ Phases execute in numeric order: 0 → 1 → 1.5 (parallel with 2) → 2 → 3 �
 | 5. StylusScoreEngine + 48h cutoff | 7/7 | Complete | 2026-06-02 |
 | 6. Safety review + Sepolia ≥48h + multisig rehearsal | 4/6 | In Progress | - |
 | 7. OG service final variants + Subgraph final mappings | 6/6 | Complete   | 2026-06-08 |
-| 8. Farcaster Mini Apps | 1/4 | In Progress|  |
+| 8. Farcaster Mini Apps | 2/4 | In Progress|  |
 | 9. Mobile responsive on 7 critical pages | 0/TBD | Not started | - |
 | 10. Mainnet deploy gate | 0/TBD | Not started | - |
 | 10.5. Mainnet multisig promotion (ownership lockdown) | 0/TBD | Not started | - |
