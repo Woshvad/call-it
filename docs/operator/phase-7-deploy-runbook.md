@@ -167,12 +167,13 @@ Run each of the **5 variant receipt URLs** through `https://cards-dev.twitter.co
 
 ## Outputs to record (paste back into this runbook + the SUMMARY when done)
 
-- Deployed Vercel origin: `__________`
+- Deployed Vercel origin: `https://call-it-web-sepolia.vercel.app` ✅ deployed 2026-06-08 (matches baked `NEXT_PUBLIC_OG_BASE_URL`). Vercel monorepo config: Root Directory = `apps/web` + `apps/web/vercel.json` (pnpm install/build at workspace root) + root `.vercelignore`. Smoke: `/` →307→`/signin`→200, `/feed` 200, `/leaderboard` 200, fallback OG `/og/fallback` → 200 image/png 40KB, subgraph `_meta` block 275026674 `hasIndexingErrors:false`, relayer `/api/feed` 200 JSON.
 - v0.9.0 Studio query endpoint: `https://api.studio.thegraph.com/query/1754389/call-it-sepolia/v0.9.0` ✅ published 2026-06-08 (build `QmYrrSgVxrpgg3Bgc7P1e2ZjdGNSjW3fhExcsieVPgcimJ`); `SUBGRAPH_URL_SEPOLIA` bumped in commit `1b0f9ff`
 - Coverage script result (exit code + table): `__________` (run after a fresh seed + indexer sync)
 - Migration confirmation (`\d posted_receipts` + `\d call_statement`): ✅ both applied to remote Sepolia DB `call_it_relayer_sepolia` 2026-06-08 via `db:migrate` (0006 + 0007); verified `call_statement(call_id PK, statement text, created_at)` + `posted_receipts(call_id PK, posted_at)` exist. Applied over a `fly proxy 5499:5432 -a call-it-pg-sepolia` tunnel. NOTE: relayer reads the DB via `DATABASE_URL`; drizzle-kit reads `POSTGRES_URL`.
-- CORS OPTIONS preflight `Access-Control-Allow-Origin` value: `__________`
-- Twitter Card Validator results (5/5): `__________`
+- CORS OPTIONS preflight `Access-Control-Allow-Origin` value: ✅ `https://call-it-web-sepolia.vercel.app` (exact origin, NOT `*`) — 204 preflight, methods `GET, POST, PATCH, OPTIONS`, `vary: Origin`. Set via `fly secrets set CORS_ALLOWED_ORIGINS=… -a call-it-relayer-sepolia` 2026-06-08 (machine restarted healthy). Incognito hydration spot-check (visual) still operator-pending but CORS+200s confirmed by curl.
+- Twitter Card Validator results (5/5): ⏳ **OPERATOR-PENDING** (browser-only, D-08) — run the 5 variant receipt URLs through `cards-dev.twitter.com/validator`.
+- 200px outcome-word baselines (SC1) + authoritative `verify-event-coverage.ts` (OPS-04 live): ⏳ **PENDING SEEDED DATA** — need a fresh seed run of settled calls on the deployed app, then `npm run` the 200px spec with `--update-snapshots` and the coverage script with `--endpoint <v0.9.0> --seeded-call-id <id>`.
 
 ---
 
