@@ -83,28 +83,40 @@ test.describe('SHARE-01: wired OG variants render 1200×630 PNG', () => {
   }
 });
 
-// ── SC1: 200px outcome-word legibility (env-gated until 07-06 seeds baselines) ───
-// The 5 settled outcome words (D-08 / §16) + the seeded receipt URL each renders.
-// TODO(07-06): replace the {placeholder} callIds with real seeded settled-call IDs
-// (one per outcome word) and commit the generated baseline PNGs against a deployed
-// endpoint, then enable via OG_200PX_BASELINES=1.
+// ── SC1: 200px outcome-word legibility (env-gated; baselines seeded 2026-06-08) ──
+// Real seeded Arbitrum-Sepolia settled-call IDs (one per outcome word):
+//   CALLED IT       = call 8  (CallerWon, repDelta +10)
+//   COLD CALL       = call 11 (CallerWon, repDelta +2, 0 faders -> cold-start)
+//   LOUD AND WRONG  = call 14 (CallerLost, seeded via seed-loss-call.ts)
+//   FADED CORRECTLY = call 14 ?as=fader (D-09 per-viewer fader render on the loss call)
+//   CONTRARIAN HIT  = DEFERRED — the OG route hardcodes fadeRealShare:0
+//     (apps/web/app/og/[callId]/route.ts), and outcome-word.ts requires
+//     fadeRealShare >= 0.5 for CONTRARIAN HIT, so the card cannot render that word
+//     until the route wires fadeRealShare from subgraph positions. Tracked in
+//     docs/operator/phase-7-deploy-runbook.md (Phase 7 SC1 deferral).
+// Baselines generated against the deployed endpoint (PLAYWRIGHT_BASE_URL) with
+// OG_200PX_BASELINES=1 --update-snapshots.
 const VARIANTS = [
-  { word: 'CALLED IT', url: '/og/{settledWinId}' },
-  { word: 'LOUD AND WRONG', url: '/og/{settledLossId}' },
-  { word: 'CONTRARIAN HIT', url: '/og/{contrarianId}' },
-  { word: 'COLD CALL', url: '/og/{coldId}' },
-  { word: 'FADED CORRECTLY', url: '/og/{faderId}?as=fader' },
+  { word: 'CALLED IT', url: '/og/8', deferred: false },
+  { word: 'LOUD AND WRONG', url: '/og/14', deferred: false },
+  { word: 'CONTRARIAN HIT', url: '/og/8', deferred: true },
+  { word: 'COLD CALL', url: '/og/11', deferred: false },
+  { word: 'FADED CORRECTLY', url: '/og/14?as=fader', deferred: false },
 ] as const;
 
 test.describe('SC1: 200px OG thumbnail legibility (5 outcome words)', () => {
   for (const v of VARIANTS) {
     test(`200px thumbnail legible: ${v.word}`, async ({ page }) => {
-      // Skip until 07-06 has seeded settled-call IDs + committed baselines on a
-      // reachable/deployed endpoint. Keeps the scaffold from blocking CI while
-      // preserving the real 5-word structure (do NOT fabricate baselines).
+      // CONTRARIAN HIT is deferred (OG-route fadeRealShare gap — see note above).
+      test.skip(
+        v.deferred,
+        'CONTRARIAN HIT deferred: OG route hardcodes fadeRealShare:0 so the card cannot render this word yet (see phase-7-deploy-runbook.md)',
+      );
+      // Env-gated: the authoritative readability run sets OG_200PX_BASELINES=1
+      // against a deployed endpoint. Keeps this block from blocking CI.
       test.skip(
         !BASELINES_READY,
-        'Pending 07-06 seeded settled-call IDs + baseline PNGs on a deployed endpoint (set OG_200PX_BASELINES=1)',
+        'Set OG_200PX_BASELINES=1 (+ PLAYWRIGHT_BASE_URL=deployed) to run the authoritative 200px readability check',
       );
 
       // 1200×630 downscaled to its ~1/6 X-timeline thumbnail footprint.
