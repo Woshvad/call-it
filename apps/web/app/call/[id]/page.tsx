@@ -82,6 +82,7 @@ import {
   CALLER_EXIT_LOCK_DURATION,
   POSITION_EXIT_COOLDOWN,
 } from '@call-it/shared';
+import { warpcastComposeUrl, buildShareText } from '@call-it/shared';
 import { ChallengeFormModal } from '@/app/components/ChallengeFormModal';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -1368,6 +1369,21 @@ export default function CallPage() {
     const outcomeColor = outcomeWordResult?.color ?? '#4ADE80';
     const outcomeLozenge = outcomeWordResult?.lozenge ?? null;
 
+    // SHARE AS FRAME (Plan 08-04, D-04 / UI-SPEC): the Farcaster compose-intent URL for
+    // the embed-bearing receipt URL. The fc:miniapp/fc:frame embed (Plan 08-02) rides the
+    // receipt URL inside warpcastComposeUrl's embeds[]= param — no payload change. Reuses
+    // the shared pure builders. NULL (control omitted, no dead button) when the OG base
+    // origin is unset or no real handle exists — the `#<id>` fallback is not shareable
+    // (UI-SPEC Error state).
+    const ogBaseForFrame = process.env.NEXT_PUBLIC_OG_BASE_URL?.replace(/\/$/, '');
+    const shareAsFrameUrl =
+      ogBaseForFrame && callData?.handle
+        ? warpcastComposeUrl(
+            `${ogBaseForFrame}/call/${callIdNum}`,
+            buildShareText({ outcomeWord, handle, statement: marketLine }),
+          )
+        : null;
+
     // Determine Stamp color token — use brand-accent for accent colors, outcome-win/loss for others
     const stampColor: 'outcome-win' | 'outcome-loss' | 'outcome-contrarian' | 'brand-muted' | 'brand-accent' =
       outcomeWord === 'CALLED IT' ? 'outcome-win' :
@@ -1545,7 +1561,7 @@ export default function CallPage() {
             ))}
           </div>
 
-          {/* ── ACTION ROW (UI-20): Share + View All Calls ────────────────────── */}
+          {/* ── ACTION ROW (UI-20): Share + Share as Frame + View All Calls ───── */}
           <div style={{ display: 'flex', flexDirection: 'row', gap: '12px', marginBottom: '32px' }}>
             <button style={{
               flex: 1, fontFamily: 'monospace', fontSize: '13px', fontWeight: 700,
@@ -1555,6 +1571,23 @@ export default function CallPage() {
             }}>
               SHARE THE RECEIPT →
             </button>
+            {shareAsFrameUrl && (
+              <a
+                href={shareAsFrameUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ flex: 1, textDecoration: 'none' }}
+              >
+                <button style={{
+                  width: '100%', fontFamily: 'monospace', fontSize: '13px', fontWeight: 700,
+                  color: '#E8F542', backgroundColor: 'transparent',
+                  border: '2px solid #E8F542', padding: '16px', cursor: 'pointer',
+                  textTransform: 'uppercase', letterSpacing: '0.08em',
+                }}>
+                  SHARE AS FRAME →
+                </button>
+              </a>
+            )}
             <Link href={`/?caller=${encodeURIComponent(handle)}`} style={{ flex: 1, textDecoration: 'none' }}>
               <button style={{
                 width: '100%', fontFamily: 'monospace', fontSize: '13px', fontWeight: 700,
