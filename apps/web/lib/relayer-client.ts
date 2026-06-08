@@ -10,6 +10,8 @@
  * Source: PATTERNS.md § relayer-client (partial analog to og-fallback-render.ts)
  */
 
+import { SUBGRAPH_URL_SEPOLIA } from '@call-it/shared';
+
 const RELAYER_BASE = (process.env['NEXT_PUBLIC_RELAYER_BASE_URL'] ?? '').replace(/\/$/, '');
 
 /**
@@ -137,7 +139,12 @@ export async function getMarketLine(callId: string | number): Promise<string | n
 
 // ─── Settled-field subgraph read (OG real-data wiring, D-03) ─────────────────────
 
-const SUBGRAPH_URL = (process.env['NEXT_PUBLIC_SUBGRAPH_URL'] ?? '').replace(/\/$/, '');
+// Subgraph query URL — AUTHORITATIVELY sourced from the network-pinned constant in
+// @call-it/shared (SUBGRAPH_URL_SEPOLIA), consistent with the hardcoded-single-network
+// architecture. This intentionally does NOT read NEXT_PUBLIC_SUBGRAPH_URL: the Studio
+// dev endpoint churns version labels, and a stale Vercel env var would silently break
+// every settled card. Bumping SUBGRAPH_URL_SEPOLIA + git push redeploys the correct URL.
+const SUBGRAPH_URL = SUBGRAPH_URL_SEPOLIA.replace(/\/$/, '');
 
 /**
  * Real settled stats for a single call, read from the subgraph Settlement +
