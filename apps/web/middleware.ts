@@ -54,6 +54,11 @@ const PUBLIC_PREFIXES = [
   '/_next',
   '/favicon.ico',
   '/fonts',
+  // Farcaster Mini App manifest (D-05, Phase 8 Pitfall 2). The Farcaster crawler
+  // fetches /.well-known/farcaster.json UNAUTHENTICATED; without this carve-out the
+  // matcher bounces it to /signin and the manifest 302s → the Mini App never renders.
+  // (/api/frame/* is already covered by the '/api' prefix above — do NOT add it again.)
+  '/.well-known',
   // Public read surfaces — receipts/profiles/duels/leaderboard MUST be viewable by
   // unauthenticated users (spec §18.1: "the receipt URL is permanent and works for
   // unauthenticated users"; PITFALLS share-loop check). Action pages (/new, /settings,
