@@ -10,3 +10,4 @@
 export { callRegistryAbi } from './CallRegistry';
 export { profileRegistryAbi } from './ProfileRegistry';
 export { followFadeMarketAbi } from './FollowFadeMarket';
+export { challengeEscrowAbi } from './ChallengeEscrow';
