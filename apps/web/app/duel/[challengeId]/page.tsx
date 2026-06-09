@@ -485,7 +485,6 @@ export default function DuelPage() {
   if (loading && !liveState) {
     return (
       <div style={{ backgroundColor: '#09090E', minHeight: '100vh', padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-        <DesktopOnlyBanner />
         <div style={{ height: '24px', backgroundColor: '#1E1E2E', width: '200px' }} />
         <div style={{ height: '200px', backgroundColor: '#111118', border: '1px solid #1E1E2E' }} />
         <div style={{ height: '280px', backgroundColor: '#111118', border: '1px solid #1E1E2E' }} />
@@ -533,32 +532,6 @@ export default function DuelPage() {
           {toastMsg.text}
         </div>
       )}
-
-      {/* ── Mobile "Best viewed on desktop" banner (D-10, Phase 9 contract) ── */}
-      <div
-        className="mobile-banner"
-        style={{
-          display: 'none', // hidden on desktop; CSS below overrides at <=768px
-        }}
-      >
-        <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: '12px', fontWeight: 700, color: '#F1F5F9', textTransform: 'uppercase', letterSpacing: '0.12em' }}>
-          BEST VIEWED ON DESKTOP · Some features may not work on mobile.
-        </span>
-      </div>
-      <style>{`
-        @media (max-width: 768px) {
-          .mobile-banner {
-            display: flex !important;
-            flex-direction: row;
-            align-items: center;
-            justify-content: center;
-            padding: 10px 16px;
-            background-color: #111118;
-            border-top: 2px solid #FB923C;
-            border-bottom: 2px solid #FB923C;
-          }
-        }
-      `}</style>
 
       {/* ── Header bar ─────────────────────────────────────────────────────── */}
       <div
