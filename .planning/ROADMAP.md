@@ -348,7 +348,7 @@ Plans:
 **Wave 2** *(parallel slices — all depend only on the hook; zero file overlap)*
 
   - [x] 09-02-PLAN.md — Wave 2: MobileDrawer.tsx (left-anchored auth-aware slide-over, D-05/D-06) + GlobalNav hamburger (mobile-only, bell stays pinned) — UI-49
-  - [ ] 09-03-PLAN.md — Wave 2: Settled (#1 share-landing) + Live Receipt at 375px — container clamp, 52px outcome hero + data-outcome-word, 2x2 stat stack, full-width actions, inline Provenance/Dispute modal clamps — UI-48/49 / SC1 / SC3
+  - [x] 09-03-PLAN.md — Wave 2: Settled (#1 share-landing) + Live Receipt at 375px — container clamp, 52px outcome hero + data-outcome-word, 2x2 stat stack, full-width actions, inline Provenance/Dispute modal clamps — UI-48/49 / SC1 / SC3
   - [ ] 09-04-PLAN.md — Wave 2: DesktopOnlyBanner.tsx (D-08/D-09) mounted on /new (incl ?quote=) + /duel/[challengeId] — UI-50 / SC2
   - [ ] 09-05-PLAN.md — Wave 2: Feed + Profile + Leaderboard at 375px (container clamps, DuelRowCard + category-card stacks, 4-col leaderboard clamp w/ viewer-row accent preserved) — UI-48/49
   - [ ] 09-06-PLAN.md — Wave 2: Sign-in (400px column clamp) + Onboarding (480px frame clamp + 5 subroutes >=44px) at 375px — UI-48/49
@@ -411,6 +411,6 @@ Phases execute in numeric order: 0 → 1 → 1.5 (parallel with 2) → 2 → 3 �
 | 6. Safety review + Sepolia ≥48h + multisig rehearsal | 4/6 | In Progress | - |
 | 7. OG service final variants + Subgraph final mappings | 6/6 | Complete   | 2026-06-08 |
 | 8. Farcaster Mini Apps | 6/6 | Complete   | 2026-06-09 |
-| 9. Mobile responsive on 7 critical pages | 2/8 | In Progress|  |
+| 9. Mobile responsive on 7 critical pages | 3/8 | In Progress|  |
 | 10. Mainnet deploy gate | 0/TBD | Not started | - |
 | 10.5. Mainnet multisig promotion (ownership lockdown) | 0/TBD | Not started | - |
