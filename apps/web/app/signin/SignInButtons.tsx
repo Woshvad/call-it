@@ -50,6 +50,50 @@ function usePrivyReadinessTimeout(timeoutMs: number): boolean {
   return timedOut;
 }
 
+/** Official 4-color Google "G" mark (stays multicolor on both rest + accent-hover fills). */
+function GoogleIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className="h-5 w-5 shrink-0"
+      aria-hidden="true"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <path
+        fill="#4285F4"
+        d="M23.52 12.27c0-.79-.07-1.54-.2-2.27H12v4.51h6.47a5.53 5.53 0 0 1-2.4 3.63v3h3.88c2.27-2.09 3.57-5.17 3.57-8.87z"
+      />
+      <path
+        fill="#34A853"
+        d="M12 24c3.24 0 5.96-1.08 7.95-2.91l-3.88-3c-1.08.72-2.45 1.16-4.07 1.16-3.13 0-5.78-2.11-6.73-4.96H1.28v3.09A12 12 0 0 0 12 24z"
+      />
+      <path
+        fill="#FBBC05"
+        d="M5.27 14.29a7.2 7.2 0 0 1 0-4.58V6.62H1.28a12 12 0 0 0 0 10.76l3.99-3.09z"
+      />
+      <path
+        fill="#EA4335"
+        d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.44-3.44C17.95 1.19 15.24 0 12 0A12 12 0 0 0 1.28 6.62l3.99 3.09C6.22 6.86 8.87 4.75 12 4.75z"
+      />
+    </svg>
+  );
+}
+
+/** Monochrome X (Twitter) mark — currentColor flips white→black on the accent hover. */
+function XIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className="h-[18px] w-[18px] shrink-0"
+      fill="currentColor"
+      aria-hidden="true"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24h-6.66l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231 5.45-6.231zm-1.161 17.52h1.833L7.084 4.126H5.117l11.966 15.644z" />
+    </svg>
+  );
+}
+
 export default function SignInButtons({ CustodyTooltip }: SignInButtonsProps) {
   const router = useRouter();
   const { ready, authenticated, login, getAccessToken } = usePrivy();
@@ -131,7 +175,7 @@ export default function SignInButtons({ CustodyTooltip }: SignInButtonsProps) {
         intent="primary"
         size="lg"
         onClick={handleConnectWallet}
-        style={{ width: '100%' }}
+        className="w-full font-mono uppercase tracking-wide font-bold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent focus-visible:ring-offset-2 focus-visible:ring-offset-brand-bg"
         data-testid="btn-connect-wallet"
       >
         Connect Wallet
@@ -144,24 +188,30 @@ export default function SignInButtons({ CustodyTooltip }: SignInButtonsProps) {
           size="lg"
           onClick={handleGoogleLogin}
           disabled={!ready && !privyTimedOut}
-          style={{ width: '100%' }}
+          className="w-full font-mono uppercase tracking-wide font-semibold bg-brand-surface text-white border-2 border-brand-accent shadow-[4px_4px_0_0_#000] transition-all duration-100 ease-out hover:bg-brand-accent hover:text-black hover:border-black hover:shadow-[3px_3px_0_0_#E8F542] active:shadow-[2px_2px_0_0_#000] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-brand-bg"
           data-testid="btn-google"
         >
-          Sign in with Google
+          <span className="inline-flex items-center gap-2">
+            <GoogleIcon />
+            Sign in with Google
+          </span>
         </Button>
       </CustodyTooltip>
 
-      {/* Twitter OAuth (secondary intent + AUTH-38 custody tooltip) */}
+      {/* X (formerly Twitter) OAuth (secondary intent + AUTH-38 custody tooltip) */}
       <CustodyTooltip>
         <Button
           intent="secondary"
           size="lg"
           onClick={handleTwitterLogin}
           disabled={!ready && !privyTimedOut}
-          style={{ width: '100%' }}
+          className="w-full font-mono uppercase tracking-wide font-semibold bg-brand-surface text-white border-2 border-brand-accent shadow-[4px_4px_0_0_#000] transition-all duration-100 ease-out hover:bg-brand-accent hover:text-black hover:border-black hover:shadow-[3px_3px_0_0_#E8F542] active:shadow-[2px_2px_0_0_#000] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-brand-bg"
           data-testid="btn-twitter"
         >
-          Sign in with Twitter
+          <span className="inline-flex items-center gap-2">
+            <XIcon />
+            Sign in with X
+          </span>
         </Button>
       </CustodyTooltip>
 

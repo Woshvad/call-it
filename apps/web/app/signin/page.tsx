@@ -4,7 +4,7 @@
  *
  * Decision D-33: Button order is Connect Wallet > Google > Twitter (locked by Playwright test)
  * AUTH-36: All 3 paths must produce an authenticated session that lands on /
- * AUTH-37: Disclaimer copy "By signing in you agree that your calls become permanent public record."
+ * AUTH-37: Disclaimer copy links to the /terms page (which preserves the permanent-record promise)
  * AUTH-38: Custody microcopy on OAuth buttons (Google/Twitter) surfaced via tooltip on hover/focus
  * Pitfall 16: If Privy is unreachable (ready === false after 5s), surface a fallback banner
  *
@@ -18,6 +18,7 @@
 
 import React, { Component, useState } from 'react';
 import dynamic from 'next/dynamic';
+import Link from 'next/link';
 import { Card } from '@call-it/ui';
 import { useIsMobile } from '../hooks/useIsMobile';
 
@@ -196,8 +197,11 @@ export default function SignInPage() {
           }}
           data-testid="disclaimer"
         >
-          By signing in you agree that your calls become permanent public record. No edits. No
-          deletes. Wins and losses both count.
+          By signing in, you&apos;re agreeing to our{' '}
+          <Link href="/terms" style={{ color: '#E8F542', textDecoration: 'underline' }}>
+            Terms &amp; Conditions
+          </Link>
+          .
         </p>
       </Card>
     </main>

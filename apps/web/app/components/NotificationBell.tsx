@@ -126,8 +126,8 @@ export function NotificationBell() {
     setUnreadCount((prev) => Math.max(0, prev - ids.length));
   }, []);
 
-  // Only render when authenticated and Privy is ready
-  if (!ready || !authenticated || !address) return null;
+  // render when authenticated + ready (address may lag for OAuth — WR-03)
+  if (!ready || !authenticated) return null;
 
   // Only render after first successful fetch (or if inbox is already open)
   if (!hasFetched && !isOpen) {
