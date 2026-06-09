@@ -84,6 +84,7 @@ import {
 } from '@call-it/shared';
 import { warpcastComposeUrl, buildShareText } from '@call-it/shared';
 import { ChallengeFormModal } from '@/app/components/ChallengeFormModal';
+import { useIsMobile } from '@/app/hooks/useIsMobile';
 // MiniAppReady (08-06, UAT 08 GAP 2): calls sdk.actions.ready() once after mount so the
 // Farcaster Mini App host dismisses the splash and reveals this receipt (no blank page).
 // Mounted on EVERY render branch below (loading / settled / live). Fail-safe outside a host.
@@ -960,6 +961,11 @@ export default function CallPage() {
   const { user, authenticated } = usePrivy();
   const { address: userAddress } = useAccount();
 
+  // Phase 9 (09-03): mobile-responsive layout swap (D-01/D-02 — single hook,
+  // mobile-first first paint). Drives every isMobile ? mobile : desktop style
+  // object on the settled + live branches and the two inline modals below.
+  const isMobile = useIsMobile();
+
   // Call metadata from relayer
   const [callData, setCallData] = useState<CallData | null>(null);
   const [activityFeed, setActivityFeed] = useState<ActivityEntry[]>([]);
@@ -1444,10 +1450,14 @@ export default function CallPage() {
         {/* ── Sticky Caller Header ─────────────────────────────────────────── */}
         <div style={{
           position: 'sticky', top: 0, zIndex: 30,
-          backgroundColor: '#09090E', borderBottom: '2px solid #2E2E42', padding: '12px 24px',
+          backgroundColor: '#09090E', borderBottom: '2px solid #2E2E42',
+          padding: isMobile ? '12px 16px' : '12px 24px',
         }}>
-          <div style={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: '16px' }}>
+          <div style={{
+            display: 'flex', flexDirection: 'row', justifyContent: 'space-between',
+            alignItems: 'center', flexWrap: isMobile ? 'wrap' : 'nowrap', gap: isMobile ? '8px' : undefined,
+          }}>
+            <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: isMobile ? '10px' : '16px', flexWrap: 'wrap', minWidth: 0 }}>
               <Link href="/" style={{ fontFamily: 'monospace', fontSize: '12px', color: '#94A3B8', textDecoration: 'none' }}>
                 ← Back
               </Link>
@@ -1472,7 +1482,9 @@ export default function CallPage() {
         </div>
 
         {/* ── Page content ─────────────────────────────────────────────────── */}
-        <div style={{ maxWidth: '1024px', margin: '0 auto', padding: '32px 24px' }}>
+        <div style={isMobile
+          ? { width: '100%', maxWidth: '100%', margin: '0 auto', padding: '24px 16px' }
+          : { maxWidth: '1024px', margin: '0 auto', padding: '32px 24px' }}>
 
           {/* ── Call Statement (UI-15): Syne 48px, target value in #E8F542 ──── */}
           <div style={{ marginBottom: '32px' }}>
@@ -1505,16 +1517,21 @@ export default function CallPage() {
                 color={stampColor}
                 hexColor={outcomeColor}
               />
-              {/* 96px outcome word text (Syne, §14.1 locked color) */}
-              <p style={{
-                fontFamily: "'Syne', sans-serif",
-                fontSize: '96px',
-                fontWeight: 800,
-                color: outcomeColor,
-                lineHeight: 1.0,
-                margin: 0,
-                letterSpacing: '-0.02em',
-              }}>
+              {/* Outcome word text (Syne, §14.1 locked color). Desktop 96px →
+                  mobile 52px (UI-SPEC Typography; Playwright legibility floor 36px).
+                  data-outcome-word is the stable hook responsive.spec.ts targets. */}
+              <p
+                data-outcome-word={outcomeWord}
+                style={{
+                  fontFamily: "'Syne', sans-serif",
+                  fontSize: isMobile ? '52px' : '96px',
+                  fontWeight: 800,
+                  color: outcomeColor,
+                  lineHeight: 1.0,
+                  margin: 0,
+                  letterSpacing: '-0.02em',
+                }}
+              >
                 {outcomeWord}
               </p>
               {/* Lozenge (CONTRARIAN / FADER WIN) */}
@@ -1562,9 +1579,11 @@ export default function CallPage() {
             </div>
           )}
 
-          {/* ── 4-STAT ROW (UI-19): FINAL VALUE / TARGET / CONVICTION / P&L ── */}
+          {/* ── 4-STAT ROW (UI-19): FINAL VALUE / TARGET / CONVICTION / P&L ──
+              Desktop: 4 cells in a row. Mobile: 2×2 via flexWrap (NOT display:grid —
+              Pitfall 3/15), preserving the 1px inter-cell dividers + 2px outer border. */}
           <div style={{
-            display: 'flex', flexDirection: 'row', gap: '0px',
+            display: 'flex', flexDirection: 'row', flexWrap: isMobile ? 'wrap' : 'nowrap', gap: '0px',
             border: '2px solid #2E2E42', marginBottom: '32px',
           }}>
             {[
@@ -1578,8 +1597,13 @@ export default function CallPage() {
               },
             ].map((cell, i, arr) => (
               <div key={cell.label} style={{
-                flex: 1, padding: '14px 16px',
-                borderRight: i < arr.length - 1 ? '1px solid #2E2E42' : undefined,
+                // Mobile 2×2: each cell two-per-row; left cell of each pair keeps the
+                // vertical divider, the top pair keeps a bottom divider — grid look, no grid.
+                flex: isMobile ? '1 1 45%' : 1, padding: '14px 16px',
+                borderRight: isMobile
+                  ? (i % 2 === 0 ? '1px solid #2E2E42' : undefined)
+                  : (i < arr.length - 1 ? '1px solid #2E2E42' : undefined),
+                borderBottom: isMobile && i < 2 ? '1px solid #2E2E42' : undefined,
                 display: 'flex', flexDirection: 'column', gap: '4px',
               }}>
                 <span style={{ fontFamily: 'monospace', fontSize: '10px', color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.12em' }}>
@@ -1592,10 +1616,16 @@ export default function CallPage() {
             ))}
           </div>
 
-          {/* ── ACTION ROW (UI-20): Share + Share as Frame + View All Calls ───── */}
-          <div style={{ display: 'flex', flexDirection: 'row', gap: '12px', marginBottom: '32px' }}>
+          {/* ── ACTION ROW (UI-20): Share + Share as Frame + View All Calls ─────
+              Desktop: 3 buttons in a row. Mobile: full-width stacked (column),
+              each button width:100% + ≥44px tall (padding 16px ⇒ ~48px). */}
+          <div data-receipt-action-row style={{
+            display: 'flex', flexDirection: isMobile ? 'column' : 'row',
+            gap: '12px', marginBottom: '32px',
+          }}>
             <button style={{
-              flex: 1, fontFamily: 'monospace', fontSize: '13px', fontWeight: 700,
+              flex: isMobile ? undefined : 1, width: isMobile ? '100%' : undefined,
+              fontFamily: 'monospace', fontSize: '13px', fontWeight: 700,
               color: '#09090E', backgroundColor: '#E8F542',
               border: '2px solid #09090E', boxShadow: '4px 4px 0 0 #09090E',
               padding: '16px', cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '0.08em',
@@ -1607,7 +1637,7 @@ export default function CallPage() {
                 href={shareAsFrameUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                style={{ flex: 1, textDecoration: 'none' }}
+                style={{ flex: isMobile ? undefined : 1, width: isMobile ? '100%' : undefined, textDecoration: 'none' }}
               >
                 <button style={{
                   width: '100%', fontFamily: 'monospace', fontSize: '13px', fontWeight: 700,
@@ -1619,7 +1649,7 @@ export default function CallPage() {
                 </button>
               </a>
             )}
-            <Link href={`/?caller=${encodeURIComponent(handle)}`} style={{ flex: 1, textDecoration: 'none' }}>
+            <Link href={`/?caller=${encodeURIComponent(handle)}`} style={{ flex: isMobile ? undefined : 1, width: isMobile ? '100%' : undefined, textDecoration: 'none' }}>
               <button style={{
                 width: '100%', fontFamily: 'monospace', fontSize: '13px', fontWeight: 700,
                 color: '#E8F542', backgroundColor: 'transparent',
@@ -1652,10 +1682,14 @@ export default function CallPage() {
                   FINAL POSITIONS
                 </span>
               </div>
-              {/* Two-column flex (NOT grid — Pitfall 15) */}
-              <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'flex-start' }}>
-                {/* FOLLOWERS column */}
-                <div style={{ flex: 1, borderRight: '1px solid #2E2E42' }}>
+              {/* Two-column flex (NOT grid — Pitfall 15) → stacks to column at mobile */}
+              <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: 'flex-start' }}>
+                {/* FOLLOWERS column — at mobile the vertical divider becomes a horizontal one */}
+                <div style={{
+                  flex: 1, width: isMobile ? '100%' : undefined,
+                  borderRight: isMobile ? undefined : '1px solid #2E2E42',
+                  borderBottom: isMobile ? '1px solid #2E2E42' : undefined,
+                }}>
                   <div style={{ padding: '8px 12px', borderBottom: '1px solid #2E2E42' }}>
                     <span style={{ fontFamily: 'monospace', fontSize: '10px', color: '#E8F542', textTransform: 'uppercase', letterSpacing: '0.1em' }}>FOLLOWERS</span>
                   </div>
@@ -1679,7 +1713,7 @@ export default function CallPage() {
                   )}
                 </div>
                 {/* FADERS column */}
-                <div style={{ flex: 1 }}>
+                <div style={{ flex: 1, width: isMobile ? '100%' : undefined }}>
                   <div style={{ padding: '8px 12px', borderBottom: '1px solid #2E2E42' }}>
                     <span style={{ fontFamily: 'monospace', fontSize: '10px', color: '#F87171', textTransform: 'uppercase', letterSpacing: '0.1em' }}>FADERS</span>
                   </div>
