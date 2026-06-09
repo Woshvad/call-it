@@ -4,13 +4,13 @@ milestone: v1.1
 milestone_name: milestone
 status: executing
 stopped_at: Completed 09-01-PLAN.md
-last_updated: "2026-06-09T12:24:09.122Z"
+last_updated: "2026-06-09T12:33:54.356Z"
 last_activity: 2026-06-09 -- Phase 09 execution started
 progress:
   total_phases: 14
   completed_phases: 10
   total_plans: 83
-  completed_plans: 78
+  completed_plans: 79
   percent: 71
 ---
 
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-05-21)
 ## Current Position
 
 Phase: 09 (mobile-responsive-on-7-critical-pages) — EXECUTING
-Plan: 4 of 8
+Plan: 5 of 8
 
 > **Phase 08 status (2026-06-09):** ✅ **ALL 4 plans COMPLETE.** 08-04 (Slice C — close the distribution loop) finalized: Task 1 (auto-post embed rides the receipt URL — worker verify-only, no payload change; Open Q3 compose host MIGRATED warpcast.com → farcaster.xyz, one-line pure-builder change) committed `ad81ea3`; Task 2 (SHARE AS FRAME outline control on the settled receipt action row) implemented + committed `83aeae9`. **Task-2 human-verify checkpoint APPROVED 2026-06-09** on the automated evidence (web 80/80, relayer 209 passed/1 skipped, both builds exit 0, control reuses existing design tokens + `rel="noopener noreferrer"`); the live in-Warpcast visual preview is DEFERRED to the existing Phase-10/soak gate (Arbitrum Sepolia is not in Warpcast's chainList, so an in-client transact preview is unavailable on testnet). SHARE-19 is Complete (traced to Phase 8 in REQUIREMENTS.md). Distribution loop closed (auto-post + manual SHARE AS FRAME both carry the Frame embed; live tap-to-transact remains the D-01 Phase-10 gate).
 
@@ -163,6 +163,7 @@ All 3 operator actions were run this session (user explicitly authorized "run al
 | Phase 09 P01 | 6min | 2 tasks | 2 files |
 | Phase 09 P02 | 4min | 2 tasks | 2 files |
 | Phase 09 P03 | 14min | 2 tasks | 1 files |
+| Phase 09 P04 | 9min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -325,6 +326,7 @@ completed: 2026-05-29
 - [Phase ?]: [Phase 09]: 09-02: MobileDrawer is pure (no useIsMobile) — GlobalNav owns the isMobile gate + drawer open-state; drawer renders null on !open and is always mounted. Profile href resolves address via useAccount() (same source as NotificationBell), gated on authenticated && ready (Pitfall 5).
 - [Phase ?]: [Phase 09]: 09-03: 3 useIsMobile() calls (CallPage + DisputeModal + ProvenanceModal) — modals are separate component functions, Rules of Hooks require per-component hook; plan 'exactly one' acceptance assumed inline modals
 - [Phase ?]: [Phase 09]: 09-03: settled + live 4-stat rows stack 2x2 via flexWrap+flex:'1 1 45%' (NOT display:grid); dividers preserved via index-parity borderRight + top-row borderBottom; data-outcome-word + data-receipt-action-row hooks added
+- [Phase ?]: [Phase 09]: 09-04: DesktopOnlyBanner mounted on ALL 3 /new returns (new-call, ?quote= composer, quote-success) + BOTH /duel returns (loading + main) via React fragments; normal-flow (not overlay) pushes content down and never blocks the 09-02 hamburger exit (D-08/SC2/UI-50)
 
 ## Performance
 
@@ -471,6 +473,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-06-09T12:23:59.688Z
+Last session: 2026-06-09T12:33:12.511Z
 Stopped at: Completed 09-01-PLAN.md
 Resume file: .planning/phases/09-mobile-responsive-on-7-critical-pages/09-UI-SPEC.md
