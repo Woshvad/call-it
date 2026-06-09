@@ -4,13 +4,13 @@ milestone: v1.1
 milestone_name: milestone
 status: executing
 stopped_at: Completed 09-01-PLAN.md
-last_updated: "2026-06-09T12:01:06.575Z"
+last_updated: "2026-06-09T12:10:13.254Z"
 last_activity: 2026-06-09 -- Phase 09 execution started
 progress:
   total_phases: 14
   completed_phases: 10
   total_plans: 83
-  completed_plans: 76
+  completed_plans: 77
   percent: 71
 ---
 
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-05-21)
 ## Current Position
 
 Phase: 09 (mobile-responsive-on-7-critical-pages) — EXECUTING
-Plan: 2 of 8
+Plan: 3 of 8
 
 > **Phase 08 status (2026-06-09):** ✅ **ALL 4 plans COMPLETE.** 08-04 (Slice C — close the distribution loop) finalized: Task 1 (auto-post embed rides the receipt URL — worker verify-only, no payload change; Open Q3 compose host MIGRATED warpcast.com → farcaster.xyz, one-line pure-builder change) committed `ad81ea3`; Task 2 (SHARE AS FRAME outline control on the settled receipt action row) implemented + committed `83aeae9`. **Task-2 human-verify checkpoint APPROVED 2026-06-09** on the automated evidence (web 80/80, relayer 209 passed/1 skipped, both builds exit 0, control reuses existing design tokens + `rel="noopener noreferrer"`); the live in-Warpcast visual preview is DEFERRED to the existing Phase-10/soak gate (Arbitrum Sepolia is not in Warpcast's chainList, so an in-client transact preview is unavailable on testnet). SHARE-19 is Complete (traced to Phase 8 in REQUIREMENTS.md). Distribution loop closed (auto-post + manual SHARE AS FRAME both carry the Frame embed; live tap-to-transact remains the D-01 Phase-10 gate).
 
@@ -161,6 +161,7 @@ All 3 operator actions were run this session (user explicitly authorized "run al
 | Phase 08-farcaster-mini-apps P05 | 25min | 2 tasks | 6 files |
 | Phase 08-farcaster-mini-apps P06 | 12min | 2 tasks | 5 files |
 | Phase 09 P01 | 6min | 2 tasks | 2 files |
+| Phase 09 P02 | 4min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -320,6 +321,7 @@ completed: 2026-05-29
 - [Phase ?]: [Phase 08-06]: GAP 2 closed — Mini App no longer blank. Added @farcaster/miniapp-sdk@0.3.0 + MiniAppReady (sdk.actions.ready() once on mount, fail-safe, dynamic-import, useRef once-guard) mounted on all 3 /call/[id] branches (loading/settled/live). Read-only receipt confirmed wallet-decoupled (loading gate is relayer-keyed). In-app tap-to-transact stays Phase 10 (D-01). web 97/97, build 0.
 - [Phase 09]: 09-01: useIsMobile() uses useSyncExternalStore with getServerSnapshot()=>true (D-02 mobile-first); single breakpoint (max-width: 767px); addEventListener('change') never addListener; lives in apps/web only (Pitfall 2)
 - [Phase 09]: 09-01: responsive.spec.ts RED-pending tests use test.skip(predicate) not fixme — Wave-0 gate green now, auto-flips once 09-03/09-04 land; SEEDED_SETTLED_CALL env-overridable (default 14)
+- [Phase ?]: [Phase 09]: 09-02: MobileDrawer is pure (no useIsMobile) — GlobalNav owns the isMobile gate + drawer open-state; drawer renders null on !open and is always mounted. Profile href resolves address via useAccount() (same source as NotificationBell), gated on authenticated && ready (Pitfall 5).
 
 ## Performance
 
@@ -466,6 +468,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-06-09T12:01:06.558Z
+Last session: 2026-06-09T12:09:46.999Z
 Stopped at: Completed 09-01-PLAN.md
 Resume file: .planning/phases/09-mobile-responsive-on-7-critical-pages/09-UI-SPEC.md
