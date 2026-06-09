@@ -128,3 +128,46 @@ export function getOutcomeWordResult(params: OutcomeWordParams): OutcomeWordResu
     lozenge: LOZENGE_MAP[word],
   };
 }
+
+// ── Settled-receipt neutral fallback (08-05 — GAP 1, Core Value) ────────────────
+
+/**
+ * Neutral placeholder used by the Settled Receipt page when the true outcome word
+ * is NOT yet known (outcome enum still Pending, or a subgraph/relayer outage left
+ * the settled fields absent). This word is deliberately NOT one of the 5 §15.7
+ * outcome words — it is a non-win, non-loss state so the page NEVER fabricates a
+ * positive "CALLED IT" for a settled call whose result we cannot confirm.
+ */
+export const SETTLED_NEUTRAL_WORD = 'PENDING RESULT';
+/** Neutral slate color (§14.1 muted) for the placeholder word. */
+export const SETTLED_NEUTRAL_COLOR = '#94A3B8';
+
+/** Resolved settled-receipt display word + color + lozenge. */
+export interface ResolvedSettledWord {
+  word: string;
+  color: string;
+  lozenge: string | null;
+}
+
+/**
+ * Resolve the word/color/lozenge the Settled Receipt page should render.
+ *
+ * CORE VALUE (08-05 GAP 1 — receipts must be unfakeable): when `result` is null
+ * (the true outcome is unknown on a settled call), this resolves to a NEUTRAL
+ * placeholder — NEVER to a win word. The old page code defaulted to 'CALLED IT'
+ * here, publicly casting a settled LOSS (or an unknown outcome) as a win. This
+ * helper is the single, unit-testable guard that makes a fabricated win impossible.
+ *
+ * @param result The getOutcomeWordResult output, or null when outcome is unknown.
+ */
+export function resolveSettledWord(result: OutcomeWordResult | null): ResolvedSettledWord {
+  if (result) {
+    return { word: result.word, color: result.color, lozenge: result.lozenge };
+  }
+  // FAIL-SAFE: unknown outcome on a settled call → neutral, never a win word.
+  return {
+    word: SETTLED_NEUTRAL_WORD,
+    color: SETTLED_NEUTRAL_COLOR,
+    lozenge: null,
+  };
+}

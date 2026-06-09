@@ -73,7 +73,7 @@ import {
   SETTLEMENT_MANAGER_ARBITRUM_SEPOLIA,
   USDC_ARB_NATIVE,
 } from '@call-it/shared';
-import { getOutcomeWordResult } from '@/lib/outcome-word';
+import { getOutcomeWordResult, resolveSettledWord, SETTLED_NEUTRAL_WORD } from '@/lib/outcome-word';
 import { followFadeMarketAbi } from '@/lib/abis';
 import {
   computeCallerExitPenaltyPct,
@@ -1365,9 +1365,16 @@ export default function CallPage() {
     const targetValue = callData?.targetValue ?? '—';
     const callerPnl = callData?.pnl ?? 0n;
 
-    const outcomeWord = outcomeWordResult?.word ?? 'CALLED IT';
-    const outcomeColor = outcomeWordResult?.color ?? '#4ADE80';
-    const outcomeLozenge = outcomeWordResult?.lozenge ?? null;
+    // CORE VALUE (08-05 GAP 1 — receipts must be unfakeable): NEVER default a
+    // settled receipt to a win word. When outcomeWordResult is null (the true
+    // outcome is not yet known — outcome enum Pending, or a subgraph/relayer outage
+    // left the settled fields absent), resolveSettledWord returns a NEUTRAL
+    // placeholder ('PENDING RESULT'), not 'CALLED IT'. The old `?? 'CALLED IT'`
+    // default publicly cast a settled LOSS as a win (UAT 08 GAP 1).
+    const resolvedSettled = resolveSettledWord(outcomeWordResult);
+    const outcomeWord = resolvedSettled.word;
+    const outcomeColor = resolvedSettled.color;
+    const outcomeLozenge = resolvedSettled.lozenge;
 
     // SHARE AS FRAME (Plan 08-04, D-04 / UI-SPEC): the Farcaster compose-intent URL for
     // the embed-bearing receipt URL. The fc:miniapp/fc:frame embed (Plan 08-02) rides the
@@ -1375,21 +1382,28 @@ export default function CallPage() {
     // the shared pure builders. NULL (control omitted, no dead button) when the OG base
     // origin is unset or no real handle exists — the `#<id>` fallback is not shareable
     // (UI-SPEC Error state).
+    // CORE VALUE (08-05 GAP 1): only ever share a REAL resolved outcome word. When
+    // outcomeWordResult is null (unknown outcome), outcomeWord is the neutral
+    // 'PENDING RESULT' placeholder — which must NEVER be cast publicly as a Frame.
+    // So require outcomeWordResult != null IN ADDITION to base + real handle.
     const ogBaseForFrame = process.env.NEXT_PUBLIC_OG_BASE_URL?.replace(/\/$/, '');
     const shareAsFrameUrl =
-      ogBaseForFrame && callData?.handle
+      outcomeWordResult && ogBaseForFrame && callData?.handle
         ? warpcastComposeUrl(
             `${ogBaseForFrame}/call/${callIdNum}`,
             buildShareText({ outcomeWord, handle, statement: marketLine }),
           )
         : null;
 
-    // Determine Stamp color token — use brand-accent for accent colors, outcome-win/loss for others
+    // Determine Stamp color token — use brand-accent for accent colors, outcome-win/loss for others.
+    // The neutral 'PENDING RESULT' placeholder (08-05 fail-safe, unknown outcome) maps to
+    // brand-muted — NEVER outcome-win — so an unconfirmed receipt never reads as a win.
     const stampColor: 'outcome-win' | 'outcome-loss' | 'outcome-contrarian' | 'brand-muted' | 'brand-accent' =
       outcomeWord === 'CALLED IT' ? 'outcome-win' :
       outcomeWord === 'LOUD AND WRONG' ? 'outcome-loss' :
       outcomeWord === 'CONTRARIAN HIT' ? 'outcome-contrarian' :
       outcomeWord === 'COLD CALL' ? 'brand-muted' :
+      outcomeWord === SETTLED_NEUTRAL_WORD ? 'brand-muted' :
       'brand-accent'; // FADED CORRECTLY
 
     // FINAL POSITIONS: sort by P&L desc, cap 20/side

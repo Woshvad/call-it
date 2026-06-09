@@ -15,6 +15,7 @@
 import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
 import { buildFarcasterEmbeds } from '@/lib/farcaster-embed';
+import { getOutcomeWordResult } from '@/lib/outcome-word';
 
 type Props = {
   params: Promise<{ id: string }>;
@@ -25,9 +26,19 @@ type Props = {
  * Fetch call metadata from the relayer for OG injection.
  * Returns null on failure — layout renders without OG tag.
  */
-async function fetchCallMeta(
-  callId: string,
-): Promise<{ statusVersion: number; marketLine: string; handle: string } | null> {
+type CallMeta = {
+  statusVersion: number;
+  marketLine: string;
+  handle: string;
+  // Settled outcome fields (08-05) — only present for a non-Pending settled call.
+  // Used to derive the TRUE og:title word so a settled LOSS never titles 'Live Call'
+  // (nor a fabricated win). Absent for Live/unknown.
+  outcome?: 'CallerWon' | 'CallerLost' | 'Pending';
+  repDelta?: number;
+  fadeRealShare?: number;
+};
+
+async function fetchCallMeta(callId: string): Promise<CallMeta | null> {
   try {
     const relayerUrl =
       process.env['RELAYER_URL'] ?? process.env['NEXT_PUBLIC_RELAYER_URL'] ?? '';
@@ -43,12 +54,25 @@ async function fetchCallMeta(
       statusVersion?: number;
       marketLine?: string;
       handle?: string;
+      outcome?: string;
+      repDelta?: number;
+      fadeRealShare?: number;
     };
+
+    // Normalize unknown outcome strings to undefined so the title logic never keys
+    // off a phantom value (CORE VALUE — never fabricate a settled word).
+    const outcome =
+      data.outcome === 'CallerWon' || data.outcome === 'CallerLost' || data.outcome === 'Pending'
+        ? data.outcome
+        : undefined;
 
     return {
       statusVersion: data.statusVersion ?? 0,
       marketLine: data.marketLine ?? '',
       handle: data.handle ?? '',
+      ...(outcome !== undefined ? { outcome } : {}),
+      ...(typeof data.repDelta === 'number' ? { repDelta: data.repDelta } : {}),
+      ...(typeof data.fadeRealShare === 'number' ? { fadeRealShare: data.fadeRealShare } : {}),
     };
   } catch {
     return null;
@@ -60,9 +84,28 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const meta = await fetchCallMeta(id);
   const statusVersion = meta?.statusVersion ?? 0;
 
-  const title = meta?.marketLine
-    ? `${meta.handle ? `@${meta.handle} · ` : ''}${meta.marketLine} — Call It`
-    : 'Live Call — Call It';
+  // og:title — settled-aware (08-05 GAP 1). For a SETTLED call with a known outcome
+  // (CallerWon/CallerLost), prefix the TRUE §15.7 outcome word so the title matches the
+  // (already-correct) /og card and the receipt page — e.g. "LOUD AND WRONG — @veda · …".
+  // The server has no viewer, so viewerIsWinningFader=false (never 'FADED CORRECTLY').
+  // For Live / Pending / unknown outcome, keep the live form — NEVER emit a win word.
+  // CORE VALUE: a settled LOSS must not title as "Live Call" nor as a fabricated win.
+  const settledWord =
+    meta && (meta.outcome === 'CallerWon' || meta.outcome === 'CallerLost')
+      ? getOutcomeWordResult({
+          callerWon: meta.outcome === 'CallerWon',
+          fadeRealShare: meta.fadeRealShare ?? 0,
+          repDelta: meta.repDelta ?? 0,
+          viewerIsWinningFader: false,
+        }).word
+      : null;
+
+  const callerPrefix = meta?.handle ? `@${meta.handle} · ` : '';
+  const title = settledWord
+    ? `${settledWord} — ${callerPrefix}${meta?.marketLine ?? `Call ${id}`} — Call It`
+    : meta?.marketLine
+      ? `${callerPrefix}${meta.marketLine} — Call It`
+      : 'Live Call — Call It';
 
   const description = 'Track this live call on Call It — real-time follow/fade market, permanent onchain receipt.';
 
