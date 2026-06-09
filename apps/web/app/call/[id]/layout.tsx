@@ -75,22 +75,35 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   // Phase-10 mainnet cutover re-points automatically). The embed reuses the SAME
   // `statusVersion` already fetched above — NO second relayer call (Pitfall 4 /
   // T-08-02-02 — the cast image cannot go stale relative to og:image).
-  const base = process.env['NEXT_PUBLIC_OG_BASE_URL'] ?? '';
-  const { miniappEmbed, frameEmbed } = buildFarcasterEmbeds({
-    callId: id,
-    statusVersion: String(statusVersion),
-    baseUrl: base,
-  });
+  //
+  // WR-02: buildFarcasterEmbeds now REQUIRES a non-empty absolute origin (it throws on
+  // an empty/relative baseUrl). Guard here so that a missing NEXT_PUBLIC_OG_BASE_URL
+  // omits the fc:miniapp/fc:frame meta (page still renders with og:image) instead of
+  // emitting a relative, un-launchable embed at HTTP 200.
+  const base = process.env['NEXT_PUBLIC_OG_BASE_URL'];
+  const embeds =
+    base && /^https?:\/\//i.test(base)
+      ? buildFarcasterEmbeds({
+          callId: id,
+          statusVersion: String(statusVersion),
+          baseUrl: base,
+        })
+      : null;
 
   return {
     title,
     description,
     // fc:miniapp (primary) + fc:frame (legacy compat) — only action.type differs (D-03).
     // JSON.stringify-escaped; contains only URLs + brand constants, no raw user strings (T-08-02-03).
-    other: {
-      'fc:miniapp': miniappEmbed,
-      'fc:frame': frameEmbed,
-    },
+    // Omitted entirely when the origin is unset (WR-02) — a relative embed is worse than none.
+    ...(embeds
+      ? {
+          other: {
+            'fc:miniapp': embeds.miniappEmbed,
+            'fc:frame': embeds.frameEmbed,
+          },
+        }
+      : {}),
     openGraph: {
       title,
       description,

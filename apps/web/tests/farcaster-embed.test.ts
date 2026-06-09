@@ -19,11 +19,19 @@
  * Requirements: SHARE-19 (SC1a / SC3).
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, afterEach } from 'vitest';
 
 const SEEDED_ID = '7';
+const OG_BASE = 'https://callit.app';
 
-describe('SC1a/SC3 — Farcaster embed meta (RED until Plan 02)', () => {
+describe('SC1a/SC3 — Farcaster embed meta', () => {
+  const prevBase = process.env['NEXT_PUBLIC_OG_BASE_URL'];
+
+  afterEach(() => {
+    if (prevBase === undefined) delete process.env['NEXT_PUBLIC_OG_BASE_URL'];
+    else process.env['NEXT_PUBLIC_OG_BASE_URL'] = prevBase;
+  });
+
   it('exposes buildFarcasterEmbeds returning miniappEmbed + frameEmbed', async () => {
     const mod = await import('../lib/farcaster-embed.js');
     expect(typeof mod.buildFarcasterEmbeds).toBe('function');
@@ -31,7 +39,7 @@ describe('SC1a/SC3 — Farcaster embed meta (RED until Plan 02)', () => {
     const { miniappEmbed, frameEmbed } = mod.buildFarcasterEmbeds({
       callId: SEEDED_ID,
       statusVersion: 'live',
-      baseUrl: 'https://callit.app',
+      baseUrl: OG_BASE,
     });
 
     for (const raw of [miniappEmbed, frameEmbed]) {
@@ -49,7 +57,23 @@ describe('SC1a/SC3 — Farcaster embed meta (RED until Plan 02)', () => {
     expect(JSON.parse(frameEmbed).button.action.type).toBe('launch_frame');
   });
 
-  it('call/[id]/layout generateMetadata.other carries fc:miniapp + fc:frame keys', async () => {
+  it('WR-02: buildFarcasterEmbeds throws on an empty/relative baseUrl', async () => {
+    const mod = await import('../lib/farcaster-embed.js');
+    expect(() =>
+      mod.buildFarcasterEmbeds({ callId: SEEDED_ID, statusVersion: 'live', baseUrl: '' }),
+    ).toThrow();
+    expect(() =>
+      mod.buildFarcasterEmbeds({
+        callId: SEEDED_ID,
+        statusVersion: 'live',
+        baseUrl: '/relative',
+      }),
+    ).toThrow();
+  });
+
+  it('call/[id]/layout generateMetadata.other carries fc:miniapp + fc:frame keys (with origin set)', async () => {
+    // WR-02: the layout now omits the embed meta when NEXT_PUBLIC_OG_BASE_URL is unset.
+    process.env['NEXT_PUBLIC_OG_BASE_URL'] = OG_BASE;
     const layout = await import('../app/call/[id]/layout.js');
     expect(typeof layout.generateMetadata).toBe('function');
 
@@ -58,5 +82,14 @@ describe('SC1a/SC3 — Farcaster embed meta (RED until Plan 02)', () => {
     expect(other).toBeDefined();
     expect(other['fc:miniapp']).toBeDefined();
     expect(other['fc:frame']).toBeDefined();
+  });
+
+  it('WR-02: layout omits fc:miniapp/fc:frame when NEXT_PUBLIC_OG_BASE_URL is unset', async () => {
+    delete process.env['NEXT_PUBLIC_OG_BASE_URL'];
+    const layout = await import('../app/call/[id]/layout.js');
+    const meta = await layout.generateMetadata({ params: Promise.resolve({ id: SEEDED_ID }) });
+    const other = (meta.other ?? {}) as Record<string, unknown>;
+    expect(other['fc:miniapp']).toBeUndefined();
+    expect(other['fc:frame']).toBeUndefined();
   });
 });

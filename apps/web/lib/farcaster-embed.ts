@@ -69,6 +69,16 @@ export function buildFarcasterEmbeds({
   statusVersion,
   baseUrl,
 }: BuildFarcasterEmbedsArgs): FarcasterEmbeds {
+  // WR-02: the builder stays pure (no env reads) but MUST refuse an empty/relative
+  // origin. A Farcaster embed's imageUrl / action.url have to be absolute URLs the
+  // client can launch; an empty baseUrl would silently yield relative `/og/...` /
+  // `/call/...` strings that fail at HTTP 200. Validate the caller's contract here so
+  // the failure is loud at the call site rather than shipped in a broken embed.
+  if (!baseUrl || !/^https?:\/\//i.test(baseUrl)) {
+    throw new Error(
+      'buildFarcasterEmbeds: baseUrl must be a non-empty absolute http(s) origin',
+    );
+  }
   // Embed image reuses the unchanged Phase-7 OG card at the SAME statusVersion as
   // og:image (criterion 3 visual continuity, Pitfall 4 / T-08-02-02). Absolute URL,
   // ≤1024 chars. 1200x630 = exactly 3:2 ✓ (embed-image constraint).
