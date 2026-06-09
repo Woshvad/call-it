@@ -3,8 +3,19 @@
  *
  * Radix Dialog pattern. Allows a user to deposit USDC into the follow or fade
  * pool of a live call. Uses computeMinSharesOut from @call-it/shared for 1%
- * slippage protection (SOCIAL-06). On SlippageExceeded revert, re-reads reserves
- * and shows updated expected shares with retry button (D-10).
+ * slippage protection (SOCIAL-06). On SlippageExceeded revert, shows updated
+ * expected shares and gates the Retry button (D-10).
+ *
+ * Retry depends on the parent's reserve-prop refetch (≤5s poll, D-07). After a
+ * SlippageExceeded revert, Retry STAYS DISABLED until new reserve props arrive
+ * (any of followReserve / fadeReserve / followTotalShares / fadeTotalShares
+ * changes) so the recomputed minSharesOut reflects the post-revert reserves —
+ * otherwise Retry would resubmit the identical stale minSharesOut and revert
+ * again (WR-02). A full parent-driven `onRefreshReserves(await)` callback is the
+ * larger alternative and is intentionally deferred (the "minimum, acceptable"
+ * fix from 09-REVIEW.md). The parents (apps/web/app/call/[id] and
+ * apps/web/app/duel/[challengeId]) already feed fresh reserve props on a 5s
+ * poll, so the gate resolves automatically with no new props.
  *
  * FLEXBOX ONLY — no CSS grid (Pitfall 15).
  * Neobrutalist: 2-3px borders, hard offset shadows, #09090E background.
@@ -16,7 +27,7 @@
 
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
 import {
   computeMinSharesOut,
@@ -78,17 +89,30 @@ export function FollowFadeModal({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [slippageHit, setSlippageHit] = useState(false);
-  // Updated reserves after SlippageExceeded — for retry with fresh data
-  const [refreshedFollowReserve, setRefreshedFollowReserve] = useState<bigint | null>(null);
-  const [refreshedFadeReserve, setRefreshedFadeReserve] = useState<bigint | null>(null);
-  const [refreshedFollowShares, setRefreshedFollowShares] = useState<bigint | null>(null);
-  const [refreshedFadeShares, setRefreshedFadeShares] = useState<bigint | null>(null);
+  // WR-02: true between a SlippageExceeded revert and the next reserve-prop
+  // arrival. While true, Retry is disabled so it cannot resubmit the identical
+  // stale minSharesOut. Cleared by the reserve-watching useEffect below once the
+  // parent's 5s poll pushes fresh reserve props.
+  const [awaitingFreshReserves, setAwaitingFreshReserves] = useState(false);
 
-  // Use refreshed reserves if available (after SlippageExceeded)
-  const effectiveFollowReserve = refreshedFollowReserve ?? followReserve;
-  const effectiveFadeReserve = refreshedFadeReserve ?? fadeReserve;
-  const effectiveFollowShares = refreshedFollowShares ?? followTotalShares;
-  const effectiveFadeShares = refreshedFadeShares ?? fadeTotalShares;
+  // The modal always renders the latest reserve props the parent feeds it. The
+  // parent (call/[id] + duel/[challengeId]) refetches reserves on a 5s poll, so
+  // post-revert the recomputed estimate below tracks the live pool state.
+  const effectiveFollowReserve = followReserve;
+  const effectiveFadeReserve = fadeReserve;
+  const effectiveFollowShares = followTotalShares;
+  const effectiveFadeShares = fadeTotalShares;
+
+  // WR-02: clear the post-revert lock once fresh reserve props arrive from the
+  // parent's useReadContracts poll, re-enabling Retry so the recomputed
+  // minSharesOut reflects the new reserves. Guarded on awaitingFreshReserves so
+  // ordinary reserve updates (and the first render after open) are no-ops.
+  useEffect(() => {
+    if (awaitingFreshReserves) {
+      setAwaitingFreshReserves(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [followReserve, fadeReserve, followTotalShares, fadeTotalShares]);
 
   // Parse amount input
   const amountFloat = parseFloat(amountUsd);
@@ -114,7 +138,11 @@ export function FollowFadeModal({
   // Validation
   const amountTooLow = amountInUsdc > 0n && amountInUsdc < MIN_POSITION;
   const amountTooHigh = amountInUsdc > remainingHeadroom;
-  const isValid = amountInUsdc >= MIN_POSITION && !amountTooHigh && !isSubmitting;
+  // WR-02: while awaiting fresh reserves after a slippage revert, the submit
+  // (Retry) button is non-interactive via the existing !isValid path (reuses the
+  // disabled #2E2E42 / not-allowed styling — no new colors/props).
+  const isValid =
+    amountInUsdc >= MIN_POSITION && !amountTooHigh && !isSubmitting && !awaitingFreshReserves;
 
   const handleSubmit = useCallback(async () => {
     if (!isValid) return;
@@ -133,17 +161,16 @@ export function FollowFadeModal({
         (errObj?.message ?? '').includes('SlippageExceeded');
 
       if (isSlippage) {
-        // D-10: re-read reserves and show updated expected shares + retry button
+        // D-10: show updated expected shares + retry button.
         setSlippageHit(true);
-        setError('Price moved — pool reserves changed. Updated estimate shown below. Tap Retry to submit with the new expected shares.');
-        // Signal that parent should re-read reserves; we reset refreshed state
-        // In practice the parent passes in the latest useReadContracts data;
-        // we trigger a visual refresh by clearing our overrides so parent's
-        // next refetch (5s) or manual refresh picks up new values.
-        setRefreshedFollowReserve(null);
-        setRefreshedFadeReserve(null);
-        setRefreshedFollowShares(null);
-        setRefreshedFadeShares(null);
+        setError('Price moved — pool reserves changed. Updated estimate shown below. Retry unlocks once fresh reserves arrive so it submits with the new expected shares.');
+        // WR-02: lock Retry until the parent's next reserve-prop refetch (≤5s
+        // poll, D-07) arrives. The reserve-watching useEffect clears this flag
+        // when new reserves land, at which point minSharesOut is recomputed
+        // against the post-revert reserves. This replaces the former no-op
+        // "clear refreshed* overrides" lines, which delivered nothing because
+        // the overrides were never populated.
+        setAwaitingFreshReserves(true);
       } else {
         const msg = errObj?.message ?? 'Transaction failed. Please try again.';
         setError(String(msg).slice(0, 200));
@@ -156,6 +183,12 @@ export function FollowFadeModal({
   const handleReset = useCallback(() => {
     setError(null);
     setSlippageHit(false);
+    // Note: handleReset intentionally does NOT clear awaitingFreshReserves — the
+    // submit (Retry) button stays gated until fresh reserve props arrive (the
+    // reserve-watching useEffect clears the lock), so dismissing the slippage
+    // panel cannot bypass the post-revert gate. The button re-enables on the
+    // next reserve poll regardless of slippageHit, so it is never permanently
+    // stuck (WR-02).
   }, []);
 
   const isFollowSide = side === 'follow';
