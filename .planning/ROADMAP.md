@@ -22,8 +22,9 @@ Call It ships as a person-first onchain social prediction product on Arbitrum ma
 - [x] **Phase 7: OG service final variants + Subgraph final mappings** - 5 OG card variants finalized (Live, Settled, DuelSettled, CallerExited, Fallback) via @vercel/og + Satori, subgraph published to Decentralized Network on Arbitrum, auto-post-to-X gated by cache-warm verification, Twitter Card Validator pre-flight, 200px readability QA gate (completed 2026-06-08)
 - [x] **Phase 8: Farcaster Mini Apps** - `fc:frame` meta tags, Mini App manifest, Farcaster receipt rendering, Follow/Fade/Challenge actions from Frame (complete 2026-06-09: 4 plans + UAT — 2 live bugs found & fixed in 08-05/08-06 (fake "CALLED IT" on a loss; blank Mini App), pushed + tested web 97/relayer 209; RESIDUALS: relayer Fly redeploy post-soak unlocks true "LOUD AND WRONG" word, + Phase-10 in-Warpcast tap-to-transact per D-01)
 - [x] **Phase 9: Mobile responsive on 7 critical pages** - 375px breakpoint on Feed, Live Receipt, Settled Receipt, Profile, Leaderboard, Sign-in, Onboarding; desktop-only banner on Duel, Quote composer, New Call (completed 2026-06-09)
-- [ ] **Phase 10: Mainnet deploy gate** - 20-minute §19.11 smoke test checklist; deploy + verify (under the deployer key — multisig transfer is the final Phase 10.5) + first authenticated session + funding + first sponsored tx + receipt share Twitter Card Validator (reordered from 7.5 to after 8–9 per operator decision 2026-06-07)
-- [ ] **Phase 10.5: Mainnet multisig promotion (ownership lockdown)** - FINAL phase. Deploy the production Safe 2-of-3 on Arbitrum One; transfer ownership of all 6 mainnet surfaces from the deployer key to the Safe via Ownable2Step; prove Safe-gated pause + upgrade; single-owner-key path closed (Risk #2). The multisig mechanism was rehearsed on Sepolia in Phase 6.
+- [ ] **Phase 09.1: Testnet demo hardening on Arbitrum Sepolia** (INSERTED 2026-06-09 — ACTIVE) — make the full product demo-perfect end-to-end on the live Sepolia deployment: share-link receipt loop (true outcome word + market line), full creator flow, browse surfaces with real data, live social/distribution. Mainnet paused.
+- [ ] **⏸ ON HOLD — Phase 10: Mainnet deploy gate** (mainnet paused 2026-06-09 till further notice) - 20-minute §19.11 smoke test checklist; deploy + verify (under the deployer key — multisig transfer is the final Phase 10.5) + first authenticated session + funding + first sponsored tx + receipt share Twitter Card Validator (reordered from 7.5 to after 8–9 per operator decision 2026-06-07)
+- [ ] **⏸ ON HOLD — Phase 10.5: Mainnet multisig promotion (ownership lockdown)** (mainnet paused 2026-06-09 till further notice) - FINAL phase. Deploy the production Safe 2-of-3 on Arbitrum One; transfer ownership of all 6 mainnet surfaces from the deployer key to the Safe via Ownable2Step; prove Safe-gated pause + upgrade; single-owner-key path closed (Risk #2). The multisig mechanism was rehearsed on Sepolia in Phase 6.
 
 ## Phase Details
 
@@ -360,8 +361,20 @@ Plans:
 
 **UI hint**: yes
 
-### Phase 10: Mainnet deploy gate
+### Phase 09.1: Testnet demo hardening on Arbitrum Sepolia (INSERTED)
 
+**Goal:** [Urgent work - to be planned]
+**Requirements**: TBD
+**Depends on:** Phase 9
+**Plans:** 0 plans
+
+Plans:
+
+- [ ] TBD (run /gsd-plan-phase 09.1 to break down)
+
+### Phase 10: Mainnet deploy gate — ⏸ ON HOLD (mainnet paused 2026-06-09 till further notice)
+
+> **⏸ ON HOLD (2026-06-09):** Mainnet is paused till further notice — testnet (Arbitrum Sepolia) is the demo target. This phase is retained as-is for when mainnet resumes; do not execute. See Phase 09.1 (Testnet Demo Hardening) for active work.
 > **Reordered after Phases 8–9 (operator decision 2026-06-07)** — was Phase 7.5; distribution/UX phases now ship on testnet first, then mainnet deploys last.
 **Goal**: 20-minute post-deploy smoke test per §19.11 — non-optional before public announcement. This is a hard gate, not a building phase: contracts and frontend deploy to mainnet **under the deployer key** (the multisig ownership transfer is deferred to the final Phase 10.5 per operator decision 2026-06-04 — note this leaves a single-owner-key window live on mainnet from launch until Phase 10.5), and the operator walks the 20-minute checklist. If any item fails, contracts pause immediately and no public announcement is made.
 **Mode:** mvp
@@ -377,8 +390,9 @@ Plans:
 **Plans**: TBD
 **Pitfalls mitigated**: 1 (USDC final paste-failure check), 4 (Pyth feed final check), 5 (env config final check), 6 (single-owner-key launch window documented; multisig promotion deferred to final Phase 10.5)
 
-### Phase 10.5: Mainnet multisig promotion (ownership lockdown)
+### Phase 10.5: Mainnet multisig promotion (ownership lockdown) — ⏸ ON HOLD (mainnet paused 2026-06-09 till further notice)
 
+> **⏸ ON HOLD (2026-06-09):** Mainnet is paused till further notice. Retained as-is for when mainnet resumes; do not execute.
 > **Renumbered from Phase 10 (operator decision 2026-06-07)** — remains the FINAL phase, now after the reordered Phase 10 mainnet deploy gate.
 **Goal**: The FINAL phase and the close of Risk #2 (single-owner-key). Deploy the production Safe 2-of-3 multisig on Arbitrum One, then transfer ownership of all 6 mainnet surfaces (CallRegistry, FollowFadeMarket, ChallengeEscrow, SettlementManager, ProfileRegistry, StylusScoreEngine `TransparentUpgradeableProxy` admin) from the deployer key to the Safe via Ownable2Step `acceptOwnership`. The multisig mechanism was already rehearsed end-to-end on the Sepolia cluster in Phase 6 (deploy → transfer → Safe-gated pause + upgrade proven), so this phase reuses the proven runbook + scripts (`deploy-safe.ts`, `TransferOwnershipToSafe.s.sol` with mainnet addresses, `rehearse-ownership.ts`). NOTE: deferring this past the Phase 10 mainnet deploy leaves a single-owner-key window live on mainnet from launch (Phase 10) through this phase — accepted per operator decision 2026-06-04 (iterate fast under the deployer key, lock down last).
 **Mode:** mvp
@@ -397,7 +411,7 @@ Plans:
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 0 → 1 → 1.5 (parallel with 2) → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9 → 10 → 10.5
+Phases execute in numeric order: 0 → 1 → 1.5 (parallel with 2) → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9 → **9.1 (testnet demo hardening — ACTIVE)** → 10 → 10.5 *(10 + 10.5 ⏸ ON HOLD — mainnet paused 2026-06-09 till further notice)*
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
@@ -412,5 +426,6 @@ Phases execute in numeric order: 0 → 1 → 1.5 (parallel with 2) → 2 → 3 �
 | 7. OG service final variants + Subgraph final mappings | 6/6 | Complete   | 2026-06-08 |
 | 8. Farcaster Mini Apps | 6/6 | Complete   | 2026-06-09 |
 | 9. Mobile responsive on 7 critical pages | 8/8 | Complete    | 2026-06-09 |
-| 10. Mainnet deploy gate | 0/TBD | Not started | - |
-| 10.5. Mainnet multisig promotion (ownership lockdown) | 0/TBD | Not started | - |
+| 9.1. Testnet demo hardening on Arbitrum Sepolia (INSERTED) | 0/TBD | Active — not yet planned | - |
+| 10. Mainnet deploy gate | 0/TBD | ⏸ On Hold (mainnet paused) | - |
+| 10.5. Mainnet multisig promotion (ownership lockdown) | 0/TBD | ⏸ On Hold (mainnet paused) | - |
