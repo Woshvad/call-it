@@ -19,6 +19,7 @@
 import React, { Component, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { Card } from '@call-it/ui';
+import { useIsMobile } from '../hooks/useIsMobile';
 
 /**
  * Error boundary to catch Privy initialization errors gracefully.
@@ -121,6 +122,12 @@ const SignInButtons = dynamic(() => import('./SignInButtons'), {
 });
 
 export default function SignInPage() {
+  // RESEARCH divergence #3: the live centered column is maxWidth:400px (the 480px UI-24
+  // corner-bracket frame is unbuilt). At 375px a fixed 400px column overflows by ~25px,
+  // so at mobile we clamp the column to calc(100vw - 32px) (16px gutter each side). D-03:
+  // the 3 CTAs are size="lg" (~56px tall) — already >=44px — so no per-CTA height change.
+  const isMobile = useIsMobile();
+
   return (
     <main
       style={{
@@ -165,7 +172,7 @@ export default function SignInPage() {
       <Card
         style={{
           width: '100%',
-          maxWidth: '400px',
+          maxWidth: isMobile ? 'calc(100vw - 32px)' : '400px',
           display: 'flex',
           flexDirection: 'column',
           gap: '1rem',
