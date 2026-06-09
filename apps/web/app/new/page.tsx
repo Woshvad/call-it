@@ -22,6 +22,7 @@ import { useDebouncedDupCheck } from './hooks/useDebouncedDupCheck';
 import { usePublishCall } from './hooks/usePublishCall';
 import { QuoteParentCard } from './components/QuoteParentCard';
 import { QuoteSuccess } from './components/QuoteSuccess';
+import { DesktopOnlyBanner } from '../components/DesktopOnlyBanner';
 
 /**
  * /new page — New Call composer.
@@ -118,19 +119,24 @@ export default function NewCallPage() {
   // ── Success screen (UI-28) ──────────────────────────────────────────────────
   if (isQuoteMode && quotePosted) {
     return (
-      <QuoteSuccess
-        parentCallId={quoteId!}
-        quoteMarketLine={previewMarketLine}
-        quoteConviction={formValues.conviction ?? 50}
-        thesis={formValues.criteriaText ?? ''}
-      />
+      <>
+        <DesktopOnlyBanner />
+        <QuoteSuccess
+          parentCallId={quoteId!}
+          quoteMarketLine={previewMarketLine}
+          quoteConviction={formValues.conviction ?? 50}
+          thesis={formValues.criteriaText ?? ''}
+        />
+      </>
     );
   }
 
   // ── Quote Composer mode (UI-26/27) ────────────────────────────────────────────
   if (isQuoteMode) {
     return (
-      <div style={{ display: 'flex', gap: '2rem', alignItems: 'flex-start' }}>
+      <>
+        <DesktopOnlyBanner />
+        <div style={{ display: 'flex', gap: '2rem', alignItems: 'flex-start' }}>
         {/* Left: parent card + composer — flex-1 */}
         <div style={{ flex: 1 }}>
           <h1 className="text-2xl font-display font-bold text-brand-text uppercase tracking-wide mb-6">
@@ -257,13 +263,16 @@ export default function NewCallPage() {
           onConfirm={onConfirmPublish}
           onCancel={() => setIsModalOpen(false)}
         />
-      </div>
+        </div>
+      </>
     );
   }
 
   // ── Standard New Call mode ────────────────────────────────────────────────────
   return (
-    <div style={{ display: 'flex', gap: '2rem', alignItems: 'flex-start' }}>
+    <>
+      <DesktopOnlyBanner />
+      <div style={{ display: 'flex', gap: '2rem', alignItems: 'flex-start' }}>
       {/* Left: Form — flex-1 */}
       <div style={{ flex: 1 }}>
         <h1 className="text-2xl font-display font-bold text-brand-text uppercase tracking-wide mb-6">
@@ -375,6 +384,7 @@ export default function NewCallPage() {
         onConfirm={onConfirmPublish}
         onCancel={() => setIsModalOpen(false)}
       />
-    </div>
+      </div>
+    </>
   );
 }

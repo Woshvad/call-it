@@ -30,6 +30,7 @@ import Link from 'next/link';
 import { FollowFadeModal } from '@call-it/ui';
 import { CHALLENGE_ESCROW_ARBITRUM_SEPOLIA, USDC_ARB_NATIVE } from '@call-it/shared';
 import { ChallengeFormModal } from '@/app/components/ChallengeFormModal';
+import { DesktopOnlyBanner } from '@/app/components/DesktopOnlyBanner';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -484,6 +485,7 @@ export default function DuelPage() {
   if (loading && !liveState) {
     return (
       <div style={{ backgroundColor: '#09090E', minHeight: '100vh', padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        <DesktopOnlyBanner />
         <div style={{ height: '24px', backgroundColor: '#1E1E2E', width: '200px' }} />
         <div style={{ height: '200px', backgroundColor: '#111118', border: '1px solid #1E1E2E' }} />
         <div style={{ height: '280px', backgroundColor: '#111118', border: '1px solid #1E1E2E' }} />
@@ -508,6 +510,8 @@ export default function DuelPage() {
   // ─── Render ───────────────────────────────────────────────────────────────────
   return (
     <div style={{ backgroundColor: '#09090E', minHeight: '100vh', padding: '0' }}>
+
+      <DesktopOnlyBanner />
 
       {/* ── Toast notification ─────────────────────────────────────────────── */}
       {toastMsg && (
