@@ -352,7 +352,7 @@ Plans:
   - [x] 09-04-PLAN.md — Wave 2: DesktopOnlyBanner.tsx (D-08/D-09) mounted on /new (incl ?quote=) + /duel/[challengeId] — UI-50 / SC2
   - [x] 09-05-PLAN.md — Wave 2: Feed + Profile + Leaderboard at 375px (container clamps, DuelRowCard + category-card stacks, 4-col leaderboard clamp w/ viewer-row accent preserved) — UI-48/49
   - [x] 09-06-PLAN.md — Wave 2: Sign-in (400px column clamp) + Onboarding (480px frame clamp + 5 subroutes >=44px) at 375px — UI-48/49
-  - [ ] 09-07-PLAN.md — Wave 2: In-scope modals (D-04) — ChallengeFormModal clamp + verify the 3 packages/ui modals (no useIsMobile inside packages/ui) — UI-48/49
+  - [x] 09-07-PLAN.md — Wave 2: In-scope modals (D-04) — ChallengeFormModal clamp + verify the 3 packages/ui modals (no useIsMobile inside packages/ui) — UI-48/49
 
 **Wave 3** *(blocked on all Wave-2 slices)*
 
@@ -411,6 +411,6 @@ Phases execute in numeric order: 0 → 1 → 1.5 (parallel with 2) → 2 → 3 �
 | 6. Safety review + Sepolia ≥48h + multisig rehearsal | 4/6 | In Progress | - |
 | 7. OG service final variants + Subgraph final mappings | 6/6 | Complete   | 2026-06-08 |
 | 8. Farcaster Mini Apps | 6/6 | Complete   | 2026-06-09 |
-| 9. Mobile responsive on 7 critical pages | 6/8 | In Progress|  |
+| 9. Mobile responsive on 7 critical pages | 7/8 | In Progress|  |
 | 10. Mainnet deploy gate | 0/TBD | Not started | - |
 | 10.5. Mainnet multisig promotion (ownership lockdown) | 0/TBD | Not started | - |
