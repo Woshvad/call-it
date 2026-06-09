@@ -29,6 +29,7 @@
 import { useState } from 'react';
 import { useAccount } from 'wagmi';
 import { Card } from '@call-it/ui';
+import { useIsMobile } from '@/app/hooks/useIsMobile';
 import type { LeaderboardData, LeaderboardRow, LeaderboardWindow } from '@/lib/leaderboard-client';
 
 const ACCENT = '#E8F542';
@@ -50,6 +51,7 @@ const TIME_WINDOWS: { id: LeaderboardWindow; label: string }[] = [
 const CATEGORY_CHIPS: CategoryChip[] = ['All', 'Majors', 'DeFi', 'Other'];
 
 export function LeaderboardClient({ data, fetchError }: LeaderboardClientProps) {
+  const isMobile = useIsMobile(); // Phase 9 (09-05): container clamp + >=44px toggles/chips at mobile (UI-48/D-03)
   // ALL-TIME is the only window with real data (D-06) — default to it.
   const [activeWindow, setActiveWindow] = useState<LeaderboardWindow>('all');
   const [activeCategory, setActiveCategory] = useState<CategoryChip>('All');
@@ -65,7 +67,9 @@ export function LeaderboardClient({ data, fetchError }: LeaderboardClientProps) 
   return (
     <main
       style={{
-        maxWidth: '760px',
+        // Phase 9 (09-05): full-width clamp at mobile so the 760px container never forces scroll (UI-48).
+        width: isMobile ? '100%' : undefined,
+        maxWidth: isMobile ? '100%' : '760px',
         margin: '0 auto',
         padding: '24px 16px',
         display: 'flex',
@@ -91,7 +95,8 @@ export function LeaderboardClient({ data, fetchError }: LeaderboardClientProps) 
               onClick={() => setActiveWindow(w.id)}
               className="font-mono text-xs uppercase tracking-wide"
               style={{
-                padding: '6px 14px',
+                padding: isMobile ? '0 14px' : '6px 14px',
+                minHeight: isMobile ? '44px' : undefined,
                 border: '3px solid',
                 borderColor: active ? ACCENT : '#27272A',
                 color: active ? ACCENT : '#A1A1AA',
@@ -131,7 +136,8 @@ export function LeaderboardClient({ data, fetchError }: LeaderboardClientProps) 
               onClick={() => setActiveCategory(c)}
               className="font-mono text-xs"
               style={{
-                padding: '4px 12px',
+                padding: isMobile ? '0 12px' : '4px 12px',
+                minHeight: isMobile ? '44px' : undefined,
                 border: '2px solid',
                 borderColor: active ? ACCENT : '#27272A',
                 color: active ? ACCENT : '#A1A1AA',
@@ -196,7 +202,13 @@ export function LeaderboardClient({ data, fetchError }: LeaderboardClientProps) 
             <a
               href={`/profile/${hero.address}`}
               className="font-display font-bold text-brand-text text-xl"
-              style={{ textDecoration: 'none' }}
+              style={{
+                textDecoration: 'none',
+                // Mobile (D-03): pad the hit area to >=44px without altering desktop density.
+                display: isMobile ? 'inline-flex' : undefined,
+                alignItems: isMobile ? 'center' : undefined,
+                minHeight: isMobile ? '44px' : undefined,
+              }}
             >
               @{hero.handle}
             </a>
@@ -245,15 +257,17 @@ function HeroStat({ label, value }: { label: string; value: string }) {
 }
 
 function LeaderboardTableRow({ row, isViewer }: { row: LeaderboardRow; isViewer: boolean }) {
+  const isMobile = useIsMobile(); // Phase 9 (09-05): each row >=44px tall at mobile (D-03); viewer accent preserved
   return (
     <a
       href={`/profile/${row.address}`}
       style={{
         display: 'flex',
-        flexDirection: 'row',
+        flexDirection: 'row', // Stays row at mobile (Divergence #1: live 4-col layout already fits 343px — no column drop).
         alignItems: 'center',
         padding: '10px 12px',
-        // UI-13: the viewer's own row is highlighted with accent (left border + #1A1A24 bg).
+        minHeight: isMobile ? '44px' : undefined,
+        // UI-13: the viewer's own row is highlighted with accent (left border + #1A1A24 bg) — preserved through the mobile path.
         backgroundColor: isViewer ? ROW_HIGHLIGHT_BG : '#18181B',
         borderLeft: isViewer ? `3px solid ${ACCENT}` : '3px solid transparent',
         textDecoration: 'none',
