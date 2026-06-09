@@ -2,9 +2,9 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: milestone
-status: verifying
-stopped_at: Phase 9 context gathered
-last_updated: "2026-06-09T10:41:10.566Z"
+status: executing
+stopped_at: Phase 9 UI-SPEC approved
+last_updated: "2026-06-09T11:47:12.229Z"
 last_activity: 2026-06-09 -- Phase 08 Plan 04 finalized (08-04 complete; phase 08 all 4 plans done)
 progress:
   total_phases: 14
@@ -49,7 +49,7 @@ forge test: 222 pass / 0 fail / 2 skip (excl. 2 RPC-gated fork suites which skip
 
 **Pending — operator gates (all genuinely gated on wall-clock/operator hardware/secrets, NOT code, NOT key-blocked — the recovery-cluster owner is treasury `0xDa8c5726`, a held key, so owner-signed ops (resolveDispute, multisig promotion, drills) are available):** (1) **SOAK TAIL** — SAFETY-21 (≥48h continuous instrumented soak clock; relayer up, last activity ~26h ago), SAFETY-26 (full challenge cycle RE-RUN on the new cluster — proven only on the superseded cluster; the recovery cluster is empty of challenges), SAFETY-28 (Pyth-confidence-wide variant — time/market-gated). NOTE: SAFETY-25/27/42 are now ✅ PROVEN on the recovery cluster (see CURRENT REALITY) — no longer pending. (2) **5 Phase-4 deferred UAT items** — re-run live 2026-06-07 (`04-UAT.md`): **UAT-4 + UAT-5 ✅ PASS** (after fixing 3 bugs — OG satori `borderRight:undefined` 500, OG CallStatus ordinal inversion hiding the CallerExited card, middleware missing `/call,/duel,/profile,/leaderboard` public carve-out that bounced shared receipts to /signin; all committed to master). UAT-1/UAT-2 on-chain substance ✅ cast-verified; **UAT-1/2/3 visual page render DEFERRED to Phase 7** (web frontend not deployed + relayer CORS blocks localhost). (3) **06-06 Sepolia multisig rehearsal** — needs the operator's 3 Safe hardware wallets (Safe rehearsal on Sepolia → production Arbitrum One Safe). (4) **synthetic-alert cron FAILING daily** — `synthetic-alert.yml` needs 4 GH Actions secrets set (`RELAYER_URL`=https://call-it-relayer-sepolia.fly.dev, `RELAYER_INTERNAL_HMAC`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID_P0`); none set (`gh secret list` empty) — the Telegram secrets live only on GCP/Fly, not GitHub. See `evidence/phase-6-soak/SOAK-STATUS-SNAPSHOT-2026-06-07.md` for the live status sheet + operator command checklist; OPERATOR-RUNBOOK.md for the full procedures.
 **Pending — code:** ~~deploy-safe.ts SafeFactory→protocol-kit-v7 migration~~ ✅ **DONE + verified 2026-06-07** — already migrated to `@safe-global/protocol-kit@^7` (`Safe.init()` + `createSafeDeploymentTransaction`, no SafeFactory); unit test 6/6 green; live Sepolia dry-run path proven (placeholder signers → predicted Safe `0xd1b3e3E5…`, no broadcast). Only the real 3-hardware-signer rehearsal remains (06-06 operator). **No code items pending.**
-Status: Phase complete — ready for verification
+Status: Ready to execute
 
 Progress: [██████████] 97%
 
@@ -463,6 +463,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-06-09T10:41:10.549Z
-Stopped at: Phase 9 context gathered
-Resume file: .planning/phases/09-mobile-responsive-on-7-critical-pages/09-CONTEXT.md
+Last session: 2026-06-09T11:11:38.627Z
+Stopped at: Phase 9 UI-SPEC approved
+Resume file: .planning/phases/09-mobile-responsive-on-7-critical-pages/09-UI-SPEC.md
