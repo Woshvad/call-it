@@ -322,7 +322,7 @@ Plans:
 
 **Gap-closure** *(from 08-UAT.md — 2 major issues; execute with `/gsd-execute-phase 08 --gaps-only`)*
 
-- [ ] 08-05-PLAN.md — GAP 1 (Core Value): wire real settled outcome (CallerWon/CallerLost) + repDelta + fadeRealShare into the receipt page + SHARE AS FRAME text (single source of truth with /og); REMOVE the `?? 'CALLED IT'` fail-open (a settled loss must share 'LOUD AND WRONG', never a fake win); fix og:title + regression test
+- [x] 08-05-PLAN.md — GAP 1 (Core Value): wire real settled outcome (CallerWon/CallerLost) + repDelta + fadeRealShare into the receipt page + SHARE AS FRAME text (single source of truth with /og); REMOVE the `?? 'CALLED IT'` fail-open (a settled loss must share 'LOUD AND WRONG', never a fake win); fix og:title + regression test
 - [ ] 08-06-PLAN.md — GAP 2 (blank Mini App): add @farcaster/miniapp-sdk + call sdk.actions.ready() once mounted (splash dismiss) + render the read-only receipt without blocking on Privy/wagmi wallet init; tap-to-transact stays Phase 10 (D-01)
 
 **UI hint**: yes
@@ -392,7 +392,7 @@ Phases execute in numeric order: 0 → 1 → 1.5 (parallel with 2) → 2 → 3 �
 | 5. StylusScoreEngine + 48h cutoff | 7/7 | Complete | 2026-06-02 |
 | 6. Safety review + Sepolia ≥48h + multisig rehearsal | 4/6 | In Progress | - |
 | 7. OG service final variants + Subgraph final mappings | 6/6 | Complete   | 2026-06-08 |
-| 8. Farcaster Mini Apps | 4/4 | Complete   | 2026-06-09 |
+| 8. Farcaster Mini Apps | 5/6 | In Progress|  |
 | 9. Mobile responsive on 7 critical pages | 0/TBD | Not started | - |
 | 10. Mainnet deploy gate | 0/TBD | Not started | - |
 | 10.5. Mainnet multisig promotion (ownership lockdown) | 0/TBD | Not started | - |

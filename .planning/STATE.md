@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: milestone
-status: executing
-stopped_at: "Phase 08 Plan 04 COMPLETE — Task 1 (ad81ea3) + Task 2 implementation (83aeae9) committed; Task-2 human-verify checkpoint APPROVED 2026-06-09 on automated evidence (live in-Warpcast preview deferred to Phase-10/soak — Sepolia not in Warpcast chainList). SUMMARY finalized, STATE advanced (completed_plans 72→73), ROADMAP plan-progress = Complete, SHARE-19 traced/complete. **Phase 08 all 4 plans done.** Next: Phase 08 verification, then Phase 09 (mobile responsive)."
-last_updated: "2026-06-09T05:41:13.742Z"
-last_activity: 2026-06-09 -- Phase 08 Plan 04 finalized (SHARE AS FRAME human-verify approved)
+status: verifying
+stopped_at: "Phase 08 GAP-closure plan 08-05 COMPLETE — settled receipt now shows/shares TRUE outcome word (LOUD AND WRONG for a loss, never fabricated CALLED IT). Task 1 (e3f453e) relayer /live-state + querySettledFields; Task 2 (609182d) page/layout fail-safe + resolveSettledWord + regression test + stale outcome-word.js removal. Next: re-run /gsd-verify-work 08 for GAP 1, then GAP 2 (08-06 blank Mini App render)."
+last_updated: "2026-06-09T09:34:50.081Z"
+last_activity: 2026-06-09 -- Phase 08 Plan 04 finalized (08-04 complete; phase 08 all 4 plans done)
 progress:
   total_phases: 14
   completed_phases: 9
-  total_plans: 73
-  completed_plans: 73
-  percent: 65
+  total_plans: 75
+  completed_plans: 74
+  percent: 64
 ---
 
 # Project State
@@ -49,7 +49,7 @@ forge test: 222 pass / 0 fail / 2 skip (excl. 2 RPC-gated fork suites which skip
 
 **Pending — operator gates (all genuinely gated on wall-clock/operator hardware/secrets, NOT code, NOT key-blocked — the recovery-cluster owner is treasury `0xDa8c5726`, a held key, so owner-signed ops (resolveDispute, multisig promotion, drills) are available):** (1) **SOAK TAIL** — SAFETY-21 (≥48h continuous instrumented soak clock; relayer up, last activity ~26h ago), SAFETY-26 (full challenge cycle RE-RUN on the new cluster — proven only on the superseded cluster; the recovery cluster is empty of challenges), SAFETY-28 (Pyth-confidence-wide variant — time/market-gated). NOTE: SAFETY-25/27/42 are now ✅ PROVEN on the recovery cluster (see CURRENT REALITY) — no longer pending. (2) **5 Phase-4 deferred UAT items** — re-run live 2026-06-07 (`04-UAT.md`): **UAT-4 + UAT-5 ✅ PASS** (after fixing 3 bugs — OG satori `borderRight:undefined` 500, OG CallStatus ordinal inversion hiding the CallerExited card, middleware missing `/call,/duel,/profile,/leaderboard` public carve-out that bounced shared receipts to /signin; all committed to master). UAT-1/UAT-2 on-chain substance ✅ cast-verified; **UAT-1/2/3 visual page render DEFERRED to Phase 7** (web frontend not deployed + relayer CORS blocks localhost). (3) **06-06 Sepolia multisig rehearsal** — needs the operator's 3 Safe hardware wallets (Safe rehearsal on Sepolia → production Arbitrum One Safe). (4) **synthetic-alert cron FAILING daily** — `synthetic-alert.yml` needs 4 GH Actions secrets set (`RELAYER_URL`=https://call-it-relayer-sepolia.fly.dev, `RELAYER_INTERNAL_HMAC`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID_P0`); none set (`gh secret list` empty) — the Telegram secrets live only on GCP/Fly, not GitHub. See `evidence/phase-6-soak/SOAK-STATUS-SNAPSHOT-2026-06-07.md` for the live status sheet + operator command checklist; OPERATOR-RUNBOOK.md for the full procedures.
 **Pending — code:** ~~deploy-safe.ts SafeFactory→protocol-kit-v7 migration~~ ✅ **DONE + verified 2026-06-07** — already migrated to `@safe-global/protocol-kit@^7` (`Safe.init()` + `createSafeDeploymentTransaction`, no SafeFactory); unit test 6/6 green; live Sepolia dry-run path proven (placeholder signers → predicted Safe `0xd1b3e3E5…`, no broadcast). Only the real 3-hardware-signer rehearsal remains (06-06 operator). **No code items pending.**
-Status: Ready to execute
+Status: Phase complete — ready for verification
 
 Progress: [██████████] 97%
 
@@ -158,6 +158,7 @@ All 3 operator actions were run this session (user explicitly authorized "run al
 | Phase 08-farcaster-mini-apps P02 | 7min | 2 tasks | 3 files |
 | Phase 08-farcaster-mini-apps P03 | 18min | 2 tasks | 4 files |
 | Phase 08-farcaster-mini-apps P04 | ~15min | 2 tasks | 4 files |
+| Phase 08-farcaster-mini-apps P05 | 25min | 2 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -313,6 +314,7 @@ completed: 2026-05-29
 - [Phase ?]: [Phase 08-03]: Frame tx route emits real on-chain follow/fade(uint256,uint256,uint256) calldata — Wave-0 scaffold's assumed follow(uint256,uint96,uint8) had a different selector + would revert; test decode ABI reconciled (args [id,1_000_000n,0n] unchanged)
 - [Phase ?]: [Phase 08-03]: one-tap Follow/Fade hardcoded $1 (MIN_POSITION_USDC) + Challenge $5, never from the untrusted Frame POST body (D-07/T-08-03-04); to ALWAYS a pinned Sepolia addr; settled Follow+Quote deep-link only (D-06a)
 - [Phase 08-04]: Open Q3 RESOLVED — Warpcast compose host MIGRATED warpcast.com → farcaster.xyz (legacy /~/compose 301-redirects; verified live 2026-06-08). One-line host change to the pure warpcastComposeUrl in @call-it/shared (signature + purity preserved); ?text=…&embeds[]=… shape unchanged; share-text test expectation updated. Auto-post embed rides the receipt URL — worker verify-only, no payload change (D-04/SC3). SHARE AS FRAME outline control on the settled receipt action row reuses the shared builders, omitted (no dead button) when NEXT_PUBLIC_OG_BASE_URL or a real handle is missing (UI-SPEC). **Task-2 human-verify checkpoint APPROVED 2026-06-09** on the automated evidence (web 80/80, relayer 209/1-skip, both builds exit 0, control reuses existing tokens + noopener/noreferrer); live in-Warpcast visual preview DEFERRED to the Phase-10/soak gate (Arbitrum Sepolia not in Warpcast chainList). Plan 08-04 COMPLETE → phase 08 all 4 plans done.
+- [Phase ?]: [Phase 08-05]: GAP 1 closed — settled receipt + SHARE AS FRAME + og:title show TRUE outcome word; removed ?? 'CALLED IT' default; relayer /live-state surfaces outcome/repDelta/fadeRealShare (fail-safe -> neutral, never fake win); resolveSettledWord neutral helper; Rule-3 removed stale tracked outcome-word.js. web 93/93, relayer 209/1-skip, build 0.
 
 ## Performance
 
@@ -459,6 +461,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-06-09T00:10:00.000Z
-Stopped at: Phase 08 Plan 04 COMPLETE — Task 1 (ad81ea3) + Task 2 implementation (83aeae9) committed; Task-2 human-verify checkpoint APPROVED 2026-06-09 on automated evidence (live in-Warpcast preview deferred to Phase-10/soak — Sepolia not in Warpcast chainList). SUMMARY finalized, STATE advanced (completed_plans 72→73), ROADMAP plan-progress = Complete, SHARE-19 traced/complete. **Phase 08 all 4 plans done.** Next: Phase 08 verification, then Phase 09 (mobile responsive).
-Resume file: .planning/phases/08-farcaster-mini-apps/08-04-SUMMARY.md
+Last session: 2026-06-09T09:34:50.065Z
+Stopped at: Phase 08 GAP-closure plan 08-05 COMPLETE — settled receipt now shows/shares TRUE outcome word (LOUD AND WRONG for a loss, never fabricated CALLED IT). Task 1 (e3f453e) relayer /live-state + querySettledFields; Task 2 (609182d) page/layout fail-safe + resolveSettledWord + regression test + stale outcome-word.js removal. Next: re-run /gsd-verify-work 08 for GAP 1, then GAP 2 (08-06 blank Mini App render).
+Resume file: .planning/phases/08-farcaster-mini-apps/08-05-SUMMARY.md
