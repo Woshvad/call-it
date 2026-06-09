@@ -41,6 +41,7 @@ import { arbitrumSepolia } from 'viem/chains';
 import { getRedis } from '../lib/redis.js';
 import { getLogger } from '../lib/logger.js';
 import { resolveCallStatement } from '../db/criteria-store.js';
+import { querySettledFields } from '../lib/subgraph-client.js';
 import {
   FOLLOW_FADE_MARKET_ARBITRUM_SEPOLIA,
   CALL_REGISTRY_ARBITRUM_SEPOLIA,
@@ -125,6 +126,10 @@ const CALL_REGISTRY_ABI = [
 // Majors=0, DeFi=1, Other=2.
 const CALL_STATUS_LABELS = ['Live', 'Settled', 'Disputed', 'CallerExited'] as const;
 const CATEGORY_LABELS = ['Majors', 'DeFi', 'Other'] as const;
+// Outcome enum (ICallRegistry.sol, cross-checked 08-05): Pending=0, CallerWon=1,
+// CallerLost=2. This MATCHES the /og/[callId] route's `callerWon = outcome === 1`
+// convention so the page and the OG card never disagree (T-08-05-03).
+const OUTCOME_LABELS = ['Pending', 'CallerWon', 'CallerLost'] as const;
 
 function statusLabel(status: number): string {
   return CALL_STATUS_LABELS[status] ?? 'Live';
@@ -132,6 +137,10 @@ function statusLabel(status: number): string {
 
 function categoryLabel(category: number): string {
   return CATEGORY_LABELS[category] ?? 'Majors';
+}
+
+function outcomeLabel(outcome: number): string {
+  return OUTCOME_LABELS[outcome] ?? 'Pending';
 }
 
 // ── Cache config ──────────────────────────────────────────────────────────────
@@ -180,6 +189,17 @@ interface LiveStateResponse {
   // Omitted (undefined) when no statement has been stored yet — the client/OG then
   // falls back to the subgraph templated mirror (D-03; no IPFS on the hot path).
   marketLine?: string;
+  // ── Settled outcome fields (08-05 — GAP 1, Core Value: truthful receipts) ──
+  // ONLY present when status is Settled/Disputed AND the on-chain outcome is
+  // non-Pending. These let the receipt PAGE drive getOutcomeWordResult from the
+  // SAME data the /og card uses, so a settled LOSS renders/shares 'LOUD AND WRONG'
+  // — never the old fabricated 'CALLED IT'. Omitted entirely for Live/non-settled
+  // calls (the page's settled branch keys off `outcome` presence). repDelta and
+  // fadeRealShare are subgraph-sourced (fail-safe: absent on a subgraph outage, so
+  // the page degrades to neutral, NEVER to a fake win — T-08-05-02).
+  outcome?: string;
+  repDelta?: number;
+  fadeRealShare?: number;
   // statusVersion drives the OG cache-bust (/og/{id}?v={statusVersion}, D-09).
   statusVersion: number;
 }
@@ -295,6 +315,7 @@ export async function liveStateRoute(
           status: number;
           conviction: number;
           callerExitedAt: bigint;
+          outcome: number;
           criteriaHash: `0x${string}`;
         };
 
@@ -316,6 +337,7 @@ export async function liveStateRoute(
               status: Number(raw['status']),
               conviction: Number(raw['conviction']),
               callerExitedAt: raw['callerExitedAt'] as bigint,
+              outcome: Number(raw['outcome']),
               criteriaHash: raw['criteriaHash'] as `0x${string}`,
             };
           } catch (callErr) {
@@ -353,6 +375,44 @@ export async function liveStateRoute(
           );
         }
 
+        // ── Settled outcome fields (08-05 — GAP 1, Core Value) ─────────────────
+        // Surface the real outcome word + repDelta + fadeRealShare ONLY for a
+        // SETTLED/DISPUTED call whose on-chain outcome is non-Pending. The receipt
+        // PAGE reads these from /live-state and drives getOutcomeWordResult with
+        // them, so a settled LOSS renders/shares 'LOUD AND WRONG' — never a fake
+        // 'CALLED IT'. The on-chain outcome enum (CR.getCall) is the source of truth
+        // for win/loss; the subgraph repDelta/fadeRealShare only refine the §14.1
+        // word (CONTRARIAN HIT / COLD CALL) and the REP display.
+        let outcome: string | undefined;
+        let repDelta: number | undefined;
+        let fadeRealShare: number | undefined;
+        if (call) {
+          const isSettledOrDisputed = call.status === 1 || call.status === 2;
+          // Only emit `outcome` for a non-Pending settled/disputed call — a Live or
+          // Pending call leaves it absent so the page's settled branch (keyed off
+          // outcome presence) never fabricates a word (CRITICAL).
+          if (isSettledOrDisputed && call.outcome !== 0) {
+            outcome = outcomeLabel(call.outcome);
+            // FAIL-SAFE: a subgraph outage here must NOT 502 the live-state read —
+            // querySettledFields swallows all errors and returns null fields. The
+            // page then shows neutral/known on-chain outcome, NEVER a fabricated win.
+            try {
+              const settled = await querySettledFields(callId.toString());
+              if (settled.repDelta !== null) repDelta = settled.repDelta;
+              if (settled.fadeRealShare !== null) fadeRealShare = settled.fadeRealShare;
+            } catch (settledErr) {
+              logger.warn(
+                {
+                  event: 'live_state_settled_fields_failed',
+                  error: String(settledErr),
+                  callId: callId.toString(),
+                },
+                'querySettledFields failed — repDelta/fadeRealShare omitted (page degrades to neutral, never a fake win)',
+              );
+            }
+          }
+        }
+
         const total = followReserveBn + fadeReserveBn;
         const followPct = total > 0n
           ? Number((followReserveBn * 10000n) / total) / 100
@@ -385,6 +445,11 @@ export async function liveStateRoute(
           // marketLine (D-05) — only present when an authoritative statement is stored;
           // otherwise omitted so the spread keeps it undefined (subgraph fallback, D-03).
           ...(marketLine !== undefined ? { marketLine } : {}),
+          // Settled outcome fields (08-05) — conditional spread keeps them absent for
+          // Live/non-settled calls so the page never sees a phantom outcome (CRITICAL).
+          ...(outcome !== undefined ? { outcome } : {}),
+          ...(repDelta !== undefined ? { repDelta } : {}),
+          ...(fadeRealShare !== undefined ? { fadeRealShare } : {}),
           statusVersion,
         };
 

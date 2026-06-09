@@ -424,3 +424,97 @@ export async function queryActiveCallsByCallers(
 
   return data.calls ?? [];
 }
+
+// ── Settled-fields read (08-05 GAP 1 — Core Value: receipts must be truthful) ──
+//
+// Mirrors the web getSettledFields query (apps/web/lib/relayer-client.ts) so the
+// relayer /live-state route can surface the SAME repDelta + fadeRealShare that the
+// (already-correct) /og/[callId] card derives. This closes the fake-outcome gap:
+// the receipt PAGE drives its outcome word from /live-state, so /live-state must
+// carry these fields for the page's getOutcomeWordResult to return the TRUE §15.7
+// word (CALLED IT / LOUD AND WRONG / CONTRARIAN HIT / COLD CALL) instead of falling
+// back to a fabricated win.
+
+/** Subgraph-sourced settled fields for a single call (08-05). */
+export interface SubgraphSettledFields {
+  /** RepEvent.delta for the caller (signed integer); null on absence/error. */
+  repDelta: number | null;
+  /**
+   * Real (non-virtual) fade share of the settled fade+follow pool, range [0,1].
+   * Computed from subgraph Position deposits (fade / (fade+follow)). Drives the
+   * CONTRARIAN HIT threshold (D-08: >= 0.5). Null on any error.
+   */
+  fadeRealShare: number | null;
+}
+
+const SETTLED_FIELDS_QUERY = `
+query SettledFields($callId: ID!, $callIdStr: String!) {
+  repEvents(first: 1, where: { callId: $callId }, orderBy: timestamp, orderDirection: desc) {
+    delta
+    fallback
+  }
+  positions(first: 1000, where: { callId: $callIdStr }) {
+    side
+    usdcDeposited
+  }
+}
+`;
+
+/**
+ * Query the subgraph for a call's settled repDelta + real fade share (08-05).
+ *
+ * FAIL-SAFE: returns `{ repDelta: null, fadeRealShare: null }` on ANY error (missing
+ * Studio URL, network failure, GraphQL errors, malformed data) and NEVER throws.
+ * A subgraph outage must therefore degrade the receipt page to a neutral state — it
+ * must NEVER surface a fabricated win word (Core Value, T-08-05-02).
+ *
+ * Studio key stays server-side via executeQuery (D-27). The on-chain outcome enum
+ * remains the source of truth for win/loss; these subgraph fields only refine the
+ * §14.1 word (CONTRARIAN HIT / COLD CALL) and the REP delta display.
+ *
+ * @param callId The on-chain call id (numeric string).
+ */
+export async function querySettledFields(callId: string): Promise<SubgraphSettledFields> {
+  const empty: SubgraphSettledFields = { repDelta: null, fadeRealShare: null };
+  try {
+    type SettledData = {
+      repEvents?: Array<{ delta?: number | null; fallback?: boolean | null }>;
+      positions?: Array<{ side?: string | null; usdcDeposited?: string | null }>;
+    };
+    // call(id:) is ID!, Position.callId is String — pass both forms (mirrors web).
+    const data = await executeQuery<SettledData>(SETTLED_FIELDS_QUERY, {
+      callId: String(callId),
+      callIdStr: String(callId),
+    });
+
+    const repEvent = data.repEvents?.[0];
+
+    // Real fade share from subgraph Position deposits (fade / (fade+follow)).
+    // BigInt accumulation avoids float drift on raw 6-dp USDC amounts; malformed
+    // entries are skipped so a bad value can never throw out of the success path.
+    let fadeSum = 0n;
+    let followSum = 0n;
+    for (const p of data.positions ?? []) {
+      const raw = p?.usdcDeposited;
+      if (typeof raw !== 'string' || raw.trim().length === 0) continue;
+      let amount: bigint;
+      try {
+        amount = BigInt(raw);
+      } catch {
+        continue; // non-parseable usdcDeposited — skip, never throw
+      }
+      if (p.side === 'fade') fadeSum += amount;
+      else if (p.side === 'follow') followSum += amount;
+    }
+    const denom = fadeSum + followSum;
+    const fadeRealShare = denom > 0n ? Number(fadeSum) / Number(denom) : null;
+
+    return {
+      repDelta: typeof repEvent?.delta === 'number' ? repEvent.delta : null,
+      fadeRealShare,
+    };
+  } catch {
+    // FAIL-SAFE — never throw; the route degrades to neutral, never a fake win.
+    return empty;
+  }
+}
