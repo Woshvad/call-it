@@ -109,28 +109,51 @@ const VALID_STATUSES: readonly FarcasterCallStatus[] = [
   'CallerExited',
 ];
 
-async function readStatus(callIdStr: string): Promise<FarcasterCallStatus> {
-  try {
-    // Same env-var convention as call/[id]/layout.tsx (the live-state source of truth):
-    // RELAYER_URL (prod) ?? NEXT_PUBLIC_RELAYER_URL (local). Do NOT invent a new var.
-    const relayerUrl =
-      process.env['RELAYER_URL'] ?? process.env['NEXT_PUBLIC_RELAYER_URL'] ?? '';
-    if (!relayerUrl) return 'Live';
+/**
+ * Result of a status read. `ok` distinguishes a genuine read (status reflects the
+ * real on-chain state) from a fail-safe fallback (status was forced to 'Live' because
+ * the relayer read failed). The handler uses `ok` to gate the `?action=` debug override
+ * (CR-01): a forged `?action=Fade` must NOT be honored when we could not actually
+ * confirm the call is still Live.
+ *
+ * Semantics of `ok` (WR-05 / CR-01):
+ *   - No relayer configured (local/test) → ok=true, status='Live'. This is a deliberate
+ *     "skip the status check" mode, not a failure: SC2 wires must still build on testnet.
+ *   - Relayer configured AND read succeeded → ok=true, status=<real status>.
+ *   - Relayer configured BUT read failed (non-OK / parse / network) → ok=false,
+ *     status='Live'. ok=false blocks the override so a transiently-unreachable relayer
+ *     can no longer be used to coerce a Live Fade/Follow wire on a settled call.
+ */
+async function readStatus(
+  callIdStr: string,
+): Promise<{ status: FarcasterCallStatus; ok: boolean }> {
+  // Same env-var convention as call/[id]/layout.tsx (the live-state source of truth):
+  // RELAYER_URL (prod) ?? NEXT_PUBLIC_RELAYER_URL (local). Do NOT invent a new var.
+  const relayerUrl =
+    process.env['RELAYER_URL'] ?? process.env['NEXT_PUBLIC_RELAYER_URL'] ?? '';
+  // No relayer configured → intentional Live default (not a failure): ok=true.
+  if (!relayerUrl) return { status: 'Live', ok: true };
 
+  try {
     const res = await fetch(`${relayerUrl}/api/calls/${callIdStr}/live-state`, {
       // revalidate:4 — status-aware buttons want fresh status (RESEARCH); matches the
       // relayer live-state 4s cache TTL.
       next: { revalidate: 4 },
     });
-    if (!res.ok) return 'Live';
+    // Genuine read FAILURE (relayer configured but unreachable/erroring) → ok=false so
+    // the override is not honored on a possibly-settled call (CR-01 / WR-05).
+    if (!res.ok) return { status: 'Live', ok: false };
 
     const data = (await res.json()) as { status?: string };
     const status = data.status as FarcasterCallStatus | undefined;
-    return status && VALID_STATUSES.includes(status) ? status : 'Live';
+    if (status && VALID_STATUSES.includes(status)) return { status, ok: true };
+    // Reachable but unparseable status → treat as a failed read (ok=false).
+    return { status: 'Live', ok: false };
   } catch {
     // Fail-safe: relayer unreachable / parse error → assume Live (most-permissive
     // button set; the tx still targets the real contract which enforces real state).
-    return 'Live';
+    // ok=false so the debug override can NOT be used during the outage (CR-01).
+    return { status: 'Live', ok: false };
   }
 }
 
@@ -138,9 +161,25 @@ async function readStatus(callIdStr: string): Promise<FarcasterCallStatus> {
 //
 // The Frame POST body is UNTRUSTED — we read it ONLY to learn which of the displayed
 // buttons the user tapped (a small index), NEVER for the amount or the `to` address.
-// A `?action=` query param overrides for debugging/clients that don't send buttonIndex.
+// A `?action=` query param overrides ONLY in dev (NEXT_PUBLIC_DEV_ROUTES==='1') and
+// ONLY when the status was read successfully — see selectButton (CR-01).
 
-function buttonIndexFromBody(body: unknown): number {
+/**
+ * Whether the unauthenticated `?action=` debug override is permitted. Its only stated
+ * purpose is debugging (line ~141), so it is gated behind the same dev flag the rest of
+ * the Phase-8 surface uses (NEXT_PUBLIC_DEV_ROUTES). In production it is always off, so
+ * a forged `?action=` can never influence the wire (CR-01).
+ */
+function devOverrideEnabled(): boolean {
+  return process.env['NEXT_PUBLIC_DEV_ROUTES'] === '1';
+}
+
+/**
+ * Parse the (untrusted) 1-based button index from the Frame POST body.
+ * Returns null when absent/invalid so the caller can default to button 1; returns the
+ * raw index otherwise (range-checked against the button set by the caller — WR-06).
+ */
+function buttonIndexFromBody(body: unknown): number | null {
   if (body && typeof body === 'object') {
     const b = body as Record<string, unknown>;
     const direct = b['buttonIndex'];
@@ -153,22 +192,49 @@ function buttonIndexFromBody(body: unknown): number {
       }
     }
   }
-  return 1; // default to the first button
+  return null; // no index supplied → caller defaults to the first button
 }
+
+/**
+ * Outcome of resolving the tapped button. `'out-of-range'` means the body carried a
+ * buttonIndex past the current status's button set — the handler rejects it with 400
+ * rather than silently clamping to Follow (WR-06).
+ */
+type ButtonSelection =
+  | { kind: 'button'; button: FarcasterButton }
+  | { kind: 'out-of-range' };
 
 function selectButton(
   buttons: readonly FarcasterButton[],
   req: Request,
   body: unknown,
-): FarcasterButton {
-  const url = new URL(req.url);
-  const action = url.searchParams.get('action');
-  if (action) {
-    const match = buttons.find((b) => b.toLowerCase() === action.toLowerCase());
-    if (match) return match;
+  statusReadOk: boolean,
+): ButtonSelection {
+  // `?action=` debug override (CR-01): honored ONLY when the dev flag is set AND the
+  // status was read successfully AND the requested action is in the *current* status's
+  // button set. This makes it impossible for a forged `?action=Fade` to coerce a Live
+  // Fade/Follow wire on a settled call, and impossible during a relayer outage.
+  if (devOverrideEnabled() && statusReadOk) {
+    const url = new URL(req.url);
+    const action = url.searchParams.get('action');
+    if (action) {
+      const match = buttons.find((b) => b.toLowerCase() === action.toLowerCase());
+      if (match) return { kind: 'button', button: match };
+    }
   }
-  const idx = buttonIndexFromBody(body); // 1-based
-  return buttons[idx - 1] ?? buttons[0]!;
+
+  const idx = buttonIndexFromBody(body); // 1-based, or null
+  if (idx === null) {
+    // No index → default to the first button (Follow). This is the legitimate
+    // "untapped"/probe path, not a malformed request.
+    return { kind: 'button', button: buttons[0]! };
+  }
+  // Range-check the supplied index against the button set (WR-06): an out-of-range
+  // index is a malformed/forged request — reject it rather than clamp to Follow.
+  if (idx < 1 || idx > buttons.length) {
+    return { kind: 'out-of-range' };
+  }
+  return { kind: 'button', button: buttons[idx - 1]! };
 }
 
 // ── Response builders ─────────────────────────────────────────────────────────────
@@ -219,11 +285,16 @@ async function handle(
   }
 
   // Step 2 — status read (fail-safe) → button triplet (single-source fixtures table).
-  const status = await readStatus(callIdStr);
+  const { status, ok: statusReadOk } = await readStatus(callIdStr);
   const settled =
     status === 'Settled' || status === 'Disputed' || status === 'CallerExited';
   const buttons = buttonsForStatus(status); // D-02 live / D-06 settled
-  const tapped = selectButton(buttons, req, body);
+  const selection = selectButton(buttons, req, body, statusReadOk);
+  // WR-06: an out-of-range buttonIndex is rejected, not clamped to Follow.
+  if (selection.kind === 'out-of-range') {
+    return new Response('invalid buttonIndex', { status: 400 });
+  }
+  const tapped = selection.button;
 
   // Origin-locked deep-link base (T-08-03-06).
   const base = process.env['NEXT_PUBLIC_OG_BASE_URL'] ?? '';

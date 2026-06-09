@@ -65,14 +65,23 @@ type TxWire = {
 };
 type DeepLink = { type: string; url: string };
 
-function postReq(callId: string, action?: string) {
+/**
+ * Build a Frame POST request.
+ *
+ * Post-CR-01 the button is selected by the (untrusted) buttonIndex in the body — this
+ * is the production path that works WITHOUT the dev `?action=` override. `buttonIndex`
+ * is 1-based against the status's button set (Live = [Follow,Fade,Challenge];
+ * Settled = [Follow,Challenge,Quote]). The optional `action` arg still appends the
+ * `?action=` query for the override-specific tests (which also set NEXT_PUBLIC_DEV_ROUTES).
+ */
+function postReq(callId: string, buttonIndex = 1, action?: string) {
   const url = action
     ? `https://callit.app/api/frame/tx/${callId}?action=${action}`
     : `https://callit.app/api/frame/tx/${callId}`;
   return new Request(url, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ buttonIndex: 1, untrustedData: { buttonIndex: 1 } }),
+    body: JSON.stringify({ buttonIndex, untrustedData: { buttonIndex } }),
   });
 }
 
@@ -82,8 +91,8 @@ describe('SC2 — Frame tx wire format + decode round-trip (GREEN — Plan 03)',
     expect(typeof route.POST).toBe('function');
 
     const callId = SEEDED_CALL_IDS.live;
-    // No relayer reachable in test → status read fails-safe to 'Live'; button 1 = Follow.
-    const res = await route.POST(postReq(callId, 'Follow'), {
+    // No relayer configured in test → Live default (ok=true); Live buttonIndex 1 = Follow.
+    const res = await route.POST(postReq(callId, 1), {
       params: Promise.resolve({ callId }),
     });
     const wire = (await res.json()) as TxWire;
@@ -106,7 +115,8 @@ describe('SC2 — Frame tx wire format + decode round-trip (GREEN — Plan 03)',
   it('live Fade → fade(callId, $1, 0) on the FFM address', async () => {
     const route = await import('../app/api/frame/tx/[callId]/route.js');
     const callId = SEEDED_CALL_IDS.live;
-    const res = await route.POST(postReq(callId, 'Fade'), {
+    // Live buttonIndex 2 = Fade.
+    const res = await route.POST(postReq(callId, 2), {
       params: Promise.resolve({ callId }),
     });
     const wire = (await res.json()) as TxWire;
@@ -124,7 +134,8 @@ describe('SC2 — Frame tx wire format + decode round-trip (GREEN — Plan 03)',
   it('Challenge → proposeChallenge(callId, $5) on the ChallengeEscrow address', async () => {
     const route = await import('../app/api/frame/tx/[callId]/route.js');
     const callId = SEEDED_CALL_IDS.live;
-    const res = await route.POST(postReq(callId, 'Challenge'), {
+    // Live buttonIndex 3 = Challenge.
+    const res = await route.POST(postReq(callId, 3), {
       params: Promise.resolve({ callId }),
     });
     const wire = (await res.json()) as TxWire;
@@ -173,11 +184,12 @@ describe('SC2 — settled triplet + deep-link routing for non-constructible acti
     );
   }
 
+  // Settled button set = [Follow, Challenge, Quote] → buttonIndex 1/2/3.
   it('settled Quote → deep-link (NOT an eth_sendTransaction)', async () => {
     stubSettled();
     const route = await import('../app/api/frame/tx/[callId]/route.js');
     const callId = SEEDED_CALL_IDS.settled;
-    const res = await route.POST(postReq(callId, 'Quote'), {
+    const res = await route.POST(postReq(callId, 3), {
       params: Promise.resolve({ callId }),
     });
     const wire = (await res.json()) as DeepLink;
@@ -190,7 +202,7 @@ describe('SC2 — settled triplet + deep-link routing for non-constructible acti
     stubSettled();
     const route = await import('../app/api/frame/tx/[callId]/route.js');
     const callId = SEEDED_CALL_IDS.settled;
-    const res = await route.POST(postReq(callId, 'Follow'), {
+    const res = await route.POST(postReq(callId, 1), {
       params: Promise.resolve({ callId }),
     });
     const wire = (await res.json()) as DeepLink;
@@ -202,7 +214,7 @@ describe('SC2 — settled triplet + deep-link routing for non-constructible acti
     stubSettled();
     const route = await import('../app/api/frame/tx/[callId]/route.js');
     const callId = SEEDED_CALL_IDS.settled;
-    const res = await route.POST(postReq(callId, 'Challenge'), {
+    const res = await route.POST(postReq(callId, 2), {
       params: Promise.resolve({ callId }),
     });
     const wire = (await res.json()) as TxWire;
@@ -216,5 +228,108 @@ describe('SC2 — settled triplet + deep-link routing for non-constructible acti
     });
     expect(decoded.functionName).toBe('proposeChallenge');
     expect(decoded.args).toEqual([BigInt(callId), MIN_STAKE_USDC_6DP]);
+  });
+});
+
+describe('CR-01 — `?action=` override is gated; cannot coerce a Live wire on a settled call', () => {
+  const prevRelayer = process.env['NEXT_PUBLIC_RELAYER_URL'];
+  const prevDev = process.env['NEXT_PUBLIC_DEV_ROUTES'];
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    if (prevRelayer === undefined) delete process.env['NEXT_PUBLIC_RELAYER_URL'];
+    else process.env['NEXT_PUBLIC_RELAYER_URL'] = prevRelayer;
+    if (prevDev === undefined) delete process.env['NEXT_PUBLIC_DEV_ROUTES'];
+    else process.env['NEXT_PUBLIC_DEV_ROUTES'] = prevDev;
+  });
+
+  function stubStatus(status: string, httpOk = true) {
+    process.env['NEXT_PUBLIC_RELAYER_URL'] = 'https://relayer.test';
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () =>
+        new Response(httpOk ? JSON.stringify({ status }) : 'down', {
+          status: httpOk ? 200 : 503,
+          headers: { 'content-type': 'application/json' },
+        }),
+      ),
+    );
+  }
+
+  it('forged ?action=Fade on a SETTLED call does NOT yield a Fade tx (Fade not in settled set)', async () => {
+    // Even with the dev flag ON, Fade is not in the settled button set → override ignored;
+    // falls back to buttonIndex 1 = Follow → settled Follow is a deep-link, never a Fade wire.
+    process.env['NEXT_PUBLIC_DEV_ROUTES'] = '1';
+    stubStatus('Settled');
+    const route = await import('../app/api/frame/tx/[callId]/route.js');
+    const callId = SEEDED_CALL_IDS.settled;
+    const res = await route.POST(postReq(callId, 1, 'Fade'), {
+      params: Promise.resolve({ callId }),
+    });
+    const wire = (await res.json()) as DeepLink & TxWire;
+    expect(wire.method).toBeUndefined(); // not an eth_sendTransaction
+    expect(wire.type).toBe('deep-link');
+  });
+
+  it('forged ?action=Fade during a relayer OUTAGE is ignored (statusReadOk=false)', async () => {
+    // Relayer configured but failing → ok=false → override blocked even with dev flag set.
+    // Falls back to buttonIndex 1 = Follow on the (fail-safe Live) set → Follow tx, NOT Fade.
+    process.env['NEXT_PUBLIC_DEV_ROUTES'] = '1';
+    stubStatus('Settled', /* httpOk */ false);
+    const route = await import('../app/api/frame/tx/[callId]/route.js');
+    const callId = SEEDED_CALL_IDS.live;
+    const res = await route.POST(postReq(callId, 1, 'Fade'), {
+      params: Promise.resolve({ callId }),
+    });
+    const wire = (await res.json()) as TxWire;
+    const decoded = decodeFunctionData({
+      abi: FOLLOW_FADE_DECODE_ABI,
+      data: wire.params.data,
+    });
+    expect(decoded.functionName).toBe('follow'); // NOT 'fade'
+  });
+
+  it('?action override is OFF in production (dev flag unset): buttonIndex wins', async () => {
+    // No dev flag → override never honored; ?action=Challenge is ignored, buttonIndex 1 = Follow.
+    delete process.env['NEXT_PUBLIC_DEV_ROUTES'];
+    delete process.env['NEXT_PUBLIC_RELAYER_URL']; // Live default, ok=true
+    const route = await import('../app/api/frame/tx/[callId]/route.js');
+    const callId = SEEDED_CALL_IDS.live;
+    const res = await route.POST(postReq(callId, 1, 'Challenge'), {
+      params: Promise.resolve({ callId }),
+    });
+    const wire = (await res.json()) as TxWire;
+    const decoded = decodeFunctionData({
+      abi: FOLLOW_FADE_DECODE_ABI,
+      data: wire.params.data,
+    });
+    expect(decoded.functionName).toBe('follow'); // buttonIndex 1, NOT the forged Challenge
+  });
+
+  it('dev override ON + status read OK honors ?action within the live set (Fade)', async () => {
+    process.env['NEXT_PUBLIC_DEV_ROUTES'] = '1';
+    stubStatus('Live');
+    const route = await import('../app/api/frame/tx/[callId]/route.js');
+    const callId = SEEDED_CALL_IDS.live;
+    const res = await route.POST(postReq(callId, 1, 'Fade'), {
+      params: Promise.resolve({ callId }),
+    });
+    const wire = (await res.json()) as TxWire;
+    const decoded = decodeFunctionData({
+      abi: FOLLOW_FADE_DECODE_ABI,
+      data: wire.params.data,
+    });
+    expect(decoded.functionName).toBe('fade');
+  });
+});
+
+describe('WR-06 — out-of-range buttonIndex is rejected with 400 (not clamped to Follow)', () => {
+  it('buttonIndex 99 → 400', async () => {
+    const route = await import('../app/api/frame/tx/[callId]/route.js');
+    const callId = SEEDED_CALL_IDS.live;
+    const res = await route.POST(postReq(callId, 99), {
+      params: Promise.resolve({ callId }),
+    });
+    expect(res.status).toBe(400);
   });
 });
