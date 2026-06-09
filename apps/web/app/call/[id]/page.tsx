@@ -519,11 +519,19 @@ function DisputeModal({ open, onClose, callId, outcomeWord, smAddr, usdcAddr, re
     }
   }, [open]);
 
+  const MAX_EVIDENCE_BYTES = 5 * 1024 * 1024; // WR-06: 5 MB cap
+
   const handleEvidenceUpload = async (file: File) => {
     setUploadingEvidence(true);
     try {
-      const content = await file.arrayBuffer();
-      const base64 = btoa(String.fromCharCode(...new Uint8Array(content)));
+      // WR-06: FileReader.readAsDataURL avoids the btoa(String.fromCharCode(...spread))
+      // RangeError stack overflow that aborted uploads of files a few hundred KB+.
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve((reader.result as string).split(',')[1]);
+        reader.onerror = () => reject(reader.error ?? new Error('Failed to read file'));
+        reader.readAsDataURL(file);
+      });
       const res = await fetch(`${relayerUrl}/api/disputes/evidence`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -637,7 +645,14 @@ function DisputeModal({ open, onClose, callId, outcomeWord, smAddr, usdcAddr, re
             type="file"
             onChange={(e) => {
               const file = e.target.files?.[0];
-              if (file) { setEvidenceFile(file); void handleEvidenceUpload(file); }
+              if (!file) return;
+              // WR-06: reject oversized evidence before upload.
+              if (file.size > MAX_EVIDENCE_BYTES) {
+                setToast({ text: 'Evidence file too large — max 5 MB', isError: true });
+                return;
+              }
+              setEvidenceFile(file);
+              void handleEvidenceUpload(file);
             }}
             style={{ fontFamily: 'monospace', fontSize: '12px', color: '#94A3B8', cursor: 'pointer' }}
           />
