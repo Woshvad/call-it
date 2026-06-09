@@ -309,7 +309,7 @@ Plans:
   2. Tapping a Follow / Fade / Challenge button from a Farcaster post initiates the corresponding transaction flow against the same Phase 1.5 / Phase 2 / Phase 3 contract paths (via Farcaster Frame transaction protocol), without forcing the user out of Warpcast.
   3. Farcaster receipt rendering matches the Twitter OG card variant (Settled / DuelSettled / CallerExited) for visual continuity; auto-post-to-Farcaster cast URL construction (from Phase 7) lands the post and the Mini App is discoverable.
 
-**Plans**: 4 plans across 3 wavesPlans:
+**Plans**: 6 plans (4 base + 2 gap-closure) across 4 waves
 **Wave 1**
 
 - [x] 08-01-PLAN.md — Wave 0: static assets (icon 1024x1024 / splash 200x200) + middleware /.well-known public carve-out + RED test scaffolds + shared per-status button-set fixtures
@@ -319,6 +319,11 @@ Plans:
 **Wave 2** *(blocked on Wave 1 completion)*
 
 - [x] 08-04-PLAN.md — Wave 2 (Slice C): auto-post embed rides receiptUrl (D-04) + SHARE AS FRAME affordance + compose-host verify (Open Q3)
+
+**Gap-closure** *(from 08-UAT.md — 2 major issues; execute with `/gsd-execute-phase 08 --gaps-only`)*
+
+- [ ] 08-05-PLAN.md — GAP 1 (Core Value): wire real settled outcome (CallerWon/CallerLost) + repDelta + fadeRealShare into the receipt page + SHARE AS FRAME text (single source of truth with /og); REMOVE the `?? 'CALLED IT'` fail-open (a settled loss must share 'LOUD AND WRONG', never a fake win); fix og:title + regression test
+- [ ] 08-06-PLAN.md — GAP 2 (blank Mini App): add @farcaster/miniapp-sdk + call sdk.actions.ready() once mounted (splash dismiss) + render the read-only receipt without blocking on Privy/wagmi wallet init; tap-to-transact stays Phase 10 (D-01)
 
 **UI hint**: yes
 
