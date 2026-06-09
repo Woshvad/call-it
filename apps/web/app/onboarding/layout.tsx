@@ -14,6 +14,7 @@
 
 import { usePathname } from 'next/navigation';
 import { Card } from '@call-it/ui';
+import { useIsMobile } from '../hooks/useIsMobile';
 
 const STEPS = [
   { slug: 'handle', label: 'Handle' },
@@ -40,6 +41,11 @@ interface OnboardingLayoutProps {
 export default function OnboardingLayout({ children }: OnboardingLayoutProps) {
   const pathname = usePathname();
   const currentIndex = getStepIndex(pathname);
+  // UI-48: the inner frame is maxWidth:480px + width:100%; the outer main already pads
+  // 1rem (16px) each side. At mobile we additionally clamp the frame maxWidth to
+  // calc(100vw - 32px) so a 480px frame can never overflow a 375px viewport (the 16px
+  // gutter is preserved by the outer padding). The 5 subroutes inherit this frame.
+  const isMobile = useIsMobile();
 
   return (
     <main
@@ -107,7 +113,7 @@ export default function OnboardingLayout({ children }: OnboardingLayoutProps) {
       <Card
         style={{
           width: '100%',
-          maxWidth: '480px',
+          maxWidth: isMobile ? 'calc(100vw - 32px)' : '480px',
           display: 'flex',
           flexDirection: 'column',
           gap: '1.25rem',

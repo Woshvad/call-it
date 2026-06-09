@@ -26,6 +26,7 @@ import { Button, Tag } from '@call-it/ui';
 import { PrivyFundButton } from '../../../components/PrivyFundButton';
 import { useUsdcBalance } from '../../../hooks/useUsdcBalance';
 import { useOnboardingState } from '../../../hooks/useOnboardingState';
+import { useIsMobile } from '../../hooks/useIsMobile';
 
 function truncateAddress(addr: string): string {
   return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
@@ -36,6 +37,7 @@ export default function FundPage() {
   const { address } = useAccount();
   const { balance, formatted } = useUsdcBalance();
   const { advance } = useOnboardingState();
+  const isMobile = useIsMobile(); // D-03: >=44px touch targets at mobile only
   const [isContinuing, setIsContinuing] = useState(false);
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -205,6 +207,7 @@ export default function FundPage() {
                   size="sm"
                   onClick={() => { void handleCopy(); }}
                   data-testid="copy-address-button"
+                  style={isMobile ? { minHeight: '44px' } : undefined}
                 >
                   {copied ? '✓ Copied' : 'Copy'}
                 </Button>
@@ -240,6 +243,7 @@ export default function FundPage() {
           onClick={() => { void handleContinue(); }}
           disabled={isContinuing}
           data-testid="fund-continue-button"
+          style={isMobile ? { minHeight: '44px' } : undefined}
         >
           {isContinuing ? 'Saving...' : hasBalance ? 'CONTINUE →' : 'SKIP FOR NOW →'}
         </Button>

@@ -24,6 +24,7 @@ import { useAccount } from 'wagmi';
 import { Button } from '@call-it/ui';
 import { CustodyDisclosureCard } from '../../../components/CustodyDisclosureCard';
 import { useOnboardingState } from '../../../hooks/useOnboardingState';
+import { useIsMobile } from '../../hooks/useIsMobile';
 import { normalize } from 'viem/ens';
 
 function getTwitterUsername(user: ReturnType<typeof usePrivy>['user']): string | null {
@@ -39,6 +40,7 @@ export default function HandlePage() {
   const { user } = usePrivy();
   const { address } = useAccount();
   const { advance, isLoading: stateLoading } = useOnboardingState();
+  const isMobile = useIsMobile(); // D-03: >=44px touch targets at mobile only
 
   // ENS reverse-record lookup (Wallet path — D-13)
   const { data: ensName } = useEnsName({
@@ -142,6 +144,7 @@ export default function HandlePage() {
             fontSize: '1rem',
             outline: 'none',
             boxSizing: 'border-box',
+            ...(isMobile ? { minHeight: '44px' } : {}),
           }}
           onFocus={(e) => { e.target.style.borderColor = '#E8F542'; }}
           onBlur={(e) => { e.target.style.borderColor = '#3F3F46'; }}
@@ -162,6 +165,7 @@ export default function HandlePage() {
           size="md"
           disabled={!handle.trim() || isSubmitting}
           data-testid="handle-submit"
+          style={isMobile ? { minHeight: '44px' } : undefined}
         >
           {isSubmitting ? 'Saving...' : 'NEXT →'}
         </Button>

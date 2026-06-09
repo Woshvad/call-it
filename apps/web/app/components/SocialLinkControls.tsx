@@ -40,6 +40,7 @@ import { useWriteContract } from 'wagmi';
 import { useSignIn } from '@farcaster/auth-kit';
 import { Button, Tag } from '@call-it/ui';
 import { profileRegistryAbi } from '@/lib/abis/ProfileRegistry';
+import { useIsMobile } from '../hooks/useIsMobile';
 
 type Mode = 'onboarding' | 'settings';
 
@@ -93,6 +94,10 @@ function StatusLine({
 export function SocialLinkControls({ mode }: SocialLinkControlsProps) {
   const { user, getAccessToken } = usePrivy();
   const { writeContractAsync } = useWriteContract();
+  const isMobile = useIsMobile(); // D-03: >=44px touch targets at mobile only
+  // Mobile touch-target floor applied to every link/unlink Button (the link CTAs use
+  // `flex: 1`, so we merge rather than overwrite their style).
+  const touchTarget = isMobile ? { minHeight: '44px' } : undefined;
 
   const isTwitterLinked = user?.linkedAccounts.some((a) => a.type === 'twitter_oauth') ?? false;
   const isFarcasterLinked = user?.linkedAccounts.some((a) => a.type === 'farcaster') ?? false;
@@ -317,6 +322,7 @@ export function SocialLinkControls({ mode }: SocialLinkControlsProps) {
                   }}
                   disabled={twStatus === 'pending'}
                   data-testid="unlink-twitter-button"
+                  style={touchTarget}
                 >
                   {twStatus === 'pending' ? 'Unlinking...' : 'Unlink Twitter / X'}
                 </Button>
@@ -329,7 +335,7 @@ export function SocialLinkControls({ mode }: SocialLinkControlsProps) {
               onClick={handleLinkTwitter}
               disabled={twStatus === 'pending'}
               data-testid="link-twitter-button"
-              style={{ flex: 1 }}
+              style={{ flex: 1, ...touchTarget }}
             >
               {twStatus === 'pending' ? 'Connecting...' : 'Link Twitter / X'}
             </Button>
@@ -355,6 +361,7 @@ export function SocialLinkControls({ mode }: SocialLinkControlsProps) {
                   }}
                   disabled={fcStatus === 'pending'}
                   data-testid="unlink-farcaster-button"
+                  style={touchTarget}
                 >
                   {fcStatus === 'pending' ? 'Unlinking...' : 'Unlink Farcaster'}
                 </Button>
@@ -367,7 +374,7 @@ export function SocialLinkControls({ mode }: SocialLinkControlsProps) {
               onClick={handleLinkFarcaster}
               disabled={fcStatus === 'pending'}
               data-testid="link-farcaster-button"
-              style={{ flex: 1 }}
+              style={{ flex: 1, ...touchTarget }}
             >
               {fcStatus === 'pending' ? 'Connecting...' : 'Link Farcaster'}
             </Button>

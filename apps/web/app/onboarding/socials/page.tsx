@@ -24,11 +24,13 @@ import { usePrivy } from '@privy-io/react-auth';
 import { Button } from '@call-it/ui';
 import { SocialLinkControls } from '../../components/SocialLinkControls';
 import { useOnboardingState } from '../../../hooks/useOnboardingState';
+import { useIsMobile } from '../../hooks/useIsMobile';
 
 export default function SocialsPage() {
   const router = useRouter();
   const { user } = usePrivy();
   const { advance } = useOnboardingState();
+  const isMobile = useIsMobile(); // D-03: >=44px touch targets at mobile only
   const [isContinuing, setIsContinuing] = useState(false);
   const [isSkipping, setIsSkipping] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -117,6 +119,7 @@ export default function SocialsPage() {
         }}
         disabled={isContinuing || isSkipping}
         data-testid="socials-continue-button"
+        style={isMobile ? { minHeight: '44px' } : undefined}
       >
         {isContinuing ? 'Saving...' : 'Continue'}
       </Button>
@@ -130,6 +133,7 @@ export default function SocialsPage() {
         }}
         disabled={isSkipping || isContinuing}
         data-testid="skip-socials-button"
+        style={isMobile ? { minHeight: '44px' } : undefined}
       >
         {isSkipping ? 'Skipping...' : 'Skip for now'}
       </Button>

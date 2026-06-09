@@ -26,6 +26,7 @@ import { useFundWallet } from '@privy-io/react-auth';
 import { arbitrum, arbitrumSepolia } from 'viem/chains';
 import { Button } from '@call-it/ui';
 import { useUsdcBalance } from '../hooks/useUsdcBalance';
+import { useIsMobile } from '../app/hooks/useIsMobile';
 
 /** Funding chain follows the network profile (D-36 — Arbitrum only). */
 const fundingChain =
@@ -51,6 +52,7 @@ interface PrivyFundButtonProps {
 export function PrivyFundButton({ onComplete, onDismiss }: PrivyFundButtonProps) {
   const { address } = useAccount();
   const { refetch } = useUsdcBalance();
+  const isMobile = useIsMobile(); // D-03: >=44px touch targets at mobile only
   const [isFunding, setIsFunding] = useState(false);
 
   const { fundWallet } = useFundWallet({
@@ -95,6 +97,7 @@ export function PrivyFundButton({ onComplete, onDismiss }: PrivyFundButtonProps)
       }}
       disabled={!address || isFunding}
       data-testid="privy-fund-button"
+      style={isMobile ? { minHeight: '44px' } : undefined}
     >
       {label}
     </Button>

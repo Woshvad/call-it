@@ -28,6 +28,7 @@ import { useRouter } from 'next/navigation';
 import { usePrivy } from '@privy-io/react-auth';
 import { Button } from '@call-it/ui';
 import { useOnboardingState } from '../../../hooks/useOnboardingState';
+import { useIsMobile } from '../../hooks/useIsMobile';
 import {
   FOLLOW_GRAPH_CONSENT_COPY,
   persistFollowGraphPreference,
@@ -40,6 +41,7 @@ export default function FollowGraphPage() {
   const router = useRouter();
   const { user, getAccessToken } = usePrivy();
   const { advance } = useOnboardingState();
+  const isMobile = useIsMobile(); // D-03: >=44px touch targets at mobile only
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -147,6 +149,7 @@ export default function FollowGraphPage() {
           }}
           disabled={isLoading}
           data-testid="follow-graph-yes-button"
+          style={isMobile ? { minHeight: '44px' } : undefined}
         >
           {isLoading ? 'Saving...' : '[ Yes, show me ]'}
         </Button>
@@ -159,6 +162,7 @@ export default function FollowGraphPage() {
           }}
           disabled={isLoading}
           data-testid="follow-graph-no-button"
+          style={isMobile ? { minHeight: '44px' } : undefined}
         >
           [ No thanks ]
         </Button>
