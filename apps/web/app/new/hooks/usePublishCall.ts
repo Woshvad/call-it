@@ -27,6 +27,15 @@ export interface PublishState {
 }
 
 /**
+ * Terminal result of a publish() call. Returned (not just stored in state) so
+ * callers can branch on the outcome synchronously after `await publish(...)`
+ * instead of reading a stale `step` closure (WR-01).
+ */
+export interface PublishResult {
+  status: 'success' | 'error';
+}
+
+/**
  * usePublishCall — orchestrates the full call publish flow.
  *
  * Flow (D-28, Plan 07 paymaster handoff):
@@ -56,10 +65,10 @@ export function usePublishCall(
   });
 
   const publish = useCallback(
-    async (input: CreateCallInput): Promise<void> => {
+    async (input: CreateCallInput): Promise<PublishResult> => {
       if (!address) {
         setState((s) => ({ ...s, error: 'Wallet not connected', step: 'error' }));
-        return;
+        return { status: 'error' };
       }
 
       setState({ isPublishing: true, step: 'preflight', error: null, txHash: null });
@@ -165,6 +174,8 @@ export function usePublishCall(
         // Redirect to profile (Plan 09 will route to /call/[id] once feed is live)
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         router.push(`/profile/${address}` as any);
+
+        return { status: 'success' };
       } catch (err: unknown) {
         const isPreflightError = err instanceof RelayerError && err.status === 422;
 
@@ -201,6 +212,8 @@ export function usePublishCall(
             : message,
           duration: 5000,
         });
+
+        return { status: 'error' };
       }
     },
     [

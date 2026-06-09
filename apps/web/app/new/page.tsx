@@ -99,15 +99,18 @@ export default function NewCallPage() {
 
   const onConfirmPublish = useCallback(async () => {
     const values = form.getValues();
-    await publish(values);
+    const result = await publish(values);
     setIsModalOpen(false);
     // In quote mode, surface the success screen (UI-28) once the publish flow reports
-    // success. The quote_stance write is keyed to the on-chain CallQuoted event
-    // (parent + new quote-call ids); the success thread anchors on the parent call.
-    if (isQuoteMode && publishStep === 'success') {
+    // success. Branch on publish()'s returned terminal status — NOT the closed-over
+    // `publishStep` const, which is captured stale at callback-creation time and never
+    // reflects the just-completed publish (WR-01). The quote_stance write is keyed to the
+    // on-chain CallQuoted event (parent + new quote-call ids); the success thread anchors
+    // on the parent call.
+    if (isQuoteMode && result?.status === 'success') {
       setQuotePosted({ quoteCallId: quoteId ?? '' });
     }
-  }, [form, publish, isQuoteMode, quoteId, publishStep]);
+  }, [form, publish, isQuoteMode, quoteId]);
 
   // Build the live preview market line (shared by the right-rail Receipt + thread preview).
   const previewMarketLine = `${formValues.assetA || 'Asset'} ${
