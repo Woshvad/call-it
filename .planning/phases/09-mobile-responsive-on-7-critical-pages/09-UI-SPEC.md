@@ -1,10 +1,11 @@
 ---
 phase: 9
 slug: mobile-responsive-on-7-critical-pages
-status: draft
+status: approved
 shadcn_initialized: false
 preset: none
 created: 2026-06-09
+reviewed_at: 2026-06-09
 ---
 
 # Phase 9 — UI Design Contract
