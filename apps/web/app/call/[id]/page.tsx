@@ -462,6 +462,7 @@ type DisputeModalProps = {
 };
 
 function DisputeModal({ open, onClose, callId, outcomeWord, smAddr, usdcAddr, relayerUrl }: DisputeModalProps) {
+  const isMobile = useIsMobile(); // Phase 9 (09-03): clamp panel + stack action row at 375px (D-04)
   const { address: userAddress } = useAccount();
   const { writeContractAsync } = useWriteContract();
 
@@ -594,11 +595,11 @@ function DisputeModal({ open, onClose, callId, outcomeWord, smAddr, usdcAddr, re
           {toast.text}
         </div>
       )}
-      {/* Modal panel — amber neobrutalist (Surface 4) */}
+      {/* Modal panel — amber neobrutalist (Surface 4). Clamps to viewport at mobile (D-04). */}
       <div style={{
         position: 'relative', backgroundColor: '#111118',
         border: '3px solid #FB923C', boxShadow: '4px 4px 0 #FB923C',
-        padding: '24px', width: '100%', maxWidth: '480px',
+        padding: '24px', width: '100%', maxWidth: isMobile ? 'calc(100vw - 32px)' : '480px',
         display: 'flex', flexDirection: 'column', gap: '20px',
       }}>
         {/* Corner brackets — amber (top-left + bottom-right) */}
@@ -712,12 +713,13 @@ function DisputeModal({ open, onClose, callId, outcomeWord, smAddr, usdcAddr, re
           </div>
         )}
 
-        {/* Action row */}
-        <div style={{ display: 'flex', flexDirection: 'row', gap: '12px' }}>
+        {/* Action row — stacks full-width at mobile (D-04), each button ≥44px tall */}
+        <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: '12px' }}>
           <button
             onClick={onClose}
             style={{
-              flex: 1, fontFamily: "'Space Grotesk', sans-serif", fontSize: '14px', fontWeight: 700,
+              flex: isMobile ? undefined : 1, width: isMobile ? '100%' : undefined,
+              fontFamily: "'Space Grotesk', sans-serif", fontSize: '14px', fontWeight: 700,
               color: '#64748B', backgroundColor: 'transparent', border: '2px solid #2E2E42',
               padding: '14px', cursor: 'pointer',
             }}
@@ -728,7 +730,8 @@ function DisputeModal({ open, onClose, callId, outcomeWord, smAddr, usdcAddr, re
             onClick={() => void handleRaiseDispute()}
             disabled={!canSubmit}
             style={{
-              flex: 2, fontFamily: "'Space Grotesk', sans-serif", fontSize: '14px', fontWeight: 700,
+              flex: isMobile ? undefined : 2, width: isMobile ? '100%' : undefined,
+              fontFamily: "'Space Grotesk', sans-serif", fontSize: '14px', fontWeight: 700,
               color: canSubmit ? '#09090E' : '#64748B',
               backgroundColor: canSubmit ? '#FB923C' : '#2E2E42',
               border: `3px solid ${canSubmit ? '#09090E' : '#2E2E42'}`,
@@ -783,6 +786,7 @@ function renderRawOracleData(oracleType: OracleType, rawData: RawOracleData): st
 }
 
 function ProvenanceModal({ open, onClose, provenance, isLoading }: ProvenanceModalProps) {
+  const isMobile = useIsMobile(); // Phase 9 (09-03): 560px panel OVERFLOWS 375px → clamp (D-04)
   const [sigCopied, setSigCopied] = useState(false);
 
   if (!open) return null;
@@ -812,11 +816,12 @@ function ProvenanceModal({ open, onClose, provenance, isLoading }: ProvenanceMod
       }}
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
-      {/* Modal panel — accent neobrutalist (Surface 5) */}
+      {/* Modal panel — accent neobrutalist (Surface 5). 560px OVERFLOWS 375px →
+          clamp to calc(100vw - 32px) at mobile (D-04 — the one inline modal that must change). */}
       <div style={{
         position: 'relative', backgroundColor: '#111118',
         border: '3px solid #E8F542', boxShadow: '4px 4px 0 #E8F542',
-        padding: '24px', width: '100%', maxWidth: '560px',
+        padding: '24px', width: '100%', maxWidth: isMobile ? 'calc(100vw - 32px)' : '560px',
         display: 'flex', flexDirection: 'column', gap: '20px',
         maxHeight: '85vh', overflowY: 'auto',
       }}>
@@ -1860,7 +1865,7 @@ export default function CallPage() {
           zIndex: 30,
           backgroundColor: '#09090E',
           borderBottom: '2px solid #2E2E42',
-          padding: '12px 24px',
+          padding: isMobile ? '12px 16px' : '12px 24px',
         }}
       >
         {/* CALLER EXITED amber banner — SOCIAL-25 */}
@@ -1890,9 +1895,12 @@ export default function CallPage() {
           </div>
         )}
 
-        <div style={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{
+          display: 'flex', flexDirection: 'row', justifyContent: 'space-between',
+          alignItems: 'center', flexWrap: isMobile ? 'wrap' : 'nowrap', gap: isMobile ? '8px' : undefined,
+        }}>
           {/* Left: back link + handle */}
-          <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: '16px' }}>
+          <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: isMobile ? '10px' : '16px', flexWrap: 'wrap', minWidth: 0 }}>
             <Link href="/" style={{ fontFamily: 'monospace', fontSize: '12px', color: '#94A3B8', textDecoration: 'none' }}>
               ← Back to feed
             </Link>
@@ -1967,7 +1975,9 @@ export default function CallPage() {
       </div>
 
       {/* ── Page content ───────────────────────────────────────────────────── */}
-      <div style={{ maxWidth: '1024px', margin: '0 auto', padding: '24px' }}>
+      <div style={isMobile
+        ? { width: '100%', maxWidth: '100%', margin: '0 auto', padding: '0 16px' }
+        : { maxWidth: '1024px', margin: '0 auto', padding: '24px' }}>
 
         {/* ── THE CALL Hero ────────────────────────────────────────────────── */}
         <div
@@ -2041,11 +2051,13 @@ export default function CallPage() {
             </span>
           </div>
 
-          {/* 4-stat row */}
+          {/* 4-stat row — desktop: 4 in a row; mobile: 2×2 via flexWrap (NOT grid),
+              dividers preserved (matches the settled-receipt stat-stack treatment) */}
           <div
             style={{
               display: 'flex',
               flexDirection: 'row',
+              flexWrap: isMobile ? 'wrap' : 'nowrap',
               gap: '0px',
               border: '2px solid #2E2E42',
               marginBottom: '20px',
@@ -2054,9 +2066,10 @@ export default function CallPage() {
             {/* CURRENT SPREAD */}
             <div
               style={{
-                flex: 1,
+                flex: isMobile ? '1 1 45%' : 1,
                 padding: '14px 16px',
                 borderRight: '1px solid #2E2E42',
+                borderBottom: isMobile ? '1px solid #2E2E42' : undefined,
                 display: 'flex',
                 flexDirection: 'column',
                 gap: '4px',
@@ -2072,9 +2085,10 @@ export default function CallPage() {
             {/* TIME LEFT */}
             <div
               style={{
-                flex: 1,
+                flex: isMobile ? '1 1 45%' : 1,
                 padding: '14px 16px',
-                borderRight: '1px solid #2E2E42',
+                borderRight: isMobile ? undefined : '1px solid #2E2E42',
+                borderBottom: isMobile ? '1px solid #2E2E42' : undefined,
                 display: 'flex',
                 flexDirection: 'column',
                 gap: '4px',
@@ -2090,7 +2104,7 @@ export default function CallPage() {
             {/* STAKE */}
             <div
               style={{
-                flex: 1,
+                flex: isMobile ? '1 1 45%' : 1,
                 padding: '14px 16px',
                 borderRight: '1px solid #2E2E42',
                 display: 'flex',
@@ -2108,7 +2122,7 @@ export default function CallPage() {
             {/* CONVICTION */}
             <div
               style={{
-                flex: 1,
+                flex: isMobile ? '1 1 45%' : 1,
                 padding: '14px 16px',
                 display: 'flex',
                 flexDirection: 'column',
@@ -2133,12 +2147,14 @@ export default function CallPage() {
             />
           </div>
 
-          {/* ── 3 Action Buttons ───────────────────────────────────────────── */}
+          {/* ── 3 Action Buttons ─────────────────────────────────────────────
+              Desktop: 3 in a row. Mobile: full-width stacked (column), each ≥44px
+              tall (padding 14px ⇒ ~46px). Preserve filled/outline/orange treatments. */}
           <div
             style={{
               display: 'flex',
-              flexDirection: 'row',
-              gap: '8px',
+              flexDirection: isMobile ? 'column' : 'row',
+              gap: isMobile ? '12px' : '8px',
               marginBottom: '20px',
             }}
           >
@@ -2146,7 +2162,8 @@ export default function CallPage() {
             <button
               onClick={() => { if (user) setIsFollowModalOpen(true); }}
               style={{
-                flex: 1,
+                flex: isMobile ? undefined : 1,
+                width: isMobile ? '100%' : undefined,
                 fontFamily: 'monospace',
                 fontSize: '13px',
                 fontWeight: 700,
@@ -2166,7 +2183,8 @@ export default function CallPage() {
             <button
               onClick={() => { if (user) setIsFadeModalOpen(true); }}
               style={{
-                flex: 1,
+                flex: isMobile ? undefined : 1,
+                width: isMobile ? '100%' : undefined,
                 fontFamily: 'monospace',
                 fontSize: '13px',
                 fontWeight: 700,
@@ -2198,7 +2216,8 @@ export default function CallPage() {
                 setIsChallengeFormOpen(true);
               }}
               style={{
-                flex: 1,
+                flex: isMobile ? undefined : 1,
+                width: isMobile ? '100%' : undefined,
                 fontFamily: 'monospace',
                 fontSize: '13px',
                 fontWeight: 700,
@@ -2340,13 +2359,14 @@ export default function CallPage() {
                   You have {Math.max(0, Math.floor((Number(pendingChallenge.proposedAt) + 86400 - Date.now() / 1000) / 3600))}h to accept or reject this challenge.
                   Accepting will lock {formatUsdc(callerMatchingStake)} USDC (your matching stake).
                 </p>
-                <div style={{ display: 'flex', flexDirection: 'row', gap: '10px', alignItems: 'center' }}>
+                <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: '10px', alignItems: isMobile ? 'stretch' : 'center' }}>
                   {callerNeedsApproval ? (
                     /* Step 1: Approve USDC (T-3-06-06) */
                     <button
                       onClick={() => void handleChallengeApprove()}
                       disabled={challengeApproving || ceApproveConfirming}
                       style={{
+                        width: isMobile ? '100%' : undefined,
                         fontFamily: 'monospace',
                         fontSize: '13px',
                         fontWeight: 700,
@@ -2354,7 +2374,7 @@ export default function CallPage() {
                         backgroundColor: (challengeApproving || ceApproveConfirming) ? '#2E2E42' : '#E8F542',
                         border: '2px solid #09090E',
                         boxShadow: (challengeApproving || ceApproveConfirming) ? 'none' : '4px 4px 0 #09090E',
-                        padding: '10px 18px',
+                        padding: '12px 18px',
                         cursor: (challengeApproving || ceApproveConfirming) ? 'not-allowed' : 'pointer',
                       }}
                     >
@@ -2366,6 +2386,7 @@ export default function CallPage() {
                       onClick={() => void handleChallengeAccept()}
                       disabled={challengeAccepting || isZeroCE}
                       style={{
+                        width: isMobile ? '100%' : undefined,
                         fontFamily: 'monospace',
                         fontSize: '13px',
                         fontWeight: 700,
@@ -2373,7 +2394,7 @@ export default function CallPage() {
                         backgroundColor: (challengeAccepting || isZeroCE) ? '#2E2E42' : '#4ADE80',
                         border: `2px solid ${(challengeAccepting || isZeroCE) ? '#2E2E42' : '#09090E'}`,
                         boxShadow: (challengeAccepting || isZeroCE) ? 'none' : '4px 4px 0 #09090E',
-                        padding: '10px 18px',
+                        padding: '12px 18px',
                         cursor: (challengeAccepting || isZeroCE) ? 'not-allowed' : 'pointer',
                       }}
                     >
@@ -2386,12 +2407,13 @@ export default function CallPage() {
                     <button
                       onClick={() => setRejectConfirmOpen(true)}
                       style={{
+                        width: isMobile ? '100%' : undefined,
                         fontFamily: 'monospace',
                         fontSize: '13px',
                         color: '#F87171',
                         backgroundColor: 'transparent',
                         border: '2px solid #F87171',
-                        padding: '10px 18px',
+                        padding: '12px 18px',
                         cursor: 'pointer',
                       }}
                     >
@@ -2427,11 +2449,17 @@ export default function CallPage() {
           </div>
         )}
 
-        {/* ── Two-column content: ActivityFeed (left) + QuoteCalls (right) ─── */}
-        <div style={{ display: 'flex', flexDirection: 'row', gap: '24px', alignItems: 'flex-start', marginBottom: '24px' }}>
+        {/* ── Two-column content: ActivityFeed (left) + QuoteCalls (right) ───
+            Mobile: stacks to a single column — activity feed FIRST, quote-calls below.
+            The quote-calls column is a READ-ONLY display surface (NOT the composer) →
+            stays in scope, gets NO desktop-only banner. */}
+        <div style={{
+          display: 'flex', flexDirection: isMobile ? 'column' : 'row',
+          gap: isMobile ? '16px' : '24px', alignItems: 'flex-start', marginBottom: '24px',
+        }}>
 
-          {/* Left: Activity feed (D-08) */}
-          <div style={{ flex: 3, display: 'flex', flexDirection: 'column', gap: '0px' }}>
+          {/* Left: Activity feed (D-08) — full width at mobile, listed first */}
+          <div style={{ flex: 3, width: isMobile ? '100%' : undefined, display: 'flex', flexDirection: 'column', gap: '0px' }}>
             <div
               style={{
                 display: 'flex',
@@ -2520,8 +2548,8 @@ export default function CallPage() {
             )}
           </div>
 
-          {/* Right: Quote-calls column (D-08, SOCIAL-44, SOCIAL-45) */}
-          <div style={{ flex: 2, display: 'flex', flexDirection: 'column', gap: '0px' }}>
+          {/* Right: Quote-calls column (D-08, SOCIAL-44, SOCIAL-45) — full width at mobile, below the feed */}
+          <div style={{ flex: 2, width: isMobile ? '100%' : undefined, display: 'flex', flexDirection: 'column', gap: '0px' }}>
             <div
               style={{
                 padding: '10px 14px',
