@@ -343,7 +343,7 @@ Plans:
 
 **Wave 1** *(foundation)*
 
-  - [ ] 09-01-PLAN.md — Wave 1: SSR-safe useIsMobile() hook (useSyncExternalStore, getServerSnapshot=>true, D-01/D-02) + responsive.spec.ts Wave-0 mechanical gate (375/390px, UI-48/49/50/SC3)
+  - [x] 09-01-PLAN.md — Wave 1: SSR-safe useIsMobile() hook (useSyncExternalStore, getServerSnapshot=>true, D-01/D-02) + responsive.spec.ts Wave-0 mechanical gate (375/390px, UI-48/49/50/SC3)
 
 **Wave 2** *(parallel slices — all depend only on the hook; zero file overlap)*
 
@@ -357,6 +357,7 @@ Plans:
 **Wave 3** *(blocked on all Wave-2 slices)*
 
   - [ ] 09-08-PLAN.md — Wave 3: full apps/web Playwright suite green (D-10a) + seeded-call confirm + [OPERATOR] real-device iPhone/Android share->receipt sign-off (D-10b / D-11 HARD GATE, no fallback) — SC1/SC2/SC3
+
 **UI hint**: yes
 
 ### Phase 10: Mainnet deploy gate
@@ -410,6 +411,6 @@ Phases execute in numeric order: 0 → 1 → 1.5 (parallel with 2) → 2 → 3 �
 | 6. Safety review + Sepolia ≥48h + multisig rehearsal | 4/6 | In Progress | - |
 | 7. OG service final variants + Subgraph final mappings | 6/6 | Complete   | 2026-06-08 |
 | 8. Farcaster Mini Apps | 6/6 | Complete   | 2026-06-09 |
-| 9. Mobile responsive on 7 critical pages | 0/8 | Not started | - |
+| 9. Mobile responsive on 7 critical pages | 1/8 | In Progress|  |
 | 10. Mainnet deploy gate | 0/TBD | Not started | - |
 | 10.5. Mainnet multisig promotion (ownership lockdown) | 0/TBD | Not started | - |
