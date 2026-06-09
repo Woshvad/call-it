@@ -84,6 +84,12 @@ import {
 } from '@call-it/shared';
 import { warpcastComposeUrl, buildShareText } from '@call-it/shared';
 import { ChallengeFormModal } from '@/app/components/ChallengeFormModal';
+// MiniAppReady (08-06, UAT 08 GAP 2): calls sdk.actions.ready() once after mount so the
+// Farcaster Mini App host dismisses the splash and reveals this receipt (no blank page).
+// Mounted on EVERY render branch below (loading / settled / live). Fail-safe outside a host.
+// SCOPE (D-01, Phase-10): this only makes the Mini App RENDER the read-only receipt + ready();
+// in-app tap-to-transact on mainnet 42161 stays Phase 10. Interactive controls stay wallet-gated.
+import MiniAppReady from './MiniAppReady';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -1322,9 +1328,16 @@ export default function CallPage() {
   }, [fetchAll, callIdNum, userAddress]);
 
   // ─── Loading skeleton ─────────────────────────────────────────────────────
+  // The loading gate keys off the RELAYER fetch (isLoadingCall && !callData) ONLY —
+  // NOT on Privy/wagmi wallet readiness. A logged-out Mini App webview reaches the
+  // read-only receipt branches below without waiting on wallet init (08-06 GAP 2).
   if (isLoadingCall && !callData) {
     return (
       <div style={{ padding: '32px', color: '#94A3B8', fontFamily: 'monospace', fontSize: '14px' }}>
+        {/* 08-06 GAP 2: signal ready() even on the loading skeleton so the Mini App host
+            never leaves a blank splash up if the relayer fetch is slow/unavailable.
+            D-01: read-only render only; tap-to-transact is Phase 10. */}
+        <MiniAppReady enabled />
         Loading call #{callIdNum}...
       </div>
     );
@@ -1412,6 +1425,10 @@ export default function CallPage() {
 
     return (
       <div style={{ backgroundColor: '#09090E', minHeight: '100vh', padding: '0' }}>
+        {/* 08-06 GAP 2: signal ready() so the Mini App host reveals this settled receipt
+            (renders null). enabled keyed off callData so the host shows real content, not a
+            bare skeleton. D-01: read-only render only; tap-to-transact is Phase 10. */}
+        <MiniAppReady enabled={!!callData} />
         {/* ── Settled Page Frame: 3px border + 4px corner brackets ─────────── */}
         <div style={{ position: 'relative', border: '3px solid #2E2E42' }}>
           {/* Corner bracket accent (UI-14) */}
@@ -1794,6 +1811,12 @@ export default function CallPage() {
   // ─── Render ───────────────────────────────────────────────────────────────
   return (
     <div style={{ backgroundColor: '#09090E', minHeight: '100vh', padding: '0' }}>
+      {/* 08-06 GAP 2: signal ready() so the Mini App host reveals this LIVE receipt
+          (renders null). enabled keyed off callData so the host shows real content.
+          The read-only receipt body below renders WITHOUT a connected wallet — only the
+          interactive Follow/Fade/Challenge controls are wallet-gated. D-01: read-only
+          render only; in-app tap-to-transact on mainnet 42161 is Phase 10. */}
+      <MiniAppReady enabled={!!callData} />
 
       {/* ── Sticky Caller Header ────────────────────────────────────────────── */}
       <div
