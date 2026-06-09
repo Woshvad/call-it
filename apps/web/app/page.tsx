@@ -34,6 +34,7 @@ import { useFeed } from '@/hooks/useFeed';
 import { FeedList } from '@/components/FeedList';
 import { ChallengeFormModal } from '@/app/components/ChallengeFormModal';
 import { FromYourNetworkSections } from '@/app/components/FromYourNetworkSections';
+import { useIsMobile } from '@/app/hooks/useIsMobile';
 import type { FeedItem } from '@/lib/relayer-client';
 
 // Import the global CSS for feed card stagger animation (UI-53)
@@ -200,6 +201,7 @@ interface DuelRowCardProps {
 }
 
 function DuelRowCard({ duel, duelKing, isTrending }: DuelRowCardProps) {
+  const isMobile = useIsMobile(); // Phase 9 (09-05): stack the two minWidth:120px cells at 375px (UI-48)
   const isKingCaller = duelKing?.winnerHandle === duel.callerHandle;
   const isKingChallenger = duelKing?.winnerHandle === duel.challengerHandle;
   const callerBarWidth = Math.max(duel.callerConsensusPct, 2);
@@ -228,12 +230,14 @@ function DuelRowCard({ duel, duelKing, isTrending }: DuelRowCardProps) {
         </div>
       )}
 
-      {/* Main row: caller | market info | challenger */}
+      {/* Main row: caller | market info | challenger.
+          Mobile (UI-48): flip to column + drop the two minWidth:120px cells so the
+          row fits 343px (caller stacks above market stacks above challenger). */}
       <div
         style={{
           display: 'flex',
-          flexDirection: 'row',
-          alignItems: 'center',
+          flexDirection: isMobile ? 'column' : 'row',
+          alignItems: isMobile ? 'stretch' : 'center',
           gap: '12px',
         }}
       >
@@ -243,7 +247,8 @@ function DuelRowCard({ duel, duelKing, isTrending }: DuelRowCardProps) {
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
-            minWidth: '120px',
+            minWidth: isMobile ? undefined : '120px',
+            width: isMobile ? '100%' : undefined,
             gap: '2px',
           }}
         >
@@ -350,7 +355,8 @@ function DuelRowCard({ duel, duelKing, isTrending }: DuelRowCardProps) {
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
-            minWidth: '120px',
+            minWidth: isMobile ? undefined : '120px',
+            width: isMobile ? '100%' : undefined,
             gap: '2px',
           }}
         >
@@ -443,6 +449,7 @@ interface DuelsTabProps {
 }
 
 function DuelsTab({ duelKing }: DuelsTabProps) {
+  const isMobile = useIsMobile(); // Phase 9 (09-05): >=44px filter chips at mobile (D-03)
   const [activeFilter, setActiveFilter] = useState<DuelFilter>('All');
   const [duels, setDuels] = useState<DuelRow[]>([]);
   const [isLoadingDuels, setIsLoadingDuels] = useState(true);
@@ -487,7 +494,8 @@ function DuelsTab({ duelKing }: DuelsTabProps) {
             key={f}
             onClick={() => setActiveFilter(f)}
             style={{
-              padding: '4px 10px',
+              padding: isMobile ? '0 14px' : '4px 10px',
+              minHeight: isMobile ? '44px' : undefined,
               fontFamily: 'Space Grotesk, monospace',
               fontSize: '12px',
               fontWeight: 400,
@@ -677,6 +685,7 @@ function TrendingDuelPin({ duel, duelKing }: TrendingDuelPinProps) {
 export default function HomePage() {
   const { ready, authenticated } = usePrivy();
   const router = useRouter();
+  const isMobile = useIsMobile(); // Phase 9 (09-05): container clamp + >=44px Live filter chips (UI-48/D-03)
   const { allItems, isLoading, fetchNextPage, hasNextPage } = useFeed();
 
   // Tab state
@@ -724,9 +733,11 @@ export default function HomePage() {
   return (
     <main
       style={{
-        maxWidth: '680px',
+        // Phase 9 (09-05): full-width clamp at mobile so the 680px container never forces scroll (UI-48).
+        width: isMobile ? '100%' : undefined,
+        maxWidth: isMobile ? '100%' : '680px',
         margin: '0 auto',
-        padding: '24px 16px',
+        padding: isMobile ? '24px 16px' : '24px 16px',
       }}
     >
       {/* Header row */}
@@ -759,7 +770,8 @@ export default function HomePage() {
               <button
                 onClick={handleNewCallClick}
                 style={{
-                  padding: '8px 16px',
+                  padding: isMobile ? '0 16px' : '8px 16px',
+                  minHeight: isMobile ? '44px' : undefined,
                   fontFamily: 'monospace',
                   fontWeight: 700,
                   fontSize: '0.875rem',
@@ -777,7 +789,8 @@ export default function HomePage() {
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 onClick={() => router.push('/signin' as any)}
                 style={{
-                  padding: '8px 16px',
+                  padding: isMobile ? '0 16px' : '8px 16px',
+                  minHeight: isMobile ? '44px' : undefined,
                   fontFamily: 'monospace',
                   fontWeight: 700,
                   fontSize: '0.875rem',
@@ -809,7 +822,8 @@ export default function HomePage() {
             key={tab}
             onClick={() => setActiveTab(tab)}
             style={{
-              padding: '10px 16px',
+              padding: isMobile ? '0 16px' : '10px 16px',
+              minHeight: isMobile ? '44px' : undefined,
               fontFamily: 'Space Grotesk, monospace',
               fontSize: '14px',
               fontWeight: 700,
@@ -849,7 +863,8 @@ export default function HomePage() {
                 key={f}
                 onClick={() => setLiveFilter(f)}
                 style={{
-                  padding: '4px 10px',
+                  padding: isMobile ? '0 14px' : '4px 10px',
+                  minHeight: isMobile ? '44px' : undefined,
                   fontFamily: 'Space Grotesk, monospace',
                   fontSize: '12px',
                   fontWeight: 400,
@@ -886,7 +901,8 @@ export default function HomePage() {
               <button
                 onClick={() => fetchNextPage()}
                 style={{
-                  padding: '8px 24px',
+                  padding: isMobile ? '0 24px' : '8px 24px',
+                  minHeight: isMobile ? '44px' : undefined,
                   fontFamily: 'monospace',
                   fontSize: '0.875rem',
                   color: '#A1A1AA',
@@ -960,6 +976,7 @@ interface LiveFeedListProps {
 }
 
 function LiveFeedList({ items, isLoading, onNewCallClick, duelKing, onChallengeClick }: LiveFeedListProps) {
+  const isMobile = useIsMobile(); // Phase 9 (09-05): >=44px Challenge CTA + empty-state button at mobile (D-03)
   if (isLoading) {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
@@ -998,7 +1015,8 @@ function LiveFeedList({ items, isLoading, onNewCallClick, duelKing, onChallengeC
         <button
           onClick={onNewCallClick}
           style={{
-            padding: '8px 16px',
+            padding: isMobile ? '0 16px' : '8px 16px',
+            minHeight: isMobile ? '44px' : undefined,
             fontFamily: 'monospace',
             fontWeight: 700,
             fontSize: '0.875rem',
@@ -1081,7 +1099,8 @@ function LiveFeedList({ items, isLoading, onNewCallClick, duelKing, onChallengeC
                     }
                   }}
                   style={{
-                    padding: '4px 10px',
+                    padding: isMobile ? '0 10px' : '4px 10px',
+                    minHeight: isMobile ? '44px' : undefined,
                     fontFamily: 'Space Grotesk, monospace',
                     fontSize: '12px',
                     fontWeight: 700,
