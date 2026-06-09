@@ -384,13 +384,18 @@ export function FollowFadeModal({
             </div>
           )}
 
-          {/* Action buttons */}
-          <div style={{ display: 'flex', flexDirection: 'row', gap: '12px' }}>
+          {/* Action buttons — flexWrap + per-button minWidth stacks them full-width
+              when the panel clamps to calc(100vw - 32px) on a phone, side-by-side on the
+              440px desktop panel. Intrinsic CSS only — no browser-only viewport read (Pitfall 2;
+              this file feeds the Satori/@vercel/og Node build with no window). */}
+          <div style={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap', gap: '12px' }}>
             <button
               onClick={onClose}
               disabled={isSubmitting}
               style={{
-                flex: 1,
+                flex: '1 1 160px',
+                minWidth: '160px',
+                minHeight: '44px',
                 fontFamily: 'monospace',
                 fontSize: '14px',
                 fontWeight: 700,
@@ -410,7 +415,9 @@ export function FollowFadeModal({
               onClick={handleSubmit}
               disabled={!isValid}
               style={{
-                flex: 2,
+                flex: '2 1 200px',
+                minWidth: '200px',
+                minHeight: '44px',
                 fontFamily: 'monospace',
                 fontSize: '14px',
                 fontWeight: 700,
