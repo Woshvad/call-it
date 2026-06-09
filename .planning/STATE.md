@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: milestone
 status: executing
-stopped_at: Phase 8 UI-SPEC approved
-last_updated: "2026-06-08T22:19:48.611Z"
-last_activity: 2026-06-08 -- Phase 08 execution started
+stopped_at: "Phase 08 Plan 04 COMPLETE — Task 1 (ad81ea3) + Task 2 implementation (83aeae9) committed; Task-2 human-verify checkpoint APPROVED 2026-06-09 on automated evidence (live in-Warpcast preview deferred to Phase-10/soak — Sepolia not in Warpcast chainList). SUMMARY finalized, STATE advanced (completed_plans 72→73), ROADMAP plan-progress = Complete, SHARE-19 traced/complete. **Phase 08 all 4 plans done.** Next: Phase 08 verification, then Phase 09 (mobile responsive)."
+last_updated: "2026-06-09T05:41:13.742Z"
+last_activity: 2026-06-09 -- Phase 08 Plan 04 finalized (SHARE AS FRAME human-verify approved)
 progress:
   total_phases: 14
   completed_phases: 9
   total_plans: 73
-  completed_plans: 72
-  percent: 64
+  completed_plans: 73
+  percent: 65
 ---
 
 # Project State
@@ -25,15 +25,17 @@ See: .planning/PROJECT.md (updated 2026-05-21)
 
 ## Current Position
 
-Phase: 08 (farcaster-mini-apps) — EXECUTING
-Plan: 4 of 4
+Phase: 08 (farcaster-mini-apps) — ALL 4 PLANS COMPLETE
+Plan: 4 of 4 — DONE (08-01..08-04 all committed + SUMMARYd; ROADMAP plan-progress = Complete)
+
+> **Phase 08 status (2026-06-09):** ✅ **ALL 4 plans COMPLETE.** 08-04 (Slice C — close the distribution loop) finalized: Task 1 (auto-post embed rides the receipt URL — worker verify-only, no payload change; Open Q3 compose host MIGRATED warpcast.com → farcaster.xyz, one-line pure-builder change) committed `ad81ea3`; Task 2 (SHARE AS FRAME outline control on the settled receipt action row) implemented + committed `83aeae9`. **Task-2 human-verify checkpoint APPROVED 2026-06-09** on the automated evidence (web 80/80, relayer 209 passed/1 skipped, both builds exit 0, control reuses existing design tokens + `rel="noopener noreferrer"`); the live in-Warpcast visual preview is DEFERRED to the existing Phase-10/soak gate (Arbitrum Sepolia is not in Warpcast's chainList, so an in-client transact preview is unavailable on testnet). SHARE-19 is Complete (traced to Phase 8 in REQUIREMENTS.md). Distribution loop closed (auto-post + manual SHARE AS FRAME both carry the Frame embed; live tap-to-transact remains the D-01 Phase-10 gate).
 
 > **Phase 07 status (2026-06-08):** ✅ **ALL 6 plans COMPLETE.** 07-06 Task 2 (operator-gated live deploy) was executed LIVE by operator + orchestrator on 2026-06-08: subgraph **v0.9.0 published to Sepolia Studio** (D-01 — no DN; build `QmYrrSgVxr…`, `SUBGRAPH_URL_SEPOLIA` bumped, commit `1b0f9ff`; `_meta` block 275026674 `hasIndexingErrors:false`), **BOTH relayer migrations applied** to remote Sepolia Postgres `call_it_relayer_sepolia` (`0006 call_statement` + `0007 posted_receipts`, both verified present), **`apps/web` deployed to Vercel `call-it-web-sepolia`** (`https://call-it-web-sepolia.vercel.app`; net-new monorepo deploy config `apps/web/vercel.json` + root `.vercelignore`; `/feed`/`/leaderboard` 200, fallback OG 200 image/png), **Fly CORS allowlist** = exact Vercel origin (`X_API_WRITE_TOKEN` still UNSET, D-02), **CORS OPTIONS preflight PASSED** (204, exact origin not `*`). Deploy commits: `1b0f9ff`, `2d1d93e`, `8b82d70`, `0d2aa40`, `046cca9`, `f7f495b`. **3 residuals operator-pending (NOT marked passed):** Twitter Card Validator 5/5 (SHARE-13/D-08, browser-only), SC1 200px outcome-word baselines + authoritative `verify-event-coverage.ts` live run (OPS-04, needs a fresh seeded-settled run), and the incognito visual hydration spot-check (CORS + 200s already curl-confirmed). Evidence in `docs/operator/phase-7-deploy-runbook.md` § Outputs to record + `07-06-SUMMARY.md`. This unblocks the parked Phase-4 UAT-1/2/3.
 
 > **Phase 01.5 status (2026-06-07):** ✅ **ALL 5 plans COMPLETE** — **01.5-02** (relayer social-link service), **01.5-03** (VerifiedBadge + AUTH-10 invariant), **01.5-04** (link/unlink UI + AuthKitProvider + opt-in), **01.5-05** (FEED sections — complete-with-documented-deferral: X/Neynar keys deferred, AUTH-14 live data dormant until keys set; AUTH-15/16/17/18 satisfied + tested), and **01.5-01** (env surface + setRelayer). **setRelayer gate CLEARED on-chain (2026-06-07):** derived oauth-proof KMS `0xdFc80922FAbc51a08350c0b371917e6EaB8b550A` (scaffold `9b41f0f`), funded 0.05 ETH, operator broadcast `setRelayer` from treasury `0xDa8c5726`; verified `relayer()` == `0xdFc80922…` (was `0x0`), `owner()` unchanged. `RELAYER_OAUTH_PROOF_ADDRESS` set in local `.env.local`. **Remaining follow-ups (non-gating):** (1) deployed Fly relayer `fly secrets set RELAYER_OAUTH_PROOF_ADDRESS=0xdFc80922… -a call-it-relayer-sepolia` — deferred to avoid restarting the relayer mid Phase-6 soak; (2) X API + Neynar key provisioning to activate live feed data. **Local DB:** ✅ provisioned `callit-postgres` (127.0.0.1:5434), all 6 migrations applied (`follow_graph` + `social_link_index`). **Phase ✅ VERIFIED + COMPLETE (2026-06-07)** — goal-backward verification PASSED: 4/4 ROADMAP success criteria, 11/11 requirements (8 PASS, 3 documented deferrals: AUTH-14 live X data, live FC data, Fly secret), 0 FAILs (see `01.5-VERIFICATION.md`). Full relayer suite 189✓/1 skipped; relayer+web+ui+shared builds 0.
 
 > **⚡ CURRENT REALITY (2026-06-07) — owner-key-recovery cluster, supersedes the 06-02 and 06-05 clusters below.** A 2026-06-06 owner-key-recovery REDEPLOY (block 274393587) moved all 5 contracts to owner = treasury `0xDa8c5726f596E8dae99e6dDEBa8AEa1c8bE9A4a5` (a key the operator HOLDS = `SOAK_WALLET_0` = root `.env` `DEPLOYER_PRIVATE_KEY`), recovering from the lost `0xF4ee6195` owner key. **Canonical Sepolia cluster (on-chain owner-verified 2026-06-07):** PR `0xF66C0AFEf03b43338FC5aE282e45C0Cf6A3c4820` · CR `0xc79bB19dBCA44D8b467b9f7bbb191b56e9fb3CB0` · FFM `0x188Db2970A46D1541EB712A2302e4a9F67740d82` · CE `0xC738dBcDBC3aCDCF7E25EB9B7E15bB3911aFf5e6` · SM `0x2E26eEb3b4CC9FA49B543846ea2E01B7600897e7`. Stylus proxy `0xe7e15980C40db52BFC6dcaBb21B3d90edFB27c14` (Phase 5, NOT redeployed). Subgraph `call-it-sepolia` v0.8.0 indexes this cluster. Relayer LIVE (Fly `/health` ok 2026-06-07). **SAFETY-22/23/24/25/27/42 are ALL PROVEN on the recovery cluster:** SAFETY-22/23/24 re-proven 2026-06-06 (calls 1–12, 30 follow/fade, 6 settles "CALLED IT", 0 failed; globalRep persists); SAFETY-25 caller-exit proven 2026-06-07 (`callerExit(12)` from treasury, tx `0xc5dc9a04…`, CallerExited event, $3.55 USDC returned, globalRep 100→76 verified); SAFETY-27 raise+resolve proven 2026-06-06 on call #1 (`SM.disputes(1).resolved=true`, disputer treasury, $5 bond); SAFETY-42 Stylus destruction drill proven 2026-06-06 on call #11 (reverting engine → RepCalculatedFallback → engine restored to `0xe7e15980`). **SUPERSEDED / DEAD (reference only):** the 06-05 lost-key cluster (CR `0xb864308D…` / SM `0x9235003d…` / PR `0xE82308B3…`, owner `0xF4ee6195` — key LOST) and the 06-02 cluster (CR `0x015758Cb…`) — neither is current. See `evidence/phase-6-soak/SOAK-STATUS-SNAPSHOT-2026-06-07.md` for the live status sheet + operator command checklist.
-Last activity: 2026-06-08 -- Phase 08 execution started
+Last activity: 2026-06-09 -- Phase 08 Plan 04 finalized (08-04 complete; phase 08 all 4 plans done)
 
 **CI-safe code built this session (on master):**
 
@@ -155,6 +157,7 @@ All 3 operator actions were run this session (user explicitly authorized "run al
 | Phase 08 P01 | 14min | 2 tasks | 8 files |
 | Phase 08-farcaster-mini-apps P02 | 7min | 2 tasks | 3 files |
 | Phase 08-farcaster-mini-apps P03 | 18min | 2 tasks | 4 files |
+| Phase 08-farcaster-mini-apps P04 | ~15min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -309,7 +312,7 @@ completed: 2026-05-29
 - [Phase 08-farcaster-mini-apps]: 08-02: buildFarcasterEmbeds follows the Wave-0 RED scaffold signature ({callId,statusVersion,baseUrl} -> JSON strings) as the authoritative GREEN target (not the PLAN prose); Next 16 registers the dotted /.well-known/farcaster.json segment natively, no next.config rewrite fallback needed (Pitfall 5)
 - [Phase ?]: [Phase 08-03]: Frame tx route emits real on-chain follow/fade(uint256,uint256,uint256) calldata — Wave-0 scaffold's assumed follow(uint256,uint96,uint8) had a different selector + would revert; test decode ABI reconciled (args [id,1_000_000n,0n] unchanged)
 - [Phase ?]: [Phase 08-03]: one-tap Follow/Fade hardcoded $1 (MIN_POSITION_USDC) + Challenge $5, never from the untrusted Frame POST body (D-07/T-08-03-04); to ALWAYS a pinned Sepolia addr; settled Follow+Quote deep-link only (D-06a)
-- [Phase 08-04]: Open Q3 RESOLVED — Warpcast compose host MIGRATED warpcast.com → farcaster.xyz (legacy /~/compose 301-redirects; verified live 2026-06-08). One-line host change to the pure warpcastComposeUrl in @call-it/shared (signature + purity preserved); ?text=…&embeds[]=… shape unchanged; share-text test expectation updated. Auto-post embed rides the receipt URL — worker verify-only, no payload change (D-04/SC3). SHARE AS FRAME outline control on the settled receipt action row reuses the shared builders, omitted (no dead button) when NEXT_PUBLIC_OG_BASE_URL or a real handle is missing (UI-SPEC). Task 2 PAUSED at human-verify checkpoint.
+- [Phase 08-04]: Open Q3 RESOLVED — Warpcast compose host MIGRATED warpcast.com → farcaster.xyz (legacy /~/compose 301-redirects; verified live 2026-06-08). One-line host change to the pure warpcastComposeUrl in @call-it/shared (signature + purity preserved); ?text=…&embeds[]=… shape unchanged; share-text test expectation updated. Auto-post embed rides the receipt URL — worker verify-only, no payload change (D-04/SC3). SHARE AS FRAME outline control on the settled receipt action row reuses the shared builders, omitted (no dead button) when NEXT_PUBLIC_OG_BASE_URL or a real handle is missing (UI-SPEC). **Task-2 human-verify checkpoint APPROVED 2026-06-09** on the automated evidence (web 80/80, relayer 209/1-skip, both builds exit 0, control reuses existing tokens + noopener/noreferrer); live in-Warpcast visual preview DEFERRED to the Phase-10/soak gate (Arbitrum Sepolia not in Warpcast chainList). Plan 08-04 COMPLETE → phase 08 all 4 plans done.
 
 ## Performance
 
@@ -456,6 +459,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-06-08T23:30:00.000Z
-Stopped at: Phase 08 Plan 04 — Task 1 complete (ad81ea3); Task 2 (SHARE AS FRAME control) implemented + committed (83aeae9) and builds clean — PAUSED at the Task-2 human-verify checkpoint (visual/behavioral verify on a deployed Sepolia settled receipt). Resume signal: "approved" or describe the issue.
+Last session: 2026-06-09T00:10:00.000Z
+Stopped at: Phase 08 Plan 04 COMPLETE — Task 1 (ad81ea3) + Task 2 implementation (83aeae9) committed; Task-2 human-verify checkpoint APPROVED 2026-06-09 on automated evidence (live in-Warpcast preview deferred to Phase-10/soak — Sepolia not in Warpcast chainList). SUMMARY finalized, STATE advanced (completed_plans 72→73), ROADMAP plan-progress = Complete, SHARE-19 traced/complete. **Phase 08 all 4 plans done.** Next: Phase 08 verification, then Phase 09 (mobile responsive).
 Resume file: .planning/phases/08-farcaster-mini-apps/08-04-SUMMARY.md

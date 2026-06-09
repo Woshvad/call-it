@@ -45,25 +45,25 @@ patterns-established:
   - "Embed-rides-the-URL: a single shared warpcastComposeUrl(receiptUrl, …) carries the Mini App embed for both the automated cast and the manual control — the embed is never a separate worker/route payload"
   - "Execute-time live-host verification for external intent URLs: probe the redirect chain (curl -w redirect_url) and, if migrated, make a single reviewed host-string edit in the pure builder + its test"
 
-requirements-completed: []
-requirements-partial: [SHARE-19]
+requirements-completed: [SHARE-19]
+requirements-partial: []
 
 # Metrics
 duration: ~15min
-completed: 2026-06-08
-status: paused-at-checkpoint
+completed: 2026-06-09
+status: complete
 ---
 
 # Phase 8 Plan 04: Close the Distribution Loop (Auto-post + SHARE AS FRAME) Summary
 
 **Vertical slice C closes the Farcaster distribution loop: (1) the Phase-7 auto-post-on-settle worker now provably lands a cast whose Mini App embed renders automatically — the embed rides the receipt URL already passed to `warpcastComposeUrl` (worker test extended; no payload change), and (2) the settled receipt page gains a `SHARE AS FRAME →` outline control so a caller can post the actionable, embed-bearing receipt on demand. Open Q3 is resolved against the live spec: the Warpcast compose host migrated to `farcaster.xyz` (legacy `warpcast.com/~/compose` 301-redirects), so the pure builder was updated with a single host-string change.**
 
-> **STATUS: PAUSED AT CHECKPOINT (Task 2 — human-verify).** Task 1 is complete + committed. Task 2's code (the `SHARE AS FRAME →` control) is implemented, builds clean, and passes all automated acceptance checks — but Task 2 is a `checkpoint:human-verify` gate. The remaining acceptance criterion is a human visual/behavioral check (placement, outline treatment, compose-intent behavior, omission-when-missing) that requires running the web app against the deployed Sepolia relayer / a seeded settled receipt. This is returned to the orchestrator for human verification; it was NOT auto-resolved.
+> **STATUS: COMPLETE (Task-2 human-verify APPROVED 2026-06-09).** Both tasks are committed. Task 2's `SHARE AS FRAME →` control passed every automated acceptance check (web 80/80, relayer 209 passed/1 skipped, both builds exit 0, control reuses the existing sibling-outline design tokens + `rel="noopener noreferrer"`). The user reviewed that automated evidence and responded **"approved"**. The live in-Warpcast visual preview (tapping the embed inside a real client) is **deferred to the existing Phase-10/soak gate** — Arbitrum Sepolia is not in Warpcast's `chainList`, so an in-client transact preview cannot be demonstrated on testnet (this is the same D-01 Phase-10 gate the plan's threat model/verification already names). Plan 08-04 is finalized; **phase 08 is all 4 plans complete.**
 
 ## Performance
 
-- **Duration:** ~15 min (to checkpoint)
-- **Tasks:** 1 of 2 complete; Task 2 implemented + committed, awaiting human visual verify
+- **Duration:** ~15 min
+- **Tasks:** 2 of 2 complete (Task 1 auto + Task 2 implemented and human-verify approved)
 - **Files modified:** 4 (0 created, 4 modified)
 
 ## Accomplishments
@@ -74,7 +74,7 @@ status: paused-at-checkpoint
 - **Worker verify-only + test extended.** Confirmed `auto-post-worker.ts` already builds `receiptUrl = ${base}/call/${callId}` and `warpcastComposeUrl(receiptUrl, text)` with NO structural change needed — the embed rides `receiptUrl`. Added one test `(f)` to `auto-post-worker.test.ts` asserting the produced `warpcastUrl` contains the URL-encoded receipt URL (`encodeURIComponent('https://callit.test/call/7')`) plus the `embeds[]=` marker. NO embeds-array payload added (RESEARCH Pattern 4 / D-04). All pre-existing assertions intact; the pre-existing host assertion updated to `farcaster.xyz/~/compose`.
 - **Rebuilt `@call-it/shared` dist** so the web re-export + relayer import pick up the new host (Phase-7 gotcha: shared dist is gitignored and must be rebuilt before web/relayer consume it).
 
-### Task 2 — SHARE AS FRAME outline control (IMPLEMENTED + COMMITTED `83aeae9`, awaiting human visual verify)
+### Task 2 — SHARE AS FRAME outline control (COMPLETE — committed `83aeae9`, human-verify APPROVED 2026-06-09)
 
 - Added a `SHARE AS FRAME →` control to the settled receipt action row in `apps/web/app/call/[id]/page.tsx`, to the right of `SHARE THE RECEIPT →`. It is an `<a href={shareAsFrameUrl} target="_blank" rel="noopener noreferrer">` wrapping an outline button.
 - **Outline treatment matches the sibling** `VIEW ALL CALLS BY {handle}` button: `border:2px solid #E8F542`, transparent fill, `#E8F542` text, and the existing action-row spacing/typography (`gap:12px`, `padding:16px`, `13px`/`700` mono uppercase, `letter-spacing:0.08em`). Zero new design tokens.
@@ -85,9 +85,9 @@ status: paused-at-checkpoint
 ## Task Commits
 
 1. **Task 1: auto-post embed-rides assertion + migrate compose host to farcaster.xyz** — `ad81ea3` (feat)
-2. **Task 2: SHARE AS FRAME outline control (implementation)** — `83aeae9` (feat) — *human visual verify pending*
+2. **Task 2: SHARE AS FRAME outline control (implementation)** — `83aeae9` (feat) — *human-verify APPROVED 2026-06-09*
 
-**Plan metadata:** (docs commit — see final commit)
+**Plan metadata:** (docs commit — see final commit; supersedes the interim paused-state docs commit `1ec0ee8`)
 
 ## Files Created/Modified
 
@@ -141,21 +141,25 @@ None. The auto-post embed rides a real receipt URL; the SHARE AS FRAME control o
 - `apps/web` SHARE AS FRAME source-grep: control present, reuses `warpcastComposeUrl`, `rel="noopener noreferrer"` present → OK.
 - `pnpm --filter @call-it/web build` → exit 0.
 
-## Checkpoint (Task 2 — human-verify) — AWAITING
+## Checkpoint (Task 2 — human-verify) — APPROVED 2026-06-09
 
-The control is built + builds clean; the remaining acceptance criterion is human visual/behavioral verification (it cannot be self-resolved):
+The control was built + builds clean; the user reviewed the automated evidence and responded **"approved"**, resolving the checkpoint.
 
-1. `pnpm --filter @call-it/web dev`; open a settled receipt at `/call/{seededSettledId}` against the deployed Sepolia relayer / a seeded settled call.
-2. Confirm the action row shows `SHARE THE RECEIPT →` (accent fill) and, to its right, `SHARE AS FRAME →` (outline: 2px `#E8F542` border, transparent fill, accent text) — same height/gap/typography as the sibling outline button; no layout shift, no new color.
+**What was approved on:** web suite 80/80, relayer 209 passed/1 skipped, `pnpm --filter @call-it/web build` and `pnpm --filter @call-it/shared build` both exit 0, and the control reuses the existing sibling-outline design tokens (2px `#E8F542` border, transparent fill, accent text — zero new tokens) with `rel="noopener noreferrer"` on the new-tab compose link (source-grep confirmed).
+
+**What was deferred (and why):** the live in-Warpcast visual preview — opening the composed cast inside a real Farcaster client and tapping the embed — is deferred to the existing **Phase-10/soak gate**. Arbitrum Sepolia is not in Warpcast's `chainList`, so an in-client transact preview cannot be demonstrated on testnet. This matches the plan's own verification note ("the live in-Warpcast tap-to-transact is NOT a gate here — Phase 10, D-01") and the threat-register `T-08-04` Phase-10 framing. No code change resulted from the approval.
+
+For reference, the human-verify steps that the live Phase-10 preview will exercise:
+
+1. `pnpm --filter @call-it/web dev`; open a settled receipt at `/call/{seededSettledId}`.
+2. Confirm the action row shows `SHARE THE RECEIPT →` (accent fill) and, to its right, `SHARE AS FRAME →` (outline).
 3. Click `SHARE AS FRAME →` — a new tab opens to the Farcaster compose intent URL with the receipt URL in `embeds[]=` and the `buildShareText` outcome word + handle in `text=`.
-4. (Optional, if you have a Farcaster account) preview the composed cast and confirm the OG card + launch button render from the embed (SC3 visual-continuity; live tap-to-transact remains the Phase-10 gate).
+4. Preview the composed cast and confirm the OG card + launch button render from the embed (live tap-to-transact = Phase-10 gate).
 5. Confirm that on a receipt where the handle/URL is unavailable, the control is absent (not a dead/disabled button).
-
-**Resume signal:** Type "approved", or describe the visual/behavioral issue to fix.
 
 ---
 *Phase: 08-farcaster-mini-apps*
-*Completed (to checkpoint): 2026-06-08*
+*Completed: 2026-06-09 (Task-2 human-verify approved)*
 
 ## Self-Check: PASSED
 
@@ -168,4 +172,6 @@ The control is built + builds clean; the remaining acceptance criterion is human
 - [x] `pnpm --filter @call-it/shared build` exit 0
 - [x] web suite 80/80; relayer suite 209 passed/1 skipped (auto-post-worker 10 tests)
 - [x] `pnpm --filter @call-it/web build` exit 0
-- [ ] Task 2 human visual verify — PENDING (checkpoint returned to orchestrator)
+- [x] Task 2 human-verify — APPROVED 2026-06-09 (on automated evidence; live in-Warpcast preview deferred to Phase-10/soak — Sepolia not in Warpcast chainList)
+- [x] SHARE-19 traced + Complete in REQUIREMENTS.md (line 427 + traceability table)
+- [x] ROADMAP phase-08 plan-progress = Complete (4/4); STATE completed_plans 72→73
