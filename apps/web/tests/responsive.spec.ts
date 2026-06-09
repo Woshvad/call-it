@@ -45,8 +45,16 @@ function readWeb(relativePath: string): string {
   return readFileSync(full, 'utf-8');
 }
 
-// ─── Seeded settled-call id (overridable by the operator — Open Question 1) ──────────
-// Phase-7 seeded a CallerLost call (#14 per MEMORY) for the 200px baselines.
+// ─── Seeded settled-call id (overridable by the operator — Open Question 1 RESOLVED) ─
+// Phase-7 seeded a guaranteed-CallerLost PriceTarget call as #14
+// (apps/relayer/src/scripts/seed-loss-call.ts; targetValue $1M 8-dp → deterministic
+// CallerLost = LOUD AND WRONG). Plan 09-08 Task 1 CONFIRMED #14 is still stable on the
+// live Sepolia target on 2026-06-09:
+//   - relayer  GET /api/calls/14/live-state → "status":"Settled"
+//     (https://call-it-relayer-sepolia.fly.dev/api/calls/14/live-state)
+//   - deployed OG card GET /og/14 → HTTP 200 image/png (~49 KB) on call-it-web-sepolia
+// So #14 is the confirmed-stable default for the outcome-word assertion. The
+// RESPONSIVE_SETTLED_CALL_ID env override is retained for any future re-seed.
 const SEEDED_SETTLED_CALL = process.env['RESPONSIVE_SETTLED_CALL_ID'] ?? '14';
 
 // ─── The 7 critical pages + onboarding subroutes + the two receipt paths ─────────────
