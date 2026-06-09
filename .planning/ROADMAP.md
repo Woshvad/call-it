@@ -21,7 +21,7 @@ Call It ships as a person-first onchain social prediction product on Arbitrum ma
 - [ ] **Phase 6: Safety review + Sepolia ≥48h + multisig rehearsal** - Stylus destruction drill, TVL cap aggregation boundary tests, full "Looks Done But Isn't" checklist, Sepolia ≥48h with seeded calls/follows/settles/exits/challenges/disputes, Safe 2-of-3 multisig REHEARSAL on the Sepolia cluster (production mainnet Safe + ownership transfer moved to final Phase 10, per operator decision 2026-06-04)
 - [x] **Phase 7: OG service final variants + Subgraph final mappings** - 5 OG card variants finalized (Live, Settled, DuelSettled, CallerExited, Fallback) via @vercel/og + Satori, subgraph published to Decentralized Network on Arbitrum, auto-post-to-X gated by cache-warm verification, Twitter Card Validator pre-flight, 200px readability QA gate (completed 2026-06-08)
 - [x] **Phase 8: Farcaster Mini Apps** - `fc:frame` meta tags, Mini App manifest, Farcaster receipt rendering, Follow/Fade/Challenge actions from Frame (complete 2026-06-09: 4 plans + UAT — 2 live bugs found & fixed in 08-05/08-06 (fake "CALLED IT" on a loss; blank Mini App), pushed + tested web 97/relayer 209; RESIDUALS: relayer Fly redeploy post-soak unlocks true "LOUD AND WRONG" word, + Phase-10 in-Warpcast tap-to-transact per D-01)
-- [ ] **Phase 9: Mobile responsive on 7 critical pages** - 375px breakpoint on Feed, Live Receipt, Settled Receipt, Profile, Leaderboard, Sign-in, Onboarding; desktop-only banner on Duel, Quote composer, New Call
+- [x] **Phase 9: Mobile responsive on 7 critical pages** - 375px breakpoint on Feed, Live Receipt, Settled Receipt, Profile, Leaderboard, Sign-in, Onboarding; desktop-only banner on Duel, Quote composer, New Call (completed 2026-06-09)
 - [ ] **Phase 10: Mainnet deploy gate** - 20-minute §19.11 smoke test checklist; deploy + verify (under the deployer key — multisig transfer is the final Phase 10.5) + first authenticated session + funding + first sponsored tx + receipt share Twitter Card Validator (reordered from 7.5 to after 8–9 per operator decision 2026-06-07)
 - [ ] **Phase 10.5: Mainnet multisig promotion (ownership lockdown)** - FINAL phase. Deploy the production Safe 2-of-3 on Arbitrum One; transfer ownership of all 6 mainnet surfaces from the deployer key to the Safe via Ownable2Step; prove Safe-gated pause + upgrade; single-owner-key path closed (Risk #2). The multisig mechanism was rehearsed on Sepolia in Phase 6.
 
@@ -356,7 +356,7 @@ Plans:
 
 **Wave 3** *(blocked on all Wave-2 slices)*
 
-  - [ ] 09-08-PLAN.md — Wave 3: full apps/web Playwright suite green (D-10a) + seeded-call confirm + [OPERATOR] real-device iPhone/Android share->receipt sign-off (D-10b / D-11 HARD GATE, no fallback) — SC1/SC2/SC3
+  - [x] 09-08-PLAN.md — Wave 3: full apps/web Playwright suite green (D-10a) + seeded-call confirm + [OPERATOR] real-device iPhone/Android share->receipt sign-off (D-10b / D-11 HARD GATE, no fallback) — SC1/SC2/SC3
 
 **UI hint**: yes
 
@@ -411,6 +411,6 @@ Phases execute in numeric order: 0 → 1 → 1.5 (parallel with 2) → 2 → 3 �
 | 6. Safety review + Sepolia ≥48h + multisig rehearsal | 4/6 | In Progress | - |
 | 7. OG service final variants + Subgraph final mappings | 6/6 | Complete   | 2026-06-08 |
 | 8. Farcaster Mini Apps | 6/6 | Complete   | 2026-06-09 |
-| 9. Mobile responsive on 7 critical pages | 7/8 | In Progress|  |
+| 9. Mobile responsive on 7 critical pages | 8/8 | Complete    | 2026-06-09 |
 | 10. Mainnet deploy gate | 0/TBD | Not started | - |
 | 10.5. Mainnet multisig promotion (ownership lockdown) | 0/TBD | Not started | - |
