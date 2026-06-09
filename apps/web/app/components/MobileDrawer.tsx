@@ -63,8 +63,12 @@ const linkBaseStyle: React.CSSProperties = {
 
 export function MobileDrawer({ open, onClose }: MobileDrawerProps) {
   const panelRef = useRef<HTMLDivElement>(null);
-  const { authenticated, ready, logout } = usePrivy();
+  const { authenticated, ready, logout, user } = usePrivy();
   const { address } = useAccount();
+  // WR-03: Privy OAuth logins can have an undefined wagmi address when the
+  // drawer opens; fall back to the Privy embedded-wallet address so an
+  // authenticated user always has a Profile entry point (D-06).
+  const profileAddr = address ?? (user?.wallet?.address as `0x${string}` | undefined);
 
   // Close on Escape key (copied verbatim from NotificationInbox)
   useEffect(() => {
@@ -186,9 +190,9 @@ export function MobileDrawer({ open, onClose }: MobileDrawerProps) {
           {/* Authenticated-only destinations (Pitfall 5 — gated on authenticated && ready) */}
           {showAuthedLinks && (
             <>
-              {address && (
+              {profileAddr && (
                 <Link
-                  href={`/profile/${address}`}
+                  href={`/profile/${profileAddr}`}
                   onClick={onClose}
                   style={linkBaseStyle}
                 >
