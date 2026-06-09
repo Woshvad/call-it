@@ -339,7 +339,24 @@ Plans:
   2. The 3 non-critical pages (Duel, Quote composer, New Call) render the "Best viewed on desktop" banner at the top with a CTA to switch to desktop view; banner does not block return navigation or sign-out.
   3. Share-link landing experience is validated end-to-end on real mobile devices (iOS Safari + Android Chrome): a Twitter Card click lands on the mobile Settled Receipt, the outcome word is legible, the "[ SHARE THE RECEIPT → ]" + "[ VIEW ALL CALLS BY veda ]" buttons stack and are tappable, and the Sign-in CTA is visible for unauthenticated viewers.
 
-**Plans**: TBD
+**Plans**: 8 plans across 3 waves
+
+**Wave 1** *(foundation)*
+
+  - [ ] 09-01-PLAN.md — Wave 1: SSR-safe useIsMobile() hook (useSyncExternalStore, getServerSnapshot=>true, D-01/D-02) + responsive.spec.ts Wave-0 mechanical gate (375/390px, UI-48/49/50/SC3)
+
+**Wave 2** *(parallel slices — all depend only on the hook; zero file overlap)*
+
+  - [ ] 09-02-PLAN.md — Wave 2: MobileDrawer.tsx (left-anchored auth-aware slide-over, D-05/D-06) + GlobalNav hamburger (mobile-only, bell stays pinned) — UI-49
+  - [ ] 09-03-PLAN.md — Wave 2: Settled (#1 share-landing) + Live Receipt at 375px — container clamp, 52px outcome hero + data-outcome-word, 2x2 stat stack, full-width actions, inline Provenance/Dispute modal clamps — UI-48/49 / SC1 / SC3
+  - [ ] 09-04-PLAN.md — Wave 2: DesktopOnlyBanner.tsx (D-08/D-09) mounted on /new (incl ?quote=) + /duel/[challengeId] — UI-50 / SC2
+  - [ ] 09-05-PLAN.md — Wave 2: Feed + Profile + Leaderboard at 375px (container clamps, DuelRowCard + category-card stacks, 4-col leaderboard clamp w/ viewer-row accent preserved) — UI-48/49
+  - [ ] 09-06-PLAN.md — Wave 2: Sign-in (400px column clamp) + Onboarding (480px frame clamp + 5 subroutes >=44px) at 375px — UI-48/49
+  - [ ] 09-07-PLAN.md — Wave 2: In-scope modals (D-04) — ChallengeFormModal clamp + verify the 3 packages/ui modals (no useIsMobile inside packages/ui) — UI-48/49
+
+**Wave 3** *(blocked on all Wave-2 slices)*
+
+  - [ ] 09-08-PLAN.md — Wave 3: full apps/web Playwright suite green (D-10a) + seeded-call confirm + [OPERATOR] real-device iPhone/Android share->receipt sign-off (D-10b / D-11 HARD GATE, no fallback) — SC1/SC2/SC3
 **UI hint**: yes
 
 ### Phase 10: Mainnet deploy gate
@@ -393,6 +410,6 @@ Phases execute in numeric order: 0 → 1 → 1.5 (parallel with 2) → 2 → 3 �
 | 6. Safety review + Sepolia ≥48h + multisig rehearsal | 4/6 | In Progress | - |
 | 7. OG service final variants + Subgraph final mappings | 6/6 | Complete   | 2026-06-08 |
 | 8. Farcaster Mini Apps | 6/6 | Complete   | 2026-06-09 |
-| 9. Mobile responsive on 7 critical pages | 0/TBD | Not started | - |
+| 9. Mobile responsive on 7 critical pages | 0/8 | Not started | - |
 | 10. Mainnet deploy gate | 0/TBD | Not started | - |
 | 10.5. Mainnet multisig promotion (ownership lockdown) | 0/TBD | Not started | - |
