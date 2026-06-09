@@ -4,14 +4,14 @@ milestone: v1.1
 milestone_name: milestone
 status: verifying
 stopped_at: "Phase 08 GAP-closure plan 08-05 COMPLETE — settled receipt now shows/shares TRUE outcome word (LOUD AND WRONG for a loss, never fabricated CALLED IT). Task 1 (e3f453e) relayer /live-state + querySettledFields; Task 2 (609182d) page/layout fail-safe + resolveSettledWord + regression test + stale outcome-word.js removal. Next: re-run /gsd-verify-work 08 for GAP 1, then GAP 2 (08-06 blank Mini App render)."
-last_updated: "2026-06-09T09:34:50.081Z"
+last_updated: "2026-06-09T09:47:15.233Z"
 last_activity: 2026-06-09 -- Phase 08 Plan 04 finalized (08-04 complete; phase 08 all 4 plans done)
 progress:
   total_phases: 14
-  completed_phases: 9
+  completed_phases: 10
   total_plans: 75
-  completed_plans: 74
-  percent: 64
+  completed_plans: 75
+  percent: 71
 ---
 
 # Project State
@@ -159,6 +159,7 @@ All 3 operator actions were run this session (user explicitly authorized "run al
 | Phase 08-farcaster-mini-apps P03 | 18min | 2 tasks | 4 files |
 | Phase 08-farcaster-mini-apps P04 | ~15min | 2 tasks | 4 files |
 | Phase 08-farcaster-mini-apps P05 | 25min | 2 tasks | 6 files |
+| Phase 08-farcaster-mini-apps P06 | 12min | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -315,6 +316,7 @@ completed: 2026-05-29
 - [Phase ?]: [Phase 08-03]: one-tap Follow/Fade hardcoded $1 (MIN_POSITION_USDC) + Challenge $5, never from the untrusted Frame POST body (D-07/T-08-03-04); to ALWAYS a pinned Sepolia addr; settled Follow+Quote deep-link only (D-06a)
 - [Phase 08-04]: Open Q3 RESOLVED — Warpcast compose host MIGRATED warpcast.com → farcaster.xyz (legacy /~/compose 301-redirects; verified live 2026-06-08). One-line host change to the pure warpcastComposeUrl in @call-it/shared (signature + purity preserved); ?text=…&embeds[]=… shape unchanged; share-text test expectation updated. Auto-post embed rides the receipt URL — worker verify-only, no payload change (D-04/SC3). SHARE AS FRAME outline control on the settled receipt action row reuses the shared builders, omitted (no dead button) when NEXT_PUBLIC_OG_BASE_URL or a real handle is missing (UI-SPEC). **Task-2 human-verify checkpoint APPROVED 2026-06-09** on the automated evidence (web 80/80, relayer 209/1-skip, both builds exit 0, control reuses existing tokens + noopener/noreferrer); live in-Warpcast visual preview DEFERRED to the Phase-10/soak gate (Arbitrum Sepolia not in Warpcast chainList). Plan 08-04 COMPLETE → phase 08 all 4 plans done.
 - [Phase ?]: [Phase 08-05]: GAP 1 closed — settled receipt + SHARE AS FRAME + og:title show TRUE outcome word; removed ?? 'CALLED IT' default; relayer /live-state surfaces outcome/repDelta/fadeRealShare (fail-safe -> neutral, never fake win); resolveSettledWord neutral helper; Rule-3 removed stale tracked outcome-word.js. web 93/93, relayer 209/1-skip, build 0.
+- [Phase ?]: [Phase 08-06]: GAP 2 closed — Mini App no longer blank. Added @farcaster/miniapp-sdk@0.3.0 + MiniAppReady (sdk.actions.ready() once on mount, fail-safe, dynamic-import, useRef once-guard) mounted on all 3 /call/[id] branches (loading/settled/live). Read-only receipt confirmed wallet-decoupled (loading gate is relayer-keyed). In-app tap-to-transact stays Phase 10 (D-01). web 97/97, build 0.
 
 ## Performance
 
@@ -461,6 +463,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-06-09T09:34:50.065Z
+Last session: 2026-06-09T09:45:58.677Z
 Stopped at: Phase 08 GAP-closure plan 08-05 COMPLETE — settled receipt now shows/shares TRUE outcome word (LOUD AND WRONG for a loss, never fabricated CALLED IT). Task 1 (e3f453e) relayer /live-state + querySettledFields; Task 2 (609182d) page/layout fail-safe + resolveSettledWord + regression test + stale outcome-word.js removal. Next: re-run /gsd-verify-work 08 for GAP 1, then GAP 2 (08-06 blank Mini App render).
 Resume file: .planning/phases/08-farcaster-mini-apps/08-05-SUMMARY.md
