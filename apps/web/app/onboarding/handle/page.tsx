@@ -51,11 +51,18 @@ export default function HandlePage() {
 
   // Pre-fill handle from: ENS → Twitter → placeholder
   const twitterUsername = getTwitterUsername(user);
-  const defaultHandle = ensName
-    ? normalize(ensName)
-    : twitterUsername
-      ? `@${twitterUsername}`
-      : 'you.eth';
+  // WR-05: normalize() (viem/ens, UTS-46) THROWS on a malformed/disallowed name,
+  // and ENS reverse records are user-controlled — guard it so a bad reverse
+  // record can't crash the Handle screen on render. Fall back to the raw name.
+  let normalizedEns: string | null = null;
+  if (ensName) {
+    try {
+      normalizedEns = normalize(ensName);
+    } catch {
+      normalizedEns = ensName;
+    }
+  }
+  const defaultHandle = normalizedEns ?? (twitterUsername ? `@${twitterUsername}` : 'you.eth');
 
   const [handle, setHandle] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
