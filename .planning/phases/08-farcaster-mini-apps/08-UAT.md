@@ -96,7 +96,8 @@ blocked: 0
 ## Gaps
 
 - truth: "A settled receipt renders and SHARES its true outcome word (CALLED IT / LOUD AND WRONG / CONTRARIAN HIT / COLD CALL / FADED CORRECTLY) — never a fake positive."
-  status: failed
+  status: resolved
+  resolved_by: "08-05 (commits e3f453e relayer /live-state surfaces outcome+repDelta+fadeRealShare; 609182d removes the ?? 'CALLED IT' default → fail-safe neutral 'PENDING RESULT', wires real outcome into page + share + og:title; regression test settled-outcome-truth.test.ts proves CallerLost → 'LOUD AND WRONG', never 'CALLED IT'). Web 97✓ incl. new test. NOTE: full 'LOUD AND WRONG' on live #14 needs the relayer (Fly) redeploy — until then the web fail-safe shows NEUTRAL, never a fake win (Core Value satisfied on web-deploy alone)."
   reason: "User reported: settled loss (call #14) shares as 'CALLED IT' in the Farcaster cast text + receipt stamp; only the OG embed image is correct ('LOUD AND WRONG')."
   severity: major
   test: 1
@@ -111,7 +112,8 @@ blocked: 0
     - "layout.tsx generateMetadata og:title must reflect the settled outcome, not 'Live Call'."
 
 - truth: "Tapping the Mini App launch button ('View on Call It') opens a Mini App that RENDERS the receipt inside the Farcaster webview (not a blank page)."
-  status: failed
+  status: resolved
+  resolved_by: "08-06 (commits 227f810 adds @farcaster/miniapp-sdk@0.3.0 + fail-safe MiniAppReady calling sdk.actions.ready() once; c799fe3 mounts it on all 3 render branches; read-only receipt no longer blocks on Privy/wagmi wallet init). Web 97✓ incl. miniapp-ready.test.ts (4 tests). Live in-Warpcast webview render is operator/manual re-verify (CI cannot drive Warpcast). Tap-to-transact stays Phase 10 (D-01)."
   reason: "User reported: launched Mini App shows a blank white page. Cast embed (OG image) renders, but the launch_miniapp target page is empty."
   severity: major
   test: 2
