@@ -37,9 +37,6 @@ import { FromYourNetworkSections } from '@/app/components/FromYourNetworkSection
 import { useIsMobile } from '@/app/hooks/useIsMobile';
 import type { FeedItem } from '@/lib/relayer-client';
 
-// Import the global CSS for feed card stagger animation (UI-53)
-import './globals.css';
-
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 type FeedTab = 'Live' | 'Settled' | 'Following' | 'Duels';

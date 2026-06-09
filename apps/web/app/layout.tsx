@@ -1,3 +1,4 @@
+import './globals.css';
 import type { Metadata } from 'next';
 import { ClientProviders } from './ClientProviders';
 // GlobalNav mounts NotificationBell (authenticated users only — SOCIAL-24, D-13)
