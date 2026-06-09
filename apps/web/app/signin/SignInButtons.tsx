@@ -96,7 +96,7 @@ function XIcon() {
 
 export default function SignInButtons({ CustodyTooltip }: SignInButtonsProps) {
   const router = useRouter();
-  const { ready, authenticated, login, getAccessToken } = usePrivy();
+  const { ready, authenticated, login, getAccessToken, logout } = usePrivy();
   const { connect } = useConnect();
   const privyTimedOut = usePrivyReadinessTimeout(5000);
 
@@ -115,25 +115,42 @@ export default function SignInButtons({ CustodyTooltip }: SignInButtonsProps) {
     if (!authenticated) return;
     let cancelled = false;
     void (async () => {
+      let token: string | null = null;
       try {
-        const token = await getAccessToken();
-        if (cancelled) return;
-        if (token) {
-          const secure = window.location.protocol === 'https:' ? '; Secure' : '';
-          // Max-Age ~1h matches Privy access-token lifetime; a returning user with
-          // a live localStorage session but expired cookie self-heals via the
-          // /signin bounce, which re-runs this effect.
-          document.cookie = `privy-token=${token}; path=/; SameSite=Lax; Max-Age=3600${secure}`;
-          router.push('/');
-        }
+        token = await getAccessToken();
       } catch {
-        // getAccessToken failed — leave the user on /signin rather than loop.
+        // getAccessToken threw — treat as a dead session (handled below).
+        token = null;
+      }
+      if (cancelled) return;
+      if (token) {
+        const secure = window.location.protocol === 'https:' ? '; Secure' : '';
+        // Max-Age ~1h matches Privy access-token lifetime; a returning user with
+        // a live localStorage session but expired cookie self-heals via the
+        // /signin bounce, which re-runs this effect.
+        document.cookie = `privy-token=${token}; path=/; SameSite=Lax; Max-Age=3600${secure}`;
+        router.push('/');
+      } else {
+        // Split-brain recovery: Privy reports authenticated===true from a leftover
+        // localStorage session, but getAccessToken can no longer mint a valid access
+        // token. The old code did nothing here, stranding the user (bell shows,
+        // login() no-ops while a session exists, protected routes bounce to /signin).
+        // Clear the stale cookie and log out so the user lands on a clean signed-out
+        // /signin. After logout, authenticated→false and this effect early-returns —
+        // no loop, and logout does NOT trigger login().
+        const secure = window.location.protocol === 'https:' ? '; Secure' : '';
+        document.cookie = `privy-token=; path=/; SameSite=Lax; Max-Age=0${secure}`;
+        try {
+          await logout();
+        } catch {
+          // logout failed — leave the user on /signin rather than loop.
+        }
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, [authenticated, getAccessToken, router]);
+  }, [authenticated, getAccessToken, logout, router]);
 
   const handleConnectWallet = useCallback(() => {
     if (!ready) {
