@@ -34,7 +34,17 @@ const CACHE_CONTROL = 'public, max-age=60, stale-while-revalidate=300';
 
 export async function GET(): Promise<Response> {
   // Origin env-derived only (D-04 / T-08-02-01) — never from request params/headers.
-  const base = process.env['NEXT_PUBLIC_OG_BASE_URL'] ?? '';
+  // WR-01: a manifest MUST carry absolute URLs. If NEXT_PUBLIC_OG_BASE_URL is unset the
+  // homeUrl/iconUrl/splashImageUrl would be empty/relative and the Farcaster crawler
+  // (which fetches this out-of-band) cannot resolve them — the Mini App silently fails
+  // to render. Fail loud with 503 instead of emitting a broken manifest at HTTP 200.
+  const base = process.env['NEXT_PUBLIC_OG_BASE_URL'];
+  if (!base) {
+    return new Response('manifest unavailable: NEXT_PUBLIC_OG_BASE_URL unset', {
+      status: 503,
+      headers: { 'Cache-Control': 'no-store' },
+    });
+  }
 
   return Response.json(
     {

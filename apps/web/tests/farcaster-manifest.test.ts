@@ -17,14 +17,25 @@
  * Requirements: SHARE-19 (SC1b).
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, afterEach } from 'vitest';
 
-describe('SC1b — /.well-known/farcaster.json manifest schema (RED until Plan 02)', () => {
-  it('GET returns 200 with a miniapp object and NO accountAssociation', async () => {
+const OG_BASE = 'https://callit.app';
+
+describe('SC1b — /.well-known/farcaster.json manifest schema', () => {
+  const prevBase = process.env['NEXT_PUBLIC_OG_BASE_URL'];
+
+  afterEach(() => {
+    if (prevBase === undefined) delete process.env['NEXT_PUBLIC_OG_BASE_URL'];
+    else process.env['NEXT_PUBLIC_OG_BASE_URL'] = prevBase;
+  });
+
+  it('GET returns 200 with absolute-URL miniapp object and NO accountAssociation', async () => {
+    // WR-01: the manifest requires an absolute origin — provide it.
+    process.env['NEXT_PUBLIC_OG_BASE_URL'] = OG_BASE;
     const route = await import('../app/.well-known/farcaster.json/route.js');
     expect(typeof route.GET).toBe('function');
 
-    const res = await route.GET(new Request('https://callit.app/.well-known/farcaster.json'));
+    const res = await route.GET();
     expect(res.status).toBe(200);
 
     const body = (await res.json()) as Record<string, unknown>;
@@ -33,10 +44,18 @@ describe('SC1b — /.well-known/farcaster.json manifest schema (RED until Plan 0
     expect(miniapp?.['version']).toBe('1');
     expect(typeof miniapp?.['name']).toBe('string');
     expect((miniapp?.['name'] as string).length).toBeGreaterThan(0);
-    expect(typeof miniapp?.['homeUrl']).toBe('string');
-    expect(typeof miniapp?.['iconUrl']).toBe('string');
+    // Absolute URLs (WR-01): homeUrl is the origin; iconUrl is origin-prefixed.
+    expect(miniapp?.['homeUrl']).toBe(OG_BASE);
+    expect(miniapp?.['iconUrl']).toBe(`${OG_BASE}/icon.png`);
 
     // D-05: signed accountAssociation is a Phase-10 (mainnet domain) artifact.
     expect(body['accountAssociation']).toBeUndefined();
+  });
+
+  it('WR-01: GET returns 503 (not a broken 200) when NEXT_PUBLIC_OG_BASE_URL is unset', async () => {
+    delete process.env['NEXT_PUBLIC_OG_BASE_URL'];
+    const route = await import('../app/.well-known/farcaster.json/route.js');
+    const res = await route.GET();
+    expect(res.status).toBe(503);
   });
 });
