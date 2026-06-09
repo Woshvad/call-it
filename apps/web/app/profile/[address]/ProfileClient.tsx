@@ -22,6 +22,7 @@
 
 import { useState } from 'react';
 import { ProfileHeader, Card, CallCard, type CallCardData } from '@call-it/ui';
+import { useIsMobile } from '@/app/hooks/useIsMobile';
 import type { ProfileResponse } from '@/lib/relayer-client';
 
 const ACCENT = '#E8F542';
@@ -35,6 +36,7 @@ interface ProfileClientProps {
 type CallFilter = 'All' | 'Open' | 'Settled';
 
 export function ProfileClient({ address, profile, fetchError }: ProfileClientProps) {
+  const isMobile = useIsMobile(); // Phase 9 (09-05): container clamp at 375px (UI-48)
   // Build the user object for ProfileHeader (AUTH-44: no address field).
   const headerUser = profile
     ? {
@@ -54,7 +56,9 @@ export function ProfileClient({ address, profile, fetchError }: ProfileClientPro
   return (
     <main
       style={{
-        maxWidth: '680px',
+        // Phase 9 (09-05): full-width clamp at mobile so the 680px container never forces scroll (UI-48).
+        width: isMobile ? '100%' : undefined,
+        maxWidth: isMobile ? '100%' : '680px',
         margin: '0 auto',
         padding: '24px 16px',
       }}
@@ -90,6 +94,7 @@ export function ProfileClient({ address, profile, fetchError }: ProfileClientPro
 // ─── Overview tab (UI-09) ────────────────────────────────────────────────────
 
 function ProfileOverview({ profile }: { profile: ProfileResponse | null }) {
+  const isMobile = useIsMobile(); // Phase 9 (09-05): stack CATEGORY REPUTATION + >=44px filter chips at mobile (UI-48/UI-49/D-03)
   const [callFilter, setCallFilter] = useState<CallFilter>('All');
 
   // Derived stats from the profile response. Recent calls / followers / receipts are
@@ -125,9 +130,24 @@ function ProfileOverview({ profile }: { profile: ProfileResponse | null }) {
         <h2 className="font-mono text-xs uppercase tracking-wide text-brand-muted">
           CATEGORY REPUTATION
         </h2>
-        <div style={{ display: 'flex', flexDirection: 'row', gap: '12px', flexWrap: 'wrap' }}>
+        <div
+          style={{
+            display: 'flex',
+            // Mobile (UI-48/UI-49): 3×160px row overflows 343px → stack to a single column.
+            flexDirection: isMobile ? 'column' : 'row',
+            gap: '12px',
+            flexWrap: 'wrap',
+          }}
+        >
           {['Majors', 'DeFi', 'Other'].map((cat) => (
-            <Card key={cat} style={{ flex: '1 1 0', minWidth: '160px' }}>
+            <Card
+              key={cat}
+              style={
+                isMobile
+                  ? { flex: '1 1 0', width: '100%' }
+                  : { flex: '1 1 0', minWidth: '160px' }
+              }
+            >
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                 <span className="font-display font-bold text-brand-text text-lg">{cat}</span>
                 <span className="font-mono font-bold text-brand-text text-lg">
@@ -165,7 +185,8 @@ function ProfileOverview({ profile }: { profile: ProfileResponse | null }) {
                   onClick={() => setCallFilter(f)}
                   className="font-mono text-xs"
                   style={{
-                    padding: '3px 10px',
+                    padding: isMobile ? '0 12px' : '3px 10px',
+                    minHeight: isMobile ? '44px' : undefined,
                     border: '2px solid',
                     borderColor: active ? ACCENT : '#27272A',
                     color: active ? ACCENT : '#A1A1AA',

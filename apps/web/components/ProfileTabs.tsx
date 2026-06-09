@@ -13,6 +13,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useIsMobile } from '@/app/hooks/useIsMobile';
 
 export type TabId = 'overview' | 'settings';
 
@@ -25,6 +26,7 @@ interface ProfileTabsProps {
  * ProfileTabs — renders Overview and Settings tab navigation.
  */
 export function ProfileTabs({ address, initialTab = 'overview' }: ProfileTabsProps) {
+  const isMobile = useIsMobile(); // Phase 9 (09-05): tabs >=44px tall at mobile (UI-49/D-03)
   const [activeTab, setActiveTab] = useState<TabId>(initialTab);
 
   return (
@@ -35,6 +37,8 @@ export function ProfileTabs({ address, initialTab = 'overview' }: ProfileTabsPro
           display: 'flex',
           flexDirection: 'row',
           gap: '8px',
+          // Mobile (UI-49): allow tabs to wrap if they exceed 343px width.
+          flexWrap: isMobile ? 'wrap' : undefined,
           borderBottom: '2px solid #27272A',
           paddingBottom: '8px',
         }}
@@ -42,7 +46,8 @@ export function ProfileTabs({ address, initialTab = 'overview' }: ProfileTabsPro
         <button
           onClick={() => setActiveTab('overview')}
           style={{
-            padding: '6px 16px',
+            padding: isMobile ? '0 16px' : '6px 16px',
+            minHeight: isMobile ? '44px' : undefined,
             fontFamily: 'monospace',
             fontSize: '0.875rem',
             fontWeight: activeTab === 'overview' ? 700 : 400,
@@ -60,7 +65,10 @@ export function ProfileTabs({ address, initialTab = 'overview' }: ProfileTabsPro
         <a
           href={`/profile/${address}/settings`}
           style={{
-            padding: '6px 16px',
+            display: isMobile ? 'inline-flex' : undefined,
+            alignItems: isMobile ? 'center' : undefined,
+            padding: isMobile ? '0 16px' : '6px 16px',
+            minHeight: isMobile ? '44px' : undefined,
             fontFamily: 'monospace',
             fontSize: '0.875rem',
             fontWeight: 400,
