@@ -21,9 +21,11 @@ import { join } from 'node:path';
 
 /**
  * Mirror of middleware.ts isPublicRoute(): a path is public iff it startsWith one of
- * the PUBLIC_PREFIXES. We re-declare the prefixes the Farcaster surfaces depend on.
+ * the PUBLIC_PREFIXES. WR-03: the blanket '/api' prefix was replaced with the explicit
+ * public API prefixes ('/api/frame', '/api/og') so a generic future '/api/*' route is
+ * NOT auto-public. We re-declare the same explicit prefixes here.
  */
-const FARCASTER_PUBLIC_PREFIXES = ['/.well-known', '/api', '/og'];
+const FARCASTER_PUBLIC_PREFIXES = ['/.well-known', '/api/frame', '/api/og', '/og'];
 
 function isPublicRoute(pathname: string, prefixes: readonly string[]): boolean {
   return prefixes.some((p) => pathname.startsWith(p));
@@ -34,13 +36,23 @@ describe('SC1c — middleware public carve-out for Farcaster surfaces', () => {
     expect(isPublicRoute('/.well-known/farcaster.json', FARCASTER_PUBLIC_PREFIXES)).toBe(true);
   });
 
-  it('treats /api/frame/tx/1 as public (covered by the /api prefix)', () => {
+  it('treats /api/frame/tx/1 as public (explicit /api/frame prefix)', () => {
     expect(isPublicRoute('/api/frame/tx/1', FARCASTER_PUBLIC_PREFIXES)).toBe(true);
   });
 
-  it('the middleware source actually carries the /.well-known prefix (Task 1 carve-out)', () => {
+  it('the middleware source carries the /.well-known prefix and the explicit /api/frame prefix', () => {
     const src = readFileSync(join(process.cwd(), 'middleware.ts'), 'utf-8');
     expect(src).toContain("'/.well-known'");
+    expect(src).toContain("'/api/frame'");
+  });
+
+  it('WR-03: a generic future /api/* route is NOT made public (no blanket /api prefix)', () => {
+    // The blanket '/api' would have auto-published these — now they stay gated.
+    expect(isPublicRoute('/api/me', FARCASTER_PUBLIC_PREFIXES)).toBe(false);
+    expect(isPublicRoute('/api/admin', FARCASTER_PUBLIC_PREFIXES)).toBe(false);
+    // And the middleware source must NOT carry a standalone blanket '/api' entry.
+    const src = readFileSync(join(process.cwd(), 'middleware.ts'), 'utf-8');
+    expect(src).not.toContain("\n  '/api',");
   });
 
   it('an authenticated-only action page is NOT made public by these prefixes', () => {

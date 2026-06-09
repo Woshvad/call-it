@@ -50,14 +50,18 @@ const STEP_CACHE_COOKIE = 'ci_onboarding_step';
 const PUBLIC_PREFIXES = [
   '/signin',
   '/og',
-  '/api',
+  // WR-03: only the intentionally-public API routes are listed — NOT a blanket '/api'.
+  // A blanket '/api' would auto-publish every current AND future API route (e.g. a new
+  // '/api/me' / '/api/admin') with no middleware gate and no failing test. New API
+  // routes are therefore gated by default; add an explicit prefix here to make one public.
+  '/api/frame', // Frame tx wire endpoint — public by design (D-05, T-08-03-*)
+  '/api/og', // OG image API — public by design
   '/_next',
   '/favicon.ico',
   '/fonts',
   // Farcaster Mini App manifest (D-05, Phase 8 Pitfall 2). The Farcaster crawler
   // fetches /.well-known/farcaster.json UNAUTHENTICATED; without this carve-out the
   // matcher bounces it to /signin and the manifest 302s → the Mini App never renders.
-  // (/api/frame/* is already covered by the '/api' prefix above — do NOT add it again.)
   '/.well-known',
   // Public read surfaces — receipts/profiles/duels/leaderboard MUST be viewable by
   // unauthenticated users (spec §18.1: "the receipt URL is permanent and works for
@@ -171,7 +175,12 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
   const cachedStep = request.cookies.get(STEP_CACHE_COOKIE)?.value;
   if (cachedStep) {
     const step = parseInt(cachedStep, 10);
-    if (!Number.isNaN(step) && step < 5) {
+    // WR-04: the cache cookie is ONLY ever written inside the `taglineCommittedAt === null`
+    // (incomplete) branch above, so any cached step means onboarding is still incomplete —
+    // INCLUDING step 5 (`tagline`), the final incomplete step. The previous `step < 5`
+    // bound silently treated "on the last step" as "done" and let the user fall through to
+    // fail-open while still mid-onboarding. Use `1 <= step <= 5` (the full incomplete range).
+    if (!Number.isNaN(step) && step >= 1 && step <= 5) {
       // Cached step says onboarding incomplete — redirect
       const slug = stepToSlug(step);
       const onboardingUrl = new URL(`/onboarding/${slug}`, request.url);
