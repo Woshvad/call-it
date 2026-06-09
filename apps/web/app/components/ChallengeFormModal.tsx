@@ -334,7 +334,9 @@ export function ChallengeFormModal({
           boxShadow: '4px 4px 0 #E8F542',
           padding: '24px',
           width: '100%',
-          maxWidth: '480px',
+          // Mobile (D-04): never exceed the viewport minus a 16px gutter each side.
+          // Intrinsic viewport-relative clamp — no JS viewport read needed.
+          maxWidth: 'min(480px, calc(100vw - 32px))',
           display: 'flex',
           flexDirection: 'column',
           gap: '20px',
@@ -447,6 +449,7 @@ export function ChallengeFormModal({
                 }}
                 style={{
                   flex: 1,
+                  minHeight: '44px',
                   fontFamily: 'monospace',
                   fontSize: '12px',
                   color: '#94A3B8',
@@ -517,13 +520,17 @@ export function ChallengeFormModal({
           </div>
         )}
 
-        {/* Action row */}
-        <div style={{ display: 'flex', flexDirection: 'row', gap: '12px', marginTop: '4px' }}>
+        {/* Action row — flexWrap + per-button minWidth so the row stays side-by-side
+            on the 480px desktop panel but stacks full-width when the panel clamps to
+            calc(100vw - 32px) on a 375px phone (D-04). Intrinsic — no JS viewport read. */}
+        <div style={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap', gap: '12px', marginTop: '4px' }}>
           {/* Keep call open — cancel */}
           <button
             onClick={onClose}
             style={{
-              flex: 1,
+              flex: '1 1 160px',
+              minWidth: '160px',
+              minHeight: '44px',
               fontFamily: "'Space Grotesk', sans-serif",
               fontSize: '14px',
               fontWeight: 700,
@@ -541,7 +548,9 @@ export function ChallengeFormModal({
             onClick={() => void handleSendChallenge()}
             disabled={!canSend}
             style={{
-              flex: 2,
+              flex: '2 1 200px',
+              minWidth: '200px',
+              minHeight: '44px',
               fontFamily: "'Space Grotesk', sans-serif",
               fontSize: '14px',
               fontWeight: 700,
