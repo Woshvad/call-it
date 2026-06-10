@@ -147,4 +147,33 @@ describe('resolveEns', () => {
       'ens:0xabcdefabcdefabcdefabcdefabcdefabcdefabcd',
     );
   });
+
+  it('Test 7: redis.get rejects (quota) — degrades to cache miss, still returns resolved name (quick-260610-sr0)', async () => {
+    mockRedisGet.mockRejectedValueOnce(new Error('ERR max requests limit exceeded'));
+    mockGetEnsName.mockResolvedValueOnce('bob.eth');
+
+    const result = await resolveEns(
+      '0x3333333333333333333333333333333333333333',
+      mockRedis as never,
+    );
+
+    // Quota rejection on cache read is a cache miss, not a failure
+    expect(result).toBe('bob.eth');
+    expect(mockGetEnsName).toHaveBeenCalledTimes(1);
+  });
+
+  it('Test 8: redis.set rejects — cache-write failure does NOT discard the resolved name (quick-260610-sr0)', async () => {
+    mockRedisGet.mockResolvedValueOnce(null);
+    mockGetEnsName.mockResolvedValueOnce('carol.eth');
+    mockRedisSet.mockRejectedValueOnce(new Error('ERR max requests limit exceeded'));
+
+    const result = await resolveEns(
+      '0x4444444444444444444444444444444444444444',
+      mockRedis as never,
+    );
+
+    // Previously this fell into the outer catch and returned null even though
+    // the RPC resolution SUCCEEDED — the Task 1 fix guards the write separately
+    expect(result).toBe('carol.eth');
+  });
 });
