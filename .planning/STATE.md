@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: milestone
 status: executing
-stopped_at: Completed 09.2-06-PLAN.md
-last_updated: "2026-06-10T13:28:56.525Z"
+stopped_at: Completed 09.2-07-PLAN.md
+last_updated: "2026-06-10T14:18:16.616Z"
 last_activity: 2026-06-10 -- Phase 09.2 execution started
 progress:
   total_phases: 16
   completed_phases: 11
   total_plans: 98
-  completed_plans: 89
+  completed_plans: 90
   percent: 69
 ---
 
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-05-21)
 ## Current Position
 
 Phase: 09.2 (prototype-design-adoption-rebuild-apps-web-ui-to-the-call-it) — EXECUTING
-Plan: 7 of 15
+Plan: 8 of 15
 
 > **Strategic pivot (2026-06-09):** Mainnet is PAUSED till further notice. Phases **10 (mainnet deploy gate)** and **10.5 (mainnet multisig lockdown)** are ON HOLD. Active focus is **Phase 09.1 — Testnet Demo Hardening**: make the full product demo-perfect end-to-end on the live Arbitrum Sepolia deployment. Next: `/gsd-discuss-phase 09.1`.
 
@@ -176,6 +176,7 @@ All 3 operator actions were run this session (user explicitly authorized "run al
 | Phase 09.2 P04 | 9min | 2 tasks | 2 files |
 | Phase 09.2 P05 | 13min | 2 tasks | 4 files |
 | Phase 09.2 P06 | 25min | 2 tasks | 5 files |
+| Phase 09.2 P07 | 45min | 2 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -356,6 +357,8 @@ completed: 2026-05-29
 - [Phase 09.2-05]: ProfileHeader renders the stats prop as a JBM interpunct metadata line (prototype voice) — chrome change only, props API unchanged
 - [Phase ?]: 09.2-06: cut the ENTIRE dead duel code path from the feed (Duels/Following tabs, trending pin, Challengeable filter, per-card Challenge CTA) — /api/duels has no route and /api/feed never sends openToChallenges; challenge stays on /call/[id]
 - [Phase ?]: 09.2-06: feed empty/error states live in page.tsx (NOTHING ON THE TAPE / Couldn't load the tape. Retry.); FeedList renders lists only; stagger stays .card-enter
+- [Phase 09.2-07]: Settled receipt display colors come from the prototype SETTLED_OUTCOME_STYLES map (CALLED IT chartreuse #E8F542, COLD CALL slate #64748B) keyed by the resolveSettledWord word; lib/outcome-word.ts stays the untouched word/guard source
+- [Phase 09.2-07]: VIEW ALL CALLS BY {handle} control cut (D-08) — it linked /?caller= which the 09.2-06 feed rewrite no longer reads; SHARE THE RECEIPT wired to the twitter web intent (old button was unwired/dead)
 
 ## Performance
 
@@ -511,6 +514,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-06-10T13:28:44.042Z
-Stopped at: Completed 09.2-06-PLAN.md
+Last session: 2026-06-10T14:18:16.600Z
+Stopped at: Completed 09.2-07-PLAN.md
 Resume file: None
