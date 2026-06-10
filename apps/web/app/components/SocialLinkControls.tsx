@@ -369,7 +369,7 @@ export function SocialLinkControls({ mode }: SocialLinkControlsProps) {
             </>
           ) : (
             <Button
-              intent="secondary"
+              intent="primary"
               size="md"
               onClick={handleLinkFarcaster}
               disabled={fcStatus === 'pending'}

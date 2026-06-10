@@ -112,7 +112,7 @@ export default function SocialsPage() {
 
       {/* Continue — advances socials step; routes to follow-graph if linked */}
       <Button
-        intent="primary"
+        intent="secondary"
         size="md"
         onClick={() => {
           void handleContinue();
@@ -124,19 +124,35 @@ export default function SocialsPage() {
         {isContinuing ? 'Saving...' : 'Continue'}
       </Button>
 
-      {/* Skip option (AUTH-08) */}
-      <Button
-        intent="secondary"
-        size="sm"
+      {/* Skip option (AUTH-08) — plain muted text (tertiary opt-out) */}
+      <button
+        type="button"
         onClick={() => {
           void handleSkip();
         }}
         disabled={isSkipping || isContinuing}
         data-testid="skip-socials-button"
-        style={isMobile ? { minHeight: '44px' } : undefined}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.textDecoration = 'underline';
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.textDecoration = 'none';
+        }}
+        style={{
+          color: '#A1A1AA',
+          fontFamily: 'monospace',
+          fontSize: '0.8rem',
+          background: 'transparent',
+          border: 'none',
+          boxShadow: 'none',
+          cursor: 'pointer',
+          textDecoration: 'none',
+          opacity: isSkipping || isContinuing ? 0.5 : 1,
+          ...(isMobile ? { minHeight: '44px' } : {}),
+        }}
       >
         {isSkipping ? 'Skipping...' : 'Skip for now'}
-      </Button>
+      </button>
     </>
   );
 }
