@@ -82,7 +82,7 @@ import {
   CALLER_EXIT_LOCK_DURATION,
   POSITION_EXIT_COOLDOWN,
 } from '@call-it/shared';
-import { warpcastComposeUrl, buildShareText } from '@call-it/shared';
+import { warpcastComposeUrl, twitterIntentUrl, buildShareText } from '@call-it/shared';
 import { ChallengeFormModal } from '@/app/components/ChallengeFormModal';
 import { useIsMobile } from '@/app/hooks/useIsMobile';
 // MiniAppReady (08-06, UAT 08 GAP 2): calls sdk.actions.ready() once after mount so the
@@ -971,6 +971,54 @@ function ProvenanceModal({ open, onClose, provenance, isLoading }: ProvenanceMod
   );
 }
 
+// ─── Settled receipt styles (09.2-07 — prototype SETTLED_OUTCOMES port) ──────
+//
+// Color/tint/sub map ported from `call it frontend/screens/receipt.jsx:284-290`
+// (the canonical SETTLED_OUTCOMES — NEVER data.jsx OUTCOMES, whose CSS vars are
+// broken), keyed by the resolveSettledWord outcome word. WORDS always come from
+// lib/outcome-word.ts (the D-09 per-viewer FADED CORRECTLY guard + the PENDING
+// RESULT neutral fail-safe live there); this map supplies COLORS/tints/sub-lines
+// ONLY. The neutral word has no entry here — it degrades to the resolveSettledWord
+// slate with no sub-line (D-07).
+
+type SettledOutcomeStyle = { hex: string; tint: string; sub: string | null };
+
+const SETTLED_OUTCOME_STYLES: Record<string, SettledOutcomeStyle> = {
+  'CALLED IT': { hex: '#E8F542', tint: 'rgba(232,245,66,0.04)', sub: 'Right.' },
+  'LOUD AND WRONG': { hex: '#F87171', tint: 'rgba(248,113,113,0.04)', sub: 'The market remembers.' },
+  'COLD CALL': { hex: '#64748B', tint: 'rgba(100,116,139,0.04)', sub: "Didn't hit." },
+  'CONTRARIAN HIT': { hex: '#E8F542', tint: 'rgba(232,245,66,0.05)', sub: 'Faded the consensus. Right.' },
+  'FADED CORRECTLY': { hex: '#E8F542', tint: 'rgba(232,245,66,0.04)', sub: 'Right to doubt.' },
+};
+
+/** Prototype avatar grad classes a–f (globals.css) — deterministic pick per handle. */
+const AVATAR_GRAD_CLASSES = [
+  'avatar-grad-a',
+  'avatar-grad-b',
+  'avatar-grad-c',
+  'avatar-grad-d',
+  'avatar-grad-e',
+  'avatar-grad-f',
+] as const;
+
+function avatarGradClass(handle: string): string {
+  let acc = 0;
+  for (let i = 0; i < handle.length; i++) {
+    acc = (acc + handle.charCodeAt(i)) % AVATAR_GRAD_CLASSES.length;
+  }
+  return AVATAR_GRAD_CLASSES[acc] ?? AVATAR_GRAD_CLASSES[0];
+}
+
+/** Short hash for metadata footers: 0xa3f4…91d2 (display-only). */
+function shortHash(h: string): string {
+  return h.length > 12 ? `${h.slice(0, 6)}…${h.slice(-4)}` : h;
+}
+
+/** Mono UTC stamp for provenance metadata: "2026-06-08 14:22 UTC". */
+function formatUtc(sec: bigint | number): string {
+  return `${new Date(Number(sec) * 1000).toISOString().slice(0, 16).replace('T', ' ')} UTC`;
+}
+
 // ─── Page component ───────────────────────────────────────────────────────────
 
 export default function CallPage() {
@@ -1389,454 +1437,470 @@ export default function CallPage() {
   const userFollowPosition = followShares;
   const userFadePosition = fadeShares;
 
-  // ─── SETTLED / DISPUTED RECEIPT RENDER ─────────────────────────────────
-  // Phase 4: Renders for Settled + Disputed + CallerExited-settled states.
-  // Separated branch to keep the Live receipt clean.
+  // ─── SETTLED / DISPUTED RECEIPT RENDER (09.2-07 — prototype receipt skin) ──
+  // Renders for Settled + Disputed + CallerExited-settled states over the
+  // UNTOUCHED data/handler block above (markup donor: `call it frontend/`
+  // screens/receipt.jsx ReceiptSettledScreen). Outcome WORDS come from
+  // resolveSettledWord (lib/outcome-word.ts — D-09 fader guard + neutral
+  // fail-safe); COLORS/tints/subs come from SETTLED_OUTCOME_STYLES above.
   if (isSettled || (isCallerExited && callData?.outcome)) {
     const handle = callData?.handle ?? `#${callIdNum}`;
     const repScore = callData?.repScore ?? 0;
     const marketLine = callData?.marketLine ?? `Call #${callIdNum}`;
     const conviction = callData?.conviction ?? 50;
     const settledAt = callData?.settledAt;
-    const oracleHost = callData?.oracleHost ?? 'oracle';
-    // oracleTxHash shown via ProvenanceModal (D-10) — not rendered directly on page
-    const finalValue = callData?.finalValue ?? '—';
-    const targetValue = callData?.targetValue ?? '—';
-    const callerPnl = callData?.pnl ?? 0n;
+    const createdAt = callData?.createdAt;
+    // D-07: stats and metadata render ONLY real provenance fields — absent
+    // fields hide their stat/segment instead of showing a '—' filler.
+    const oracleHost = callData?.oracleHost;
+    const oracleTxHash = callData?.oracleTxHash;
+    const finalValue = callData?.finalValue;
+    const targetValue = callData?.targetValue;
+    const callerPnl = callData?.pnl;
+    const repDelta = callData?.repDelta;
 
     // CORE VALUE (08-05 GAP 1 — receipts must be unfakeable): NEVER default a
     // settled receipt to a win word. When outcomeWordResult is null (the true
-    // outcome is not yet known — outcome enum Pending, or a subgraph/relayer outage
-    // left the settled fields absent), resolveSettledWord returns a NEUTRAL
-    // placeholder ('PENDING RESULT'), not 'CALLED IT'. The old `?? 'CALLED IT'`
-    // default publicly cast a settled LOSS as a win (UAT 08 GAP 1).
+    // outcome is not yet known — outcome enum Pending, or a subgraph/relayer
+    // outage left the settled fields absent), resolveSettledWord returns the
+    // NEUTRAL placeholder ('PENDING RESULT'), never a win word (UAT 08 GAP 1).
     const resolvedSettled = resolveSettledWord(outcomeWordResult);
     const outcomeWord = resolvedSettled.word;
     const outcomeColor = resolvedSettled.color;
     const outcomeLozenge = resolvedSettled.lozenge;
 
-    // SHARE AS FRAME (Plan 08-04, D-04 / UI-SPEC): the Farcaster compose-intent URL for
-    // the embed-bearing receipt URL. The fc:miniapp/fc:frame embed (Plan 08-02) rides the
-    // receipt URL inside warpcastComposeUrl's embeds[]= param — no payload change. Reuses
-    // the shared pure builders. NULL (control omitted, no dead button) when the OG base
-    // origin is unset or no real handle exists — the `#<id>` fallback is not shareable
-    // (UI-SPEC Error state).
-    // CORE VALUE (08-05 GAP 1): only ever share a REAL resolved outcome word. When
-    // outcomeWordResult is null (unknown outcome), outcomeWord is the neutral
-    // 'PENDING RESULT' placeholder — which must NEVER be cast publicly as a Frame.
-    // So require outcomeWordResult != null IN ADDITION to base + real handle.
+    // Colors/tints/subs ride the prototype map keyed by the resolved word.
+    // The neutral SETTLED_NEUTRAL_WORD has no prototype entry — slate, no sub.
+    const isNeutralOutcome = outcomeWord === SETTLED_NEUTRAL_WORD;
+    const outcomeStyle: SettledOutcomeStyle = SETTLED_OUTCOME_STYLES[outcomeWord] ?? {
+      hex: outcomeColor,
+      tint: 'rgba(100,116,139,0.04)',
+      sub: null,
+    };
+
+    // SHARE controls (D-09 / SHARE-19 — the app's existing WORKING wiring; the
+    // prototype's dead SHARE button is superseded): warpcast compose intent
+    // (SHARE AS FRAME, Plan 08-04) + twitter web intent, both via the shared
+    // pure builders. CORE VALUE (08-05 GAP 1): only ever share a REAL resolved
+    // outcome word — require outcomeWordResult != null in addition to the OG
+    // base origin + a real handle (no dead/fake share controls, D-08).
     const ogBaseForFrame = process.env.NEXT_PUBLIC_OG_BASE_URL?.replace(/\/$/, '');
+    const receiptShareUrl = ogBaseForFrame ? `${ogBaseForFrame}/call/${callIdNum}` : null;
     const shareAsFrameUrl =
-      outcomeWordResult && ogBaseForFrame && callData?.handle
+      outcomeWordResult && receiptShareUrl && callData?.handle
         ? warpcastComposeUrl(
-            `${ogBaseForFrame}/call/${callIdNum}`,
+            receiptShareUrl,
+            buildShareText({ outcomeWord, handle, statement: marketLine }),
+          )
+        : null;
+    const shareOnXUrl =
+      outcomeWordResult && receiptShareUrl && callData?.handle
+        ? twitterIntentUrl(
+            receiptShareUrl,
             buildShareText({ outcomeWord, handle, statement: marketLine }),
           )
         : null;
 
-    // Determine Stamp color token — use brand-accent for accent colors, outcome-win/loss for others.
-    // The neutral 'PENDING RESULT' placeholder (08-05 fail-safe, unknown outcome) maps to
-    // brand-muted — NEVER outcome-win — so an unconfirmed receipt never reads as a win.
-    const stampColor: 'outcome-win' | 'outcome-loss' | 'outcome-contrarian' | 'brand-muted' | 'brand-accent' =
-      outcomeWord === 'CALLED IT' ? 'outcome-win' :
-      outcomeWord === 'LOUD AND WRONG' ? 'outcome-loss' :
-      outcomeWord === 'CONTRARIAN HIT' ? 'outcome-contrarian' :
-      outcomeWord === 'COLD CALL' ? 'brand-muted' :
-      outcomeWord === SETTLED_NEUTRAL_WORD ? 'brand-muted' :
-      'brand-accent'; // FADED CORRECTLY
+    // WINNERS / LOSERS from the existing positions data — handles + amounts
+    // only (AUTH-44), sorted by P&L, capped 20/side.
+    const winners = finalPositions
+      .filter((p) => p.pnl >= 0n)
+      .sort((a, b) => Number(b.pnl - a.pnl))
+      .slice(0, 20);
+    const losers = finalPositions
+      .filter((p) => p.pnl < 0n)
+      .sort((a, b) => Number(a.pnl - b.pnl))
+      .slice(0, 20);
 
-    // FINAL POSITIONS: sort by P&L desc, cap 20/side
-    const followers = finalPositions.filter(p => p.side === 'follow').sort((a, b) => Number(b.pnl - a.pnl)).slice(0, 20);
-    const faders = finalPositions.filter(p => p.side === 'fade').sort((a, b) => Number(b.pnl - a.pnl)).slice(0, 20);
+    // 2-node timeline (D-07): created → settled with REAL timestamps. Middle
+    // milestones (follower counts, pool thresholds) have NO event source and
+    // are NOT rendered.
+    const timelineNodes = [
+      ...(createdAt && createdAt > 0n
+        ? [{ ts: formatUtc(createdAt), lbl: 'Call created', color: 'var(--text-secondary)' }]
+        : []),
+      ...(settledAt && settledAt > 0n
+        ? [
+            {
+              ts: formatUtc(settledAt),
+              lbl: isNeutralOutcome ? 'Settled' : `Resolved · ${outcomeWord}`,
+              color: outcomeStyle.hex,
+            },
+          ]
+        : []),
+    ];
+
+    // Metadata segments — real provenance values only, hidden where absent
+    // (D-07). Block number has no source on this payload → never rendered.
+    const metaSegments = [
+      isDisputed ? 'disputed' : 'settled',
+      oracleTxHash ? shortHash(oracleTxHash) : null,
+      settledAt && settledAt > 0n ? formatUtc(settledAt) : null,
+    ].filter((s): s is string => s !== null);
 
     return (
-      <div style={{ backgroundColor: '#09090E', minHeight: '100vh', padding: '0' }}>
-        {/* 08-06 GAP 2: signal ready() so the Mini App host reveals this settled receipt
-            (renders null). enabled keyed off callData so the host shows real content, not a
-            bare skeleton. D-01: read-only render only; tap-to-transact is Phase 10. */}
+      <div>
+        {/* 08-06 GAP 2: signal ready() so the Mini App host reveals this settled
+            receipt (renders null). enabled keyed off callData so the host shows
+            real content. D-01: read-only render; tap-to-transact is Phase 10. */}
         <MiniAppReady enabled={!!callData} />
-        {/* ── Settled Page Frame: 3px border + 4px corner brackets ─────────── */}
-        <div style={{ position: 'relative', border: '3px solid #2E2E42' }}>
-          {/* Corner bracket accent (UI-14) */}
-          {[
-            { top: 0, left: 0, borderTop: '4px solid #E8F542', borderLeft: '4px solid #E8F542' },
-            { top: 0, right: 0, borderTop: '4px solid #E8F542', borderRight: '4px solid #E8F542' },
-            { bottom: 0, left: 0, borderBottom: '4px solid #E8F542', borderLeft: '4px solid #E8F542' },
-            { bottom: 0, right: 0, borderBottom: '4px solid #E8F542', borderRight: '4px solid #E8F542' },
-          ].map((s, i) => (
-            <div key={i} style={{ position: 'absolute', width: 24, height: 24, ...s }} />
-          ))}
 
-        {/* ── Sticky Caller Header ─────────────────────────────────────────── */}
-        <div style={{
-          position: 'sticky', top: 0, zIndex: 30,
-          backgroundColor: '#09090E', borderBottom: '2px solid #2E2E42',
-          padding: isMobile ? '12px 16px' : '12px 24px',
-        }}>
-          <div style={{
-            display: 'flex', flexDirection: 'row', justifyContent: 'space-between',
-            alignItems: 'center', flexWrap: isMobile ? 'wrap' : 'nowrap', gap: isMobile ? '8px' : undefined,
-          }}>
-            <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: isMobile ? '10px' : '16px', flexWrap: 'wrap', minWidth: 0 }}>
-              <Link href="/" style={{ fontFamily: 'monospace', fontSize: '12px', color: '#94A3B8', textDecoration: 'none' }}>
-                ← Back
-              </Link>
-              {/* handle only — AUTH-44: NEVER wallet address */}
-              <span style={{ fontFamily: 'monospace', fontSize: '16px', fontWeight: 700, color: '#E8E8E8' }}>
-                {handle}
-              </span>
-              <span style={{ fontFamily: 'monospace', fontSize: '12px', color: '#E8F542' }}>
-                {repScore} rep
-              </span>
-            </div>
-            {/* Share CTA (UI-20) */}
-            <button style={{
-              fontFamily: 'monospace', fontSize: '13px', fontWeight: 700,
-              color: '#09090E', backgroundColor: '#E8F542',
-              border: '2px solid #09090E', boxShadow: '3px 3px 0 0 #09090E',
-              padding: '8px 16px', cursor: 'pointer',
-            }}>
-              SHARE THE RECEIPT →
-            </button>
-          </div>
+        {/* ── Top meta: back to the tape + provenance metadata (D-07 real only) ── */}
+        <div className="spread" style={{ paddingTop: 28, paddingBottom: 18, flexWrap: 'wrap', gap: 12 }}>
+          <Link href="/" className="btn ghost" style={{ padding: '8px 0' }}>
+            ← Back to the tape
+          </Link>
+          <span className="mono" style={{ fontSize: 11, color: 'var(--text-tertiary)', letterSpacing: '0.04em' }}>
+            {metaSegments.join(' · ')}
+          </span>
         </div>
 
-        {/* ── Page content ─────────────────────────────────────────────────── */}
-        <div style={isMobile
-          ? { width: '100%', maxWidth: '100%', margin: '0 auto', padding: '24px 16px' }
-          : { maxWidth: '1024px', margin: '0 auto', padding: '32px 24px' }}>
+        {/* ── SETTLED HERO — tinted brutal card (prototype ReceiptSettledScreen) ── */}
+        <div
+          className="brutal-card hero bracketed"
+          style={{ padding: isMobile ? 24 : 48, background: outcomeStyle.tint, position: 'relative' }}
+        >
+          <span className="br-bl" />
+          <span className="br-br" />
 
-          {/* ── Call Statement (UI-15): Syne 48px, target value in #E8F542 ──── */}
-          <div style={{ marginBottom: '32px' }}>
-            <p style={{
-              fontFamily: "'Syne', sans-serif", fontSize: '48px', fontWeight: 800,
-              color: '#E8E8E8', lineHeight: 1.2, margin: '0 0 8px 0',
-            }}>
-              {marketLine}
-            </p>
-            {settledAt && (
-              <p style={{ fontFamily: 'monospace', fontSize: '13px', color: '#94A3B8', margin: 0 }}>
-                settled {formatRelativeTime(Number(settledAt))} ·
-                settles automatically from{' '}
-                <span style={{ color: '#E8F542' }}>{oracleHost}</span>
-                {' '}↗
-              </p>
-            )}
-          </div>
-
-          {/* ── OUTCOME HERO (UI-16, UI-44, UI-45): Stamp + 96px outcome word ─ */}
-          {!isDisputed && (
-            <div style={{
-              marginBottom: '32px', padding: '32px',
-              backgroundColor: '#0D0D18', border: '2px solid #2E2E42',
-              display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '20px',
-            }}>
-              {/* Stamp wrapping the 96px outcome word */}
-              <Stamp
-                word={outcomeWord}
-                color={stampColor}
-                hexColor={outcomeColor}
-              />
-              {/* Outcome word text (Syne, §14.1 locked color). Desktop 96px →
-                  mobile 52px (UI-SPEC Typography; Playwright legibility floor 36px).
-                  data-outcome-word is the stable hook responsive.spec.ts targets. */}
-              <p
-                data-outcome-word={outcomeWord}
-                style={{
-                  fontFamily: "'Syne', sans-serif",
-                  fontSize: isMobile ? '52px' : '96px',
-                  fontWeight: 800,
-                  color: outcomeColor,
-                  lineHeight: 1.0,
-                  margin: 0,
-                  letterSpacing: '-0.02em',
-                }}
+          {/* Caller-exited-with-outcome variant — warning banner (real fields only) */}
+          {isCallerExited && (
+            <div
+              style={{
+                margin: isMobile ? '-24px -24px 24px' : '-48px -48px 28px',
+                padding: isMobile ? '14px 24px' : '16px 36px',
+                background: 'rgba(251,146,60,0.08)',
+                borderBottom: '2px solid var(--accent-warning)',
+              }}
+            >
+              <div
+                className="mono"
+                style={{ fontSize: 12, color: 'var(--accent-warning)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em' }}
               >
-                {outcomeWord}
-              </p>
-              {/* Lozenge (CONTRARIAN / FADER WIN) */}
-              {outcomeLozenge && (
-                <span style={{
-                  fontFamily: 'monospace', fontSize: '11px', fontWeight: 700,
-                  color: outcomeColor, border: `2px solid ${outcomeColor}`,
-                  padding: '3px 10px', textTransform: 'uppercase', letterSpacing: '0.12em',
-                }}>
-                  {outcomeLozenge}
-                </span>
-              )}
-              {/* Rep delta count-up (UI-45): JetBrains Mono, green/red */}
-              <p style={{
-                fontFamily: "'Space Grotesk', sans-serif", fontSize: '16px', color: '#94A3B8', margin: 0,
-              }}>
-                by {handle} ·{' '}
-                <span style={{
-                  fontFamily: 'JetBrains Mono, monospace',
-                  color: displayedRepDelta >= 0 ? '#4ADE80' : '#F87171',
-                  fontWeight: 700,
-                }}>
-                  {displayedRepDelta >= 0 ? '+' : ''}{displayedRepDelta} rep
-                </span>
-              </p>
-            </div>
-          )}
-
-          {/* ── PENDING DISPUTE block (UI-23): amber, replaces outcome hero ──── */}
-          {isDisputed && (
-            <div style={{
-              marginBottom: '32px', padding: '24px',
-              border: '3px solid #FB923C', backgroundColor: 'rgba(251, 146, 60, 0.06)',
-              display: 'flex', flexDirection: 'column', gap: '12px',
-            }}>
-              <p style={{
-                fontFamily: "'Space Grotesk', sans-serif", fontSize: '28px', fontWeight: 700,
-                color: '#FB923C', margin: 0,
-              }}>
-                PENDING DISPUTE
-              </p>
-              <p style={{ fontFamily: 'monospace', fontSize: '14px', color: '#94A3B8', margin: 0 }}>
-                This settlement is under dispute review. The outcome may change. Dispute resolution modal available in a future update.
-              </p>
-            </div>
-          )}
-
-          {/* ── 4-STAT ROW (UI-19): FINAL VALUE / TARGET / CONVICTION / P&L ──
-              Desktop: 4 cells in a row. Mobile: 2×2 via flexWrap (NOT display:grid —
-              Pitfall 3/15), preserving the 1px inter-cell dividers + 2px outer border. */}
-          <div style={{
-            display: 'flex', flexDirection: 'row', flexWrap: isMobile ? 'wrap' : 'nowrap', gap: '0px',
-            border: '2px solid #2E2E42', marginBottom: '32px',
-          }}>
-            {[
-              { label: 'FINAL VALUE', value: finalValue, color: '#E8E8E8' },
-              { label: 'TARGET', value: targetValue, color: '#E8F542' },
-              { label: 'CONVICTION', value: `${conviction}%`, color: '#E8F542' },
-              {
-                label: 'P&L',
-                value: callerPnl >= 0n ? `+${formatUsdc(callerPnl)}` : formatUsdc(callerPnl < 0n ? -callerPnl : callerPnl),
-                color: callerPnl >= 0n ? '#4ADE80' : '#F87171',
-              },
-            ].map((cell, i, arr) => (
-              <div key={cell.label} style={{
-                // Mobile 2×2: each cell two-per-row; left cell of each pair keeps the
-                // vertical divider, the top pair keeps a bottom divider — grid look, no grid.
-                flex: isMobile ? '1 1 45%' : 1, padding: '14px 16px',
-                borderRight: isMobile
-                  ? (i % 2 === 0 ? '1px solid #2E2E42' : undefined)
-                  : (i < arr.length - 1 ? '1px solid #2E2E42' : undefined),
-                borderBottom: isMobile && i < 2 ? '1px solid #2E2E42' : undefined,
-                display: 'flex', flexDirection: 'column', gap: '4px',
-              }}>
-                <span style={{ fontFamily: 'monospace', fontSize: '10px', color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.12em' }}>
-                  {cell.label}
-                </span>
-                <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '15px', fontWeight: 700, color: cell.color }}>
-                  {cell.value}
-                </span>
+                CALLER EXITED
+                {callData?.callerExitedAt ? ` · ${formatRelativeTime(Number(callData.callerExitedAt))}` : ''}
+                {callData?.callerExitedPenalty ? ` · ${formatUsdc(callData.callerExitedPenalty)} slashed` : ''}
               </div>
-            ))}
-          </div>
-
-          {/* ── ACTION ROW (UI-20): Share + Share as Frame + View All Calls ─────
-              Desktop: 3 buttons in a row. Mobile: full-width stacked (column),
-              each button width:100% + ≥44px tall (padding 16px ⇒ ~48px). */}
-          <div data-receipt-action-row style={{
-            display: 'flex', flexDirection: isMobile ? 'column' : 'row',
-            gap: '12px', marginBottom: '32px',
-          }}>
-            <button style={{
-              flex: isMobile ? undefined : 1, width: isMobile ? '100%' : undefined,
-              fontFamily: 'monospace', fontSize: '13px', fontWeight: 700,
-              color: '#09090E', backgroundColor: '#E8F542',
-              border: '2px solid #09090E', boxShadow: '4px 4px 0 0 #09090E',
-              padding: '16px', cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '0.08em',
-            }}>
-              SHARE THE RECEIPT →
-            </button>
-            {shareAsFrameUrl && (
-              <a
-                href={shareAsFrameUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{ flex: isMobile ? undefined : 1, width: isMobile ? '100%' : undefined, textDecoration: 'none' }}
-              >
-                <button style={{
-                  width: '100%', fontFamily: 'monospace', fontSize: '13px', fontWeight: 700,
-                  color: '#E8F542', backgroundColor: 'transparent',
-                  border: '2px solid #E8F542', padding: '16px', cursor: 'pointer',
-                  textTransform: 'uppercase', letterSpacing: '0.08em',
-                }}>
-                  SHARE AS FRAME →
-                </button>
-              </a>
-            )}
-            <Link href={`/?caller=${encodeURIComponent(handle)}`} style={{ flex: isMobile ? undefined : 1, width: isMobile ? '100%' : undefined, textDecoration: 'none' }}>
-              <button style={{
-                width: '100%', fontFamily: 'monospace', fontSize: '13px', fontWeight: 700,
-                color: '#E8F542', backgroundColor: 'transparent',
-                border: '2px solid #E8F542', padding: '16px', cursor: 'pointer',
-                textTransform: 'uppercase', letterSpacing: '0.08em',
-              }}>
-                VIEW ALL CALLS BY {handle}
-              </button>
-            </Link>
-          </div>
-
-          {/* ── FINAL POSITIONS (UI-21): flex row, 2 cols, 20/side max, sorted P&L desc ── */}
-          {(followers.length > 0 || faders.length > 0) && (
-            <div style={{
-              marginBottom: '32px', border: '2px solid #2E2E42', backgroundColor: '#111118',
-            }}>
-              {/* Header with corner brackets accent */}
-              <div style={{
-                padding: '12px 16px', borderBottom: '2px solid #2E2E42',
-                display: 'flex', flexDirection: 'row', alignItems: 'center', position: 'relative',
-              }}>
-                {/* 4px accent corner brackets on header */}
-                {[
-                  { top: 0, left: 0, borderTop: '4px solid #E8F542', borderLeft: '4px solid #E8F542' },
-                  { top: 0, right: 0, borderTop: '4px solid #E8F542', borderRight: '4px solid #E8F542' },
-                ].map((s, i) => (
-                  <div key={i} style={{ position: 'absolute', width: 12, height: 12, ...s }} />
-                ))}
-                <span style={{ fontFamily: 'monospace', fontSize: '11px', fontWeight: 700, color: '#E8F542', textTransform: 'uppercase', letterSpacing: '0.12em' }}>
-                  FINAL POSITIONS
-                </span>
-              </div>
-              {/* Two-column flex (NOT grid — Pitfall 15) → stacks to column at mobile */}
-              <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: 'flex-start' }}>
-                {/* FOLLOWERS column — at mobile the vertical divider becomes a horizontal one */}
-                <div style={{
-                  flex: 1, width: isMobile ? '100%' : undefined,
-                  borderRight: isMobile ? undefined : '1px solid #2E2E42',
-                  borderBottom: isMobile ? '1px solid #2E2E42' : undefined,
-                }}>
-                  <div style={{ padding: '8px 12px', borderBottom: '1px solid #2E2E42' }}>
-                    <span style={{ fontFamily: 'monospace', fontSize: '10px', color: '#E8F542', textTransform: 'uppercase', letterSpacing: '0.1em' }}>FOLLOWERS</span>
-                  </div>
-                  {followers.length === 0 ? (
-                    <div style={{ padding: '12px', fontFamily: 'monospace', fontSize: '12px', color: '#94A3B8' }}>None</div>
-                  ) : (
-                    followers.map((p, i) => (
-                      <div key={i} style={{
-                        display: 'flex', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-                        padding: '8px 12px', borderBottom: '1px solid #1E1E2E',
-                      }}>
-                        <span style={{ fontFamily: 'monospace', fontSize: '13px', color: '#E8E8E8' }}>{p.handle}</span>
-                        <span style={{
-                          fontFamily: 'JetBrains Mono, monospace', fontSize: '12px',
-                          color: p.pnl >= 0n ? '#4ADE80' : '#F87171',
-                        }}>
-                          {p.pnl >= 0n ? '+' : '-'}{formatUsdc(p.pnl < 0n ? -p.pnl : p.pnl)}
-                        </span>
-                      </div>
-                    ))
-                  )}
-                </div>
-                {/* FADERS column */}
-                <div style={{ flex: 1, width: isMobile ? '100%' : undefined }}>
-                  <div style={{ padding: '8px 12px', borderBottom: '1px solid #2E2E42' }}>
-                    <span style={{ fontFamily: 'monospace', fontSize: '10px', color: '#F87171', textTransform: 'uppercase', letterSpacing: '0.1em' }}>FADERS</span>
-                  </div>
-                  {faders.length === 0 ? (
-                    <div style={{ padding: '12px', fontFamily: 'monospace', fontSize: '12px', color: '#94A3B8' }}>None</div>
-                  ) : (
-                    faders.map((p, i) => (
-                      <div key={i} style={{
-                        display: 'flex', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-                        padding: '8px 12px', borderBottom: '1px solid #1E1E2E',
-                      }}>
-                        <span style={{ fontFamily: 'monospace', fontSize: '13px', color: '#E8E8E8' }}>{p.handle}</span>
-                        <span style={{
-                          fontFamily: 'JetBrains Mono, monospace', fontSize: '12px',
-                          color: p.pnl >= 0n ? '#4ADE80' : '#F87171',
-                        }}>
-                          {p.pnl >= 0n ? '+' : '-'}{formatUsdc(p.pnl < 0n ? -p.pnl : p.pnl)}
-                        </span>
-                      </div>
-                    ))
-                  )}
-                </div>
+              <div style={{ fontSize: 12.5, color: 'var(--text-secondary)', marginTop: 2 }}>
+                The caller exited before settlement. The call still settled at expiry.
               </div>
             </div>
           )}
 
-          {/* ── DISPUTE THIS SETTLEMENT CTA (D-06, SETTLE-25) ──────────────────── */}
-          {/* Show when: status==Settled (not Disputed), within 24h window, counterClaimCount < 3 */}
-          {callData?.status === 'Settled' && (() => {
-            const nowUnix = BigInt(Math.floor(Date.now() / 1000));
-            const windowOpen = callData.settledAt
-              ? (nowUnix - callData.settledAt) < DISPUTE_WINDOW_SECONDS
-              : true;
-            const underLimit = (callData as CallData & { counterClaimCount?: number }).counterClaimCount !== undefined
-              ? ((callData as CallData & { counterClaimCount?: number }).counterClaimCount ?? 0) < MAX_COUNTER_CLAIMS
-              : true;
-            if (!windowOpen) {
-              return (
-                <div style={{ marginBottom: '16px' }}>
-                  <span style={{ fontFamily: 'monospace', fontSize: '12px', color: '#94A3B8' }}>
-                    Dispute window closed.
-                  </span>
-                </div>
-              );
-            }
-            if (!underLimit) {
-              return (
-                <div style={{ marginBottom: '16px' }}>
-                  <span style={{ fontFamily: 'monospace', fontSize: '12px', color: '#94A3B8' }}>
-                    Counter-claim limit reached (3).
-                  </span>
-                </div>
-              );
-            }
-            return (
-              <div style={{ marginBottom: '16px' }}>
-                <button
-                  onClick={() => setIsDisputeModalOpen(true)}
-                  style={{
-                    fontFamily: 'monospace', fontSize: '12px', color: '#FB923C',
-                    backgroundColor: 'transparent', border: '1px solid #FB923C',
-                    padding: '6px 12px', cursor: 'pointer', letterSpacing: '0.06em',
-                  }}
+          {/* Top row: square grad avatar + handle + rep · share controls */}
+          <div className="spread" style={{ marginBottom: 28, alignItems: 'flex-start', flexWrap: 'wrap', gap: 14 }}>
+            <div className="row" style={{ gap: 14 }}>
+              <span className={`avatar lg ${avatarGradClass(handle)}`} aria-hidden="true">
+                {(handle.replace(/^[@#]/, '')[0] ?? '?').toUpperCase()}
+              </span>
+              <div className="col" style={{ gap: 6 }}>
+                {/* handle only — AUTH-44: NEVER wallet address */}
+                <span style={{ fontFamily: 'var(--font-display)', fontSize: 20, fontWeight: 900, letterSpacing: '-0.02em' }}>
+                  {handle}
+                </span>
+                <span className="mono" style={{ fontSize: 11, color: 'var(--accent-win)' }}>
+                  {repScore} rep
+                </span>
+              </div>
+            </div>
+
+            {/* SHARE row — existing working wiring kept (D-09): twitter web
+                intent + SHARE AS FRAME warpcast compose intent. Controls are
+                OMITTED (never dead) when no real share URL exists. */}
+            <div
+              data-receipt-action-row
+              style={{
+                display: 'flex',
+                flexDirection: isMobile ? 'column' : 'row',
+                gap: 12,
+                width: isMobile ? '100%' : undefined,
+              }}
+            >
+              {shareOnXUrl && (
+                <a
+                  href={shareOnXUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn cream"
+                  style={{ width: isMobile ? '100%' : undefined, textDecoration: 'none' }}
                 >
-                  Dispute this settlement →
-                </button>
-              </div>
-            );
-          })()}
+                  SHARE THE RECEIPT →
+                </a>
+              )}
+              {shareAsFrameUrl && (
+                <a
+                  href={shareAsFrameUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn outline-white"
+                  style={{ width: isMobile ? '100%' : undefined, textDecoration: 'none' }}
+                >
+                  SHARE AS FRAME →
+                </a>
+              )}
+            </div>
+          </div>
 
-          {/* ── PROVENANCE LINE (SETTLE-52 / D-10) ────────────────────────────── */}
-          <div style={{
-            padding: '12px 16px', border: '1px solid #1E1E2E',
-            backgroundColor: '#111118', marginBottom: '32px',
-            display: 'flex', flexDirection: 'row', alignItems: 'center', gap: '8px', flexWrap: 'wrap',
-          }}>
-            <span style={{ fontFamily: 'monospace', fontSize: '11px', color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
-              SETTLED FROM
-            </span>
-            <span style={{ fontFamily: 'monospace', fontSize: '12px', color: '#E8F542', fontWeight: 700 }}>
-              {oracleHost.toUpperCase()}
-            </span>
-            {settledAt && (
-              <>
-                <span style={{ fontFamily: 'monospace', fontSize: '11px', color: '#64748B' }}>at</span>
-                <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '11px', color: '#94A3B8' }}>
-                  {new Date(Number(settledAt) * 1000).toISOString().replace('T', ' ').replace('.000Z', ' UTC')}
-                </span>
-              </>
+          {/* OUTCOME STAMP (word from resolveSettledWord; hex from the prototype
+              map) — swapped for the PENDING DISPUTE warning while under review */}
+          {isDisputed ? (
+            <div style={{ textAlign: 'center', padding: '28px 0 24px' }}>
+              <div className="h-2" style={{ color: 'var(--accent-warning)', textTransform: 'uppercase' }}>
+                Pending dispute
+              </div>
+              <p className="mono" style={{ fontSize: 13, color: 'var(--text-secondary)', margin: '12px 0 0' }}>
+                This settlement is under dispute review. The outcome may change.
+              </p>
+            </div>
+          ) : (
+            <div style={{ textAlign: 'center', padding: '20px 0 24px' }}>
+              {/* data-outcome-word: stable Playwright hook (responsive.spec.ts) */}
+              <div
+                data-outcome-word={outcomeWord}
+                style={{ display: 'flex', justifyContent: 'center', fontSize: 'clamp(56px, 17vw, 120px)' }}
+              >
+                {/* token-class prop is a fallback only — hexColor (prototype map) wins */}
+                <Stamp word={outcomeWord} color="brand-muted" hexColor={outcomeStyle.hex} />
+              </div>
+              {outcomeStyle.sub && (
+                <div
+                  className="mono"
+                  style={{ marginTop: 18, fontSize: 13, color: 'var(--text-secondary)', letterSpacing: '0.14em', textTransform: 'uppercase', fontWeight: 700 }}
+                >
+                  · {outcomeStyle.sub} ·
+                </div>
+              )}
+              {outcomeLozenge && (
+                <div style={{ marginTop: 14 }}>
+                  <span className="pill" style={{ color: outcomeStyle.hex }}>
+                    {outcomeLozenge}
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Market line — .h-statement Archivo voice */}
+          <div
+            className="h-statement"
+            style={{ textAlign: 'center', margin: '12px auto 28px', maxWidth: '30ch', color: 'var(--text-secondary)' }}
+          >
+            {marketLine}
+          </div>
+
+          {/* 4-stat row (.stat-block) — each stat hides when its field is absent
+              (D-07); wraps 2-up below 768px (UI-48) */}
+          <div className="row" style={{ gap: 14, marginBottom: 28, alignItems: 'stretch', flexWrap: isMobile ? 'wrap' : 'nowrap' }}>
+            {callerPnl !== undefined && (
+              <div className="stat-block" style={{ flex: isMobile ? '1 1 45%' : 1 }}>
+                <div className="stat-label">P&L</div>
+                <div className="stat-value" style={{ color: callerPnl >= 0n ? 'var(--accent-win)' : 'var(--accent-loss)' }}>
+                  {callerPnl >= 0n ? `+${formatUsdc(callerPnl)}` : `-${formatUsdc(-callerPnl)}`}
+                </div>
+              </div>
             )}
-            {/* view oracle proof ↗ — opens ProvenanceModal (D-10) */}
+            {repDelta !== undefined && (
+              <div className="stat-block" style={{ flex: isMobile ? '1 1 45%' : 1 }}>
+                <div className="stat-label">Rep Δ</div>
+                {/* UI-45 count-up rides the existing displayedRepDelta animation state */}
+                <div className="stat-value" style={{ color: repDelta >= 0 ? 'var(--accent-win)' : 'var(--accent-loss)' }}>
+                  {displayedRepDelta >= 0 ? '+' : ''}
+                  {displayedRepDelta}
+                </div>
+              </div>
+            )}
+            {finalValue && (
+              <div className="stat-block" style={{ flex: isMobile ? '1 1 45%' : 1 }}>
+                <div className="stat-label">Final</div>
+                <div className="stat-value">{finalValue}</div>
+                {targetValue && <div className="stat-sub">target {targetValue}</div>}
+              </div>
+            )}
+            {!finalValue && targetValue && (
+              <div className="stat-block" style={{ flex: isMobile ? '1 1 45%' : 1 }}>
+                <div className="stat-label">Target</div>
+                <div className="stat-value">{targetValue}</div>
+              </div>
+            )}
+            <div className="stat-block" style={{ flex: isMobile ? '1 1 45%' : 1 }}>
+              <div className="stat-label">Conviction</div>
+              <div className="stat-value">{conviction}%</div>
+            </div>
+          </div>
+
+          {/* 2-node timeline — created → settled (real timestamps only, D-07) */}
+          {timelineNodes.length > 0 && (
+            <>
+              <div className="label-overline" style={{ marginBottom: 14 }}>{'// WHAT HAPPENED'}</div>
+              <div style={{ display: 'flex', position: 'relative', padding: '16px 0', marginBottom: 8 }}>
+                <div
+                  style={{ position: 'absolute', left: '12%', right: '12%', top: 23, height: 2, background: 'var(--border-active)', zIndex: 0 }}
+                />
+                {timelineNodes.map((step, i) => (
+                  <div key={i} style={{ flex: 1, textAlign: 'center', position: 'relative', zIndex: 1 }}>
+                    <div
+                      style={{ width: 14, height: 14, background: step.color, margin: '0 auto 10px', border: '2px solid var(--bg-primary)' }}
+                    />
+                    <div
+                      className="mono"
+                      style={{ fontSize: 10, color: 'var(--text-tertiary)', letterSpacing: '0.06em', fontWeight: 600, textTransform: 'uppercase' }}
+                    >
+                      {step.ts}
+                    </div>
+                    <div style={{ fontSize: 12, fontWeight: 600, marginTop: 3, color: step.color }}>{step.lbl}</div>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+
+          {/* Metadata footer — real provenance only (D-07) + oracle proof link
+              (SETTLE-52 / D-10 — handleOpenProvenance wiring unchanged) */}
+          <div
+            className="mono"
+            style={{
+              marginTop: 32,
+              paddingTop: 18,
+              borderTop: '1px solid var(--border-subtle)',
+              fontSize: 10.5,
+              color: 'var(--text-tertiary)',
+              letterSpacing: '0.08em',
+              display: 'flex',
+              flexWrap: 'wrap',
+              justifyContent: 'center',
+              alignItems: 'center',
+              gap: 6,
+            }}
+          >
+            {oracleHost && <span style={{ textTransform: 'uppercase' }}>settled from {oracleHost}</span>}
+            {oracleTxHash && <span>· tx {shortHash(oracleTxHash)}</span>}
             <button
               onClick={() => void handleOpenProvenance()}
-              style={{ fontFamily: 'monospace', fontSize: '11px', color: '#E8F542', textDecoration: 'none', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+              className="mono"
+              style={{ fontSize: 10.5, letterSpacing: '0.08em', color: 'var(--accent-win)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
             >
               · view oracle proof ↗
             </button>
           </div>
-
-        </div>
         </div>
 
-        {/* ── DisputeModal (D-06) ────────────────────────────────────────────── */}
+        {/* ── DISPUTE THIS SETTLEMENT CTA (D-06, SETTLE-25) — wiring unchanged ── */}
+        {callData?.status === 'Settled' && (() => {
+          const nowUnix = BigInt(Math.floor(Date.now() / 1000));
+          const windowOpen = callData.settledAt
+            ? (nowUnix - callData.settledAt) < DISPUTE_WINDOW_SECONDS
+            : true;
+          const underLimit = (callData as CallData & { counterClaimCount?: number }).counterClaimCount !== undefined
+            ? ((callData as CallData & { counterClaimCount?: number }).counterClaimCount ?? 0) < MAX_COUNTER_CLAIMS
+            : true;
+          if (!windowOpen) {
+            return (
+              <div style={{ marginTop: 20 }}>
+                <span className="mono" style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>
+                  Dispute window closed.
+                </span>
+              </div>
+            );
+          }
+          if (!underLimit) {
+            return (
+              <div style={{ marginTop: 20 }}>
+                <span className="mono" style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>
+                  Counter-claim limit reached (3).
+                </span>
+              </div>
+            );
+          }
+          return (
+            <div style={{ marginTop: 20 }}>
+              <button
+                onClick={() => setIsDisputeModalOpen(true)}
+                className="btn"
+                style={{ color: 'var(--accent-warning)', borderColor: 'var(--accent-warning)' }}
+              >
+                Dispute this settlement →
+              </button>
+            </div>
+          );
+        })()}
+
+        {/* ── WINNERS / LOSERS — existing positions data (AUTH-44 handles only) ── */}
+        {(winners.length > 0 || losers.length > 0) && (
+          <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: 20, marginTop: 32, alignItems: 'flex-start' }}>
+            {winners.length > 0 && (
+              <div style={{ flex: 1, width: isMobile ? '100%' : undefined, minWidth: 0, alignSelf: 'stretch' }}>
+                <div className="section-divider" style={{ marginTop: 0 }}>
+                  <span className="title">↗ WINNERS · {winners.length}</span>
+                  <span className="line"></span>
+                </div>
+                <div className="brutal-card" style={{ padding: 0 }}>
+                  <table className="brutal-table">
+                    <tbody>
+                      {winners.map((p, i) => (
+                        <tr key={i} style={{ cursor: 'default' }}>
+                          <td style={{ width: 40 }}>
+                            <span className="mono" style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>
+                              {String(i + 1).padStart(2, '0')}
+                            </span>
+                          </td>
+                          <td>
+                            <div className="row" style={{ gap: 10 }}>
+                              <span className={`avatar sm ${avatarGradClass(p.handle)}`} aria-hidden="true">
+                                {(p.handle.replace(/^[@#]/, '')[0] ?? '?').toUpperCase()}
+                              </span>
+                              {/* handle only — AUTH-44 */}
+                              <span style={{ fontWeight: 600, fontSize: 13 }}>{p.handle}</span>
+                            </div>
+                          </td>
+                          <td className="mono" style={{ textAlign: 'right', color: 'var(--accent-win)', fontWeight: 700, fontSize: 14 }}>
+                            +{formatUsdc(p.pnl)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+            {losers.length > 0 && (
+              <div style={{ flex: 1, width: isMobile ? '100%' : undefined, minWidth: 0, alignSelf: 'stretch' }}>
+                <div className="section-divider" style={{ marginTop: 0 }}>
+                  <span className="title">↘ LOSERS · {losers.length}</span>
+                  <span className="line"></span>
+                </div>
+                <div className="brutal-card" style={{ padding: 0 }}>
+                  <table className="brutal-table">
+                    <tbody>
+                      {losers.map((p, i) => (
+                        <tr key={i} style={{ cursor: 'default' }}>
+                          <td style={{ width: 40 }}>
+                            <span className="mono" style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>
+                              {String(i + 1).padStart(2, '0')}
+                            </span>
+                          </td>
+                          <td>
+                            <div className="row" style={{ gap: 10 }}>
+                              <span className={`avatar sm ${avatarGradClass(p.handle)}`} aria-hidden="true">
+                                {(p.handle.replace(/^[@#]/, '')[0] ?? '?').toUpperCase()}
+                              </span>
+                              {/* handle only — AUTH-44 */}
+                              <span style={{ fontWeight: 600, fontSize: 13 }}>{p.handle}</span>
+                            </div>
+                          </td>
+                          <td className="mono" style={{ textAlign: 'right', color: 'var(--accent-loss)', fontWeight: 700, fontSize: 14 }}>
+                            -{formatUsdc(-p.pnl)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── DisputeModal (D-06) — open-state wiring unchanged ── */}
         {isDisputeModalOpen && (
           <DisputeModal
             open={isDisputeModalOpen}
@@ -1849,7 +1913,7 @@ export default function CallPage() {
           />
         )}
 
-        {/* ── ProvenanceModal (D-10) ─────────────────────────────────────────── */}
+        {/* ── ProvenanceModal (D-10) — open-state wiring unchanged ── */}
         {isProvenanceModalOpen && (
           <ProvenanceModal
             open={isProvenanceModalOpen}
