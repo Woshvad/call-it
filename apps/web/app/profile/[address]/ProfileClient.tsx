@@ -1,78 +1,90 @@
 /**
- * ProfileClient — Client Component boundary for the profile page.
+ * ProfileClient — dumb client renderer for /profile/[address].
  *
- * Wraps ProfileHeader + the Overview tab (UI-09). The Server Component (page.tsx)
- * fetches profile data and passes it here.
+ * Phase 09.2 (plan 05): prototype profile markup (`call it frontend/screens/
+ * profile.jsx` is the markup donor — D-05: never a logic donor) over the
+ * EXISTING props contract. page.tsx's RSC fetch is untouched; this stays a
+ * pure props renderer (D-05).
  *
- * AUTH-44: ProfileHeader receives handle (not address) as the display name.
+ * Renders ONLY data with a live source (D-07 — no-source sections are HIDDEN,
+ * never faked):
+ *   - Identity: <ProfileHeader> from @call-it/ui (square avatar grad +
+ *     Archivo handle + verified pills). AUTH-44: the `address` prop is the
+ *     RSC lookup key only — never rendered; this file contains zero
+ *     address-formatting helpers.
+ *   - Hero rep: GLOBAL REPUTATION Archivo 900 numeral at
+ *     clamp(64px, 18vw, 132px) inside <Card variant="hero">, with a real
+ *     settled/wins/misses meta line.
+ *   - Stat blocks (.stat-block recipes): Accuracy (wins ÷ settledCalls —
+ *     hidden entirely when nothing is settled), W/L record, Streak, Calls.
+ *   - RECENT CALLS: .section-divider + the prototype-voice empty state
+ *     ("No calls on record yet.") — the relayer ProfileResponse carries no
+ *     call list yet, so no table renders (an empty table would be a stub).
  *
- * Overview tab (UI-09, UI-SPEC §Profile Overview) — built from @call-it/ui
- * primitives, FLEXBOX ONLY (no CSS grid, Pitfall 15):
- *   - 5-stat row: Accuracy / Calibration / ROI / Contrarian hits / Streak
- *   - CATEGORY REPUTATION (3 Cards in a flex row)
- *   - RECENT CALLS (CallCard list + All/Open/Settled filter chips)
- *   - MOST FOLLOWED BY (avatar+handle list)
- *   - NOTABLE RECEIPTS (trophy Cards with Stamp + outcome word)
- * Every list defines its empty state per the UI-SPEC copy tables.
+ * REMOVED outright (D-07 — no live source; one section was actively faked):
+ *   - the category-reputation cards whose fill bars carried a hardcoded
+ *     width value (the app's one active fake-data surface — deleted)
+ *   - the em-dash placeholder stat blocks with no relayer source
+ *   - the 30d rep-history chart, the followers list, and the receipts
+ *     showcase (prototype sections with no data behind them)
+ *   - the All/Open/Settled filter chips — they filtered an always-empty
+ *     list, i.e. dead controls (D-08)
  *
- * Requirements: UI-09, AUTH-44
+ * Mobile (UI-48): full-width container clamp at 375px; stat blocks wrap 2-up.
+ *
+ * Requirements: AUTH-44, UI-48
  */
 
 'use client';
 
-import { useState } from 'react';
-import { ProfileHeader, Card, CallCard, type CallCardData } from '@call-it/ui';
+import { ProfileHeader, Card } from '@call-it/ui';
 import { useIsMobile } from '@/app/hooks/useIsMobile';
 import type { ProfileResponse } from '@/lib/relayer-client';
 
-const ACCENT = '#E8F542';
-
 interface ProfileClientProps {
+  /** URL lookup key consumed by the RSC fetch — NEVER rendered (AUTH-44). */
   address: string;
   profile: ProfileResponse | null;
   fetchError: string | null;
 }
 
-type CallFilter = 'All' | 'Open' | 'Settled';
+/**
+ * Accuracy % from real fields (wins ÷ settledCalls).
+ * Returns null when nothing is settled — the block hides entirely (D-07).
+ */
+function accuracyPct(profile: ProfileResponse): number | null {
+  if (profile.settledCalls <= 0) return null;
+  return Math.round((profile.wins / profile.settledCalls) * 100);
+}
 
-export function ProfileClient({ address, profile, fetchError }: ProfileClientProps) {
-  const isMobile = useIsMobile(); // Phase 9 (09-05): container clamp at 375px (UI-48)
-  // Build the user object for ProfileHeader (AUTH-44: no address field).
-  const headerUser = profile
-    ? {
-        handle: profile.handle,
-        verified: profile.verifiedX || profile.verifiedFc,
-        stats: {
-          totalCalls: profile.totalCalls,
-          settledCalls: profile.settledCalls,
-          wins: profile.wins,
-        },
-      }
-    : {
-        handle: address ? `${address.slice(0, 6)}...${address.slice(-4)}` : '...',
-        stats: { totalCalls: 0, settledCalls: 0, wins: 0 },
-      };
+export function ProfileClient({ profile, fetchError }: ProfileClientProps) {
+  const isMobile = useIsMobile(); // UI-48: container clamp + 2-up stat wrap at 375px
+
+  const accuracy = profile ? accuracyPct(profile) : null;
+
+  // Stat blocks fill the row on desktop; wrap 2-up at mobile (UI-48).
+  const statBlockFlex = isMobile ? '1 1 calc(50% - 8px)' : '1 1 0';
 
   return (
     <main
       style={{
-        // Phase 9 (09-05): full-width clamp at mobile so the 680px container never forces scroll (UI-48).
+        // UI-48: full-width clamp at mobile so the 680px container never forces scroll.
         width: isMobile ? '100%' : undefined,
         maxWidth: isMobile ? '100%' : '680px',
         margin: '0 auto',
         padding: '24px 16px',
       }}
     >
-      {/* Error state */}
+      {/* Error state (UI-SPEC error-states table) */}
       {fetchError && (
         <div
+          className="mono"
           style={{
+            fontSize: '13px',
+            color: 'var(--text-secondary)',
             padding: '12px 16px',
-            borderLeft: '3px solid #EF4444',
-            backgroundColor: '#18181B',
-            fontFamily: 'monospace',
-            fontSize: '0.875rem',
-            color: '#A1A1AA',
+            borderLeft: '3px solid var(--accent-loss)',
+            background: 'var(--bg-secondary)',
             marginBottom: '24px',
           }}
         >
@@ -80,183 +92,103 @@ export function ProfileClient({ address, profile, fetchError }: ProfileClientPro
         </div>
       )}
 
-      {/* ProfileHeader — AUTH-44: renders handle, NOT address */}
-      <div style={{ marginBottom: '32px' }}>
-        <ProfileHeader user={headerUser} />
-      </div>
+      {profile && (
+        <>
+          {/* Identity — ProfileHeader (@call-it/ui): handle + verified pills only (AUTH-44) */}
+          <div style={{ marginBottom: '32px' }}>
+            <ProfileHeader
+              user={{
+                handle: profile.handle,
+                verifiedX: profile.verifiedX,
+                verifiedFc: profile.verifiedFc,
+                stats: {
+                  totalCalls: profile.totalCalls,
+                  settledCalls: profile.settledCalls,
+                  wins: profile.wins,
+                },
+              }}
+            />
+          </div>
 
-      {/* Overview tab (UI-09) */}
-      <ProfileOverview profile={profile} />
-    </main>
-  );
-}
-
-// ─── Overview tab (UI-09) ────────────────────────────────────────────────────
-
-function ProfileOverview({ profile }: { profile: ProfileResponse | null }) {
-  const isMobile = useIsMobile(); // Phase 9 (09-05): stack CATEGORY REPUTATION + >=44px filter chips at mobile (UI-48/UI-49/D-03)
-  const [callFilter, setCallFilter] = useState<CallFilter>('All');
-
-  // Derived stats from the profile response. Recent calls / followers / receipts are
-  // not yet on the relayer ProfileResponse — render their documented empty states
-  // (UI-SPEC) until the data surfaces (RECENT CALLS list is hydrated client-side
-  // post-deploy, D-04 / Plan 07-06). The 5-stat row uses the available aggregates.
-  const accuracy =
-    profile && profile.settledCalls > 0
-      ? `${Math.round((profile.wins / profile.settledCalls) * 100)}%`
-      : '—';
-  const calibration = '—'; // not yet surfaced by the relayer ProfileResponse
-  const roi = '—'; // not yet surfaced by the relayer ProfileResponse
-  const contrarianHits = '—'; // not yet surfaced by the relayer ProfileResponse
-  const streak = profile ? String(profile.streak) : '—';
-
-  const recentCalls: CallCardData[] = []; // hydrated client-side post-deploy (D-04)
-
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
-      {/* 5-stat row — flex row, wraps on narrow widths */}
-      <section
-        style={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap', gap: '24px' }}
-      >
-        <StatBlock label="Accuracy" value={accuracy} />
-        <StatBlock label="Calibration" value={calibration} />
-        <StatBlock label="ROI" value={roi} />
-        <StatBlock label="Contrarian hits" value={contrarianHits} />
-        <StatBlock label="Streak" value={streak} />
-      </section>
-
-      {/* CATEGORY REPUTATION — 3 Cards in a flex row (NOT grid) */}
-      <section style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-        <h2 className="font-mono text-xs uppercase tracking-wide text-brand-muted">
-          CATEGORY REPUTATION
-        </h2>
-        <div
-          style={{
-            display: 'flex',
-            // Mobile (UI-48/UI-49): 3×160px row overflows 343px → stack to a single column.
-            flexDirection: isMobile ? 'column' : 'row',
-            gap: '12px',
-            flexWrap: 'wrap',
-          }}
-        >
-          {['Majors', 'DeFi', 'Other'].map((cat) => (
-            <Card
-              key={cat}
-              style={
-                isMobile
-                  ? { flex: '1 1 0', width: '100%' }
-                  : { flex: '1 1 0', minWidth: '160px' }
-              }
+          {/* Hero rep — prototype hero card; the chart column had no source (D-07) */}
+          <Card
+            variant="hero"
+            className="bracketed"
+            style={{ padding: isMobile ? '28px 20px' : '36px', marginBottom: '8px' }}
+          >
+            <div className="label-overline" style={{ marginBottom: '12px' }}>
+              Global reputation
+            </div>
+            <div
+              style={{
+                fontFamily: 'var(--font-display)',
+                fontSize: 'clamp(64px, 18vw, 132px)',
+                fontWeight: 900,
+                letterSpacing: '-0.05em',
+                lineHeight: 0.85,
+                color: 'var(--text-primary)',
+              }}
             >
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                <span className="font-display font-bold text-brand-text text-lg">{cat}</span>
-                <span className="font-mono font-bold text-brand-text text-lg">
-                  {profile ? profile.globalRep : '—'}
-                </span>
-                <div
-                  style={{
-                    height: '6px',
-                    backgroundColor: '#27272A',
-                    border: '1px solid #27272A',
-                  }}
-                >
-                  <div style={{ height: '100%', width: '60%', backgroundColor: ACCENT }} />
+              {profile.globalRep.toLocaleString()}
+            </div>
+            <div
+              className="mono"
+              style={{
+                fontSize: '12px',
+                color: 'var(--text-tertiary)',
+                marginTop: '14px',
+                letterSpacing: '0.04em',
+              }}
+            >
+              {profile.settledCalls} settled · {profile.wins} wins · {profile.losses} misses
+              {accuracy != null ? ` · ${accuracy}% acc` : ''}
+            </div>
+          </Card>
+
+          {/* RECORD — real-source stat blocks ONLY (D-07) */}
+          <div className="section-divider">
+            <span className="title">RECORD</span>
+            <span className="line"></span>
+          </div>
+          <div
+            style={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap', gap: '12px' }}
+          >
+            {accuracy != null && (
+              <div className="stat-block" style={{ flex: statBlockFlex }}>
+                <div className="stat-label">Accuracy</div>
+                <div className="stat-value" style={{ color: 'var(--accent-win)' }}>
+                  {accuracy}%
+                </div>
+                <div className="stat-sub">
+                  {profile.wins} of {profile.settledCalls} settled
                 </div>
               </div>
-            </Card>
-          ))}
-        </div>
-      </section>
-
-      {/* RECENT CALLS — CallCard list + All/Open/Settled filter chips */}
-      <section style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-        <div
-          style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}
-        >
-          <h2 className="font-mono text-xs uppercase tracking-wide text-brand-muted">
-            RECENT CALLS
-          </h2>
-          <div style={{ display: 'flex', flexDirection: 'row', gap: '6px' }}>
-            {(['All', 'Open', 'Settled'] as CallFilter[]).map((f) => {
-              const active = f === callFilter;
-              return (
-                <button
-                  key={f}
-                  onClick={() => setCallFilter(f)}
-                  className="font-mono text-xs"
-                  style={{
-                    padding: isMobile ? '0 12px' : '3px 10px',
-                    minHeight: isMobile ? '44px' : undefined,
-                    border: '2px solid',
-                    borderColor: active ? ACCENT : '#27272A',
-                    color: active ? ACCENT : '#A1A1AA',
-                    backgroundColor: '#18181B',
-                    cursor: 'pointer',
-                    fontWeight: active ? 700 : 400,
-                  }}
-                >
-                  {f}
-                </button>
-              );
-            })}
+            )}
+            <div className="stat-block" style={{ flex: statBlockFlex }}>
+              <div className="stat-label">W/L record</div>
+              <div className="stat-value">
+                {profile.wins}–{profile.losses}
+              </div>
+            </div>
+            <div className="stat-block" style={{ flex: statBlockFlex }}>
+              <div className="stat-label">Streak</div>
+              <div className="stat-value">{profile.streak}</div>
+            </div>
+            <div className="stat-block" style={{ flex: statBlockFlex }}>
+              <div className="stat-label">Calls</div>
+              <div className="stat-value">{profile.totalCalls}</div>
+            </div>
           </div>
-        </div>
-        {recentCalls.length === 0 ? (
-          <EmptyState
-            heading="No calls yet"
-            body="This caller hasn't made a public call. Follow to get notified when they do."
-          />
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            {recentCalls.map((call, i) => (
-              <CallCard key={i} call={call} />
-            ))}
+
+          {/* RECENT CALLS — the relayer response carries no call list yet, so the
+              prototype table is replaced by an honest empty state (D-07). */}
+          <div className="section-divider">
+            <span className="title">RECENT CALLS</span>
+            <span className="line"></span>
           </div>
-        )}
-      </section>
-
-      {/* MOST FOLLOWED BY — avatar+handle list */}
-      <section style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-        <h2 className="font-mono text-xs uppercase tracking-wide text-brand-muted">
-          MOST FOLLOWED BY
-        </h2>
-        <EmptyState heading="No followers yet" body="Be the first to follow." />
-      </section>
-
-      {/* NOTABLE RECEIPTS — trophy Cards with Stamp + outcome word */}
-      <section style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-        <h2 className="font-mono text-xs uppercase tracking-wide text-brand-muted">
-          NOTABLE RECEIPTS
-        </h2>
-        <EmptyState heading="No receipts yet" body="Receipts appear here once a call settles." />
-      </section>
-    </div>
-  );
-}
-
-function StatBlock({ label, value }: { label: string; value: string }) {
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', minWidth: '88px' }}>
-      <span className="font-mono text-xs uppercase tracking-wide text-brand-muted">{label}</span>
-      <span className="font-mono font-bold text-brand-text text-lg">{value}</span>
-    </div>
-  );
-}
-
-function EmptyState({ heading, body }: { heading: string; body: string }) {
-  return (
-    <div
-      style={{
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '4px',
-        padding: '20px 16px',
-        border: '2px dashed #27272A',
-        backgroundColor: '#18181B',
-      }}
-    >
-      <span className="font-display font-bold text-brand-text text-base">{heading}</span>
-      <span className="font-body text-brand-muted text-sm">{body}</span>
-    </div>
+          <div className="label-overline">No calls on record yet.</div>
+        </>
+      )}
+    </main>
   );
 }
