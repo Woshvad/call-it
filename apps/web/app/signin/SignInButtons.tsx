@@ -187,25 +187,26 @@ export default function SignInButtons({ CustodyTooltip }: SignInButtonsProps) {
         </div>
       )}
 
-      {/* D-33: Connect Wallet first (primary intent) */}
+      {/* D-33: Connect Wallet first — the solid cream landing-hero CTA (prototype
+          .btn.cream.big recipe via the rethemed Button primary intent, 09.2-02) */}
       <Button
         intent="primary"
-        size="lg"
+        size="big"
         onClick={handleConnectWallet}
-        className="w-full font-mono uppercase tracking-wide font-bold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent focus-visible:ring-offset-2 focus-visible:ring-offset-brand-bg"
+        className="w-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-brand-bg"
         data-testid="btn-connect-wallet"
       >
-        Connect Wallet
+        Connect Wallet →
       </Button>
 
-      {/* Google OAuth (secondary intent + AUTH-38 custody tooltip) */}
+      {/* Google OAuth (outline-white secondary + AUTH-38 custody tooltip) */}
       <CustodyTooltip>
         <Button
-          intent="secondary"
+          intent="outline-white"
           size="lg"
           onClick={handleGoogleLogin}
           disabled={!ready && !privyTimedOut}
-          className="w-full font-mono uppercase tracking-wide font-semibold bg-brand-surface text-white border-2 border-brand-accent shadow-[4px_4px_0_0_#000] transition-all duration-100 ease-out hover:bg-brand-accent hover:text-black hover:border-black hover:shadow-[3px_3px_0_0_#E8F542] active:shadow-[2px_2px_0_0_#000] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-brand-bg"
+          className="w-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-brand-bg"
           data-testid="btn-google"
         >
           <span className="inline-flex items-center gap-2">
@@ -215,14 +216,14 @@ export default function SignInButtons({ CustodyTooltip }: SignInButtonsProps) {
         </Button>
       </CustodyTooltip>
 
-      {/* X (formerly Twitter) OAuth (secondary intent + AUTH-38 custody tooltip) */}
+      {/* X (formerly Twitter) OAuth (outline-white secondary + AUTH-38 custody tooltip) */}
       <CustodyTooltip>
         <Button
-          intent="secondary"
+          intent="outline-white"
           size="lg"
           onClick={handleTwitterLogin}
           disabled={!ready && !privyTimedOut}
-          className="w-full font-mono uppercase tracking-wide font-semibold bg-brand-surface text-white border-2 border-brand-accent shadow-[4px_4px_0_0_#000] transition-all duration-100 ease-out hover:bg-brand-accent hover:text-black hover:border-black hover:shadow-[3px_3px_0_0_#E8F542] active:shadow-[2px_2px_0_0_#000] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-brand-bg"
+          className="w-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-brand-bg"
           data-testid="btn-twitter"
         >
           <span className="inline-flex items-center gap-2">

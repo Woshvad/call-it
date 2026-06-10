@@ -65,9 +65,9 @@ test.describe('Sign-in page — Tier 1: Static source assertions', () => {
     expect(source).toContain('data-testid="btn-google"');
     expect(source).toContain('Sign in with Google');
 
-    // Check Twitter button exists
+    // Check Twitter/X button exists (label migrated to "Sign in with X" with the brand rename)
     expect(source).toContain('data-testid="btn-twitter"');
-    expect(source).toContain('Sign in with Twitter');
+    expect(source).toContain('Sign in with X');
 
     // Check D-33 button ORDER (Connect Wallet before Google before Twitter)
     const connectWalletIdx = source.indexOf('data-testid="btn-connect-wallet"');
@@ -82,12 +82,28 @@ test.describe('Sign-in page — Tier 1: Static source assertions', () => {
     expect(googleIdx).toBeLessThan(twitterIdx);
   });
 
-  test('AUTH-37: Disclaimer copy is present in the page source', () => {
+  test('AUTH-37: Disclaimer copy is present in the page source and links to /terms', () => {
     const source = readFileSync(SIGNIN_PAGE_PATH, 'utf-8');
-    expect(source).toContain('permanent public record');
-    // Note: source text may be split across lines in JSX; check for substrings
-    expect(source).toContain('No edits.');
+    // 2026-06-09 copy change: the disclaimer now points at the Terms & Conditions
+    // page (which carries the permanence promise) instead of inlining it.
+    expect(source).toContain('agreeing to our');
+    expect(source).toContain('Terms &amp; Conditions');
+    expect(source).toContain('href="/terms"');
     expect(source).toContain('data-testid="disclaimer"');
+  });
+
+  test('D-12/D-07: Landing hero ships the prototype copy with no fake platform totals', () => {
+    const source = readFileSync(SIGNIN_PAGE_PATH, 'utf-8');
+    // D-12: the restyled /signin carries the home.jsx hero
+    expect(source).toContain('BE RIGHT');
+    expect(source).toContain('IN PUBLIC.');
+    expect(source).toContain('clamp(64px, 10vw, 132px)');
+    expect(source).toContain('LIVE NOW');
+    // D-07: the prototype's sourceless platform totals are NOT rendered
+    expect(source).not.toContain('8,442');
+    expect(source).not.toContain('$284K');
+    // Privy degraded-state hook survives the rebuild (T-09.2-35)
+    expect(source).toContain('data-testid="privy-error-fallback"');
   });
 
   test('AUTH-38: Custody microcopy is present in CustodyTooltip', () => {
@@ -154,14 +170,14 @@ test.describe('Sign-in page — Tier 2: Browser E2E (real Privy app ID)', () => 
 
     expect(texts[0]).toContain('Connect Wallet');
     expect(texts[1]).toContain('Sign in with Google');
-    expect(texts[2]).toContain('Sign in with Twitter');
+    expect(texts[2]).toContain('Sign in with X');
   });
 
   test('disclaimer text renders below buttons (AUTH-37)', async ({ page }) => {
     await page.goto('/signin');
     const disclaimer = page.getByTestId('disclaimer');
     await expect(disclaimer).toBeVisible({ timeout: 15_000 });
-    await expect(disclaimer).toContainText('permanent public record');
+    await expect(disclaimer).toContainText('Terms & Conditions');
   });
 
   test('custody microcopy tooltip renders on hover (AUTH-38)', async ({ page }) => {
