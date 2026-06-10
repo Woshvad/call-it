@@ -34,11 +34,11 @@
 
 'use client';
 
-import { useCallback, useState } from 'react';
+import { useCallback, useState, type CSSProperties } from 'react';
 import { usePrivy, useLinkAccount } from '@privy-io/react-auth';
 import { useWriteContract } from 'wagmi';
-import { useSignIn } from '@farcaster/auth-kit';
-import { Button, Tag } from '@call-it/ui';
+import { useSignIn, QRCode } from '@farcaster/auth-kit';
+import { Button } from '@call-it/ui';
 import { profileRegistryAbi } from '@/lib/abis/ProfileRegistry';
 import { useIsMobile } from '../hooks/useIsMobile';
 
@@ -210,7 +210,8 @@ export function SocialLinkControls({ mode }: SocialLinkControlsProps) {
     [getAccessToken],
   );
 
-  const { signIn, connect } = useSignIn({
+  const { signIn, connect, url, isPolling } = useSignIn({
+    timeout: 300_000,
     onSuccess: (res: { message?: string; signature?: string; nonce?: string }) => {
       void postFarcasterLink({
         nonce: res.nonce,
@@ -227,13 +228,14 @@ export function SocialLinkControls({ mode }: SocialLinkControlsProps) {
     },
   });
 
-  const handleLinkFarcaster = useCallback(() => {
+  const handleLinkFarcaster = useCallback(async () => {
     setFcStatus('pending');
     setFcError(null);
     try {
-      // Auth Kit: connect opens the relay channel, signIn drives the QR/redirect flow.
-      connect?.();
-      signIn?.();
+      // Auth Kit: await connect() so the relay-channel `url` is ready (QR/redirect),
+      // then signIn() drives the polling flow. Best-effort — never throws into the page.
+      await connect();
+      signIn();
     } catch {
       setFcError('Could not open the Farcaster sign-in flow — try again.');
       setFcStatus('error');
@@ -299,6 +301,30 @@ export function SocialLinkControls({ mode }: SocialLinkControlsProps) {
 
   const showUnlink = mode === 'settings';
 
+  // Twitter handle (canonical handle/page.tsx pattern) → full-width linked label.
+  const twitterAccount = user?.linkedAccounts.find((a) => a.type === 'twitter_oauth') as
+    | { type: 'twitter_oauth'; username?: string }
+    | undefined;
+  const twitterUsername = twitterAccount?.username;
+  const twitterLinkedLabel = twitterUsername ? `✓ @${twitterUsername} linked` : '✓ X linked';
+
+  // Full-width on-brand "linked" indicator (mirrors the link CTAs' `flex: 1` width).
+  const linkedIndicatorStyle: CSSProperties = {
+    flex: 1,
+    display: 'flex',
+    alignItems: 'center',
+    boxSizing: 'border-box',
+    padding: '0.5rem 0.75rem',
+    minHeight: '44px',
+    border: '2px solid #22C55E',
+    background: 'transparent',
+    color: '#22C55E',
+    fontFamily: 'monospace',
+    fontSize: '0.8rem',
+    fontWeight: 700,
+    textAlign: 'left',
+  };
+
   return (
     <div
       data-testid="social-link-controls"
@@ -310,9 +336,9 @@ export function SocialLinkControls({ mode }: SocialLinkControlsProps) {
         <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: '0.5rem' }}>
           {isTwitterLinked ? (
             <>
-              <Tag intent="success" data-testid="twitter-linked-tag">
-                X Linked
-              </Tag>
+              <div data-testid="twitter-linked-tag" style={linkedIndicatorStyle}>
+                {twitterLinkedLabel}
+              </div>
               {showUnlink && (
                 <Button
                   intent="secondary"
@@ -341,7 +367,13 @@ export function SocialLinkControls({ mode }: SocialLinkControlsProps) {
             </Button>
           )}
         </div>
-        <StatusLine status={twStatus} errorMsg={twError} testId="twitter" />
+        {/* New full-width indicator conveys the linked state — suppress the
+            duplicate StatusLine 'ok' (map 'ok'→'idle'); pending/error stay inline. */}
+        <StatusLine
+          status={twStatus === 'ok' ? 'idle' : twStatus}
+          errorMsg={twError}
+          testId="twitter"
+        />
       </div>
 
       {/* ── Farcaster ───────────────────────────────────────────────────── */}
@@ -349,9 +381,9 @@ export function SocialLinkControls({ mode }: SocialLinkControlsProps) {
         <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: '0.5rem' }}>
           {isFarcasterLinked ? (
             <>
-              <Tag intent="success" data-testid="farcaster-linked-tag">
-                FC Linked
-              </Tag>
+              <div data-testid="farcaster-linked-tag" style={linkedIndicatorStyle}>
+                ✓ Farcaster linked
+              </div>
               {showUnlink && (
                 <Button
                   intent="secondary"
@@ -367,11 +399,86 @@ export function SocialLinkControls({ mode }: SocialLinkControlsProps) {
                 </Button>
               )}
             </>
+          ) : fcStatus === 'pending' && url && !isFarcasterLinked ? (
+            // Channel is open and the relay `url` is ready → surface the real
+            // Warpcast flow (QR on desktop, redirect on mobile) instead of hanging.
+            <div
+              data-testid={isMobile ? 'farcaster-open-warpcast' : 'farcaster-qr-panel'}
+              style={{
+                flex: 1,
+                boxSizing: 'border-box',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: isMobile ? 'stretch' : 'center',
+                gap: '0.5rem',
+                padding: '0.75rem',
+                border: '2px solid #22C55E',
+                background: 'transparent',
+                fontFamily: 'monospace',
+              }}
+            >
+              {isMobile ? (
+                <>
+                  <Button
+                    intent="primary"
+                    size="md"
+                    onClick={() => {
+                      window.location.href = url;
+                    }}
+                    style={{ flex: 1, minHeight: '44px' }}
+                  >
+                    Open in Warpcast
+                  </Button>
+                  <p style={{ fontSize: '0.7rem', color: '#22C55E', margin: 0 }}>
+                    Approve in Warpcast, then return here
+                  </p>
+                </>
+              ) : (
+                <>
+                  <QRCode uri={url} size={176} />
+                  <p style={{ fontSize: '0.7rem', color: '#22C55E', margin: 0 }}>
+                    Scan with the Warpcast app on your phone
+                  </p>
+                  <a
+                    href={url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{ fontSize: '0.7rem', color: '#22C55E' }}
+                  >
+                    Open link
+                  </a>
+                </>
+              )}
+              {isPolling && (
+                <p style={{ fontSize: '0.7rem', color: '#888', margin: 0 }}>Waiting for approval…</p>
+              )}
+              <button
+                type="button"
+                onClick={() => {
+                  setFcStatus('idle');
+                }}
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  color: '#888',
+                  fontFamily: 'monospace',
+                  fontSize: '0.7rem',
+                  cursor: 'pointer',
+                  padding: 0,
+                  textDecoration: 'underline',
+                }}
+                data-testid="farcaster-cancel"
+              >
+                Cancel
+              </button>
+            </div>
           ) : (
             <Button
               intent="primary"
               size="md"
-              onClick={handleLinkFarcaster}
+              onClick={() => {
+                void handleLinkFarcaster();
+              }}
               disabled={fcStatus === 'pending'}
               data-testid="link-farcaster-button"
               style={{ flex: 1, ...touchTarget }}
