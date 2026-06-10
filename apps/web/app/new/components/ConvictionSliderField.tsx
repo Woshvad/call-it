@@ -16,7 +16,19 @@ interface ConvictionSliderFieldProps {
 }
 
 /**
- * ConvictionSliderField — RHF-controlled wrapper around the ConvictionBar Radix slider.
+ * Conviction zone words (prototype CONVICTION_WORDS thresholds — values ported
+ * as a local constant per D-05; never import prototype data.jsx).
+ */
+const CONVICTION_ZONES: ReadonlyArray<{ max: number; word: string; color: string }> = [
+  { max: 35, word: 'Hesitant', color: 'var(--text-tertiary)' },
+  { max: 65, word: 'Confident', color: 'var(--text-primary)' },
+  { max: 84, word: 'Bold', color: 'var(--accent-warning)' },
+  { max: 100, word: 'On record', color: 'var(--accent-win)' },
+];
+
+/**
+ * ConvictionSliderField — RHF-controlled wrapper around the ConvictionBar Radix slider
+ * (ROOT skin: zone words + Archivo display number).
  *
  * Auto-cap warning: When settledCalls < CONVICTION_FLOOR_MIN_CALLS (10) AND
  * conviction >= HIGH_CONVICTION_THRESHOLD (85), shows a warning Tag:
@@ -33,11 +45,11 @@ export function ConvictionSliderField({ control, error }: ConvictionSliderFieldP
   return (
     <div className="flex flex-col gap-2">
       <div className="flex items-center justify-between">
-        <label className="text-sm font-mono text-brand-text uppercase tracking-wide">
-          Conviction
-        </label>
+        <label className="label-overline">Conviction</label>
         {isLoading && (
-          <span className="text-xs font-mono text-brand-muted">Loading...</span>
+          <span className="mono" style={{ fontSize: 10.5, color: 'var(--text-tertiary)' }}>
+            Loading...
+          </span>
         )}
       </div>
 
@@ -46,6 +58,9 @@ export function ConvictionSliderField({ control, error }: ConvictionSliderFieldP
         control={control}
         render={({ field }) => {
           const value = field.value ?? 50;
+          const zone =
+            CONVICTION_ZONES.find((z) => value <= z.max) ??
+            CONVICTION_ZONES[CONVICTION_ZONES.length - 1];
           const showCapWarning =
             !isLoading &&
             settledCalls < CONVICTION_FLOOR_MIN_CALLS &&
@@ -61,7 +76,43 @@ export function ConvictionSliderField({ control, error }: ConvictionSliderFieldP
                 </Tag>
               )}
 
-              {/* ConvictionBar from @call-it/ui (Plan 04 — UI-51) */}
+              {/* Live conviction number + active zone word (Archivo display voice) */}
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'baseline',
+                  justifyContent: 'space-between',
+                  marginBottom: 4,
+                }}
+              >
+                <span
+                  style={{
+                    fontFamily: 'var(--font-display)',
+                    fontSize: 48,
+                    fontWeight: 900,
+                    lineHeight: 1,
+                    letterSpacing: '-0.04em',
+                    color: zone.color,
+                  }}
+                >
+                  {value}
+                  <span style={{ fontSize: 24 }}>%</span>
+                </span>
+                <span
+                  className="mono"
+                  style={{
+                    fontSize: 12,
+                    fontWeight: 700,
+                    letterSpacing: '0.08em',
+                    textTransform: 'uppercase',
+                    color: zone.color,
+                  }}
+                >
+                  {zone.word.toUpperCase()}
+                </span>
+              </div>
+
+              {/* ConvictionBar from @call-it/ui (Plan 04 — UI-51, muted→accent fill) */}
               <ConvictionBar
                 value={value}
                 min={1}
@@ -71,15 +122,29 @@ export function ConvictionSliderField({ control, error }: ConvictionSliderFieldP
                 }}
               />
 
-              {/* Value display */}
-              <div className="flex items-center justify-between text-xs font-mono text-brand-muted">
-                <span>1</span>
-                <span className="text-brand-accent font-bold text-sm">{value}%</span>
-                <span>100</span>
+              {/* Zone ladder — active zone in accent, rest muted */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4 }}>
+                {CONVICTION_ZONES.map((z) => (
+                  <span
+                    key={z.word}
+                    className="mono"
+                    style={{
+                      fontSize: 10,
+                      fontWeight: 600,
+                      letterSpacing: '0.08em',
+                      textTransform: 'uppercase',
+                      color: zone.word === z.word ? 'var(--accent-win)' : 'var(--text-muted)',
+                    }}
+                  >
+                    {z.word}
+                  </span>
+                ))}
               </div>
 
               {error && (
-                <div className="text-red-500 text-xs font-mono">{error.message}</div>
+                <div className="mono" style={{ fontSize: 11, color: 'var(--accent-loss)' }}>
+                  {error.message}
+                </div>
               )}
             </div>
           );

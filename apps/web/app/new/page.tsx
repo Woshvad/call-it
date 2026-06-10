@@ -1,9 +1,9 @@
 'use client';
 
-import { useForm } from 'react-hook-form';
+import { useForm, type UseFormSetValue } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useSearchParams } from 'next/navigation';
-import { useState, useCallback } from 'react';
+import { useState, useCallback, type CSSProperties } from 'react';
 import { usePrivy } from '@privy-io/react-auth';
 import type { CreateCallInput, MarketType } from '@call-it/shared';
 import { createCallSchema, MIN_STAKE } from '@call-it/shared';
@@ -23,12 +23,80 @@ import { usePublishCall } from './hooks/usePublishCall';
 import { QuoteParentCard } from './components/QuoteParentCard';
 import { QuoteSuccess } from './components/QuoteSuccess';
 import { DesktopOnlyBanner } from '../components/DesktopOnlyBanner';
+import { useIsMobile } from '../hooks/useIsMobile';
+
+/** Stake quick-pick values in whole USDC (within the existing zod $5/$100 bounds). */
+const STAKE_QUICK_PICKS = [5, 25, 50, 100] as const;
 
 /**
- * /new page — New Call composer.
+ * StakeField — `.brutal-input` stake entry + $5/$25/$50/$100 quick-pick chip row.
  *
- * LAYOUT: 2-column FLEXBOX (form left, Receipt preview right).
- * FLEXBOX ONLY — no CSS grid anywhere (Pitfall 15).
+ * Quick-picks write through the SAME RHF setValue path as the input (no new
+ * validation path — zod min/max still enforced; T-09.2-27 mitigated).
+ */
+function StakeField({
+  stake,
+  setValue,
+  error,
+}: {
+  stake: bigint | undefined;
+  setValue: UseFormSetValue<CreateCallInput>;
+  error?: { message?: string };
+}) {
+  const stakeUsd = stake ? Number(stake) / 1_000_000 : 5;
+  return (
+    <div className="flex flex-col gap-2">
+      <label className="label-overline">Stake (USDC)</label>
+      <input
+        type="number"
+        min={5}
+        max={100}
+        step={1}
+        value={stakeUsd}
+        onChange={(e) => {
+          const usd = parseFloat(e.target.value);
+          if (!isNaN(usd)) setValue('stake', BigInt(Math.round(usd * 1_000_000)));
+        }}
+        className="brutal-input mono"
+        style={{
+          fontSize: 22,
+          fontWeight: 700,
+          ...(error ? { borderColor: 'var(--accent-loss)' } : {}),
+        }}
+      />
+      {/* Quick-pick chip row — writes through the existing RHF setValue */}
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        {STAKE_QUICK_PICKS.map((v) => (
+          <button
+            key={v}
+            type="button"
+            className={`chip ${stakeUsd === v ? 'active' : ''}`}
+            style={{ flex: 1, minWidth: 60, minHeight: 44, fontSize: 13, fontWeight: 700 }}
+            onClick={() =>
+              setValue('stake', BigInt(v * 1_000_000), { shouldValidate: true })
+            }
+          >
+            ${v}
+          </button>
+        ))}
+      </div>
+      <div className="mono" style={{ fontSize: 11, color: 'var(--text-tertiary)', letterSpacing: '0.02em' }}>
+        $5 minimum · $100 maximum during launch
+      </div>
+      {error && (
+        <div className="mono" style={{ fontSize: 11, color: 'var(--accent-loss)' }}>
+          {String(error.message)}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * /new page — New Call composer ("Go on record." — ROOT brutalist shell).
+ *
+ * LAYOUT: 2-column FLEXBOX desktop (form left, sticky Receipt preview right),
+ * single column <768px via useIsMobile. FLEXBOX ONLY — no CSS grid (Pitfall 15).
  *
  * RHF + zodResolver(createCallSchema) from @call-it/shared (D-29 parity).
  * The form NEVER duplicates gate logic — always imports from @call-it/shared.
@@ -46,6 +114,7 @@ export default function NewCallPage() {
   const quoteId = searchParams?.get('quote');
   const isQuoteMode = !!quoteId;
   const { getAccessToken } = usePrivy();
+  const isMobile = useIsMobile();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [token, setToken] = useState<string | undefined>(undefined);
   // Quote success screen state (UI-28). Holds the new quote-call id once published.
@@ -119,6 +188,20 @@ export default function NewCallPage() {
     formValues.targetValue ? (Number(formValues.targetValue) / 1_000_000).toLocaleString() : '?'
   }`;
 
+  // Two-column desktop / single-column mobile (Phase 9 carry-over, flexbox only)
+  const columnsStyle: CSSProperties = {
+    display: 'flex',
+    flexDirection: isMobile ? 'column' : 'row',
+    gap: isMobile ? 24 : 36,
+    alignItems: 'flex-start',
+  };
+  const formColStyle: CSSProperties = isMobile
+    ? { width: '100%' }
+    : { flex: '1.4 1 0%', minWidth: 0 };
+  const previewColStyle: CSSProperties = isMobile
+    ? { width: '100%' }
+    : { flex: '1 1 0%', minWidth: 0, position: 'sticky', top: 96 };
+
   // ── Success screen (UI-28) ──────────────────────────────────────────────────
   if (isQuoteMode && quotePosted) {
     return (
@@ -139,12 +222,17 @@ export default function NewCallPage() {
     return (
       <>
         <DesktopOnlyBanner />
-        <div style={{ display: 'flex', gap: '2rem', alignItems: 'flex-start' }}>
-        {/* Left: parent card + composer — flex-1 */}
-        <div style={{ flex: 1 }}>
-          <h1 className="text-2xl font-display font-bold text-brand-text uppercase tracking-wide mb-6">
-            Quote this call
-          </h1>
+        <div style={columnsStyle}>
+        {/* Left: parent card + composer */}
+        <div style={formColStyle}>
+          <div className="page-header" style={{ paddingTop: 24 }}>
+            <div>
+              <h1>Quote this call</h1>
+              <div className="sub">
+                Take a side on someone else&apos;s record. <span className="em">Your thesis is permanent too.</span>
+              </div>
+            </div>
+          </div>
 
           {/* UI-26: read-only parent context card (NO corner brackets on the parent card) */}
           <QuoteParentCard parentCallId={quoteId!} />
@@ -152,10 +240,7 @@ export default function NewCallPage() {
           <form onSubmit={handleSubmit(onPublish)} className="flex flex-col gap-6 mt-6">
             {/* UI-27: YOUR THESIS textarea ABOVE the market-type buttons (forces articulation) */}
             <div className="flex flex-col gap-2">
-              <label
-                htmlFor="quote-thesis"
-                className="text-sm font-mono text-brand-text uppercase tracking-wide"
-              >
+              <label htmlFor="quote-thesis" className="label-overline">
                 Your thesis
               </label>
               <textarea
@@ -164,15 +249,13 @@ export default function NewCallPage() {
                 onChange={(e) => setValue('criteriaText', e.target.value)}
                 placeholder="Why are you following or fading this call?"
                 rows={3}
-                className="border-2 border-brand-border bg-brand-surface text-brand-text font-body px-3 py-2 focus:outline-none focus:border-brand-accent"
+                className="brutal-textarea mono"
               />
             </div>
 
             {/* Market type switcher (BELOW the thesis per UI-27) */}
             <div className="flex flex-col gap-2">
-              <label className="text-sm font-mono text-brand-text uppercase tracking-wide">
-                Call Type
-              </label>
+              <label className="label-overline">Call Type</label>
               <MarketTypeSwitcher value={marketType} setValue={setValue} />
             </div>
 
@@ -186,31 +269,8 @@ export default function NewCallPage() {
 
             <DeadlinePicker control={control} error={errors.expiry} />
 
-            {/* Stake input */}
-            <div className="flex flex-col gap-1">
-              <label className="text-sm font-mono text-brand-text uppercase tracking-wide">
-                Stake (USDC)
-              </label>
-              <input
-                type="number"
-                min={5}
-                max={100}
-                step={1}
-                value={formValues.stake ? Number(formValues.stake) / 1_000_000 : 5}
-                onChange={(e) => {
-                  const usd = parseFloat(e.target.value);
-                  if (!isNaN(usd)) setValue('stake', BigInt(Math.round(usd * 1_000_000)));
-                }}
-                className={[
-                  'border-2 bg-brand-surface text-brand-text font-mono px-3 py-2',
-                  'focus:outline-none focus:border-brand-accent',
-                  errors.stake ? 'border-red-500' : 'border-brand-border',
-                ].join(' ')}
-              />
-              {errors.stake && (
-                <div className="text-red-500 text-xs font-mono">{String(errors.stake.message)}</div>
-              )}
-            </div>
+            {/* Stake input + quick-picks */}
+            <StakeField stake={formValues.stake} setValue={setValue} error={errors.stake} />
 
             <ConvictionSliderField control={control} error={errors.conviction} />
 
@@ -218,12 +278,21 @@ export default function NewCallPage() {
 
             {/* Quote-submit error state (UI-SPEC error-states table) */}
             {errors.root && (
-              <div className="p-3 border-2 border-red-500 text-red-600 text-sm font-mono">
+              <div
+                className="mono"
+                style={{
+                  padding: 14,
+                  border: '2px solid var(--accent-loss)',
+                  background: 'rgba(248,113,113,0.06)',
+                  fontSize: 12,
+                  color: 'var(--accent-loss)',
+                }}
+              >
                 Quote didn&apos;t post. Check your connection and try again.
               </div>
             )}
 
-            {/* CTAs: Post quote (accent) + Cancel (ghost) */}
+            {/* CTAs: Post quote (cream) + Cancel (outline) */}
             <div className="flex flex-row gap-3">
               <Button intent="primary" size="lg" type="submit" disabled={isPublishing}>
                 {isPublishing ? 'Posting...' : 'Post quote'}
@@ -241,11 +310,21 @@ export default function NewCallPage() {
           </form>
         </div>
 
-        {/* Right: live Receipt preview of the quote — flex-1, sticky */}
-        <div style={{ flex: 1, position: 'sticky', top: '2rem' }}>
-          <h2 className="text-sm font-mono text-brand-muted uppercase tracking-wide mb-3">
-            Your quote preview
-          </h2>
+        {/* Right: live Receipt preview of the quote — sticky on desktop */}
+        <div style={previewColStyle}>
+          <div
+            className="mono"
+            style={{
+              fontSize: 10.5,
+              color: 'var(--text-tertiary)',
+              letterSpacing: '0.14em',
+              textTransform: 'uppercase',
+              fontWeight: 700,
+              marginBottom: 14,
+            }}
+          >
+            ↳ Your quote preview · updates as you type
+          </div>
           <Receipt
             mode="preview"
             data={{
@@ -275,19 +354,24 @@ export default function NewCallPage() {
   return (
     <>
       <DesktopOnlyBanner />
-      <div style={{ display: 'flex', gap: '2rem', alignItems: 'flex-start' }}>
-      {/* Left: Form — flex-1 */}
-      <div style={{ flex: 1 }}>
-        <h1 className="text-2xl font-display font-bold text-brand-text uppercase tracking-wide mb-6">
-          New Call
-        </h1>
+      {/* Page header — prototype create-screen voice */}
+      <div className="page-header">
+        <div>
+          <h1>Go on record.</h1>
+          <div className="sub">
+            Every field counts. <span className="em">Every word is permanent.</span> Write
+            like the world will read it — because they will.
+          </div>
+        </div>
+      </div>
 
+      <div style={columnsStyle}>
+      {/* Left: Form */}
+      <div style={formColStyle}>
         <form onSubmit={handleSubmit(onPublish)} className="flex flex-col gap-6">
           {/* Market type switcher */}
           <div className="flex flex-col gap-2">
-            <label className="text-sm font-mono text-brand-text uppercase tracking-wide">
-              Call Type
-            </label>
+            <label className="label-overline">Call Type</label>
             <MarketTypeSwitcher value={marketType} setValue={setValue} />
           </div>
 
@@ -305,31 +389,8 @@ export default function NewCallPage() {
           {/* Deadline picker — shows UTC-day bucket label (PITFALL-12 / CALL-46) */}
           <DeadlinePicker control={control} error={errors.expiry} />
 
-          {/* Stake input */}
-          <div className="flex flex-col gap-1">
-            <label className="text-sm font-mono text-brand-text uppercase tracking-wide">
-              Stake (USDC)
-            </label>
-            <input
-              type="number"
-              min={5}
-              max={100}
-              step={1}
-              value={formValues.stake ? (Number(formValues.stake) / 1_000_000) : 5}
-              onChange={(e) => {
-                const usd = parseFloat(e.target.value);
-                if (!isNaN(usd)) setValue('stake', BigInt(Math.round(usd * 1_000_000)));
-              }}
-              className={[
-                'border-2 bg-brand-surface text-brand-text font-mono px-3 py-2',
-                'focus:outline-none focus:border-brand-accent',
-                errors.stake ? 'border-red-500' : 'border-brand-border',
-              ].join(' ')}
-            />
-            {errors.stake && (
-              <div className="text-red-500 text-xs font-mono">{String(errors.stake.message)}</div>
-            )}
-          </div>
+          {/* Stake input + $5/$25/$50/$100 quick-picks */}
+          <StakeField stake={formValues.stake} setValue={setValue} error={errors.stake} />
 
           {/* DuplicateWarning above conviction slider (CALL-49) */}
           {dupMatch && (
@@ -349,23 +410,54 @@ export default function NewCallPage() {
 
           {/* Root errors (from preflight 422) */}
           {errors.root && (
-            <div className="p-3 border-2 border-red-500 text-red-600 text-sm font-mono">
+            <div
+              className="mono"
+              style={{
+                padding: 14,
+                border: '2px solid var(--accent-loss)',
+                background: 'rgba(248,113,113,0.06)',
+                fontSize: 12,
+                color: 'var(--accent-loss)',
+              }}
+            >
               {errors.root.message}
             </div>
           )}
 
-          <Button intent="primary" size="lg" type="submit" disabled={isPublishing}>
-            {isPublishing ? 'Publishing...' : 'Publish Call'}
+          <Button intent="primary" size="lg" type="submit" disabled={isPublishing} className="w-full">
+            {isPublishing ? 'Publishing...' : 'Publish call · Go on record →'}
           </Button>
+
+          <div
+            className="mono"
+            style={{
+              fontSize: 11,
+              color: 'var(--text-tertiary)',
+              letterSpacing: '0.04em',
+              textAlign: 'center',
+            }}
+          >
+            ↳ confirmation step before broadcast
+          </div>
         </form>
       </div>
 
-      {/* Right: Receipt preview — flex-1, sticky (D-21) */}
+      {/* Right: Receipt preview — sticky on desktop (D-21) */}
       {/* FLEXBOX only — Receipt component enforces this internally (Pitfall 15) */}
-      <div style={{ flex: 1, position: 'sticky', top: '2rem' }}>
-        <h2 className="text-sm font-mono text-brand-muted uppercase tracking-wide mb-3">
-          Preview
-        </h2>
+      <div style={previewColStyle}>
+        <div
+          className="mono"
+          style={{
+            fontSize: 10.5,
+            color: 'var(--text-tertiary)',
+            letterSpacing: '0.14em',
+            textTransform: 'uppercase',
+            fontWeight: 700,
+            marginBottom: 14,
+          }}
+        >
+          ↳ Live preview · updates as you type
+        </div>
         <Receipt
           mode="preview"
           data={{

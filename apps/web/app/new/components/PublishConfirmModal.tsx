@@ -1,6 +1,5 @@
 'use client';
 
-import { Button } from '@call-it/ui';
 import type { CreateCallInput } from '@call-it/shared';
 
 interface PublishConfirmModalProps {
@@ -18,15 +17,22 @@ const MARKET_TYPE_LABELS: Record<string, string> = {
   event: 'Event',
 };
 
+/** Permanence copy — exact string per the 09.2 UI-SPEC Copywriting Contract. */
+const PERMANENCE_COPY = "This is permanent. There's no edit after publish.";
+
 /**
- * PublishConfirmModal — 2-step publish confirmation (Review → Sign).
+ * PublishConfirmModal — 2-step publish confirmation (Review → Sign) on the cream
+ * `.modal-panel` template (FINAL · CONFIRM voice, permanence copy).
  *
- * Step 1: "Confirm your call" — shows locked-in summary of the call.
+ * Step 1: "FINAL · CONFIRM" — shows locked-in summary of the call.
  * Step 2: "Signing transaction" — shown while the userOp is being signed/sent.
  *
  * The Confirm button calls usePublishCall().publish() which:
  *   1. Runs preflight (POST /api/calls/preflight)
  *   2. If 200, builds userOp and signs via Privy embedded wallet
+ *
+ * Cream-context rules (09.2-08 reference pattern): all interior text black /
+ * near-black; accents only as black-strip text or black-filled CTAs.
  *
  * Requirement: UI-55, UI-56, D-28
  */
@@ -43,63 +49,138 @@ export function PublishConfirmModal({
   const isSigning = isPublishing && (publishStep === 'preflight' || publishStep === 'signing' || publishStep === 'waiting');
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
-      {/* Backdrop */}
-      <div className="absolute inset-0 bg-brand-bg opacity-80" onClick={onCancel} />
+    <div className="modal-overlay" style={{ position: 'fixed', inset: 0, zIndex: 200 }}>
+      {/* Backdrop click target */}
+      <div style={{ position: 'absolute', inset: 0 }} onClick={onCancel} />
 
-      {/* Modal */}
-      <div className="relative z-10 bg-brand-surface border-3 border-brand-text shadow-[8px_8px_0_0_#E8F542] max-w-lg w-full mx-4">
-        {/* Header */}
-        <div className="border-b-2 border-brand-border px-6 py-4">
-          <h2 className="text-xl font-display font-bold text-brand-text uppercase tracking-wide">
-            {isSigning ? 'Signing Transaction...' : 'Confirm Your Call'}
-          </h2>
+      {/* Cream panel (.modal-panel template) */}
+      <div className="modal-panel" style={{ position: 'relative', zIndex: 201 }}>
+        {/* Header — FINAL · CONFIRM mono voice */}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'baseline',
+            justifyContent: 'space-between',
+            borderBottom: '2px solid #000',
+            paddingBottom: 14,
+            marginBottom: 20,
+          }}
+        >
+          <span
+            style={{
+              fontFamily: 'var(--font-mono)',
+              fontSize: 12,
+              fontWeight: 700,
+              letterSpacing: '0.14em',
+              textTransform: 'uppercase',
+              color: '#000',
+            }}
+          >
+            {isSigning ? 'SIGNING · BROADCAST' : 'FINAL · CONFIRM'}
+          </span>
+          <span
+            style={{
+              fontFamily: 'var(--font-display)',
+              fontSize: 20,
+              fontWeight: 900,
+              letterSpacing: '-0.02em',
+              textTransform: 'uppercase',
+              color: '#000',
+            }}
+          >
+            {isSigning ? 'Signing transaction…' : 'Go on record'}
+          </span>
         </div>
 
         {/* Body */}
-        <div className="px-6 py-6 flex flex-col gap-4">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           {!isSigning ? (
             <>
               {/* Call summary */}
-              <div className="flex flex-col gap-2 font-mono text-sm">
-                <div className="flex justify-between">
-                  <span className="text-brand-muted">Type</span>
-                  <span className="text-brand-text font-bold">
+              <div
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 8,
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: 13,
+                  color: '#000',
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: 'rgba(0,0,0,0.55)' }}>Type</span>
+                  <span style={{ fontWeight: 700 }}>
                     {MARKET_TYPE_LABELS[formValues.marketType] ?? formValues.marketType}
                   </span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-brand-muted">Asset</span>
-                  <span className="text-brand-text">{formValues.assetA}</span>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: 'rgba(0,0,0,0.55)' }}>Asset</span>
+                  <span>{formValues.assetA}</span>
                 </div>
                 {formValues.targetValue && (
-                  <div className="flex justify-between">
-                    <span className="text-brand-muted">Target</span>
-                    <span className="text-brand-text">
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ color: 'rgba(0,0,0,0.55)' }}>Target</span>
+                    <span>
                       {(Number(formValues.targetValue) / 1_000_000).toLocaleString()} USD
                     </span>
                   </div>
                 )}
-                <div className="flex justify-between">
-                  <span className="text-brand-muted">Conviction</span>
-                  <span className="text-brand-accent font-bold">{formValues.conviction}%</span>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: 'rgba(0,0,0,0.55)' }}>Conviction</span>
+                  <span style={{ fontWeight: 700 }}>{formValues.conviction}%</span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-brand-muted">Stake</span>
-                  <span className="text-brand-text">
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: 'rgba(0,0,0,0.55)' }}>Stake</span>
+                  <span style={{ fontWeight: 700 }}>
                     ${(Number(formValues.stake) / 1_000_000).toFixed(2)} USDC
                   </span>
                 </div>
               </div>
 
-              <p className="text-xs font-mono text-brand-muted border border-brand-border p-3">
-                This call will be permanent and public. The preflight check will run before you sign.
-              </p>
+              {/* Permanence strip — black strip on cream (09.2-08 accent pattern) */}
+              <div
+                style={{
+                  background: '#000',
+                  padding: '12px 14px',
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: 11,
+                  fontWeight: 600,
+                  letterSpacing: '0.04em',
+                  color: 'var(--bg-inverse)',
+                }}
+              >
+                {PERMANENCE_COPY} The preflight check runs before you sign.
+              </div>
             </>
           ) : (
-            <div className="flex flex-col items-center gap-4 py-4">
-              <div className="w-8 h-8 border-4 border-brand-accent border-t-transparent rounded-full animate-spin" />
-              <p className="text-sm font-mono text-brand-muted text-center">
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: 16,
+                padding: '16px 0',
+              }}
+            >
+              <div
+                className="animate-spin"
+                style={{
+                  width: 32,
+                  height: 32,
+                  border: '4px solid #000',
+                  borderTopColor: 'transparent',
+                  borderRadius: '50%',
+                }}
+              />
+              <p
+                style={{
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: 13,
+                  color: 'rgba(0,0,0,0.7)',
+                  textAlign: 'center',
+                  margin: 0,
+                }}
+              >
                 {isPublishing && publishStep === 'preflight' && 'Running gate checks...'}
                 {isPublishing && publishStep === 'signing' && 'Please sign in your wallet...'}
                 {isPublishing && publishStep === 'waiting' && 'Waiting for on-chain confirmation...'}
@@ -111,13 +192,48 @@ export function PublishConfirmModal({
 
         {/* Footer */}
         {!isSigning && (
-          <div className="border-t-2 border-brand-border px-6 py-4 flex gap-3 justify-end">
-            <Button intent="secondary" size="md" type="button" onClick={onCancel} disabled={isPublishing}>
+          <div
+            style={{
+              borderTop: '2px solid #000',
+              marginTop: 20,
+              paddingTop: 16,
+              display: 'flex',
+              gap: 12,
+              justifyContent: 'flex-end',
+            }}
+          >
+            <button
+              type="button"
+              className="btn"
+              onClick={onCancel}
+              disabled={isPublishing}
+              style={{
+                background: 'transparent',
+                color: '#000',
+                borderColor: '#000',
+                minHeight: 44,
+              }}
+            >
               Cancel
-            </Button>
-            <Button intent="primary" size="md" type="button" onClick={onConfirm} disabled={isPublishing}>
+            </button>
+            <button
+              type="button"
+              className="btn"
+              onClick={onConfirm}
+              disabled={isPublishing}
+              style={{
+                background: '#000',
+                color: 'var(--bg-inverse)',
+                borderColor: '#000',
+                fontWeight: 800,
+                boxShadow: 'var(--shadow-brutal-sm)',
+                minHeight: 44,
+                opacity: isPublishing ? 0.5 : 1,
+                cursor: isPublishing ? 'not-allowed' : 'pointer',
+              }}
+            >
               {isPublishing ? 'Publishing...' : 'Confirm publish'}
-            </Button>
+            </button>
           </div>
         )}
       </div>

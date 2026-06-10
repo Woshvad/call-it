@@ -140,6 +140,29 @@ test.describe('Tier 1: /new page source assertions (D-29 + Pitfall 15)', () => {
     expect(source).toContain('openToChallenges');
   });
 
+  test('ConvictionSliderField has the 4 conviction zone words (09.2-10 / D-16)', () => {
+    const source = readFileSync(CONVICTION_SLIDER, 'utf-8');
+    expect(source).toContain('CONVICTION_ZONES');
+    expect(source).toContain('Hesitant');
+    expect(source).toContain('Confident');
+    expect(source).toContain('Bold');
+    expect(source).toContain('On record');
+  });
+
+  test('page.tsx has $5/$25/$50/$100 stake quick-picks wired via RHF setValue (09.2-10)', () => {
+    const source = readFileSync(NEW_PAGE, 'utf-8');
+    expect(source).toContain('STAKE_QUICK_PICKS');
+    expect(source).toMatch(/\[5, 25, 50, 100\]/);
+    // Quick-picks write through the existing RHF setValue path (T-09.2-27)
+    expect(source).toMatch(/setValue\('stake'/);
+  });
+
+  test('PublishConfirmModal carries FINAL · CONFIRM + exact permanence copy (09.2-10)', () => {
+    const source = readFileSync(PUBLISH_MODAL, 'utf-8');
+    expect(source).toContain('FINAL · CONFIRM');
+    expect(source).toContain("This is permanent. There's no edit after publish.");
+  });
+
   test('no display:grid in any /new component (Pitfall 15)', () => {
     const files = [
       NEW_PAGE,
