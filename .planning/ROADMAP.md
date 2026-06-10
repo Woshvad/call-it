@@ -368,7 +368,7 @@ Plans:
 **Requirements**: TBD (UI restyle of existing requirement surfaces; no new mechanical requirements)
 **Depends on:** Phase 9
 **Research:** 09.2-RESEARCH.md (compatibility audit, 2026-06-10 8-agent sweep: variant canon, token delta, screen-by-screen REUSE/PARTIAL/NEW-BUILD map, wiring-risk register, adoption sequence)
-**Plans:** 2/15 plans executed
+**Plans:** 3/15 plans executed
 Plans:
 **Wave 1**
 
@@ -377,7 +377,7 @@ Plans:
 **Wave 2** *(blocked on Wave 1 completion)*
 
 - [x] 09.2-02-PLAN.md — Wave 2: @call-it/ui retheme — Button/Card/Stamp/Tag/VerifiedBadge/Skeleton/Toast + ConvictionBar/MarketPositioningBar (contrarian stamp fix, flexbox-only)
-- [ ] 09.2-03-PLAN.md — Wave 2: app shell — Icon/AppShell/Sidebar/SystemTicker(flag OFF), layout mount swap, GlobalNav retirement, MobileDrawer fold (D-10/D-11)
+- [x] 09.2-03-PLAN.md — Wave 2: app shell — Icon/AppShell/Sidebar/SystemTicker(flag OFF), layout mount swap, GlobalNav retirement, MobileDrawer fold (D-10/D-11)
 
 **Wave 3** *(blocked on Wave 2 completion)*
 

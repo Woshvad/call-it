@@ -67,7 +67,7 @@ Requirements for the v1 mainnet release. Each line is an atomic, testable behavi
 - [ ] **AUTH-41**: `unlinkTwitter` / `unlinkFarcaster` are callable by the user directly (no relayer required) (§12.5)
 - [ ] **AUTH-42**: ProfileRegistry handle strings revert `HandleTooLong` if `bytes(handle).length > 50` (`MAX_HANDLE_LENGTH`) (§12.5, App.A.1)
 - [ ] **AUTH-43**: Social-linking gas is sponsored by the protocol via relayer pattern (§9.8)
-- [ ] **AUTH-44**: User wallet address is NEVER shown on shareable receipts — handle + rep + outcome only (§15.7, App.A.1)
+- [x] **AUTH-44**: User wallet address is NEVER shown on shareable receipts — handle + rep + outcome only (§15.7, App.A.1)
 
 ### Call Creation & Anti-Spam (CALL)
 
@@ -611,7 +611,7 @@ Which phases cover which requirements. Updated during roadmap creation by the ro
 | AUTH-41 | Phase 1 | Pending |
 | AUTH-42 | Phase 1 | Pending |
 | AUTH-43 | Phase 1 | Pending |
-| AUTH-44 | Phase 1 | Pending |
+| AUTH-44 | Phase 1 | Complete |
 | CALL-01 | Phase 1 | Pending |
 | CALL-02 | Phase 1 | Pending |
 | CALL-03 | Phase 1 | Pending |

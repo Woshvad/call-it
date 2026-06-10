@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: milestone
 status: executing
-stopped_at: Phase 09.2 UI-SPEC approved
-last_updated: "2026-06-10T12:06:02.463Z"
+stopped_at: Completed 09.2-03-PLAN.md
+last_updated: "2026-06-10T12:28:38.200Z"
 last_activity: 2026-06-10 -- Phase 09.2 execution started
 progress:
   total_phases: 16
   completed_phases: 11
   total_plans: 98
-  completed_plans: 85
+  completed_plans: 86
   percent: 69
 ---
 
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-05-21)
 ## Current Position
 
 Phase: 09.2 (prototype-design-adoption-rebuild-apps-web-ui-to-the-call-it) — EXECUTING
-Plan: 3 of 15
+Plan: 4 of 15
 
 > **Strategic pivot (2026-06-09):** Mainnet is PAUSED till further notice. Phases **10 (mainnet deploy gate)** and **10.5 (mainnet multisig lockdown)** are ON HOLD. Active focus is **Phase 09.1 — Testnet Demo Hardening**: make the full product demo-perfect end-to-end on the live Arbitrum Sepolia deployment. Next: `/gsd-discuss-phase 09.1`.
 
@@ -172,6 +172,7 @@ All 3 operator actions were run this session (user explicitly authorized "run al
 | Phase 09 P07 | 4min | 2 tasks | 4 files |
 | Phase 09.2 P01 | 9min | 3 tasks | 4 files |
 | Phase 09.2 P02 | 11min | 2 tasks | 14 files |
+| Phase 09.2 P03 | 17min | 2 tasks | 11 files |
 
 ## Accumulated Context
 
@@ -342,6 +343,9 @@ completed: 2026-05-29
 - [Phase 09.2-01]: OUTCOME_CONTRARIAN literal #E8F542 (D-03) while preset key outcome-contrarian stays var(--accent-duel) for duel identity
 - [Phase ?]: [Phase 09.2-02]: Button danger intent = loss OUTLINE (donor .btn.fade recipe, no solid red button in prototype); aliased intents cream/outline-white/fade share recipe constants with primary/secondary/danger
 - [Phase ?]: [Phase 09.2-02]: Stamp boxShadow-expansion replaced by static text-shadow 4px 4px 0 #000 (.outcome-stamp is a text stamp, not a box); D-03 contrarian color now flows through COLOR_MAP itself
+- [Phase ?]: 09.2-03: Duel nav item cut from the sidebar (no /duel index route — dead control per D-08); orange .nav-dot recipe stays in CSS for a future duel surface
+- [Phase ?]: 09.2-03: Wallet pill treats relayer handle source 'truncated' as no-handle (balance-only) — a truncated handle is a shortened wallet address, banned by AUTH-44
+- [Phase ?]: 09.2-03: Page-level shell grid classes landed in globals.css with var(--shell-offset) calc() sticky offsets — prototype's hardcoded top:96px never used (D-11)
 
 ## Performance
 
@@ -497,6 +501,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-06-10T12:05:35.209Z
-Stopped at: Phase 09.2 UI-SPEC approved
-Resume file: .planning/phases/09.2-prototype-design-adoption-rebuild-apps-web-ui-to-the-call-it/09.2-UI-SPEC.md
+Last session: 2026-06-10T12:28:38.186Z
+Stopped at: Completed 09.2-03-PLAN.md
+Resume file: None
