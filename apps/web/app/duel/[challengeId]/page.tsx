@@ -1,23 +1,29 @@
 /**
- * /duel/[challengeId] — Duel Page (§15.5)
+ * /duel/[challengeId] — Duel Page (§15.5) — prototype duel skin (09.2-11)
  *
- * Full Phase 3 duel interaction surface:
- *   - THE MARKET hero (asset pair 64px Syne, pot, settles-in countdown)
- *   - Two-column duel card (CALLER / VS / CHALLENGER) — flexbox, NEVER grid
- *   - MARKET CONSENSUS · LIVE bar (followReserve / fadeReserve ratio, 5s poll)
- *   - Riding sections (existing FollowFadeMarket follow/fade participants — D-06)
- *   - "Side with [X]" CTAs → Follow / Fade modals on parent call
+ * Prototype `call it frontend/screens/duel.jsx` markup over the EXISTING
+ * Phase 3 data/handler layer (D-05 — markup donor only):
+ *   - Top meta row (← Back ghost link, duel id · arbitrum · status · countdown)
+ *   - THE MARKET hero (asset pair Archivo 900, market line, pot/settles-in stat blocks)
+ *   - VS duel card (.brutal-card.hero): CALLER #E8F542 / VS / CHALLENGER #A855F7
+ *   - MARKET CONSENSUS · LIVE footer (.brutal-bar.split caller/challenger, 2px black gap)
+ *   - Riders lists per side (existing FollowFadeMarket follow/fade participants — D-06)
  *   - Challenge form modal (proposeChallenge — Surface 7)
- *   - Caller-only accept/reject block when challenge is Proposed
- *   - Mobile "Best viewed on desktop" banner at <=768px
+ *   - Caller-only accept/reject block when challenge is Proposed (handlers UNCHANGED)
+ *   - Mobile single-column stacking (UI-48) + DesktopOnlyBanner (Phase 9 09-04)
+ *
+ * D-07: data with no source is HIDDEN, never faked — the prototype's price
+ *       live-spread hero stat and its "±N rep" payload sub have no source and
+ *       are not rendered.
+ * D-08: the prototype's bottom side-with CTA pair is CUT (see comment at the
+ *       old render slot) — the FollowFadeModal stubs behind them were no-ops.
  *
  * LIVENESS: 5s setInterval + window focus refetch of /api/duels/:id/live-state (D-10)
- * FLEXBOX ONLY — no display:grid anywhere (Pitfall 15)
  * AUTH-44: wallet address NEVER rendered — handle + rep only
  * CE_ADDR imported from @call-it/shared — never inline hex (T-3-06-05)
  *
- * Requirements: SOCIAL-30, SOCIAL-34, SOCIAL-35, SOCIAL-36, UI-11
- * Spec: §15.5 Duel page layout (BINDING DESIGN CONTRACT)
+ * Requirements: SOCIAL-30, SOCIAL-34, SOCIAL-35, SOCIAL-36, UI-11, AUTH-44
+ * Spec: §15.5 Duel page layout + 09.2-UI-SPEC.md (BINDING DESIGN CONTRACT)
  */
 
 'use client';
@@ -27,10 +33,10 @@ import { useParams } from 'next/navigation';
 import { usePrivy } from '@privy-io/react-auth';
 import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
 import Link from 'next/link';
-import { FollowFadeModal } from '@call-it/ui';
 import { CHALLENGE_ESCROW_ARBITRUM_SEPOLIA, USDC_ARB_NATIVE } from '@call-it/shared';
 import { ChallengeFormModal } from '@/app/components/ChallengeFormModal';
 import { DesktopOnlyBanner } from '@/app/components/DesktopOnlyBanner';
+import { useIsMobile } from '@/app/hooks/useIsMobile';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -41,6 +47,14 @@ const CE_ADDR = CHALLENGE_ESCROW_ARBITRUM_SEPOLIA as `0x${string}`;
 const USDC_ADDR = USDC_ARB_NATIVE as `0x${string}`; // IN-05: imported from @call-it/shared
 
 const RELAYER_URL = process.env['NEXT_PUBLIC_RELAYER_URL'] ?? '';
+
+/**
+ * Duel identity colors (prototype duel.jsx / UI-SPEC Color table):
+ * caller = chartreuse, challenger = duel purple. #A855F7 is confined to
+ * challenge UI only (D-14 / AUTH-44 invariant set).
+ */
+const CALLER_ACCENT = '#E8F542';
+const DUEL_ACCENT = '#A855F7';
 
 /** ChallengeStatus enum ordinals — matches IChallengeEscrow.sol */
 const ChallengeStatus = {
@@ -158,6 +172,68 @@ function hoursRemaining(deadline: bigint): number {
   return Math.floor(Number(deadline - nowSec) / 3600);
 }
 
+/** Honest status word + color for the meta line — real ChallengeStatus, never a hardcoded word. */
+function challengeStatusMeta(status: number): { word: string; color: string } {
+  switch (status) {
+    case ChallengeStatus.Accepted:
+      return { word: 'LOCKED', color: 'var(--accent-win)' };
+    case ChallengeStatus.Rejected:
+      return { word: 'REJECTED', color: 'var(--text-tertiary)' };
+    case ChallengeStatus.Refunded:
+      return { word: 'REFUNDED', color: 'var(--text-tertiary)' };
+    case ChallengeStatus.Settled:
+      return { word: 'SETTLED', color: 'var(--text-secondary)' };
+    case ChallengeStatus.Proposed:
+    default:
+      return { word: 'PENDING', color: 'var(--accent-warning)' };
+  }
+}
+
+/** Deterministic prototype avatar grad class per handle (a–f) — same recipe as /call/[id] (09.2-07). */
+const AVATAR_GRAD_CLASSES = [
+  'avatar-grad-a',
+  'avatar-grad-b',
+  'avatar-grad-c',
+  'avatar-grad-d',
+  'avatar-grad-e',
+  'avatar-grad-f',
+] as const;
+
+function avatarGradClass(handle: string): string {
+  let acc = 0;
+  for (let i = 0; i < handle.length; i++) {
+    acc = (acc + handle.charCodeAt(i)) % AVATAR_GRAD_CLASSES.length;
+  }
+  return AVATAR_GRAD_CLASSES[acc] ?? AVATAR_GRAD_CLASSES[0];
+}
+
+/**
+ * DuelCountdown — prototype Countdown recipe (`call it frontend/components.jsx:105-121`):
+ * D HH:MM:SS in JetBrains Mono, ticking 1s. DISPLAY-ONLY component over the
+ * existing `expiry` field — no data/handler logic (D-05: markup donor only).
+ */
+function DuelCountdown({ expiry }: { expiry: bigint }) {
+  const [nowMs, setNowMs] = useState(() => Date.now());
+  useEffect(() => {
+    const t = setInterval(() => setNowMs(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, []);
+  const s = Math.max(0, Number(expiry) - Math.floor(nowMs / 1000));
+  if (s === 0) {
+    return <span className="mono">Expired</span>;
+  }
+  const d = Math.floor(s / 86400);
+  const h = Math.floor((s % 86400) / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const sec = s % 60;
+  return (
+    <span className="mono" style={{ letterSpacing: '0.04em' }}>
+      {d > 0 ? `${d}d ` : ''}
+      {String(h).padStart(2, '0')}:{String(m).padStart(2, '0')}:{String(sec).padStart(2, '0')}
+    </span>
+  );
+}
+
 // ─── Data fetch helpers ───────────────────────────────────────────────────────
 
 async function fetchDuelLiveState(challengeId: string): Promise<DuelLiveState | null> {
@@ -229,46 +305,56 @@ async function fetchRidingLists(callId: string): Promise<{ followers: RidingEntr
   }
 }
 
-// ─── Sub-components ───────────────────────────────────────────────────────────
+// ─── Sub-components (display-only — prototype recipes) ────────────────────────
 
-function Avatar({ url, handle, size, borderColor }: { url: string; handle: string; size: number; borderColor: string }) {
-  const initial = handle.replace('@', '').charAt(0).toUpperCase();
+/** Square prototype avatar (radius 0, grad a–f) — image when avatarUrl exists, grad+initial otherwise. */
+function DuelAvatar({ url, handle, size }: { url: string; handle: string; size: 'sm' | 'xl' }) {
   if (url) {
+    const px = size === 'xl' ? 80 : 28;
     return (
-      <div style={{ width: `${size}px`, height: `${size}px`, borderRadius: '50%', border: `2px solid ${borderColor}`, overflow: 'hidden', flexShrink: 0 }}>
+      <span className={`avatar ${size}`} style={{ overflow: 'hidden', padding: 0 }} aria-hidden="true">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={url} alt="" width={size} height={size} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-      </div>
+        <img src={url} alt="" width={px} height={px} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+      </span>
     );
   }
+  const initial = handle.replace('@', '').charAt(0).toUpperCase();
   return (
-    <div style={{ width: `${size}px`, height: `${size}px`, borderRadius: '50%', border: `2px solid ${borderColor}`, backgroundColor: '#1A1A24', display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontFamily: "'Space Grotesk', sans-serif", fontSize: `${Math.floor(size * 0.4)}px`, fontWeight: 700, color: borderColor }}>
+    <span className={`avatar ${size} ${avatarGradClass(handle)}`} aria-hidden="true">
       {initial}
-    </div>
+    </span>
   );
 }
 
-function RidingList({ entries, accentColor, emptyLabel }: { entries: RidingEntry[]; accentColor: string; emptyLabel?: string }) {
+/** Riders rows — prototype duel.jsx riders recipe. Handles only (AUTH-44). */
+function RidingList({ entries, accentColor }: { entries: RidingEntry[]; accentColor: string }) {
   if (entries.length === 0) {
     return (
-      <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: '12px', color: '#64748B' }}>
-        {emptyLabel ?? 'No one riding yet'}
+      <div className="mono" style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>
+        No one riding yet
       </div>
     );
   }
   const visible = entries.slice(0, 5);
   const extra = entries.length - 5;
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+    <div className="col" style={{ gap: 8 }}>
       {visible.map((e, i) => (
-        <div key={i} style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: '8px' }}>
-          <Avatar url={e.avatarUrl} handle={e.handle} size={24} borderColor={accentColor} />
-          <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: '12px', color: '#F1F5F9' }}>{e.handle}</span>
-          <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '12px', color: '#94A3B8', marginLeft: 'auto' }}>{formatUsdc(e.amountUsdc)}</span>
+        <div
+          key={i}
+          className="row"
+          style={{ padding: '12px 16px', background: 'var(--bg-secondary)', border: '1px solid var(--border-subtle)', gap: 12 }}
+        >
+          <DuelAvatar url={e.avatarUrl} handle={e.handle} size="sm" />
+          {/* AUTH-44: handle only, never an address */}
+          <span style={{ flex: 1, fontWeight: 600, fontSize: 13 }}>{e.handle}</span>
+          <span className="mono" style={{ fontSize: 13, color: accentColor, fontWeight: 700 }}>
+            {formatUsdc(e.amountUsdc)}
+          </span>
         </div>
       ))}
       {extra > 0 && (
-        <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: '12px', color: accentColor, fontWeight: 700 }}>
+        <div className="mono" style={{ fontSize: 11, color: 'var(--text-tertiary)', letterSpacing: '0.04em' }}>
           + {extra} more
         </div>
       )}
@@ -284,6 +370,7 @@ export default function DuelPage() {
 
   const { user } = usePrivy();
   const { address: userAddress } = useAccount();
+  const isMobile = useIsMobile(); // 375px single-column stacking (UI-48)
 
   const [liveState, setLiveState] = useState<DuelLiveState | null>(null);
   const [ridingFollowers, setRidingFollowers] = useState<RidingEntry[]>([]);
@@ -291,8 +378,6 @@ export default function DuelPage() {
   const [loading, setLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState<number>(0);
 
-  const [isFollowModalOpen, setIsFollowModalOpen] = useState(false);
-  const [isFadeModalOpen, setIsFadeModalOpen] = useState(false);
   const [isChallengeFormOpen, setIsChallengeFormOpen] = useState(false);
 
   // Caller accept/reject state
@@ -481,13 +566,41 @@ export default function DuelPage() {
   const callerPct = total === 0n ? 50 : Number((followReserve * 100n) / total);
   const challengerPct = 100 - callerPct;
 
-  // ─── Loading skeleton ─────────────────────────────────────────────────────────
+  // ─── Loading skeleton (token recipes) ───────────────────────────────────────
   if (loading && !liveState) {
     return (
-      <div style={{ backgroundColor: '#09090E', minHeight: '100vh', padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-        <div style={{ height: '24px', backgroundColor: '#1E1E2E', width: '200px' }} />
-        <div style={{ height: '200px', backgroundColor: '#111118', border: '1px solid #1E1E2E' }} />
-        <div style={{ height: '280px', backgroundColor: '#111118', border: '1px solid #1E1E2E' }} />
+      <div className="col" style={{ gap: 16, paddingTop: 24 }}>
+        <DesktopOnlyBanner />
+        <div style={{ height: 24, background: 'var(--bg-tertiary)', width: 200 }} />
+        <div style={{ height: 200, background: 'var(--bg-secondary)', border: '1px solid var(--border-subtle)' }} />
+        <div style={{ height: 280, background: 'var(--bg-secondary)', border: '1px solid var(--border-subtle)' }} />
+      </div>
+    );
+  }
+
+  // ─── Error state (UI-SPEC: problem + next step, never a faked page) ─────────
+  if (!liveState) {
+    return (
+      <div>
+        <DesktopOnlyBanner />
+        <div
+          className="brutal-card"
+          style={{ marginTop: 24, borderLeft: '3px solid var(--accent-loss)', display: 'flex', flexDirection: 'column', gap: 12, alignItems: 'flex-start' }}
+        >
+          <span className="label-overline" style={{ color: 'var(--accent-loss)' }}>
+            COULDN&apos;T LOAD THE DUEL
+          </span>
+          <span className="mono" style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
+            The duel live-state didn&apos;t come back. Retry.
+          </span>
+          <button
+            onClick={() => { setLoading(true); void fetchAll(); }}
+            className="btn outline-white"
+            style={{ minHeight: 44 }}
+          >
+            RETRY
+          </button>
+        </div>
       </div>
     );
   }
@@ -498,7 +611,7 @@ export default function DuelPage() {
   const displayChallengerStake = liveState?.challengerStake ?? 0n;
   const displayExpiry = liveState?.expiry ?? 0n;
   // CR-04 fix: pot = min(callerStake, challengerStake) * 2 (contract §8.9 prize-pot formula).
-  // In a pre-accept (Proposed) state callerStake is 0n; pot reads as 0 -- shown as 'deferred'.
+  // In a pre-accept (Proposed) state callerStake is 0n; pot reads as 0 -- hidden (D-07).
   // In an Accepted state both stakes are set; min*2 is the actual prize pot.
   // displayCallerStake + displayChallengerStake is the raw escrowed total, NOT the pot.
   const matchedStake = displayCallerStake < displayChallengerStake
@@ -506,516 +619,473 @@ export default function DuelPage() {
     : displayChallengerStake;
   const potTotal = matchedStake * 2n;
 
-  // ─── Render ───────────────────────────────────────────────────────────────────
+  const statusMeta = challengeStatusMeta(liveState.status);
+  const ridersCount = ridingFollowers.length + ridingFaders.length;
+  const followersBacked = ridingFollowers.reduce((s, e) => s + e.amountUsdc, 0n);
+  const fadersBacked = ridingFaders.reduce((s, e) => s + e.amountUsdc, 0n);
+
+  // ─── Render — prototype duel.jsx markup over the live data (D-05) ───────────
   return (
-    <div style={{ backgroundColor: '#09090E', minHeight: '100vh', padding: '0' }}>
+    <div>
 
       <DesktopOnlyBanner />
 
-      {/* ── Toast notification ─────────────────────────────────────────────── */}
+      {/* ── Toast notification (wiring untouched — chrome on the token layer) ── */}
       {toastMsg && (
         <div
+          className="mono"
           style={{
             position: 'fixed',
-            top: '24px',
-            right: '24px',
+            top: 24,
+            right: 24,
             zIndex: 200,
-            backgroundColor: '#111118',
-            borderLeft: `4px solid ${toastMsg.isError ? '#F87171' : '#4ADE80'}`,
+            backgroundColor: 'var(--bg-secondary)',
+            borderLeft: `4px solid ${toastMsg.isError ? 'var(--accent-loss)' : 'var(--accent-win)'}`,
             padding: '14px 18px',
-            fontFamily: 'monospace',
-            fontSize: '13px',
-            color: '#F1F5F9',
-            maxWidth: '340px',
+            fontSize: 13,
+            color: 'var(--text-primary)',
+            maxWidth: 340,
           }}
         >
           {toastMsg.text}
         </div>
       )}
 
-      {/* ── Header bar ─────────────────────────────────────────────────────── */}
-      <div
-        style={{
-          display: 'flex',
-          flexDirection: 'row',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          padding: '12px 24px',
-          borderBottom: '2px solid #1E1E2E',
-          backgroundColor: '#09090E',
-        }}
-      >
-        <Link href="/" style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '12px', color: '#94A3B8', textDecoration: 'none' }}>
-          ← Back
+      {/* ── Top meta row — ghost back link + duel meta (real status word) ────── */}
+      <div className="spread" style={{ paddingTop: 28, paddingBottom: 18, flexWrap: 'wrap', gap: 8 }}>
+        <Link href="/" className="btn ghost" style={{ padding: '8px 0', textDecoration: 'none' }}>
+          ← Back to the tape
         </Link>
-        <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '12px', color: '#94A3B8' }}>
+        <span className="mono" style={{ fontSize: 11, color: 'var(--text-tertiary)', letterSpacing: '0.04em' }}>
           duel #d/{challengeId} · arbitrum ·{' '}
-          <span style={{ color: '#E8F542', opacity: 0.8 }}>LOCKED</span> ·{' '}
-          {displayExpiry > 0n ? formatTimeLeft(displayExpiry) : '—'}
+          <span style={{ color: statusMeta.color, fontWeight: 700 }}>{statusMeta.word}</span>
+          {displayExpiry > 0n ? <> · {formatTimeLeft(displayExpiry)}</> : null}
         </span>
       </div>
 
-      {/* ── Page content ───────────────────────────────────────────────────── */}
-      <div style={{ maxWidth: '1024px', margin: '0 auto', padding: '32px 24px', display: 'flex', flexDirection: 'column', gap: '48px' }}>
+      {/* ── Caller-only pending block (SOCIAL-49) — handlers UNCHANGED ───────── */}
+      {userIsCaller && isProposed && (
+        <div className="brutal-card heavy" style={{ marginBottom: 28, display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <div className="row" style={{ gap: 10, flexWrap: 'wrap' }}>
+            <span className="pill duel">⚔ 1V1 DUEL · PENDING</span>
+            <span className="mono" style={{ fontSize: 12, color: 'var(--text-secondary)', letterSpacing: '0.02em' }}>
+              {liveState.challengerHandle} challenged this call · you have {acceptHoursLeft}h to accept or reject
+            </span>
+          </div>
 
-        {/* ── Caller-only pending block (SOCIAL-49) ──────────────────────── */}
-        {userIsCaller && isProposed && liveState && (
+          {/* Accept/reject controls */}
+          <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: 10, alignItems: isMobile ? 'stretch' : 'center', flexWrap: 'wrap' }}>
+            {callerNeedsApproval ? (
+              /* Step 1: Approve USDC (T-3-06-06) */
+              <button
+                onClick={() => void handleCallerApprove()}
+                disabled={approving || approveConfirming}
+                className="btn cream"
+                style={{
+                  width: isMobile ? '100%' : undefined,
+                  minHeight: 44,
+                  opacity: (approving || approveConfirming) ? 0.5 : 1,
+                  cursor: (approving || approveConfirming) ? 'not-allowed' : 'pointer',
+                }}
+              >
+                {(approving || approveConfirming) ? 'APPROVING…' : `APPROVE USDC (${formatUsdc(callerMatchingStake)})`}
+              </button>
+            ) : (
+              /* Step 2: Accept challenge (matching stake = min — SOCIAL-31) */
+              <button
+                onClick={() => void handleAccept()}
+                disabled={accepting || isZeroAddr}
+                className="btn cream"
+                style={{
+                  width: isMobile ? '100%' : undefined,
+                  minHeight: 44,
+                  opacity: (accepting || isZeroAddr) ? 0.5 : 1,
+                  cursor: (accepting || isZeroAddr) ? 'not-allowed' : 'pointer',
+                }}
+              >
+                {accepting ? 'ACCEPTING…' : 'ACCEPT CHALLENGE ▸'}
+              </button>
+            )}
+
+            {!rejectConfirmOpen ? (
+              <button
+                onClick={() => setRejectConfirmOpen(true)}
+                className="btn outline-white"
+                style={{ width: isMobile ? '100%' : undefined, minHeight: 44 }}
+              >
+                REJECT CHALLENGE
+              </button>
+            ) : (
+              <div className="mono" style={{ display: 'flex', flexDirection: 'row', gap: 8, alignItems: 'center', flexWrap: 'wrap', fontSize: 12, color: 'var(--text-tertiary)' }}>
+                <span>This will immediately refund {liveState.challengerHandle}&apos;s stake. Are you sure?</span>
+                <button
+                  onClick={() => setRejectConfirmOpen(false)}
+                  className="btn ghost"
+                  style={{ minHeight: 44 }}
+                >
+                  Keep call open
+                </button>
+                <button
+                  onClick={() => void handleReject()}
+                  disabled={rejecting}
+                  className="btn fade"
+                  style={{ minHeight: 44, cursor: rejecting ? 'not-allowed' : 'pointer', opacity: rejecting ? 0.5 : 1 }}
+                >
+                  {rejecting ? 'Rejecting…' : 'Yes, reject'}
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── THE MARKET hero — asymmetric: title left, stat blocks right ──────── */}
+      <div style={{ padding: '4px 0 36px' }}>
+        <div className="label-overline" style={{ marginBottom: 14 }}>· THE MARKET</div>
+        <div
+          style={
+            isMobile
+              ? { display: 'flex', flexDirection: 'column', gap: 24 }
+              : { display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: 32, alignItems: 'end' }
+          }
+        >
+          <div>
+            <h1
+              style={{
+                fontFamily: 'var(--font-display)',
+                fontSize: 'clamp(44px, 9vw, 110px)',
+                fontWeight: 900,
+                letterSpacing: '-0.055em',
+                lineHeight: 0.82,
+                margin: 0,
+                textTransform: 'uppercase',
+                overflowWrap: 'anywhere',
+              }}
+            >
+              {liveState.assetA}
+              <span style={{ color: 'var(--accent-loss)', margin: '0 12px' }}>/</span>
+              {liveState.assetB}
+            </h1>
+            {liveState.marketLine && (
+              <div className="h-3" style={{ margin: '20px 0 0', maxWidth: '44ch', color: 'var(--text-secondary)', fontWeight: 500 }}>
+                {liveState.marketLine}
+              </div>
+            )}
+          </div>
+          {/* The prototype's price live-spread hero stat (and its rep-payload sub)
+              has NO data source — HIDDEN, never faked (D-07). Only sourced stats render. */}
+          {(potTotal > 0n || displayExpiry > 0n) && (
+            <div className="col" style={{ gap: 14 }}>
+              {potTotal > 0n && (
+                <div className="stat-block bracketed">
+                  <div className="stat-label">Pot</div>
+                  <div className="stat-value">{formatUsdc(potTotal)}</div>
+                  <div className="stat-sub">winner takes all</div>
+                  <span className="br-bl"></span>
+                  <span className="br-br"></span>
+                </div>
+              )}
+              {displayExpiry > 0n && (
+                <div className="stat-block bracketed">
+                  <div className="stat-label">Settles in</div>
+                  <div className="stat-value"><DuelCountdown expiry={displayExpiry} /></div>
+                  <span className="br-bl"></span>
+                  <span className="br-br"></span>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* ── VS duel card (.brutal-card.hero) — page-level grid OK ────────────── */}
+      <div className="brutal-card hero" style={{ padding: 0, position: 'relative' }}>
+        <div
+          style={
+            isMobile
+              ? { display: 'flex', flexDirection: 'column', alignItems: 'stretch' }
+              : { display: 'grid', gridTemplateColumns: '1fr auto 1fr', gap: 0, alignItems: 'stretch' }
+          }
+        >
+          {/* CALLER side — #E8F542 identity */}
           <div
             style={{
-              borderLeft: '2px solid #FB923C',
-              backgroundColor: '#111118',
-              padding: '16px 20px',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '12px',
+              padding: isMobile ? '24px 20px' : '32px 32px 28px',
+              borderRight: isMobile ? undefined : '2px solid var(--border-strong)',
+              borderBottom: isMobile ? '2px solid var(--border-strong)' : undefined,
             }}
           >
-            <p style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: '16px', color: '#F1F5F9', margin: 0 }}>
-              ⚔ Challenge pending — {liveState.challengerHandle} challenged this call ·{' '}
-              You have {acceptHoursLeft}h to accept or reject this challenge.
-            </p>
-
-            {/* Accept/reject controls */}
-            <div style={{ display: 'flex', flexDirection: 'row', gap: '12px', alignItems: 'center' }}>
-              {callerNeedsApproval ? (
-                <button
-                  onClick={() => void handleCallerApprove()}
-                  disabled={approving || approveConfirming}
-                  style={{
-                    fontFamily: "'Space Grotesk', sans-serif",
-                    fontSize: '13px',
-                    fontWeight: 700,
-                    color: '#09090E',
-                    backgroundColor: (approving || approveConfirming) ? '#2E2E42' : '#E8F542',
-                    border: '2px solid #09090E',
-                    boxShadow: (approving || approveConfirming) ? 'none' : '4px 4px 0 #09090E',
-                    padding: '10px 18px',
-                    cursor: (approving || approveConfirming) ? 'not-allowed' : 'pointer',
-                  }}
-                >
-                  {(approving || approveConfirming) ? 'Approving…' : `Approve USDC (${formatUsdc(callerMatchingStake)})`}
-                </button>
-              ) : (
-                <button
-                  onClick={() => void handleAccept()}
-                  disabled={accepting || isZeroAddr}
-                  style={{
-                    fontFamily: "'Space Grotesk', sans-serif",
-                    fontSize: '13px',
-                    fontWeight: 700,
-                    color: '#09090E',
-                    backgroundColor: accepting || isZeroAddr ? '#2E2E42' : '#4ADE80',
-                    border: `2px solid ${accepting || isZeroAddr ? '#2E2E42' : '#09090E'}`,
-                    boxShadow: accepting || isZeroAddr ? 'none' : '4px 4px 0 #09090E',
-                    padding: '10px 18px',
-                    cursor: accepting || isZeroAddr ? 'not-allowed' : 'pointer',
-                  }}
-                >
-                  {accepting ? 'Accepting…' : 'Accept challenge'}
-                </button>
-              )}
-
-              {!rejectConfirmOpen ? (
-                <button
-                  onClick={() => setRejectConfirmOpen(true)}
-                  style={{
-                    fontFamily: "'Space Grotesk', sans-serif",
-                    fontSize: '13px',
-                    color: '#F87171',
-                    backgroundColor: 'transparent',
-                    border: '2px solid #F87171',
-                    padding: '10px 18px',
-                    cursor: 'pointer',
-                  }}
-                >
-                  Reject challenge
-                </button>
-              ) : (
-                <div style={{ display: 'flex', flexDirection: 'row', gap: '8px', alignItems: 'center', fontFamily: 'monospace', fontSize: '12px', color: '#94A3B8' }}>
-                  <span>This will immediately refund {liveState.challengerHandle}&apos;s stake. Are you sure?</span>
-                  <button
-                    onClick={() => setRejectConfirmOpen(false)}
-                    style={{ fontFamily: 'monospace', fontSize: '12px', color: '#94A3B8', backgroundColor: 'transparent', border: '1px solid #2E2E42', padding: '4px 10px', cursor: 'pointer' }}
-                  >
-                    Keep call open
-                  </button>
-                  <button
-                    onClick={() => void handleReject()}
-                    disabled={rejecting}
-                    style={{ fontFamily: 'monospace', fontSize: '12px', color: '#F87171', backgroundColor: 'transparent', border: '2px solid #F87171', padding: '4px 10px', cursor: rejecting ? 'not-allowed' : 'pointer' }}
-                  >
-                    {rejecting ? 'Rejecting…' : 'Yes, reject'}
-                  </button>
-                </div>
-              )}
+            <div className="label-overline" style={{ marginBottom: 16, color: CALLER_ACCENT }}>
+              · CALLER
             </div>
-          </div>
-        )}
-
-        {/* ── THE MARKET hero ─────────────────────────────────────────────── */}
-        <div
-          style={{
-            position: 'relative',
-            backgroundColor: '#111118',
-            border: '3px solid #2E2E42',
-            padding: '28px',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '0px',
-          }}
-        >
-          {/* Corner brackets top-left */}
-          <div style={{ position: 'absolute', top: -3, left: -3, pointerEvents: 'none' }}>
-            <div style={{ width: '20px', height: '4px', backgroundColor: '#E8F542' }} />
-            <div style={{ width: '4px', height: '16px', backgroundColor: '#E8F542' }} />
-          </div>
-          {/* Corner brackets bottom-right */}
-          <div style={{ position: 'absolute', bottom: -3, right: -3, pointerEvents: 'none', display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
-            <div style={{ width: '4px', height: '16px', backgroundColor: '#E8F542' }} />
-            <div style={{ width: '20px', height: '4px', backgroundColor: '#E8F542' }} />
-          </div>
-
-          {/* Label */}
-          <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: '12px', fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: '16px' }}>
-            THE MARKET
-          </div>
-
-          {/* Asset pair hero — 64px Syne, "/" in #E8F542 */}
-          <div style={{ fontFamily: "'Syne', sans-serif", fontSize: '64px', fontWeight: 700, color: '#F1F5F9', lineHeight: 1.0, marginBottom: '12px' }}>
-            {liveState?.assetA ?? '—'}
-            {' '}
-            <span style={{ color: '#E8F542' }}>/</span>
-            {' '}
-            {liveState?.assetB ?? '—'}
-          </div>
-
-          {/* Market question line */}
-          {liveState?.marketLine && (
-            <p style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: '16px', color: '#F1F5F9', margin: '0 0 24px 0', lineHeight: 1.5 }}>
-              {liveState.marketLine}
-            </p>
-          )}
-
-          {/* 3-stat row */}
-          <div style={{ display: 'flex', flexDirection: 'row', border: '2px solid #1E1E2E' }}>
-            <div style={{ flex: 1, padding: '14px 16px', borderRight: '2px solid #1E1E2E', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: '12px', fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.12em' }}>LIVE SPREAD</span>
-              <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '16px', color: '#F1F5F9' }}>
-                {total === 0n ? '—' : `${callerPct}% / ${challengerPct}%`}
-              </span>
-            </div>
-            <div style={{ flex: 1, padding: '14px 16px', borderRight: '2px solid #1E1E2E', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: '12px', fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.12em' }}>POT</span>
-              <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '16px', color: '#F1F5F9' }}>
-                {potTotal > 0n ? `${formatUsdc(potTotal)} · winner takes all` : liveState?.deferred ? 'deferred' : '—'}
-              </span>
-            </div>
-            <div style={{ flex: 1, padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: '12px', fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.12em' }}>SETTLES IN</span>
-              <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '16px', color: '#F1F5F9' }}>
-                {displayExpiry > 0n ? formatTimeLeft(displayExpiry) : '—'}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* ── Two-column duel card ─────────────────────────────────────────── */}
-        {/* Outer wrapper for corner brackets */}
-        <div style={{ position: 'relative' }}>
-          {/* Corner brackets top-left (4px #E8F542) */}
-          <div style={{ position: 'absolute', top: -3, left: -3, pointerEvents: 'none', zIndex: 1 }}>
-            <div style={{ width: '20px', height: '4px', backgroundColor: '#E8F542' }} />
-            <div style={{ width: '4px', height: '16px', backgroundColor: '#E8F542' }} />
-          </div>
-          {/* Corner brackets bottom-right */}
-          <div style={{ position: 'absolute', bottom: -3, right: -3, pointerEvents: 'none', zIndex: 1, display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
-            <div style={{ width: '4px', height: '16px', backgroundColor: '#E8F542' }} />
-            <div style={{ width: '20px', height: '4px', backgroundColor: '#E8F542' }} />
-          </div>
-
-          {/* Two-column flex row — NEVER display:grid (Pitfall 15 / T-3-06-03) */}
-          <div style={{ display: 'flex', flexDirection: 'row', backgroundColor: '#111118' }}>
-
-            {/* CALLER column — left, #E8F542 accent */}
-            <div
-              style={{
-                flex: 1,
-                borderLeft: '3px solid #E8F542',
-                backgroundColor: '#111118',
-                padding: '24px',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '16px',
-              }}
-            >
-              <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: '12px', fontWeight: 700, color: '#E8F542', textTransform: 'uppercase', letterSpacing: '0.12em' }}>
-                CALLER
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: '12px' }}>
-                <Avatar url={liveState?.callerAvatarUrl ?? ''} handle={displayCallerHandle} size={40} borderColor="#E8F542" />
+            <div className="row" style={{ gap: 16, marginBottom: 18 }}>
+              <DuelAvatar url={liveState.callerAvatarUrl} handle={displayCallerHandle} size="xl" />
+              <div className="col" style={{ gap: 8 }}>
                 {/* AUTH-44: handle only, not address */}
-                <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: '16px', fontWeight: 700, color: '#E8F542' }}>
+                <span
+                  style={{
+                    fontFamily: 'var(--font-display)',
+                    fontSize: isMobile ? 22 : 28,
+                    fontWeight: 900,
+                    letterSpacing: '-0.02em',
+                    color: CALLER_ACCENT,
+                    overflowWrap: 'anywhere',
+                  }}
+                >
                   {displayCallerHandle}
                 </span>
-              </div>
-              {liveState?.callerPosition && (
-                <div style={{ border: '2px solid #2E2E42', backgroundColor: '#0D0D15', padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: '12px', fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.12em' }}>POSITION</div>
-                  <p style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: '16px', color: '#F1F5F9', margin: 0 }}>{liveState.callerPosition}</p>
-                </div>
-              )}
-              {/* Stat rows */}
-              {[
-                { label: 'REP', value: String(liveState?.callerRep ?? '—') },
-                { label: 'ACCURACY', value: liveState ? `${liveState.callerAccuracy}%` : '—' },
-                { label: 'IN-CATEGORY', value: liveState ? `${liveState.callerCategoryAccuracy}%` : '—' },
-                { label: 'STREAK', value: liveState ? (liveState.callerStreak >= 3 ? `${liveState.callerStreak} 🔥` : String(liveState.callerStreak)) : '—' },
-              ].map((stat) => (
-                <div key={stat.label} style={{ borderTop: '1px solid #1E1E2E', paddingTop: '10px', display: 'flex', flexDirection: 'row', justifyContent: 'space-between' }}>
-                  <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: '12px', fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.12em' }}>{stat.label}</span>
-                  <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '16px', color: '#F1F5F9' }}>{stat.value}</span>
-                </div>
-              ))}
-            </div>
-
-            {/* VS divider */}
-            <div
-              style={{
-                width: '48px',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                borderLeft: '1px solid #2E2E42',
-                borderRight: '1px solid #2E2E42',
-              }}
-            >
-              <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: '12px', fontWeight: 700, color: '#64748B' }}>VS</span>
-            </div>
-
-            {/* CHALLENGER column — right, #FB923C accent */}
-            <div
-              style={{
-                flex: 1,
-                borderRight: '3px solid #FB923C',
-                backgroundColor: '#111118',
-                padding: '24px',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '16px',
-              }}
-            >
-              <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: '12px', fontWeight: 700, color: '#FB923C', textTransform: 'uppercase', letterSpacing: '0.12em' }}>
-                CHALLENGER
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: '12px' }}>
-                <Avatar url={liveState?.challengerAvatarUrl ?? ''} handle={displayChallengerHandle} size={40} borderColor="#FB923C" />
-                {/* AUTH-44: handle only, not address */}
-                <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: '16px', fontWeight: 700, color: '#FB923C' }}>
-                  {displayChallengerHandle}
+                <span className="mono" style={{ fontSize: 12, color: 'var(--text-secondary)', letterSpacing: '0.02em' }}>
+                  staked {formatUsdc(displayCallerStake)}
                 </span>
               </div>
-              {liveState?.challengerPosition && (
-                <div style={{ border: '2px solid #2E2E42', backgroundColor: '#0D0D15', padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: '12px', fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.12em' }}>POSITION</div>
-                  <p style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: '16px', color: '#F1F5F9', margin: 0 }}>{liveState.challengerPosition}</p>
-                </div>
-              )}
-              {/* Stat rows */}
-              {[
-                { label: 'REP', value: String(liveState?.challengerRep ?? '—') },
-                { label: 'ACCURACY', value: liveState ? `${liveState.challengerAccuracy}%` : '—' },
-                { label: 'IN-CATEGORY', value: liveState ? `${liveState.challengerCategoryAccuracy}%` : '—' },
-                { label: 'STREAK', value: liveState ? (liveState.challengerStreak >= 3 ? `${liveState.challengerStreak} 🔥` : String(liveState.challengerStreak)) : '—' },
-              ].map((stat) => (
-                <div key={stat.label} style={{ borderTop: '1px solid #1E1E2E', paddingTop: '10px', display: 'flex', flexDirection: 'row', justifyContent: 'space-between' }}>
-                  <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: '12px', fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.12em' }}>{stat.label}</span>
-                  <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '16px', color: '#F1F5F9' }}>{stat.value}</span>
-                </div>
-              ))}
             </div>
+            {liveState.callerPosition && (
+              <div style={{ padding: 16, background: 'rgba(232,245,66,0.05)', border: `1.5px solid ${CALLER_ACCENT}` }}>
+                <div className="mono" style={{ fontSize: 10, color: CALLER_ACCENT, letterSpacing: '0.1em', fontWeight: 700, marginBottom: 6 }}>
+                  POSITION
+                </div>
+                <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 17, lineHeight: 1.25 }}>
+                  {liveState.callerPosition}
+                </div>
+              </div>
+            )}
+            {/* Stats — existing DuelLiveState fields only (D-07) */}
+            <div className="row" style={{ gap: 16, marginTop: 22, flexWrap: 'wrap' }}>
+              <div>
+                <div className="label-overline">Rep</div>
+                <div className="mono" style={{ fontSize: 22, fontWeight: 700, marginTop: 4 }}>
+                  {liveState.callerRep.toLocaleString()}
+                </div>
+              </div>
+              <div>
+                <div className="label-overline">Accuracy</div>
+                <div className="mono" style={{ fontSize: 22, fontWeight: 700, marginTop: 4, color: 'var(--accent-win)' }}>
+                  {liveState.callerAccuracy}%
+                </div>
+              </div>
+              <div>
+                <div className="label-overline">In category</div>
+                <div className="mono" style={{ fontSize: 22, fontWeight: 700, marginTop: 4 }}>
+                  {liveState.callerCategoryAccuracy}%
+                </div>
+              </div>
+            </div>
+            {liveState.callerStreak >= 3 && (
+              <div className="mono" style={{ marginTop: 14, fontSize: 11, color: 'var(--accent-warning)', fontWeight: 700, letterSpacing: '0.04em' }}>
+                🔥 {liveState.callerStreak}-call win streak
+              </div>
+            )}
+          </div>
+
+          {/* VS center */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: isMobile ? '4px 0' : '0 20px',
+              borderBottom: isMobile ? '2px solid var(--border-strong)' : undefined,
+              position: 'relative',
+            }}
+          >
+            <div
+              style={{
+                fontFamily: 'var(--font-display)',
+                fontSize: isMobile ? 36 : 56,
+                fontWeight: 900,
+                letterSpacing: '-0.06em',
+                color: 'var(--accent-loss)',
+                transform: 'rotate(-6deg)',
+                textShadow: '3px 3px 0 #000',
+                padding: '8px 16px',
+              }}
+            >
+              VS
+            </div>
+          </div>
+
+          {/* CHALLENGER side — #A855F7 duel identity (confined to challenge UI, D-14) */}
+          <div style={{ padding: isMobile ? '24px 20px' : '32px 32px 28px' }}>
+            <div className="label-overline" style={{ marginBottom: 16, color: DUEL_ACCENT, textAlign: isMobile ? 'left' : 'right' }}>
+              CHALLENGER ·
+            </div>
+            <div className="row" style={{ gap: 16, marginBottom: 18, justifyContent: isMobile ? 'flex-start' : 'flex-end' }}>
+              {isMobile && (
+                <DuelAvatar url={liveState.challengerAvatarUrl} handle={displayChallengerHandle} size="xl" />
+              )}
+              <div className="col" style={{ gap: 8, alignItems: isMobile ? 'flex-start' : 'flex-end' }}>
+                {/* AUTH-44: handle only, not address */}
+                <span
+                  style={{
+                    fontFamily: 'var(--font-display)',
+                    fontSize: isMobile ? 22 : 28,
+                    fontWeight: 900,
+                    letterSpacing: '-0.02em',
+                    color: DUEL_ACCENT,
+                    overflowWrap: 'anywhere',
+                  }}
+                >
+                  {displayChallengerHandle}
+                </span>
+                <span className="mono" style={{ fontSize: 12, color: 'var(--text-secondary)', letterSpacing: '0.02em' }}>
+                  staked {formatUsdc(displayChallengerStake)}
+                </span>
+              </div>
+              {!isMobile && (
+                <DuelAvatar url={liveState.challengerAvatarUrl} handle={displayChallengerHandle} size="xl" />
+              )}
+            </div>
+            {liveState.challengerPosition && (
+              <div style={{ padding: 16, background: 'rgba(168,85,247,0.06)', border: `1.5px solid ${DUEL_ACCENT}` }}>
+                <div className="mono" style={{ fontSize: 10, color: DUEL_ACCENT, letterSpacing: '0.1em', fontWeight: 700, marginBottom: 6, textAlign: isMobile ? 'left' : 'right' }}>
+                  POSITION
+                </div>
+                <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 17, lineHeight: 1.25, textAlign: isMobile ? 'left' : 'right' }}>
+                  {liveState.challengerPosition}
+                </div>
+              </div>
+            )}
+            {/* Stats — existing DuelLiveState fields only (D-07) */}
+            <div className="row" style={{ gap: 16, marginTop: 22, flexWrap: 'wrap', justifyContent: isMobile ? 'flex-start' : 'flex-end' }}>
+              <div style={{ textAlign: isMobile ? 'left' : 'right' }}>
+                <div className="label-overline">Rep</div>
+                <div className="mono" style={{ fontSize: 22, fontWeight: 700, marginTop: 4 }}>
+                  {liveState.challengerRep.toLocaleString()}
+                </div>
+              </div>
+              <div style={{ textAlign: isMobile ? 'left' : 'right' }}>
+                <div className="label-overline">Accuracy</div>
+                <div className="mono" style={{ fontSize: 22, fontWeight: 700, marginTop: 4, color: 'var(--accent-win)' }}>
+                  {liveState.challengerAccuracy}%
+                </div>
+              </div>
+              <div style={{ textAlign: isMobile ? 'left' : 'right' }}>
+                <div className="label-overline">In category</div>
+                <div className="mono" style={{ fontSize: 22, fontWeight: 700, marginTop: 4 }}>
+                  {liveState.challengerCategoryAccuracy}%
+                </div>
+              </div>
+            </div>
+            {liveState.challengerStreak >= 3 && (
+              <div className="mono" style={{ marginTop: 14, fontSize: 11, color: 'var(--accent-warning)', fontWeight: 700, letterSpacing: '0.04em', textAlign: isMobile ? 'left' : 'right' }}>
+                🔥 {liveState.challengerStreak}-call win streak
+              </div>
+            )}
           </div>
         </div>
 
-        {/* ── MARKET CONSENSUS · LIVE bar ───────────────────────────────── */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          {/* Label with live pulse */}
-          <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: '8px' }}>
-            <span
-              style={{
-                width: '6px',
-                height: '6px',
-                borderRadius: '50%',
-                backgroundColor: '#4ADE80',
-                display: 'inline-block',
-                flexShrink: 0,
-              }}
-            />
-            <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: '12px', fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.12em' }}>
-              MARKET CONSENSUS · LIVE
-            </span>
-            {isStale && (
-              <span style={{ fontFamily: 'monospace', fontSize: '12px', color: '#64748B' }}>
-                · updating
+        {/* ── MARKET CONSENSUS · LIVE footer — real FFM reserves only ─────────── */}
+        <div style={{ borderTop: '2px solid var(--border-strong)', padding: isMobile ? '16px 20px' : '20px 32px', background: 'var(--bg-quaternary)' }}>
+          <div className="spread" style={{ marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
+            <div className="row" style={{ gap: 8 }}>
+              <span className="live-dot" />
+              <span className="label-overline">MARKET CONSENSUS · LIVE</span>
+              {isStale && (
+                <span className="mono" style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>· updating</span>
+              )}
+            </div>
+            {ridersCount > 0 && (
+              <span className="mono" style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>
+                {ridersCount} riders{potTotal > 0n ? ` · ${formatUsdc(potTotal)} pot` : ''}
               </span>
             )}
           </div>
 
-          {/* 8px bar — sharp edges (neobrutalist) */}
-          <div style={{ height: '8px', backgroundColor: '#1E1E2E', display: 'flex', flexDirection: 'row' }}>
-            <div
-              style={{
-                width: total === 0n ? '50%' : `${callerPct}%`,
-                height: '100%',
-                backgroundColor: total === 0n ? '#2E2E42' : '#E8F542',
-                transition: 'width 300ms ease-out',
-              }}
-            />
-            <div
-              style={{
-                flex: 1,
-                height: '100%',
-                backgroundColor: total === 0n ? '#2E2E42' : '#FB923C',
-                transition: 'width 300ms ease-out',
-              }}
-            />
-          </div>
-
-          {/* Percentage labels */}
-          <div style={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between' }}>
-            <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: '12px', fontWeight: 700, color: total === 0n ? '#2E2E42' : '#E8F542', textTransform: 'uppercase', letterSpacing: '0.12em' }}>
-              {callerPct}% FAVOR CALLER
-            </span>
-            <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: '12px', fontWeight: 700, color: total === 0n ? '#2E2E42' : '#FB923C', textTransform: 'uppercase', letterSpacing: '0.12em' }}>
-              {challengerPct}% FAVOR CHALLENGER
-            </span>
-          </div>
-
-          {total === 0n && (
-            <div style={{ fontFamily: 'monospace', fontSize: '11px', color: '#64748B', textAlign: 'center' }}>
+          {total > 0n ? (
+            <>
+              <div className="spread" style={{ marginBottom: 10, alignItems: 'baseline', flexWrap: 'wrap', gap: 8 }}>
+                <div className="row" style={{ gap: 10, alignItems: 'baseline' }}>
+                  <span style={{ fontFamily: 'var(--font-display)', fontSize: isMobile ? 24 : 32, fontWeight: 900, color: CALLER_ACCENT, letterSpacing: '-0.03em' }}>
+                    {callerPct}%
+                  </span>
+                  <span className="mono" style={{ fontSize: 11, color: 'var(--text-secondary)', letterSpacing: '0.06em', fontWeight: 700 }}>
+                    FAVOR CALLER
+                  </span>
+                </div>
+                <div className="row" style={{ gap: 10, alignItems: 'baseline' }}>
+                  <span className="mono" style={{ fontSize: 11, color: 'var(--text-secondary)', letterSpacing: '0.06em', fontWeight: 700 }}>
+                    FAVOR CHALLENGER
+                  </span>
+                  <span style={{ fontFamily: 'var(--font-display)', fontSize: isMobile ? 24 : 32, fontWeight: 900, color: DUEL_ACCENT, letterSpacing: '-0.03em' }}>
+                    {challengerPct}%
+                  </span>
+                </div>
+              </div>
+              {/* Duel split-bar variant: caller var(--accent-win) vs challenger #A855F7, 2px black gap */}
+              <div className="brutal-bar split" role="img" aria-label={`${callerPct}% favor caller`}>
+                <div className="caller" style={{ flexBasis: `${callerPct}%` }} />
+                <div className="gap" />
+                <div className="challenger" style={{ flexBasis: `${challengerPct}%` }} />
+              </div>
+            </>
+          ) : (
+            <div className="mono" style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>
               consensus data unavailable
             </div>
           )}
         </div>
-
-        {/* ── Riding sections (D-06 — existing FollowFadeMarket data) ──────── */}
-        <div style={{ display: 'flex', flexDirection: 'row', gap: '24px', alignItems: 'flex-start' }}>
-          {/* Riding caller (follow side) */}
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: '12px', fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.12em' }}>
-              Riding <span style={{ color: '#E8F542' }}>{displayCallerHandle}</span>
-            </div>
-            <RidingList entries={ridingFollowers} accentColor="#E8F542" />
-          </div>
-          {/* Riding challenger (fade side) */}
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: '12px', fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.12em' }}>
-              Riding <span style={{ color: '#FB923C' }}>{displayChallengerHandle}</span>
-            </div>
-            <RidingList entries={ridingFaders} accentColor="#FB923C" />
-          </div>
-        </div>
-
-        {/* ── Bottom CTAs ───────────────────────────────────────────────────── */}
-        <div style={{ display: 'flex', flexDirection: 'row', gap: '16px' }}>
-          {/* Side with caller → Follow on parent call */}
-          <button
-            onClick={() => { if (user && callId > 0n) setIsFollowModalOpen(true); }}
-            style={{
-              flex: 1,
-              fontFamily: "'Space Grotesk', sans-serif",
-              fontSize: '16px',
-              fontWeight: 700,
-              color: '#09090E',
-              backgroundColor: '#E8F542',
-              border: '3px solid #09090E',
-              boxShadow: '4px 4px 0 #09090E',
-              padding: '16px 20px',
-              cursor: 'pointer',
-              transition: 'box-shadow 0.1s ease-out',
-            }}
-            onMouseDown={(e) => { (e.currentTarget as HTMLButtonElement).style.boxShadow = '2px 2px 0 #09090E'; }}
-            onMouseUp={(e) => { (e.currentTarget as HTMLButtonElement).style.boxShadow = '4px 4px 0 #09090E'; }}
-          >
-            Side with {displayCallerHandle}
-          </button>
-          {/* Side with challenger → Fade on parent call */}
-          <button
-            onClick={() => { if (user && callId > 0n) setIsFadeModalOpen(true); }}
-            style={{
-              flex: 1,
-              fontFamily: "'Space Grotesk', sans-serif",
-              fontSize: '16px',
-              fontWeight: 700,
-              color: '#FB923C',
-              backgroundColor: 'transparent',
-              border: '3px solid #FB923C',
-              padding: '16px 20px',
-              cursor: 'pointer',
-            }}
-          >
-            Side with {displayChallengerHandle}
-          </button>
-        </div>
-
-        {/* ── Challenge form button (non-caller viewer) ─────────────────────── */}
-        {!userIsCaller && user && (
-          <div style={{ display: 'flex', flexDirection: 'row', justifyContent: 'center' }}>
-            <button
-              onClick={() => {
-                if (!liveState?.openToChallenges) {
-                  setToastMsg({ text: "This caller isn't open to challenges right now.", isError: true });
-                  return;
-                }
-                setIsChallengeFormOpen(true);
-              }}
-              style={{
-                fontFamily: "'Space Grotesk', sans-serif",
-                fontSize: '14px',
-                fontWeight: 700,
-                color: '#FB923C',
-                backgroundColor: 'transparent',
-                border: '2px solid #FB923C',
-                padding: '12px 24px',
-                cursor: 'pointer',
-              }}
-            >
-              ⚔ Challenge {displayCallerHandle}
-            </button>
-          </div>
-        )}
       </div>
 
-      {/* ── Modals ──────────────────────────────────────────────────────────── */}
-      {callId > 0n && (
-        <>
-          <FollowFadeModal
-            open={isFollowModalOpen}
-            onClose={() => setIsFollowModalOpen(false)}
-            callId={callId}
-            side="follow"
-            followReserve={followReserve}
-            fadeReserve={fadeReserve}
-            followTotalShares={0n}
-            fadeTotalShares={0n}
-            userPosition={0n}
-            onSubmit={async (_amountIn: bigint, _minSharesOut: bigint) => { void 0; }}
-          />
-          <FollowFadeModal
-            open={isFadeModalOpen}
-            onClose={() => setIsFadeModalOpen(false)}
-            callId={callId}
-            side="fade"
-            followReserve={followReserve}
-            fadeReserve={fadeReserve}
-            followTotalShares={0n}
-            fadeTotalShares={0n}
-            userPosition={0n}
-            onSubmit={async (_amountIn: bigint, _minSharesOut: bigint) => { void 0; }}
-          />
-        </>
+      {/* ── Riders (D-06 — existing FollowFadeMarket data; handles only AUTH-44) ── */}
+      <div
+        style={
+          isMobile
+            ? { display: 'flex', flexDirection: 'column', gap: 24, marginTop: 36 }
+            : { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginTop: 36 }
+        }
+      >
+        <div>
+          <div className="section-divider" style={{ marginTop: 0 }}>
+            <span className="title" style={{ color: CALLER_ACCENT }}>RIDING {displayCallerHandle}</span>
+            <span className="line"></span>
+            {ridingFollowers.length > 0 && (
+              <span className="mono" style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>
+                {formatUsdc(followersBacked)} backed
+              </span>
+            )}
+          </div>
+          <RidingList entries={ridingFollowers} accentColor={CALLER_ACCENT} />
+        </div>
+        <div>
+          <div className="section-divider" style={{ marginTop: 0 }}>
+            <span className="title" style={{ color: DUEL_ACCENT }}>RIDING {displayChallengerHandle}</span>
+            <span className="line"></span>
+            {ridingFaders.length > 0 && (
+              <span className="mono" style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>
+                {formatUsdc(fadersBacked)} backed
+              </span>
+            )}
+          </div>
+          <RidingList entries={ridingFaders} accentColor={DUEL_ACCENT} />
+        </div>
+      </div>
+
+      {/* ── D-08: the prototype's bottom side-with CTA pair is intentionally CUT.
+          The old buttons opened FollowFadeModal stubs whose onSubmit was a
+          verified no-op (no transaction ever fired) — dead money CTAs are
+          banned. Riders + consensus above remain the spectator surface; real
+          follow/fade wiring on the parent call is deferred to Phase 09.1+. ── */}
+
+      {/* ── Challenge form button (non-caller viewer) — wired, guards verbatim ── */}
+      {!userIsCaller && user && (
+        <div className="row" style={{ justifyContent: 'center', marginTop: 36 }}>
+          <button
+            onClick={() => {
+              if (!liveState?.openToChallenges) {
+                setToastMsg({ text: "This caller isn't open to challenges right now.", isError: true });
+                return;
+              }
+              setIsChallengeFormOpen(true);
+            }}
+            className="btn duel"
+            style={{ minHeight: 44, width: isMobile ? '100%' : undefined }}
+          >
+            ⚔ CHALLENGE {displayCallerHandle}
+          </button>
+        </div>
       )}
 
+      {/* ── Modals — ChallengeFormModal only (the wired one) ─────────────────── */}
       <ChallengeFormModal
         open={isChallengeFormOpen}
         onClose={() => setIsChallengeFormOpen(false)}
