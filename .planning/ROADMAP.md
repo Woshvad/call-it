@@ -368,11 +368,11 @@ Plans:
 **Requirements**: TBD (UI restyle of existing requirement surfaces; no new mechanical requirements)
 **Depends on:** Phase 9
 **Research:** 09.2-RESEARCH.md (compatibility audit, 2026-06-10 8-agent sweep: variant canon, token delta, screen-by-screen REUSE/PARTIAL/NEW-BUILD map, wiring-risk register, adoption sequence)
-**Plans:** 15 plans
+**Plans:** 1/15 plans executed
 Plans:
 **Wave 1**
 
-- [ ] 09.2-01-PLAN.md — Wave 1: foundations — prototype :root tokens + brutal-* primitive classes into globals.css, next/font Archivo/Inter/JBM, tailwind.preset.ts + COLOR_MAP remap (D-01/D-02/D-03/D-04)
+- [x] 09.2-01-PLAN.md — Wave 1: foundations — prototype :root tokens + brutal-* primitive classes into globals.css, next/font Archivo/Inter/JBM, tailwind.preset.ts + COLOR_MAP remap (D-01/D-02/D-03/D-04)
 
 **Wave 2** *(blocked on Wave 1 completion)*
 

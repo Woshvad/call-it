@@ -4,13 +4,13 @@ milestone: v1.1
 milestone_name: milestone
 status: executing
 stopped_at: Phase 09.2 UI-SPEC approved
-last_updated: "2026-06-10T11:33:15.398Z"
-last_activity: "2026-06-10 - Completed quick task 260610-f6s (--validate): polished the CONNECT SOCIALS linked state (full-width "✓ @username linked" indicators) AND fixed the Farcaster "Connecting…" infinite hang (surface the Warpcast QR/redirect via useSignIn `url` + timeout, never hangs) — 1 file SocialLinkControls.tsx, committed 1bc4e55, verifier 8/8 (human_needed = live Warpcast scan only), not pushed (operator deploys web via Vercel)"
+last_updated: "2026-06-10T11:46:14.520Z"
+last_activity: 2026-06-10 -- Phase 09.2 execution started
 progress:
   total_phases: 16
   completed_phases: 11
-  total_plans: 83
-  completed_plans: 83
+  total_plans: 98
+  completed_plans: 84
   percent: 69
 ---
 
@@ -21,12 +21,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-21)
 
 **Core value:** Every call is permanent, public, and tied to identity. The receipt — created, settled, and shared — must be unfakeable, undeletable, and visually unmistakable.
-**Current focus:** Phase 09 — mobile-responsive-on-7-critical-pages
+**Current focus:** Phase 09.2 — prototype-design-adoption-rebuild-apps-web-ui-to-the-call-it
 
 ## Current Position
 
-Phase: 09.2 (prototype-design-adoption) — INSERTED, not yet planned (runs before 09.1)
-Plan: Not started
+Phase: 09.2 (prototype-design-adoption-rebuild-apps-web-ui-to-the-call-it) — EXECUTING
+Plan: 2 of 15
 
 > **Strategic pivot (2026-06-09):** Mainnet is PAUSED till further notice. Phases **10 (mainnet deploy gate)** and **10.5 (mainnet multisig lockdown)** are ON HOLD. Active focus is **Phase 09.1 — Testnet Demo Hardening**: make the full product demo-perfect end-to-end on the live Arbitrum Sepolia deployment. Next: `/gsd-discuss-phase 09.1`.
 
@@ -37,7 +37,7 @@ Plan: Not started
 > **Phase 01.5 status (2026-06-07):** ✅ **ALL 5 plans COMPLETE** — **01.5-02** (relayer social-link service), **01.5-03** (VerifiedBadge + AUTH-10 invariant), **01.5-04** (link/unlink UI + AuthKitProvider + opt-in), **01.5-05** (FEED sections — complete-with-documented-deferral: X/Neynar keys deferred, AUTH-14 live data dormant until keys set; AUTH-15/16/17/18 satisfied + tested), and **01.5-01** (env surface + setRelayer). **setRelayer gate CLEARED on-chain (2026-06-07):** derived oauth-proof KMS `0xdFc80922FAbc51a08350c0b371917e6EaB8b550A` (scaffold `9b41f0f`), funded 0.05 ETH, operator broadcast `setRelayer` from treasury `0xDa8c5726`; verified `relayer()` == `0xdFc80922…` (was `0x0`), `owner()` unchanged. `RELAYER_OAUTH_PROOF_ADDRESS` set in local `.env.local`. **Remaining follow-ups (non-gating):** (1) deployed Fly relayer `fly secrets set RELAYER_OAUTH_PROOF_ADDRESS=0xdFc80922… -a call-it-relayer-sepolia` — deferred to avoid restarting the relayer mid Phase-6 soak; (2) X API + Neynar key provisioning to activate live feed data. **Local DB:** ✅ provisioned `callit-postgres` (127.0.0.1:5434), all 6 migrations applied (`follow_graph` + `social_link_index`). **Phase ✅ VERIFIED + COMPLETE (2026-06-07)** — goal-backward verification PASSED: 4/4 ROADMAP success criteria, 11/11 requirements (8 PASS, 3 documented deferrals: AUTH-14 live X data, live FC data, Fly secret), 0 FAILs (see `01.5-VERIFICATION.md`). Full relayer suite 189✓/1 skipped; relayer+web+ui+shared builds 0.
 
 > **⚡ CURRENT REALITY (2026-06-07) — owner-key-recovery cluster, supersedes the 06-02 and 06-05 clusters below.** A 2026-06-06 owner-key-recovery REDEPLOY (block 274393587) moved all 5 contracts to owner = treasury `0xDa8c5726f596E8dae99e6dDEBa8AEa1c8bE9A4a5` (a key the operator HOLDS = `SOAK_WALLET_0` = root `.env` `DEPLOYER_PRIVATE_KEY`), recovering from the lost `0xF4ee6195` owner key. **Canonical Sepolia cluster (on-chain owner-verified 2026-06-07):** PR `0xF66C0AFEf03b43338FC5aE282e45C0Cf6A3c4820` · CR `0xc79bB19dBCA44D8b467b9f7bbb191b56e9fb3CB0` · FFM `0x188Db2970A46D1541EB712A2302e4a9F67740d82` · CE `0xC738dBcDBC3aCDCF7E25EB9B7E15bB3911aFf5e6` · SM `0x2E26eEb3b4CC9FA49B543846ea2E01B7600897e7`. Stylus proxy `0xe7e15980C40db52BFC6dcaBb21B3d90edFB27c14` (Phase 5, NOT redeployed). Subgraph `call-it-sepolia` v0.8.0 indexes this cluster. Relayer LIVE (Fly `/health` ok 2026-06-07). **SAFETY-22/23/24/25/27/42 are ALL PROVEN on the recovery cluster:** SAFETY-22/23/24 re-proven 2026-06-06 (calls 1–12, 30 follow/fade, 6 settles "CALLED IT", 0 failed; globalRep persists); SAFETY-25 caller-exit proven 2026-06-07 (`callerExit(12)` from treasury, tx `0xc5dc9a04…`, CallerExited event, $3.55 USDC returned, globalRep 100→76 verified); SAFETY-27 raise+resolve proven 2026-06-06 on call #1 (`SM.disputes(1).resolved=true`, disputer treasury, $5 bond); SAFETY-42 Stylus destruction drill proven 2026-06-06 on call #11 (reverting engine → RepCalculatedFallback → engine restored to `0xe7e15980`). **SUPERSEDED / DEAD (reference only):** the 06-05 lost-key cluster (CR `0xb864308D…` / SM `0x9235003d…` / PR `0xE82308B3…`, owner `0xF4ee6195` — key LOST) and the 06-02 cluster (CR `0x015758Cb…`) — neither is current. See `evidence/phase-6-soak/SOAK-STATUS-SNAPSHOT-2026-06-07.md` for the live status sheet + operator command checklist.
-Last activity: 2026-06-10 - Completed quick task 260610-f6s (--validate): polished the CONNECT SOCIALS linked state (full-width "✓ @username linked" indicators) AND fixed the Farcaster "Connecting…" infinite hang (surface the Warpcast QR/redirect via useSignIn `url` + timeout, never hangs) — 1 file SocialLinkControls.tsx, committed 1bc4e55, verifier 8/8 (human_needed = live Warpcast scan only), not pushed (operator deploys web via Vercel)
+Last activity: 2026-06-10 -- Phase 09.2 execution started
 
 **CI-safe code built this session (on master):**
 
@@ -170,6 +170,7 @@ All 3 operator actions were run this session (user explicitly authorized "run al
 | Phase 09 P05 | 9min | 3 tasks | 4 files |
 | Phase 09 P06 | 9min | 2 tasks | 8 files |
 | Phase 09 P07 | 4min | 2 tasks | 4 files |
+| Phase 09.2 P01 | 9min | 3 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -336,6 +337,8 @@ completed: 2026-05-29
 - [Phase ?]: [Phase 09]: 09-03: settled + live 4-stat rows stack 2x2 via flexWrap+flex:'1 1 45%' (NOT display:grid); dividers preserved via index-parity borderRight + top-row borderBottom; data-outcome-word + data-receipt-action-row hooks added
 - [Phase ?]: [Phase 09]: 09-04: DesktopOnlyBanner mounted on ALL 3 /new returns (new-call, ?quote= composer, quote-success) + BOTH /duel returns (loading + main) via React fragments; normal-flow (not overlay) pushes content down and never blocks the 09-02 hamburger exit (D-08/SC2/UI-50)
 - [Phase 09]: 09-06: clamp sign-in 400px column + onboarding 480px frame to calc(100vw-32px) at mobile (UI-48); >=44px touch targets on 5 onboarding subroutes via mobile-only minHeight (D-03), with the real sub-44px gaps fixed in shared SocialLinkControls + PrivyFundButton
+- [Phase 09.2-01]: Donor .uppercase utility not ported (collides with Tailwind .uppercase; would globally add letter-spacing)
+- [Phase 09.2-01]: OUTCOME_CONTRARIAN literal #E8F542 (D-03) while preset key outcome-contrarian stays var(--accent-duel) for duel identity
 
 ## Performance
 
@@ -491,6 +494,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-06-10T11:00:20.280Z
+Last session: 2026-06-10T11:45:36.066Z
 Stopped at: Phase 09.2 UI-SPEC approved
 Resume file: .planning/phases/09.2-prototype-design-adoption-rebuild-apps-web-ui-to-the-call-it/09.2-UI-SPEC.md
