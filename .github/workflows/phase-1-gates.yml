@@ -161,10 +161,10 @@ jobs:
             --exclude-dir=node_modules --exclude-dir=dist --exclude-dir=.next \
             --exclude-dir=.turbo --exclude-dir=out --exclude-dir=target \
             . 2>/dev/null \
-            | grep -v "packages/shared/src/constants/usdc.ts" \
-            | grep -v "packages/shared/test/usdc.test.ts" \
-            | grep -v "packages/contracts/src/constants/USDC.sol" \
-            | grep -v "packages/contracts/test/USDC.t.sol" || true)
+            | grep -vF "packages/shared/src/constants/usdc.ts" \
+            | grep -vF "packages/shared/test/usdc.test.ts" \
+            | grep -vF "packages/contracts/src/constants/USDC.sol" \
+            | grep -vF "packages/contracts/test/USDC.t.sol" || true)
           if [ -n "$VIOLATIONS" ]; then
             echo "::error::Bridged USDC.e address found outside the canonical negative-test fixtures:"
             echo "$VIOLATIONS"
@@ -279,6 +279,9 @@ jobs:
   signin-smoke:
     name: "01-05: Sign-in smoke (3 Privy auth paths)"
     runs-on: ubuntu-latest
+    # Builds web + runs one Playwright spec — 15 min caps a hung webServer
+    # (job default is 360). Closes IN-05 from 260610-vab (quick-260611-156).
+    timeout-minutes: 15
     env:
       # Mock env vars — the Playwright tests mock the actual Privy API calls,
       # so these values only need to be non-empty strings to satisfy env schema validation.
@@ -498,10 +501,10 @@ jobs:
             --exclude-dir=node_modules --exclude-dir=dist --exclude-dir=.next \
             --exclude-dir=.turbo --exclude-dir=out --exclude-dir=target \
             . 2>/dev/null \
-            | grep -v "packages/shared/src/constants/usdc.ts" \
-            | grep -v "packages/shared/test/usdc.test.ts" \
-            | grep -v "packages/contracts/src/constants/USDC.sol" \
-            | grep -v "packages/contracts/test/USDC.t.sol" || true)
+            | grep -vF "packages/shared/src/constants/usdc.ts" \
+            | grep -vF "packages/shared/test/usdc.test.ts" \
+            | grep -vF "packages/contracts/src/constants/USDC.sol" \
+            | grep -vF "packages/contracts/test/USDC.t.sol" || true)
           if [ -n "$VIOLATIONS" ]; then
             echo "::error::Bridged USDC.e address found outside the canonical negative-test fixtures"
             echo "$VIOLATIONS"
@@ -521,11 +524,15 @@ jobs:
 
       - name: Assert NEXT_PUBLIC_NETWORK guard in env schema
         run: |
+          # Real failure path (quick-260611-156, closes IN-03 from 260610-vab):
+          # the former `::notice` + fall-through could never fail. The guard
+          # lives in apps/web/lib/privy-config.ts (network branching on
+          # testnet/mainnet) — verified present at promotion time.
           if ! grep -r "NEXT_PUBLIC_NETWORK" apps/web/src/ apps/web/app/ apps/web/lib/ 2>/dev/null | grep -q "testnet\|mainnet"; then
-            echo "::notice::NEXT_PUBLIC_NETWORK guard not found in web app — verify env schema has network validation"
-          else
-            echo "PASS: NEXT_PUBLIC_NETWORK guard present"
+            echo "::error::NEXT_PUBLIC_NETWORK guard not found in web app env schema (D-09/OPS-21 network separation)"
+            exit 1
           fi
+          echo "PASS: NEXT_PUBLIC_NETWORK guard present"
 
       # NOTE: the former step (i) (re-running wallet-export-prompt.spec.ts with its
       # own `|| echo` escape) was DELETED (quick-260610-vab): the spec now runs

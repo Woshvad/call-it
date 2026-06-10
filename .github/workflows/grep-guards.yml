@@ -26,31 +26,58 @@ jobs:
     name: Guard — USDC.e bridged address must not appear outside fixture file
     runs-on: ubuntu-latest
     steps:
+      # ubuntu-latest runners do NOT ship ripgrep. Without this install every
+      # `rg` invocation exits 127 ("command not found"), which `if rg ...; then`
+      # and `VIOLATIONS=$(rg ... || true)` both swallow as "no match" — the
+      # entire job was green-but-vacuous from creation until quick-260611-156
+      # (evidence: run 27308922117). apt-get update is kept: stale package
+      # indexes on Azure mirrors cause intermittent 404s without it.
+      - name: Install ripgrep
+        run: sudo apt-get update && sudo apt-get install -y ripgrep
+
       - name: Checkout repository
         uses: actions/checkout@v5
 
       - name: Check for bridged USDC.e address (0xff970a61)
         run: |
+          command -v rg >/dev/null || { echo "::error::ripgrep missing on runner — install step failed or was removed"; exit 1; }
           # The bridged USDC.e address (0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8) must ONLY
-          # appear inside packages/shared/src/constants/usdc.ts (the documented negative-test
-          # fixture). Any other occurrence indicates a dangerous hardcoded wrong USDC address.
+          # appear inside the documented negative-test fixtures (mirrors the
+          # phase-1-gates usdc-paste-guard allowlist, quick-260610-vab):
+          #   packages/shared/src/constants/usdc.ts (canonical negative-test constant)
+          #   packages/shared/test/usdc.test.ts     (asserts that constant's value)
+          # Any other occurrence indicates a dangerous hardcoded wrong USDC address.
+          # If matches are found outside the allowlist, the build FAILS.
           #
-          # Whitelist: exactly ONE file is allowed to contain this address.
-          # If matches found outside the whitelist, the build FAILS.
+          # File selection uses pure positive globs (NOT --type + --glob): ripgrep
+          # ANDs type filters with positive globs, so the original
+          # `--type ts --type js --glob '**/*.rs'` selected NOTHING — proven by a
+          # planted-address negative test (quick-260611-156).
           #
-          # Case-insensitive match on the first 10 hex chars (0xff970a61) which uniquely
-          # identifies USDC.e regardless of checksum casing.
+          # Case-insensitive match on the first 10 hex chars (0xff970a61) plus at
+          # least one continuation hex char — mirrors the phase-1-gates pattern
+          # `0xFF970A61[A-Fa-f0-9]+`. The continuation char keeps guard
+          # self-references (the bare prefix in scripts/phase-0-smoke.ts's embedded
+          # command string and apps/web/tests/onboarding.spec.ts's negative-assertion
+          # regex) from false-positiving; any real paste of the bridged address has
+          # 30 more hex chars and always trips.
           if rg --hidden --no-ignore \
-              --type ts --type js \
+              --glob '**/*.ts' \
+              --glob '**/*.tsx' \
+              --glob '**/*.js' \
+              --glob '**/*.jsx' \
+              --glob '**/*.mjs' \
+              --glob '**/*.cjs' \
               --glob '**/*.rs' \
               --glob '!packages/shared/src/constants/usdc.ts' \
+              --glob '!packages/shared/test/usdc.test.ts' \
               --glob '!**/node_modules/**' \
               --glob '!**/out/**' \
               --glob '!**/.next/**' \
               --glob '!**/target/**' \
               --glob '!**/.turbo/**' \
               --glob '!**/dist/**' \
-              --ignore-case '0xff970a61' \
+              --ignore-case '0xff970a61[0-9a-f]' \
               .; then
             echo "::error::Bridged USDC.e address (0xFF970A61...) found outside the documented negative-test fixture."
             echo "::error::Legal location: packages/shared/src/constants/usdc.ts only."
@@ -61,13 +88,21 @@ jobs:
 
       - name: Check for bridged USDC.e address in Solidity files
         run: |
-          # Separate check for .sol files (rg --type sol not supported; use glob)
+          command -v rg >/dev/null || { echo "::error::ripgrep missing on runner — install step failed or was removed"; exit 1; }
+          # Separate check for .sol files (rg --type sol not supported; use glob).
+          # Allowlisted negative-test fixtures (mirrors the phase-1-gates
+          # usdc-paste-guard allowlist, quick-260610-vab):
+          #   packages/contracts/src/constants/USDC.sol (WARNING comment naming the bad address)
+          #   packages/contracts/test/USDC.t.sol        (negative-test constant)
+          # Pattern requires a continuation hex char — see the ts/js/rs step comment.
           if rg --hidden --no-ignore \
               --glob '**/*.sol' \
+              --glob '!packages/contracts/src/constants/USDC.sol' \
+              --glob '!packages/contracts/test/USDC.t.sol' \
               --glob '!**/node_modules/**' \
               --glob '!**/out/**' \
               --glob '!**/target/**' \
-              --ignore-case '0xff970a61' \
+              --ignore-case '0xff970a61[0-9a-f]' \
               .; then
             echo "::error::Bridged USDC.e address found in a Solidity file."
             echo "::error::Use native USDC: 0xaf88d065e77c8cC2239327C5EDb3A432268e5831 (SAFETY-13)"
@@ -77,6 +112,7 @@ jobs:
 
       - name: USDC address allowlist (mainnet + Circle Sepolia only)
         run: |
+          command -v rg >/dev/null || { echo "::error::ripgrep missing on runner — install step failed or was removed"; exit 1; }
           # Phase 6 addition (ADR-0001): enforce the 2-address USDC allowlist.
           # Forbid any USDC-like address that is NOT in {USDC_ARB_NATIVE, USDC_ARB_SEPOLIA}.
           # Note: the USDC.e absolute-forbid guard above remains UNCHANGED -- still forbidden.
@@ -108,11 +144,17 @@ jobs:
     name: Guard — All Solidity pragmas must be exactly =0.8.30
     runs-on: ubuntu-latest
     steps:
+      # See the usdc-paste job comment: ubuntu-latest does not ship ripgrep;
+      # without this the rg check exits 127 and reads as green (quick-260611-156).
+      - name: Install ripgrep
+        run: sudo apt-get update && sudo apt-get install -y ripgrep
+
       - name: Checkout repository
         uses: actions/checkout@v5
 
       - name: Check Solidity pragma pins
         run: |
+          command -v rg >/dev/null || { echo "::error::ripgrep missing on runner — install step failed or was removed"; exit 1; }
           # Every .sol file must use `pragma solidity =0.8.30;` (exact, not ^0.8.x).
           # The 0.8.28-0.8.33 range contains a high-severity IR storage-clearing bug.
           # See CLAUDE.md "What NOT to Use" and SAFETY-12.
