@@ -368,7 +368,7 @@ Plans:
 **Requirements**: TBD (UI restyle of existing requirement surfaces; no new mechanical requirements)
 **Depends on:** Phase 9
 **Research:** 09.2-RESEARCH.md (compatibility audit, 2026-06-10 8-agent sweep: variant canon, token delta, screen-by-screen REUSE/PARTIAL/NEW-BUILD map, wiring-risk register, adoption sequence)
-**Plans:** 5/15 plans executed
+**Plans:** 6/15 plans executed
 Plans:
 **Wave 1**
 
@@ -383,7 +383,7 @@ Plans:
 
 - [x] 09.2-04-PLAN.md — Wave 3: leaderboard restyle (hero + brutal-table, D-07 degradation, D-08 cuts) + leaderboard.spec lockstep
 - [x] 09.2-05-PLAN.md — Wave 3: profile restyle (fake 60% bars removed, no-source sections hidden) + ProfileHeader retheme + spec lockstep
-- [ ] 09.2-06-PLAN.md — Wave 3: feed restyle (CallCard, Live/Settled tabs only, FROM YOUR X divider, NOTHING ON THE TAPE empty state)
+- [x] 09.2-06-PLAN.md — Wave 3: feed restyle (CallCard, Live/Settled tabs only, FROM YOUR X divider, NOTHING ON THE TAPE empty state)
 
 **Wave 4** *(blocked on Wave 3 completion)*
 
