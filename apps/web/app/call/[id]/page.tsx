@@ -60,11 +60,9 @@ import { usePrivy } from '@privy-io/react-auth';
 import { useAccount, useReadContracts, useReadContract, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
 import Link from 'next/link';
 import {
-  MarketPositioningBar,
   FollowFadeModal,
   CallerExitModal,
   PositionExitModal,
-  Receipt,
   Stamp,
 } from '@call-it/ui';
 import {
@@ -1050,6 +1048,34 @@ function formatUtc(sec: bigint | number): string {
   return `${new Date(Number(sec) * 1000).toISOString().slice(0, 16).replace('T', ' ')} UTC`;
 }
 
+/**
+ * LiveCountdown (09.2-09) — prototype Countdown recipe (`call it frontend/
+ * components.jsx:105-121`): D HH:MM:SS in JetBrains Mono, ticking 1s.
+ * DISPLAY-ONLY component over the existing `expiry` field — no data/handler
+ * logic (D-05: markup donor only).
+ */
+function LiveCountdown({ expiry }: { expiry: bigint }) {
+  const [nowMs, setNowMs] = useState(() => Date.now());
+  useEffect(() => {
+    const t = setInterval(() => setNowMs(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, []);
+  const s = Math.max(0, Number(expiry) - Math.floor(nowMs / 1000));
+  if (s === 0) {
+    return <span className="mono">Expired</span>;
+  }
+  const d = Math.floor(s / 86400);
+  const h = Math.floor((s % 86400) / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const sec = s % 60;
+  return (
+    <span className="mono" style={{ letterSpacing: '0.04em' }}>
+      {d > 0 ? `${d}d ` : ''}
+      {String(h).padStart(2, '0')}:{String(m).padStart(2, '0')}:{String(sec).padStart(2, '0')}
+    </span>
+  );
+}
+
 // ─── Page component ───────────────────────────────────────────────────────────
 
 export default function CallPage() {
@@ -1957,9 +1983,14 @@ export default function CallPage() {
     );
   }
 
-  // ─── Render ───────────────────────────────────────────────────────────────
+  // ─── LIVE RECEIPT RENDER (09.2-09 — prototype ReceiptLiveScreen skin) ──────
+  // Markup donor: `call it frontend/screens/receipt.jsx` ReceiptLiveScreen over
+  // the UNTOUCHED data/handler block above. CTAs open the EXISTING amount-based
+  // modals (D-06). Data with no live source is HIDDEN/CUT, never faked (D-07/
+  // D-08): the prototype's dead controls and the caller accuracy/streak header
+  // stats have no source on this page. Handles only (AUTH-44).
   return (
-    <div style={{ backgroundColor: '#09090E', minHeight: '100vh', padding: '0' }}>
+    <div>
       {/* 08-06 GAP 2: signal ready() so the Mini App host reveals this LIVE receipt
           (renders null). enabled keyed off callData so the host shows real content.
           The read-only receipt body below renders WITHOUT a connected wallet — only the
@@ -1967,450 +1998,355 @@ export default function CallPage() {
           render only; in-app tap-to-transact on mainnet 42161 is Phase 10. */}
       <MiniAppReady enabled={!!callData} />
 
-      {/* ── Sticky Caller Header ────────────────────────────────────────────── */}
+      {/* ── Top meta: back to the tape + posted time (real field only, D-07) ── */}
+      <div className="spread" style={{ paddingTop: 28, paddingBottom: 18, flexWrap: 'wrap', gap: 12 }}>
+        <Link href="/" className="btn ghost" style={{ padding: '8px 0' }}>
+          ← Back to the tape
+        </Link>
+        {callData?.createdAt && callData.createdAt > 0n ? (
+          <span className="mono" style={{ fontSize: 11, color: 'var(--text-tertiary)', letterSpacing: '0.04em' }}>
+            posted {formatRelativeTime(Number(callData.createdAt))}
+          </span>
+        ) : null}
+      </div>
+
+      {/* ── LIVE HERO — bracketed brutal card (prototype ReceiptLiveScreen) ── */}
       <div
-        style={{
-          position: 'sticky',
-          top: 0,
-          zIndex: 30,
-          backgroundColor: '#09090E',
-          borderBottom: '2px solid #2E2E42',
-          padding: isMobile ? '12px 16px' : '12px 24px',
-        }}
+        className="brutal-card hero bracketed"
+        style={{ padding: isMobile ? 24 : 36, position: 'relative', opacity: isCallerExited ? 0.95 : 1 }}
       >
-        {/* CALLER EXITED amber banner — SOCIAL-25 */}
+        <span className="br-bl" />
+        <span className="br-br" />
+
+        {/* CALLER EXITED warning banner — SOCIAL-25 (real exit fields only, D-07) */}
         {isCallerExited && (
           <div
             style={{
-              display: 'flex',
-              flexDirection: 'row',
-              alignItems: 'center',
-              gap: '8px',
-              marginBottom: '10px',
-              padding: '10px 14px',
-              border: '3px solid #FB923C',
-              boxShadow: '4px 4px 0 #FB923C',
-              backgroundColor: 'rgba(251, 146, 60, 0.06)',
+              margin: isMobile ? '-24px -24px 24px' : '-36px -36px 28px',
+              padding: isMobile ? '14px 24px' : '16px 36px',
+              background: 'rgba(251,146,60,0.08)',
+              borderBottom: '2px solid var(--accent-warning)',
             }}
           >
-            <span style={{ fontFamily: 'monospace', fontSize: '13px', fontWeight: 700, color: '#FB923C', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+            <div
+              className="mono"
+              style={{ fontSize: 12, color: 'var(--accent-warning)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em' }}
+            >
               CALLER EXITED
-            </span>
-            {callData?.callerExitedAt && (
-              <span style={{ fontFamily: 'monospace', fontSize: '12px', color: '#94A3B8' }}>
-                · {displayHandle} exited {formatRelativeTime(Number(callData.callerExitedAt))} before settlement
-                {callData.callerExitedPenalty ? ` · ${formatUsdc(callData.callerExitedPenalty)} slashed` : ''}
-              </span>
-            )}
+              {callData?.callerExitedAt ? ` · ${formatRelativeTime(Number(callData.callerExitedAt))}` : ''}
+              {callData?.callerExitedPenalty ? ` · ${formatUsdc(callData.callerExitedPenalty)} slashed` : ''}
+            </div>
+            <div style={{ fontSize: 12.5, color: 'var(--text-secondary)', marginTop: 2 }}>
+              The caller is no longer in this market. The call still settles at expiry.
+            </div>
           </div>
         )}
 
-        <div style={{
-          display: 'flex', flexDirection: 'row', justifyContent: 'space-between',
-          alignItems: 'center', flexWrap: isMobile ? 'wrap' : 'nowrap', gap: isMobile ? '8px' : undefined,
-        }}>
-          {/* Left: back link + handle */}
-          <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: isMobile ? '10px' : '16px', flexWrap: 'wrap', minWidth: 0 }}>
-            <Link href="/" style={{ fontFamily: 'monospace', fontSize: '12px', color: '#94A3B8', textDecoration: 'none' }}>
-              ← Back to feed
-            </Link>
-            <span style={{ fontFamily: 'monospace', fontSize: '16px', fontWeight: 700, color: '#E8E8E8' }}>
-              {displayHandle}
+        {/* Header identity row — handle only (AUTH-44). Caller accuracy/streak
+            header stats have NO source on this page → HIDDEN (D-07; no extra
+            profile fetch added). The prototype's eye-icon header button has no
+            backing feature → CUT (D-08); its unwired Share twin (no live-call
+            share wiring exists) is cut with it — settled receipts carry the
+            real share intents (D-09). */}
+        <div className="spread" style={{ marginBottom: 24, alignItems: 'flex-start', flexWrap: 'wrap', gap: 14 }}>
+          <div className="row" style={{ gap: 14 }}>
+            <span className={`avatar lg ${avatarGradClass(displayHandle)}`} aria-hidden="true">
+              {(displayHandle.replace(/^[@#]/, '')[0] ?? '?').toUpperCase()}
             </span>
-            <span style={{ fontFamily: 'monospace', fontSize: '12px', color: '#E8F542' }}>
-              {displayRepScore} rep
-            </span>
-            {/* VERIFIED badge (Phase 1.5 stub) */}
+            <div className="col" style={{ gap: 6 }}>
+              <span style={{ fontFamily: 'var(--font-display)', fontSize: 24, fontWeight: 900, letterSpacing: '-0.02em' }}>
+                {displayHandle}
+              </span>
+              <span className="mono" style={{ fontSize: 11, color: 'var(--accent-win)' }}>
+                {displayRepScore} rep
+              </span>
+            </div>
           </div>
-
-          {/* Right: Watch + Share */}
-          <div style={{ display: 'flex', flexDirection: 'row', gap: '8px', alignItems: 'center' }}>
-            <button
-              style={{
-                fontFamily: 'monospace',
-                fontSize: '12px',
-                color: '#94A3B8',
-                backgroundColor: 'transparent',
-                border: '2px solid #2E2E42',
-                padding: '6px 12px',
-                cursor: 'pointer',
-              }}
-            >
-              Watch
-            </button>
-            <button
-              style={{
-                fontFamily: 'monospace',
-                fontSize: '12px',
-                fontWeight: 700,
-                color: '#09090E',
-                backgroundColor: '#E8F542',
-                border: '2px solid #09090E',
-                boxShadow: '3px 3px 0 0 #09090E',
-                padding: '6px 12px',
-                cursor: 'pointer',
-              }}
-            >
-              Share ↗
-            </button>
+          <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
+            {callData?.status === 'Live' && (
+              <span className="pill win">
+                <span className="live-dot" />
+                LIVE
+              </span>
+            )}
+            {callData?.criteriaHash && <span className="pill win">VERIFIED CRITERIA</span>}
           </div>
         </div>
 
-        {/* Caller exit control — only shown to the caller (SOCIAL-49) */}
-        {userIsCaller && (
-          <div style={{ marginTop: '8px' }}>
-            {callerLockPassed ? (
-              <button
-                onClick={() => setIsCallerExitModalOpen(true)}
-                style={{
-                  fontFamily: 'monospace',
-                  fontSize: '12px',
-                  color: '#FB923C',
-                  backgroundColor: 'transparent',
-                  border: 'none',
-                  cursor: 'pointer',
-                  padding: 0,
-                  textDecoration: 'underline',
-                }}
-              >
-                Exit your call · current penalty: {callerPenaltyPct}%
-              </button>
-            ) : (
-              <span style={{ fontFamily: 'monospace', fontSize: '12px', color: '#94A3B8' }}>
-                Exit locked for {formatTimeLeft(callerLockExpires)} more. Callers cannot exit during the first 24 hours.
-              </span>
-            )}
-          </div>
-        )}
-      </div>
-
-      {/* ── Page content ───────────────────────────────────────────────────── */}
-      <div style={isMobile
-        ? { width: '100%', maxWidth: '100%', margin: '0 auto', padding: '0 16px' }
-        : { maxWidth: '1024px', margin: '0 auto', padding: '24px' }}>
-
-        {/* ── THE CALL Hero ────────────────────────────────────────────────── */}
+        {/* THE CALL overline + market statement (.h-statement Archivo voice;
+            28px desktop / 22px mobile per plan) */}
+        <div className="label-overline" style={{ marginBottom: 16 }}>
+          THE CALL · {displayCategory.toUpperCase()}
+        </div>
         <div
-          style={{
-            position: 'relative',
-            border: '3px solid #2E2E42',
-            boxShadow: '6px 6px 0 0 #E8F542',
-            padding: '28px',
-            marginBottom: '24px',
-            backgroundColor: '#0D0D18',
-            opacity: isCallerExited ? 0.9 : 1,
-          }}
+          className="h-statement"
+          style={{ fontSize: isMobile ? 22 : 28, margin: '0 0 24px', maxWidth: '24ch', opacity: isCallerExited ? 0.8 : 1 }}
         >
-          {/* Category label */}
-          <div style={{ display: 'flex', flexDirection: 'row', gap: '8px', marginBottom: '12px', alignItems: 'center' }}>
-            <span style={{ fontFamily: 'monospace', fontSize: '11px', color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.12em' }}>
-              THE CALL · {displayCategory}
-            </span>
-            {callData?.criteriaHash && (
-              <span
-                style={{
-                  fontFamily: 'monospace',
-                  fontSize: '10px',
-                  fontWeight: 700,
-                  color: '#E8F542',
-                  border: '1px solid #E8F542',
-                  padding: '2px 6px',
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.08em',
-                }}
-              >
-                VERIFIED CRITERIA
-              </span>
-            )}
-          </div>
+          {displayMarketLine}
+        </div>
 
-          {/* Call statement hero text */}
-          <p
-            style={{
-              fontFamily: "'Syne', sans-serif",
-              fontSize: '36px',
-              fontWeight: 800,
-              color: '#E8E8E8',
-              lineHeight: 1.2,
-              margin: '0 0 20px 0',
-              opacity: isCallerExited ? 0.7 : 1,
-            }}
-          >
-            {displayMarketLine}
-          </p>
-
-          {/* Conviction display (read-only bar) */}
-          <div style={{ marginBottom: '20px', display: 'flex', flexDirection: 'row', alignItems: 'center', gap: '12px' }}>
-            <span style={{ fontFamily: 'monospace', fontSize: '11px', color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.1em', whiteSpace: 'nowrap' }}>
-              Conviction
-            </span>
-            <div style={{ flex: 1, height: '8px', backgroundColor: '#27272A', position: 'relative' }}>
-              <div
-                style={{
-                  position: 'absolute',
-                  left: 0,
-                  top: 0,
-                  height: '100%',
-                  width: `${displayConviction}%`,
-                  backgroundColor: '#E8F542',
-                }}
-              />
+        {/* Stat row — time left (JBM countdown), stake, conviction. The
+            prototype's "Current spread" oracle stat and its category-average
+            sub have NO source on this page → CUT (D-07). Wraps 2-up below
+            768px (UI-48). */}
+        <div className="row" style={{ gap: 14, marginBottom: 24, alignItems: 'stretch', flexWrap: isMobile ? 'wrap' : 'nowrap' }}>
+          <div className="stat-block" style={{ flex: isMobile ? '1 1 45%' : 1 }}>
+            <div className="stat-label">Time left</div>
+            <div className="stat-value">
+              <LiveCountdown expiry={displayExpiry} />
             </div>
-            <span style={{ fontFamily: 'monospace', fontSize: '14px', fontWeight: 700, color: '#E8F542', whiteSpace: 'nowrap' }}>
-              {displayConviction}%
-            </span>
+            <div className="stat-sub">
+              settles {new Date(Number(displayExpiry) * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+            </div>
           </div>
+          <div className="stat-block" style={{ flex: isMobile ? '1 1 45%' : 1 }}>
+            <div className="stat-label">Stake</div>
+            <div className="stat-value">{formatUsdc(displayStake)}</div>
+            <div className="stat-sub">caller&apos;s commit</div>
+          </div>
+          <div className="stat-block" style={{ flex: isMobile ? '1 1 45%' : 1 }}>
+            <div className="stat-label">Conviction</div>
+            <div className="stat-value" style={{ color: 'var(--accent-win)' }}>{displayConviction}%</div>
+            <div className="stat-sub">permanent on settle</div>
+          </div>
+        </div>
 
-          {/* 4-stat row — desktop: 4 in a row; mobile: 2×2 via flexWrap (NOT grid),
-              dividers preserved (matches the settled-receipt stat-stack treatment) */}
+          {/* Market positioning — odds split bar over the existing FFM-derived
+              followPct/fadePct (key_link: never fabricated percentages,
+              T-09.2-26) + pool stats from the live 5s-polled reserves. */}
           <div
             style={{
-              display: 'flex',
-              flexDirection: 'row',
-              flexWrap: isMobile ? 'wrap' : 'nowrap',
-              gap: '0px',
-              border: '2px solid #2E2E42',
-              marginBottom: '20px',
+              padding: isMobile ? 16 : 20,
+              background: 'var(--bg-quaternary)',
+              border: '1px solid var(--border-subtle)',
+              marginBottom: 24,
             }}
           >
-            {/* CURRENT SPREAD */}
-            <div
-              style={{
-                flex: isMobile ? '1 1 45%' : 1,
-                padding: '14px 16px',
-                borderRight: '1px solid #2E2E42',
-                borderBottom: isMobile ? '1px solid #2E2E42' : undefined,
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '4px',
-              }}
-            >
-              <span style={{ fontFamily: 'monospace', fontSize: '10px', color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
-                Current Spread
-              </span>
-              <span style={{ fontFamily: 'monospace', fontSize: '15px', fontWeight: 700, color: '#E8E8E8' }}>
-                <span style={{ color: '#E8F542' }}>{followPct}%</span> / <span style={{ color: '#F87171' }}>{fadePct}%</span>
-              </span>
+            <div className="spread" style={{ marginBottom: 12, flexWrap: 'wrap', gap: 10 }}>
+              <div>
+                <div className="label-overline">Market positioning</div>
+                <div className="row" style={{ gap: 16, marginTop: 6, alignItems: 'baseline' }}>
+                  <span
+                    style={{ fontFamily: 'var(--font-display)', fontSize: 28, fontWeight: 900, letterSpacing: '-0.03em', color: 'var(--accent-win)' }}
+                  >
+                    {followPct}%
+                  </span>
+                  <span className="mono" style={{ fontSize: 11, color: 'var(--text-tertiary)', letterSpacing: '0.08em', fontWeight: 700 }}>
+                    FOLLOW
+                  </span>
+                  <span style={{ color: 'var(--text-muted)' }}>·</span>
+                  <span
+                    style={{ fontFamily: 'var(--font-display)', fontSize: 28, fontWeight: 900, letterSpacing: '-0.03em', color: 'var(--accent-loss)' }}
+                  >
+                    {fadePct}%
+                  </span>
+                  <span className="mono" style={{ fontSize: 11, color: 'var(--text-tertiary)', letterSpacing: '0.08em', fontWeight: 700 }}>
+                    FADE
+                  </span>
+                </div>
+              </div>
             </div>
-            {/* TIME LEFT */}
-            <div
-              style={{
-                flex: isMobile ? '1 1 45%' : 1,
-                padding: '14px 16px',
-                borderRight: isMobile ? undefined : '1px solid #2E2E42',
-                borderBottom: isMobile ? '1px solid #2E2E42' : undefined,
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '4px',
-              }}
-            >
-              <span style={{ fontFamily: 'monospace', fontSize: '10px', color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
-                Time Left
-              </span>
-              <span style={{ fontFamily: 'monospace', fontSize: '15px', fontWeight: 700, color: '#E8E8E8' }}>
-                {formatTimeLeft(displayExpiry)}
-              </span>
+
+            {/* Odds split — .brutal-bar.split (win/loss fills, 2px black gap,
+                0.4s fill transition from the class recipe) */}
+            <div className="brutal-bar split" role="img" aria-label={`${followPct}% follow`}>
+              <div className="follow" style={{ flexBasis: `${followPct}%` }} />
+              <div className="gap" />
+              <div className="fade" style={{ flexBasis: `${fadePct}%` }} />
             </div>
-            {/* STAKE */}
-            <div
-              style={{
-                flex: isMobile ? '1 1 45%' : 1,
-                padding: '14px 16px',
-                borderRight: '1px solid #2E2E42',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '4px',
-              }}
-            >
-              <span style={{ fontFamily: 'monospace', fontSize: '10px', color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
-                Stake
-              </span>
-              <span style={{ fontFamily: 'monospace', fontSize: '15px', fontWeight: 700, color: '#E8E8E8' }}>
-                {formatUsdc(displayStake)}
-              </span>
-            </div>
-            {/* CONVICTION */}
-            <div
-              style={{
-                flex: isMobile ? '1 1 45%' : 1,
-                padding: '14px 16px',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '4px',
-              }}
-            >
-              <span style={{ fontFamily: 'monospace', fontSize: '10px', color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
-                Conviction
-              </span>
-              <span style={{ fontFamily: 'monospace', fontSize: '15px', fontWeight: 700, color: '#E8F542' }}>
-                {displayConviction}%
-              </span>
+
+            {/* Pool stats — existing FFM reserve/position derivations; the
+                "your position" block renders ONLY when the viewer holds one
+                (D-07: null fields hidden). Positions COUNT has no source →
+                not rendered (D-07). */}
+            <div className="row" style={{ gap: 14, marginTop: 14, alignItems: 'stretch', flexWrap: isMobile ? 'wrap' : 'nowrap' }}>
+              <div className="stat-block" style={{ flex: isMobile ? '1 1 45%' : 1 }}>
+                <div className="stat-label">Follow pool</div>
+                <div className="stat-value" style={{ fontSize: 16, color: 'var(--accent-win)' }}>{formatUsdc(followReserve)}</div>
+              </div>
+              <div className="stat-block" style={{ flex: isMobile ? '1 1 45%' : 1 }}>
+                <div className="stat-label">Fade pool</div>
+                <div className="stat-value" style={{ fontSize: 16, color: 'var(--accent-loss)' }}>{formatUsdc(fadeReserve)}</div>
+              </div>
+              <div className="stat-block" style={{ flex: isMobile ? '1 1 45%' : 1 }}>
+                <div className="stat-label">Total pot</div>
+                <div className="stat-value" style={{ fontSize: 16 }}>{formatUsdc(total)}</div>
+              </div>
+              {(userIsFollower || userIsFader) && (
+                <div className="stat-block" style={{ flex: isMobile ? '1 1 45%' : 1 }}>
+                  <div className="stat-label">Your position</div>
+                  <div className="stat-value" style={{ fontSize: 16 }}>{formatUsdc(userPositionValue)}</div>
+                  <div className="stat-sub">{userIsFollower ? 'following' : 'fading'}</div>
+                </div>
+              )}
             </div>
           </div>
 
-          {/* Market Positioning Bar (live — D-07) */}
-          <div style={{ marginBottom: '20px' }}>
-            <MarketPositioningBar
-              followReserve={followReserve}
-              fadeReserve={fadeReserve}
-              showPoolSizes
-            />
-          </div>
-
-          {/* ── 3 Action Buttons ─────────────────────────────────────────────
-              Desktop: 3 in a row. Mobile: full-width stacked (column), each ≥44px
-              tall (padding 14px ⇒ ~46px). Preserve filled/outline/orange treatments. */}
+          {/* ── CTA row — each opens the EXISTING amount-based modal via the
+              existing setter (D-06; T-09.2-24 handler-identifier gate). Mobile:
+              full-width stacked column, .btn.big ≥44px targets (UI-48). The
+              CHALLENGE CTA renders only when the caller is open to challenges
+              (existing gate — no dead button, D-08); the inline guard logic is
+              kept verbatim. */}
           <div
+            data-receipt-action-row
             style={{
               display: 'flex',
               flexDirection: isMobile ? 'column' : 'row',
-              gap: isMobile ? '12px' : '8px',
-              marginBottom: '20px',
+              gap: 12,
+              marginBottom: 24,
             }}
           >
-            {/* FOLLOW — filled accent yellow-green */}
+            {/* FOLLOW — cream press-physics CTA */}
             <button
               onClick={() => { if (user) setIsFollowModalOpen(true); }}
-              style={{
-                flex: isMobile ? undefined : 1,
-                width: isMobile ? '100%' : undefined,
-                fontFamily: 'monospace',
-                fontSize: '13px',
-                fontWeight: 700,
-                color: '#09090E',
-                backgroundColor: '#E8F542',
-                border: '2px solid #09090E',
-                boxShadow: '4px 4px 0 0 #09090E',
-                padding: '14px 16px',
-                cursor: 'pointer',
-                textTransform: 'uppercase',
-                letterSpacing: '0.08em',
-              }}
+              className="btn cream big"
+              style={{ flex: isMobile ? undefined : 1.2, width: isMobile ? '100%' : undefined }}
             >
-              Follow this call
+              ↗ FOLLOW THIS CALL
             </button>
-            {/* FADE — outline dark */}
+            {/* FADE — loss outline */}
             <button
               onClick={() => { if (user) setIsFadeModalOpen(true); }}
-              style={{
-                flex: isMobile ? undefined : 1,
-                width: isMobile ? '100%' : undefined,
-                fontFamily: 'monospace',
-                fontSize: '13px',
-                fontWeight: 700,
-                color: '#F87171',
-                backgroundColor: 'transparent',
-                border: '2px solid #F87171',
-                boxShadow: '4px 4px 0 0 #F87171',
-                padding: '14px 16px',
-                cursor: 'pointer',
-                textTransform: 'uppercase',
-                letterSpacing: '0.08em',
-              }}
+              className="btn fade big"
+              style={{ flex: isMobile ? undefined : 1, width: isMobile ? '100%' : undefined }}
             >
-              Fade · bet against
+              FADE · BET AGAINST
             </button>
-            {/* CHALLENGE — Phase 3 activated (Surface 6, T-3-06-02 self-challenge guard) */}
-            <button
-              onClick={() => {
-                if (!user) return;
-                // T-3-06-02: prevent self-challenge from UI
-                if (userIsCaller) {
-                  setChallengeToast({ text: "You can't challenge your own call.", isError: true });
-                  return;
-                }
-                if (!callData?.openToChallenges) {
-                  setChallengeToast({ text: "This caller isn't open to challenges right now.", isError: true });
-                  return;
-                }
-                setIsChallengeFormOpen(true);
-              }}
-              style={{
-                flex: isMobile ? undefined : 1,
-                width: isMobile ? '100%' : undefined,
-                fontFamily: 'monospace',
-                fontSize: '13px',
-                fontWeight: 700,
-                color: '#FB923C',
-                backgroundColor: 'transparent',
-                border: '2px solid #FB923C',
-                padding: '14px 16px',
-                cursor: user ? 'pointer' : 'not-allowed',
-                textTransform: 'uppercase',
-                letterSpacing: '0.08em',
-                opacity: user ? 1 : 0.5,
-              }}
-            >
-              ⚔ Challenge
-            </button>
+            {/* CHALLENGE — duel identity outline (Surface 6, T-3-06-02 self-challenge guard) */}
+            {callData?.openToChallenges && (
+              <button
+                onClick={() => {
+                  if (!user) return;
+                  // T-3-06-02: prevent self-challenge from UI
+                  if (userIsCaller) {
+                    setChallengeToast({ text: "You can't challenge your own call.", isError: true });
+                    return;
+                  }
+                  if (!callData?.openToChallenges) {
+                    setChallengeToast({ text: "This caller isn't open to challenges right now.", isError: true });
+                    return;
+                  }
+                  setIsChallengeFormOpen(true);
+                }}
+                className="btn duel big"
+                style={{
+                  flex: isMobile ? undefined : 1,
+                  width: isMobile ? '100%' : undefined,
+                  cursor: user ? 'pointer' : 'not-allowed',
+                  opacity: user ? 1 : 0.5,
+                }}
+              >
+                ⚔ CHALLENGE {displayHandle}
+              </button>
+            )}
           </div>
 
-          {/* REASONING block */}
+          {/* REASONING — prototype quote treatment (.label-overline header) */}
           {displayReasoning && (
-            <div
-              style={{
-                borderLeft: '3px solid #2E2E42',
-                paddingLeft: '16px',
-                marginBottom: callData?.criteriaText ? '12px' : '0',
-              }}
-            >
-              <span style={{ fontFamily: 'monospace', fontSize: '11px', color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.1em', display: 'block', marginBottom: '6px' }}>
-                Reasoning from caller
-              </span>
-              <p style={{ fontFamily: 'monospace', fontSize: '13px', color: '#B4B4C8', lineHeight: 1.6, margin: 0 }}>
+            <div style={{ marginTop: 4, padding: '18px 22px', borderLeft: '3px solid var(--border-strong)' }}>
+              <div className="label-overline" style={{ marginBottom: 10 }}>
+                Reasoning · from the caller
+              </div>
+              <p style={{ margin: 0, fontSize: 15, lineHeight: 1.55, color: 'var(--text-primary)' }}>
                 {displayReasoning}
               </p>
             </div>
           )}
 
-          {/* RESOLUTION CRITERIA — collapsible (§15.3) */}
+          {/* RESOLUTION CRITERIA — tinted accent block; the existing WORKING
+              collapse toggle stays (criteria text in mono — §15.3) */}
           {callData?.criteriaText && (
-            <div style={{ borderLeft: '3px solid #2E2E42', paddingLeft: '16px', marginTop: '12px' }}>
+            <div
+              style={{
+                marginTop: 16,
+                padding: '16px 22px',
+                background: 'rgba(232,245,66,0.04)',
+                borderLeft: '3px solid var(--accent-win)',
+              }}
+            >
               <button
                 onClick={() => setCriteriaExpanded(!criteriaExpanded)}
-                style={{
-                  fontFamily: 'monospace',
-                  fontSize: '12px',
-                  color: '#E8F542',
-                  backgroundColor: 'transparent',
-                  border: 'none',
-                  cursor: 'pointer',
-                  padding: 0,
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.08em',
-                }}
+                className="label-overline"
+                style={{ color: 'var(--accent-win)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
               >
-                {criteriaExpanded ? 'hide criteria ↑' : 'view criteria ↓'}
+                VERIFIED RESOLUTION CRITERIA {criteriaExpanded ? '↑' : '↓'}
               </button>
               {criteriaExpanded && (
-                <p style={{ fontFamily: 'monospace', fontSize: '13px', color: '#B4B4C8', lineHeight: 1.6, margin: '8px 0 0 0' }}>
+                <p className="mono" style={{ margin: '10px 0 0', fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
                   {callData.criteriaText}
                 </p>
               )}
             </div>
           )}
 
-          {/* Caller exited explanation */}
-          {isCallerExited && (
-            <p style={{ fontFamily: 'monospace', fontSize: '12px', color: '#94A3B8', marginTop: '16px', marginBottom: 0 }}>
-              The caller is no longer in this market. The call still settles at expiry.
-            </p>
+          {/* ── Hero footer — caller/position exit affordances (SOCIAL-49/50).
+              Existing conditional rendering + handlers wired to the rethemed
+              exit modals (09.2-08, D-06). Rendered only when the viewer holds
+              an exit-capable role (no dead controls, D-08). */}
+          {(userIsCaller || userIsFollower || userIsFader) && (
+            <div
+              className="spread"
+              style={{ marginTop: 24, paddingTop: 18, borderTop: '1px solid var(--border-subtle)', flexWrap: 'wrap', gap: 10 }}
+            >
+              {userIsCaller && (
+                callerLockPassed ? (
+                  <button
+                    onClick={() => setIsCallerExitModalOpen(true)}
+                    className="mono"
+                    style={{
+                      fontSize: 11,
+                      letterSpacing: '0.04em',
+                      color: 'var(--accent-warning)',
+                      background: 'none',
+                      border: 'none',
+                      cursor: 'pointer',
+                      padding: 0,
+                      textDecoration: 'underline',
+                      minHeight: 44,
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                    }}
+                  >
+                    Exit your call · current penalty: {callerPenaltyPct}% →
+                  </button>
+                ) : (
+                  <span className="mono" style={{ fontSize: 11, color: 'var(--text-tertiary)', letterSpacing: '0.04em' }}>
+                    Caller exit locked for {formatTimeLeft(callerLockExpires)} more · callers cannot exit during the first 24 hours
+                  </span>
+                )
+              )}
+              {(userIsFollower || userIsFader) && (
+                positionCooldownPassed ? (
+                  <button
+                    onClick={() => setIsPositionExitModalOpen(true)}
+                    className="mono"
+                    style={{
+                      fontSize: 11,
+                      letterSpacing: '0.04em',
+                      color: 'var(--text-tertiary)',
+                      background: 'none',
+                      border: 'none',
+                      cursor: 'pointer',
+                      padding: 0,
+                      textDecoration: 'underline',
+                      minHeight: 44,
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                    }}
+                  >
+                    Exit position · 10% penalty →
+                  </button>
+                ) : (
+                  <span className="mono" style={{ fontSize: 11, color: 'var(--text-tertiary)', letterSpacing: '0.04em' }}>
+                    Position exit locked for {formatTimeLeft(
+                      userIsFollower ? userFollowEntryUnlock : userFadeEntryUnlock
+                    )} more · new positions wait 4 hours
+                  </span>
+                )
+              )}
+            </div>
           )}
-        </div>
-
-        {/* ── Receipt card preview (right-aligned, Phase 2 live mode) ──────── */}
-        <div style={{ marginBottom: '24px' }}>
-          <Receipt
-            mode="live"
-            data={{
-              handle: displayHandle.replace('@', ''),
-              marketLine: displayMarketLine,
-              conviction: displayConviction,
-              deadline: new Date(Number(displayExpiry) * 1000),
-              stake: displayStake,
-              criteriaHash: callData?.criteriaHash,
-            }}
-          />
         </div>
 
         {/* ── Phase 3: Challenge toast ───────────────────────────────────────── */}
@@ -2734,49 +2670,6 @@ export default function CallPage() {
             )}
           </div>
         </div>
-
-        {/* ── Position holder exit controls (SOCIAL-50) ─────────────────────── */}
-        {(userIsFollower || userIsFader) && (
-          <div
-            style={{
-              padding: '14px 16px',
-              border: '2px solid #2E2E42',
-              backgroundColor: '#0D0D18',
-              marginBottom: '24px',
-            }}
-          >
-            <span style={{ fontFamily: 'monospace', fontSize: '12px', color: '#94A3B8', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-              Your position — {userIsFollower ? 'Following' : 'Fading'}
-            </span>
-            <div style={{ marginTop: '8px' }}>
-              {positionCooldownPassed ? (
-                <button
-                  onClick={() => setIsPositionExitModalOpen(true)}
-                  style={{
-                    fontFamily: 'monospace',
-                    fontSize: '12px',
-                    color: '#94A3B8',
-                    backgroundColor: 'transparent',
-                    border: 'none',
-                    cursor: 'pointer',
-                    padding: 0,
-                    textDecoration: 'underline',
-                  }}
-                >
-                  Exit your position · 10% penalty
-                </button>
-              ) : (
-                <span style={{ fontFamily: 'monospace', fontSize: '12px', color: '#94A3B8' }}>
-                  Exit locked for {formatTimeLeft(
-                    userIsFollower ? userFollowEntryUnlock : userFadeEntryUnlock
-                  )} more. New positions must wait 4 hours before exit.
-                </span>
-              )}
-            </div>
-          </div>
-        )}
-
-      </div>
 
       {/* ── Modals ──────────────────────────────────────────────────────────── */}
       <FollowFadeModal
