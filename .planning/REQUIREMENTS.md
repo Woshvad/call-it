@@ -397,7 +397,7 @@ Requirements for the v1 mainnet release. Each line is an atomic, testable behavi
 - [x] **UI-48**: Mobile responsive treatment applies a 375px breakpoint to 7 critical pages — Feed (§15.1), Receipt Live (§15.3), Profile (§15.4), Settled Receipt (§15.7), Sign-in (§15.8), Onboarding (§15.9), Leaderboard (§15.6) (§19 Phase 9)
 - [x] **UI-49**: Mobile pattern is single-column layouts, full-width action buttons, left sidebar collapsed behind hamburger (§19 Phase 9)
 - [x] **UI-50**: Non-critical pages (Duel §15.5, Quote composer §15.10, New Call §15.2) get desktop-only banner "Best viewed on desktop" in v1 (§19 Phase 9)
-- [ ] **UI-51**: Conviction slider fill color interpolates muted → accent as conviction rises; number ticks in real time (§17.2)
+- [x] **UI-51**: Conviction slider fill color interpolates muted → accent as conviction rises; number ticks in real time (§17.2)
 - [x] **UI-52**: Follow/Fade button press compresses to `scale: 0.97` then springs back; count increments with number flip (§17.2)
 - [ ] **UI-53**: Feed cards enter staggered — `translateY: 8px → 0` + `opacity: 0 → 1`, 60ms stagger between cards (§17.2)
 - [x] **UI-54**: Live odds bar slides smoothly as new positions come in — never jumps (§17.2)
@@ -923,7 +923,7 @@ Which phases cover which requirements. Updated during roadmap creation by the ro
 | UI-48 | Phase 9 | Complete |
 | UI-49 | Phase 9 | Complete |
 | UI-50 | Phase 9 | Complete |
-| UI-51 | Phase 1 | Pending |
+| UI-51 | Phase 1 | Complete |
 | UI-52 | Phase 4 | Complete |
 | UI-53 | Phase 1 | Pending |
 | UI-54 | Phase 4 | Complete |

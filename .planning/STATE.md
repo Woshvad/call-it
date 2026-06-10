@@ -4,13 +4,13 @@ milestone: v1.1
 milestone_name: milestone
 status: executing
 stopped_at: Phase 09.2 UI-SPEC approved
-last_updated: "2026-06-10T11:46:14.520Z"
+last_updated: "2026-06-10T12:06:02.463Z"
 last_activity: 2026-06-10 -- Phase 09.2 execution started
 progress:
   total_phases: 16
   completed_phases: 11
   total_plans: 98
-  completed_plans: 84
+  completed_plans: 85
   percent: 69
 ---
 
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-05-21)
 ## Current Position
 
 Phase: 09.2 (prototype-design-adoption-rebuild-apps-web-ui-to-the-call-it) — EXECUTING
-Plan: 2 of 15
+Plan: 3 of 15
 
 > **Strategic pivot (2026-06-09):** Mainnet is PAUSED till further notice. Phases **10 (mainnet deploy gate)** and **10.5 (mainnet multisig lockdown)** are ON HOLD. Active focus is **Phase 09.1 — Testnet Demo Hardening**: make the full product demo-perfect end-to-end on the live Arbitrum Sepolia deployment. Next: `/gsd-discuss-phase 09.1`.
 
@@ -171,6 +171,7 @@ All 3 operator actions were run this session (user explicitly authorized "run al
 | Phase 09 P06 | 9min | 2 tasks | 8 files |
 | Phase 09 P07 | 4min | 2 tasks | 4 files |
 | Phase 09.2 P01 | 9min | 3 tasks | 4 files |
+| Phase 09.2 P02 | 11min | 2 tasks | 14 files |
 
 ## Accumulated Context
 
@@ -339,6 +340,8 @@ completed: 2026-05-29
 - [Phase 09]: 09-06: clamp sign-in 400px column + onboarding 480px frame to calc(100vw-32px) at mobile (UI-48); >=44px touch targets on 5 onboarding subroutes via mobile-only minHeight (D-03), with the real sub-44px gaps fixed in shared SocialLinkControls + PrivyFundButton
 - [Phase 09.2-01]: Donor .uppercase utility not ported (collides with Tailwind .uppercase; would globally add letter-spacing)
 - [Phase 09.2-01]: OUTCOME_CONTRARIAN literal #E8F542 (D-03) while preset key outcome-contrarian stays var(--accent-duel) for duel identity
+- [Phase ?]: [Phase 09.2-02]: Button danger intent = loss OUTLINE (donor .btn.fade recipe, no solid red button in prototype); aliased intents cream/outline-white/fade share recipe constants with primary/secondary/danger
+- [Phase ?]: [Phase 09.2-02]: Stamp boxShadow-expansion replaced by static text-shadow 4px 4px 0 #000 (.outcome-stamp is a text stamp, not a box); D-03 contrarian color now flows through COLOR_MAP itself
 
 ## Performance
 
@@ -494,6 +497,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-06-10T11:45:36.066Z
+Last session: 2026-06-10T12:05:35.209Z
 Stopped at: Phase 09.2 UI-SPEC approved
 Resume file: .planning/phases/09.2-prototype-design-adoption-rebuild-apps-web-ui-to-the-call-it/09.2-UI-SPEC.md
