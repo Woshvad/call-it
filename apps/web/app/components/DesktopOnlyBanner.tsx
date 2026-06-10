@@ -39,9 +39,9 @@ export function DesktopOnlyBanner() {
   return (
     <div
       style={{
-        border: '3px solid #E8F542',
-        boxShadow: '4px 4px 0 0 #E8F542',
-        background: '#13131D',
+        border: '3px solid var(--border-accent)',
+        boxShadow: 'var(--shadow-brutal)',
+        background: 'var(--bg-quaternary)',
         padding: '12px 14px',
         margin: '12px 16px',
         display: 'flex',
@@ -54,14 +54,15 @@ export function DesktopOnlyBanner() {
       <div>
         <strong
           style={{
-            color: '#E8F542',
-            fontFamily: 'monospace',
+            color: 'var(--accent-win)',
+            fontFamily: 'var(--font-mono)',
             textTransform: 'uppercase',
+            letterSpacing: '0.06em',
           }}
         >
           Best viewed on desktop
         </strong>
-        <p style={{ color: '#94A3B8', fontSize: '13px', margin: '4px 0 0' }}>
+        <p style={{ color: 'var(--text-secondary)', fontSize: '13px', margin: '4px 0 0' }}>
           This page isn&apos;t optimized for small screens yet. Use the menu to navigate away.
         </p>
       </div>
@@ -74,7 +75,7 @@ export function DesktopOnlyBanner() {
           minHeight: 44,
           background: 'transparent',
           border: 'none',
-          color: '#E8F542',
+          color: 'var(--accent-win)',
           fontSize: 20,
           cursor: 'pointer',
           flexShrink: 0,

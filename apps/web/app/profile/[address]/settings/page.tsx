@@ -10,6 +10,14 @@
  *   4. Connect/Disconnect socials — Privy linkAccount stubs (Phase 1.5 wires onchain)
  *   5. AddressBookManager — Plan 07 component (AUTH-31)
  *
+ * 09.2-13 retheme: .page-header + .section-divider + .brutal-card groups +
+ * .brutal-input forms + cream primary CTAs; wallet export gets the warning
+ * (#FB923C) destructive framing. Owner guard, setDisplayHandle write, and
+ * exportWallet wiring UNTOUCHED (D-05/D-14). This page is the user's OWN
+ * wallet-management surface — existing address display patterns here are
+ * functional; no NEW address rendering added (AUTH-44 applies to public
+ * identity surfaces).
+ *
  * Requirements: AUTH-22, AUTH-23, AUTH-31, AUTH-34, AUTH-35, UI-10
  */
 
@@ -34,6 +42,18 @@ interface SettingsPageProps {
   params: Promise<{
     address: string;
   }>;
+}
+
+/** JBM section heading (settings group voice) */
+function SectionTitle({ children }: { children: React.ReactNode }) {
+  return (
+    <h2
+      className="label-overline"
+      style={{ color: 'var(--text-secondary)', margin: '0 0 12px 0' }}
+    >
+      {children}
+    </h2>
+  );
 }
 
 export default function ProfileSettingsPage({ params }: SettingsPageProps) {
@@ -69,7 +89,7 @@ export default function ProfileSettingsPage({ params }: SettingsPageProps) {
   if (!pageAddress) {
     return (
       <main style={{ maxWidth: '680px', margin: '0 auto', padding: '24px 16px' }}>
-        <p style={{ fontFamily: 'monospace', color: '#52525B', fontSize: '0.875rem' }}>
+        <p style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-tertiary)', fontSize: '0.875rem' }}>
           Loading...
         </p>
       </main>
@@ -80,7 +100,7 @@ export default function ProfileSettingsPage({ params }: SettingsPageProps) {
   if (connectedAddress && connectedAddress.toLowerCase() !== pageAddress.toLowerCase()) {
     return (
       <main style={{ maxWidth: '680px', margin: '0 auto', padding: '24px 16px' }}>
-        <p style={{ fontFamily: 'monospace', color: '#A1A1AA', fontSize: '0.875rem' }}>
+        <p style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
           Redirecting...
         </p>
       </main>
@@ -108,35 +128,25 @@ export default function ProfileSettingsPage({ params }: SettingsPageProps) {
   }
 
   return (
-    <main style={{ maxWidth: '680px', margin: '0 auto', padding: '24px 16px' }}>
-      {/* Page header */}
-      <div style={{ marginBottom: '32px' }}>
-        <h1
-          style={{
-            fontSize: '1.25rem',
-            fontWeight: 700,
-            fontFamily: 'monospace',
-            color: '#FFFFFF',
-            margin: '0 0 4px 0',
-          }}
-        >
-          Settings
-        </h1>
-        <p style={{ fontFamily: 'monospace', fontSize: '0.75rem', color: '#52525B', margin: 0 }}>
-          <a href={`/profile/${pageAddress}`} style={{ color: '#A1A1AA', textDecoration: 'none' }}>
-            ← Back to profile
-          </a>
-        </p>
+    <main style={{ maxWidth: '680px', margin: '0 auto', padding: '0 0 64px' }}>
+      {/* Page header — Archivo display voice */}
+      <div className="page-header" style={{ padding: '32px 0 20px' }}>
+        <div>
+          <h1 style={{ fontSize: 'clamp(28px, 7vw, 40px)' }}>Settings</h1>
+          <p className="sub" style={{ marginTop: '8px' }}>
+            <a href={`/profile/${pageAddress}`} style={{ color: 'var(--text-secondary)', textDecoration: 'none', fontFamily: 'var(--font-mono)', fontSize: '12px' }}>
+              ← Back to profile
+            </a>
+          </p>
+        </div>
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
 
         {/* ── Section 1: Handle edit (AUTH-35) ───────────────────────────────── */}
         <Card style={{ padding: '20px' }}>
-          <h2 style={{ fontFamily: 'monospace', fontWeight: 700, fontSize: '0.875rem', color: '#E8F542', margin: '0 0 12px 0' }}>
-            Display Handle
-          </h2>
-          <p style={{ fontFamily: 'monospace', fontSize: '0.75rem', color: '#A1A1AA', margin: '0 0 16px 0' }}>
+          <SectionTitle>// Display Handle</SectionTitle>
+          <p style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', color: 'var(--text-secondary)', margin: '0 0 16px 0' }}>
             Set your preferred on-chain display name. This overrides ENS and social handles (AUTH-35).
           </p>
           <div style={{ display: 'flex', flexDirection: 'row', gap: '8px' }}>
@@ -146,28 +156,14 @@ export default function ProfileSettingsPage({ params }: SettingsPageProps) {
               onChange={(e) => setHandleInput(e.target.value)}
               placeholder="mycoolhandle"
               maxLength={50}
-              style={{
-                flex: 1,
-                padding: '8px 12px',
-                fontFamily: 'monospace',
-                fontSize: '0.875rem',
-                backgroundColor: '#0F0F14',
-                border: '2px solid #27272A',
-                color: '#FFFFFF',
-                outline: 'none',
-              }}
+              className="brutal-input mono"
+              style={{ flex: 1, padding: '8px 12px', fontSize: '0.875rem' }}
             />
             <button
+              className="btn cream"
               onClick={handleSetDisplayHandle}
               disabled={isPending()}
               style={{
-                padding: '8px 16px',
-                fontFamily: 'monospace',
-                fontWeight: 700,
-                fontSize: '0.875rem',
-                backgroundColor: '#E8F542',
-                color: '#09090E',
-                border: '2px solid #000',
                 cursor: isWritingHandle ? 'not-allowed' : 'pointer',
                 opacity: isWritingHandle ? 0.6 : 1,
               }}
@@ -176,12 +172,12 @@ export default function ProfileSettingsPage({ params }: SettingsPageProps) {
             </button>
           </div>
           {handleError && (
-            <p style={{ fontFamily: 'monospace', fontSize: '0.75rem', color: '#EF4444', margin: '8px 0 0 0' }}>
+            <p style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', color: 'var(--accent-loss)', margin: '8px 0 0 0' }}>
               {handleError}
             </p>
           )}
           {handleWriteSuccess && (
-            <p style={{ fontFamily: 'monospace', fontSize: '0.75rem', color: '#22C55E', margin: '8px 0 0 0' }}>
+            <p style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', color: 'var(--accent-win)', margin: '8px 0 0 0' }}>
               Handle saved on-chain.
             </p>
           )}
@@ -190,25 +186,19 @@ export default function ProfileSettingsPage({ params }: SettingsPageProps) {
         {/* ── Section 2: Custody Disclosure card (AUTH-22) ───────────────────── */}
         <CustodyDisclosureCard />
 
-        {/* ── Section 3: Wallet Export (AUTH-23) ─────────────────────────────── */}
-        <Card style={{ padding: '20px' }}>
-          <h2 style={{ fontFamily: 'monospace', fontWeight: 700, fontSize: '0.875rem', color: '#E8F542', margin: '0 0 12px 0' }}>
-            Export Wallet
-          </h2>
-          <p style={{ fontFamily: 'monospace', fontSize: '0.75rem', color: '#A1A1AA', margin: '0 0 16px 0' }}>
+        {/* ── Section 3: Wallet Export (AUTH-23) — warning destructive framing ── */}
+        <Card style={{ padding: '20px', borderLeft: '4px solid var(--accent-warning)' }}>
+          <SectionTitle>// Export Wallet</SectionTitle>
+          <p style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', color: 'var(--text-secondary)', margin: '0 0 16px 0' }}>
             Export your private key to take full self-custody of your wallet.
           </p>
           <button
+            className="btn"
             onClick={() => exportWallet()}
             style={{
-              padding: '8px 16px',
-              fontFamily: 'monospace',
-              fontWeight: 700,
-              fontSize: '0.875rem',
               backgroundColor: 'transparent',
-              color: '#FFFFFF',
-              border: '2px solid #27272A',
-              cursor: 'pointer',
+              color: 'var(--accent-warning)',
+              border: '2px solid var(--accent-warning)',
             }}
           >
             Export Wallet Key
@@ -217,10 +207,8 @@ export default function ProfileSettingsPage({ params }: SettingsPageProps) {
 
         {/* ── Section 4: Connect / Disconnect socials (AUTH-07/12, D-07/13) ────── */}
         <Card style={{ padding: '20px' }}>
-          <h2 style={{ fontFamily: 'monospace', fontWeight: 700, fontSize: '0.875rem', color: '#E8F542', margin: '0 0 12px 0' }}>
-            Connected Accounts
-          </h2>
-          <p style={{ fontFamily: 'monospace', fontSize: '0.75rem', color: '#A1A1AA', margin: '0 0 16px 0' }}>
+          <SectionTitle>// Connected Accounts</SectionTitle>
+          <p style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', color: 'var(--text-secondary)', margin: '0 0 16px 0' }}>
             Link Twitter / X or Farcaster to earn a VERIFIED badge (D-07). Unlinking removes
             the badge + handle reference on-chain (your call history is retained) and clears
             your follow-graph data from our servers (AUTH-12 / AUTH-17). Verification has no
@@ -233,9 +221,7 @@ export default function ProfileSettingsPage({ params }: SettingsPageProps) {
 
         {/* ── Section 5: Address Book (AUTH-31, Plan 07 component) ─────────────── */}
         <Card style={{ padding: '20px' }}>
-          <h2 style={{ fontFamily: 'monospace', fontWeight: 700, fontSize: '0.875rem', color: '#E8F542', margin: '0 0 16px 0' }}>
-            Address Book
-          </h2>
+          <SectionTitle>// Address Book</SectionTitle>
           <AddressBookManager />
         </Card>
 

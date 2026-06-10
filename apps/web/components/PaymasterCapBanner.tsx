@@ -31,14 +31,29 @@ export function PaymasterCapBanner() {
 
   return (
     <div
-      className="w-full px-4 py-2 bg-[#1A1A2E] border-b border-[#E8F542]/30"
       role="status"
       aria-live="polite"
+      style={{
+        width: '100%',
+        padding: '8px 16px',
+        background: 'var(--bg-secondary)',
+        borderBottom: '2px solid var(--accent-warning)',
+      }}
     >
-      <p className="text-xs text-center text-[#E8F542]">
-        <span className="font-mono font-bold">USDC gas mode</span>
+      <p
+        style={{
+          fontSize: '11px',
+          textAlign: 'center',
+          color: 'var(--accent-warning)',
+          fontFamily: 'var(--font-mono)',
+          textTransform: 'uppercase',
+          letterSpacing: '0.06em',
+          margin: 0,
+        }}
+      >
+        <span style={{ fontWeight: 700 }}>USDC gas mode</span>
         {' '}—{' '}
-        <span className="text-[#E8F542]/80">
+        <span style={{ color: 'var(--text-secondary)' }}>
           Circle USDC Paymaster active · No ETH required
         </span>
       </p>

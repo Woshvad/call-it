@@ -38,18 +38,19 @@ export function CustodyDisclosureCard({ className }: CustodyDisclosureCardProps)
         display: 'flex',
         flexDirection: 'column',
         gap: '4px',
-        borderColor: '#E8F542',
-        backgroundColor: '#0F0F14',
+        borderColor: 'var(--border-accent)',
+        backgroundColor: 'var(--bg-quaternary)',
       }}
     >
       {/* AUTH-22 custody label */}
       <p
         style={{
           fontSize: '0.625rem',
-          fontFamily: 'monospace',
-          color: '#E8F542',
+          fontFamily: 'var(--font-mono)',
+          color: 'var(--accent-win)',
           textTransform: 'uppercase',
           letterSpacing: '0.08em',
+          fontWeight: 600,
           margin: 0,
         }}
         data-testid="custody-disclosure-label"
@@ -61,8 +62,8 @@ export function CustodyDisclosureCard({ className }: CustodyDisclosureCardProps)
       <p
         style={{
           fontSize: '0.75rem',
-          fontFamily: 'monospace',
-          color: '#A1A1AA',
+          fontFamily: 'var(--font-mono)',
+          color: 'var(--text-secondary)',
           lineHeight: 1.5,
           margin: 0,
         }}

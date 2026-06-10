@@ -174,21 +174,28 @@ export function AddressBookManager() {
 
   if (!ready || !authenticated) {
     return (
-      <div className="text-sm text-[#666]">
+      <div style={{ fontSize: '0.875rem', color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)' }}>
         Sign in to manage your address book.
       </div>
     );
   }
 
   return (
-    <div className="space-y-6" data-testid="address-book-manager">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }} data-testid="address-book-manager">
       {/* Error banner */}
       {error && (
-        <div className="p-3 bg-red-900/30 border border-red-500 rounded text-sm text-red-400">
+        <div style={{
+          padding: '12px',
+          background: 'rgba(248,113,113,0.06)',
+          border: '2px solid var(--accent-loss)',
+          fontSize: '0.875rem',
+          color: 'var(--accent-loss)',
+          fontFamily: 'var(--font-mono)',
+        }}>
           {error}
           <button
             onClick={() => setError(null)}
-            className="ml-2 text-red-300 hover:text-red-100"
+            style={{ marginLeft: '8px', background: 'transparent', border: 'none', color: 'var(--accent-loss)', cursor: 'pointer' }}
           >
             ×
           </button>
@@ -196,17 +203,18 @@ export function AddressBookManager() {
       )}
 
       {/* Add Address form */}
-      <form onSubmit={(e) => { void handleAdd(e); }} className="space-y-3">
-        <h3 className="text-sm font-mono font-bold text-[#E8F542] uppercase tracking-wider">
+      <form onSubmit={(e) => { void handleAdd(e); }} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        <h3 className="label-overline" style={{ margin: 0 }}>
           Add Address
         </h3>
-        <div className="flex gap-2">
+        <div style={{ display: 'flex', gap: '8px' }}>
           <input
             type="text"
             placeholder="0x..."
             value={newAddress}
             onChange={e => setNewAddress(e.target.value)}
-            className="flex-1 font-mono text-sm px-3 py-2 bg-[#09090E] border border-[#333] rounded text-white placeholder:text-[#555]"
+            className="brutal-input mono"
+            style={{ flex: 1, padding: '8px 12px', fontSize: '0.875rem' }}
             aria-label="Ethereum address"
           />
           <input
@@ -215,69 +223,71 @@ export function AddressBookManager() {
             value={newLabel}
             onChange={e => setNewLabel(e.target.value)}
             maxLength={50}
-            className="w-40 text-sm px-3 py-2 bg-[#09090E] border border-[#333] rounded text-white placeholder:text-[#555]"
+            className="brutal-input"
+            style={{ width: '160px', padding: '8px 12px', fontSize: '0.875rem' }}
             aria-label="Address label"
           />
           <button
             type="submit"
             disabled={isAdding || !newAddress}
-            className="px-4 py-2 bg-[#E8F542] text-[#09090E] font-mono font-bold text-sm rounded disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[#d4e01e] transition-colors"
+            className="btn cream"
+            style={(isAdding || !newAddress) ? { opacity: 0.5, cursor: 'not-allowed' } : undefined}
           >
             {isAdding ? '...' : 'Add'}
           </button>
         </div>
         {addError && (
-          <p className="text-xs text-red-400">{addError}</p>
+          <p style={{ fontSize: '0.75rem', color: 'var(--accent-loss)', fontFamily: 'var(--font-mono)', margin: 0 }}>{addError}</p>
         )}
-        <p className="text-xs text-[#666]">
+        <p style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)', margin: 0 }}>
           Note: New addresses have a 24h security cooldown before you can withdraw to them.
         </p>
       </form>
 
       {/* Address book table */}
       <div>
-        <h3 className="text-sm font-mono font-bold text-[#E8F542] uppercase tracking-wider mb-3">
+        <h3 className="label-overline" style={{ margin: '0 0 12px' }}>
           Saved Addresses
         </h3>
 
         {isLoading && (
-          <p className="text-sm text-[#666]">Loading...</p>
+          <p style={{ fontSize: '0.875rem', color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)' }}>Loading...</p>
         )}
 
         {!isLoading && entries.length === 0 && (
-          <p className="text-sm text-[#666]">No saved addresses yet.</p>
+          <p className="label-overline" style={{ margin: 0 }}>No saved addresses yet.</p>
         )}
 
         {!isLoading && entries.length > 0 && (
-          <table className="w-full text-sm border-collapse">
+          <table className="brutal-table">
             <thead>
-              <tr className="text-left text-xs text-[#666] uppercase tracking-wider">
-                <th className="pb-2 pr-4 font-normal">Address</th>
-                <th className="pb-2 pr-4 font-normal">Label</th>
-                <th className="pb-2 pr-4 font-normal">Added</th>
-                <th className="pb-2 font-normal">Status</th>
+              <tr>
+                <th>Address</th>
+                <th>Label</th>
+                <th>Added</th>
+                <th>Status</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#222]">
+            <tbody>
               {entries.map(entry => {
                 const cooldown = isInCooldown(entry.addedAt);
                 const remaining = cooldown ? formatCooldownRemaining(entry.addedAt) : '';
 
                 return (
-                  <tr key={entry.id} className="py-2">
-                    <td className="py-2 pr-4 font-mono text-xs text-[#ccc]">
+                  <tr key={entry.id} style={{ cursor: 'default' }}>
+                    <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', color: 'var(--text-primary)' }}>
                       {entry.address.slice(0, 6)}...{entry.address.slice(-4)}
                     </td>
-                    <td className="py-2 pr-4 text-[#999]">
-                      {entry.label ?? <span className="text-[#555]">—</span>}
+                    <td style={{ color: 'var(--text-secondary)' }}>
+                      {entry.label ?? <span style={{ color: 'var(--text-muted)' }}>—</span>}
                     </td>
-                    <td className="py-2 pr-4 text-[#999]">
+                    <td style={{ color: 'var(--text-secondary)' }}>
                       {new Date(entry.addedAt).toLocaleDateString()}
                     </td>
-                    <td className="py-2">
+                    <td>
                       {cooldown ? (
                         <span
-                          className="inline-flex items-center gap-1 px-2 py-0.5 bg-yellow-900/30 border border-yellow-600/50 rounded text-xs text-yellow-400"
+                          className="pill warn"
                           data-testid="cooldown-badge"
                         >
                           ⏱ {remaining} remaining
@@ -285,7 +295,19 @@ export function AddressBookManager() {
                       ) : (
                         <button
                           onClick={() => { void handleRemove(entry.id); }}
-                          className="text-xs text-[#666] hover:text-red-400 transition-colors"
+                          style={{
+                            fontSize: '0.75rem',
+                            color: 'var(--text-tertiary)',
+                            background: 'transparent',
+                            border: 'none',
+                            fontFamily: 'var(--font-mono)',
+                            textTransform: 'uppercase',
+                            letterSpacing: '0.06em',
+                            cursor: 'pointer',
+                            padding: 0,
+                          }}
+                          onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--accent-loss)'; }}
+                          onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-tertiary)'; }}
                         >
                           Remove
                         </button>
