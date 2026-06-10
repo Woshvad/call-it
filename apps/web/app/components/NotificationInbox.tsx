@@ -2,19 +2,18 @@
 /**
  * NotificationInbox — slide-over panel listing caller-exit notifications.
  *
- * Renders each notification as a neobrutalist card:
- *   "⚠ [callerHandle] exited their own call · [callStatement] · slashed [amount]"
+ * Renders each notification as an .activity-row (the designated inbox template,
+ * D-13): type pill | content | JBM relative time, entering with the stampIn
+ * animation. Handles only (AUTH-44).
  *
  * Mark-read: POST /api/notifications/mark-read { ids: [...] }
  *   Sends Authorization: Bearer <privy access token> — the relayer's
  *   privySessionPreHandler requires it and resolves the owner address from the
  *   verified session (CR-01/CR-03). The client no longer sends a ?user= param.
  *
- * Neobrutalist design tokens:
- *   - #09090E background
- *   - #E8F542 accent (borders, warning icon)
- *   - 2-3px borders, hard shadows (#E8F542 or var(--border-active))
- *   - SpaceGrotesk / monospace typography
+ * 09.2-13 retheme: chrome only — the 30s poll lives in NotificationBell; the
+ * mark-read wiring, Escape/backdrop close, and auto-mark-on-open are UNTOUCHED.
+ * Empty state is exactly "No notifications yet" (UI-SPEC copy contract, D-07).
  *
  * Security (T-02-09-03):
  *   - mark-read POST hits relayer with Privy session auth (Plan 07 privySessionPreHandler);
@@ -54,7 +53,7 @@ function formatUsdc(raw: string | undefined): string {
   return `$${n.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
 }
 
-/** Single notification card */
+/** Single notification row — .activity-row recipe (stampIn entry) */
 function NotificationCard({
   notification,
   isUnread,
@@ -74,84 +73,51 @@ function NotificationCard({
 
   return (
     <div
+      className="activity-row"
       style={{
         background: isUnread ? 'rgba(232,245,66,0.04)' : 'transparent',
-        border: `2px solid ${isUnread ? '#E8F542' : 'var(--border-active)'}`,
-        padding: '12px 14px',
-        marginBottom: 8,
-        position: 'relative',
+        ...(isUnread ? { borderLeft: '2px solid var(--border-accent)', paddingLeft: 12 } : {}),
       }}
     >
-      {/* Unread indicator dot */}
-      {isUnread && (
-        <div
-          style={{
-            position: 'absolute',
-            top: 10,
-            right: 10,
-            width: 8,
-            height: 8,
-            background: '#E8F542',
-            border: '1px solid #09090E',
-          }}
-        />
+      {/* Type pill */}
+      {notification.eventType === 'caller_exited' ? (
+        <span className="pill warn">EXIT</span>
+      ) : (
+        <span className="pill muted">NOTE</span>
       )}
 
-      {/* Notification type header */}
-      {notification.eventType === 'caller_exited' && (
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 6,
-            marginBottom: 6,
-          }}
-        >
-          <span
-            style={{
-              color: '#FB923C',
-              fontSize: 13,
-              fontFamily: 'monospace',
-              fontWeight: 700,
-              letterSpacing: 1,
-            }}
-          >
-            ⚠ CALLER EXITED
-          </span>
-        </div>
-      )}
-
-      {/* Main content */}
+      {/* Main content — handles only (AUTH-44) */}
       <div
         style={{
-          fontSize: 14,
-          color: '#F1F5F9',
-          fontFamily: 'system-ui, sans-serif',
+          fontSize: 13,
+          color: 'var(--text-primary)',
+          fontFamily: 'var(--font-sans)',
           lineHeight: 1.4,
-          marginBottom: 6,
+          minWidth: 0,
         }}
       >
-        <span style={{ color: '#E8F542', fontWeight: 600 }}>@{handle}</span>
+        <span style={{ color: 'var(--accent-win)', fontWeight: 600 }}>@{handle}</span>
         {' '}exited their own call ·{' '}
-        <span style={{ color: '#94A3B8' }}>{statement}</span>
+        <span style={{ color: 'var(--text-secondary)' }}>{statement}</span>
         {slashStr && (
           <>
             {' '}·{' '}
-            <span style={{ color: '#F87171' }}>-{slashStr} slashed</span>
+            <span style={{ color: 'var(--accent-loss)' }}>-{slashStr} slashed</span>
           </>
         )}
       </div>
 
-      {/* Timestamp */}
-      <div
+      {/* Relative time — JBM */}
+      <span
         style={{
           fontSize: 11,
-          color: '#6B7280',
-          fontFamily: 'monospace',
+          color: 'var(--text-tertiary)',
+          fontFamily: 'var(--font-mono)',
+          whiteSpace: 'nowrap',
         }}
       >
         {formatRelativeTime(notification.createdAt)}
-      </div>
+      </span>
     </div>
   );
 }
@@ -253,12 +219,9 @@ export function NotificationInbox({
           right: 0,
           width: 380,
           height: '100vh',
-          background: '#09090E',
-          border: '3px solid #E8F542',
-          borderRight: 'none',
-          borderTop: 'none',
-          borderBottom: 'none',
-          boxShadow: '-4px 0 0 0 #E8F542',
+          background: 'var(--bg-primary)',
+          borderLeft: '3px solid var(--border-accent)',
+          boxShadow: '-4px 0 0 0 #000',
           display: 'flex',
           flexDirection: 'column',
           overflowY: 'hidden',
@@ -277,11 +240,11 @@ export function NotificationInbox({
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <span
               style={{
-                fontFamily: 'monospace',
-                fontSize: 14,
-                fontWeight: 700,
-                color: '#E8F542',
-                letterSpacing: 2,
+                fontFamily: 'var(--font-display)',
+                fontSize: 16,
+                fontWeight: 900,
+                color: 'var(--text-primary)',
+                letterSpacing: '-0.02em',
                 textTransform: 'uppercase',
               }}
             >
@@ -290,13 +253,13 @@ export function NotificationInbox({
             {unreadNotifications.length > 0 && (
               <span
                 style={{
-                  background: '#E8F542',
-                  color: '#09090E',
+                  background: 'var(--accent-win)',
+                  color: '#000',
                   fontSize: 11,
                   fontWeight: 700,
                   padding: '2px 6px',
-                  fontFamily: 'monospace',
-                  border: '1px solid #09090E',
+                  fontFamily: 'var(--font-mono)',
+                  border: '1px solid #000',
                 }}
               >
                 {unreadNotifications.length}
@@ -312,19 +275,21 @@ export function NotificationInbox({
                 style={{
                   background: 'transparent',
                   border: '2px solid var(--border-active)',
-                  color: '#94A3B8',
+                  color: 'var(--text-secondary)',
                   fontSize: 11,
-                  fontFamily: 'monospace',
+                  fontFamily: 'var(--font-mono)',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.06em',
                   cursor: 'pointer',
                   padding: '4px 8px',
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.borderColor = '#E8F542';
-                  e.currentTarget.style.color = '#E8F542';
+                  e.currentTarget.style.borderColor = 'var(--border-strong)';
+                  e.currentTarget.style.color = 'var(--text-primary)';
                 }}
                 onMouseLeave={(e) => {
                   e.currentTarget.style.borderColor = 'var(--border-active)';
-                  e.currentTarget.style.color = '#94A3B8';
+                  e.currentTarget.style.color = 'var(--text-secondary)';
                 }}
               >
                 Mark all read
@@ -338,7 +303,7 @@ export function NotificationInbox({
               style={{
                 background: 'transparent',
                 border: '2px solid var(--border-active)',
-                color: '#94A3B8',
+                color: 'var(--text-secondary)',
                 fontSize: 16,
                 cursor: 'pointer',
                 width: 32,
@@ -349,12 +314,12 @@ export function NotificationInbox({
                 lineHeight: 1,
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.borderColor = '#E8F542';
-                e.currentTarget.style.color = '#E8F542';
+                e.currentTarget.style.borderColor = 'var(--border-strong)';
+                e.currentTarget.style.color = 'var(--text-primary)';
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.borderColor = 'var(--border-active)';
-                e.currentTarget.style.color = '#94A3B8';
+                e.currentTarget.style.color = 'var(--text-secondary)';
               }}
             >
               ×
@@ -367,11 +332,11 @@ export function NotificationInbox({
           style={{
             flex: 1,
             overflowY: 'auto',
-            padding: '16px 20px',
+            padding: '4px 20px 16px',
           }}
         >
           {notifications.length === 0 ? (
-            /* Empty state */
+            /* Empty state — prototype-voice mono microcopy (D-07) */
             <div
               style={{
                 display: 'flex',
@@ -383,34 +348,14 @@ export function NotificationInbox({
                 paddingTop: 60,
               }}
             >
-              <div
-                style={{
-                  width: 48,
-                  height: 48,
-                  border: '2px solid var(--border-active)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: 20,
-                }}
-              >
-                🔔
-              </div>
-              <span
-                style={{
-                  color: '#6B7280',
-                  fontSize: 14,
-                  fontFamily: 'system-ui, sans-serif',
-                  textAlign: 'center',
-                }}
-              >
+              <span className="label-overline">
                 No notifications yet
               </span>
               <span
                 style={{
-                  color: '#4B5563',
+                  color: 'var(--text-muted)',
                   fontSize: 12,
-                  fontFamily: 'monospace',
+                  fontFamily: 'var(--font-mono)',
                   textAlign: 'center',
                   maxWidth: 240,
                 }}
@@ -423,16 +368,7 @@ export function NotificationInbox({
               {/* Unread section */}
               {unreadNotifications.length > 0 && (
                 <div style={{ marginBottom: 16 }}>
-                  <div
-                    style={{
-                      fontSize: 10,
-                      color: '#6B7280',
-                      fontFamily: 'monospace',
-                      letterSpacing: 2,
-                      textTransform: 'uppercase',
-                      marginBottom: 8,
-                    }}
-                  >
+                  <div className="label-overline" style={{ margin: '12px 0 4px' }}>
                     Unread
                   </div>
                   {unreadNotifications.map((n) => (
@@ -446,15 +382,12 @@ export function NotificationInbox({
                 <div>
                   {unreadNotifications.length > 0 && (
                     <div
+                      className="label-overline"
                       style={{
-                        fontSize: 10,
-                        color: '#4B5563',
-                        fontFamily: 'monospace',
-                        letterSpacing: 2,
-                        textTransform: 'uppercase',
-                        marginBottom: 8,
+                        margin: '0 0 4px',
                         borderTop: '1px solid var(--border-active)',
                         paddingTop: 12,
+                        width: '100%',
                       }}
                     >
                       Earlier
@@ -479,8 +412,8 @@ export function NotificationInbox({
           <span
             style={{
               fontSize: 11,
-              color: '#4B5563',
-              fontFamily: 'monospace',
+              color: 'var(--text-muted)',
+              fontFamily: 'var(--font-mono)',
             }}
           >
             Polled every 30s · {notifications.length} total

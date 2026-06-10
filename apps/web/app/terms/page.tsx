@@ -4,6 +4,9 @@
  * Backs the /signin disclaimer link (AUTH-37) so it never 404s. Preserves the
  * permanent-public-record promise the old inline disclaimer carried, verbatim.
  *
+ * 09.2-13 retheme: typographic restyle only — Archivo heading, Inter body,
+ * token-layer colors; content verbatim (D-05/D-14).
+ *
  * Plain server component — no auth, no hooks, no data fetching. Flexbox layout only
  * (Satori-safe habit).
  */
@@ -17,10 +20,9 @@ export default function TermsPage() {
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
-        justifyContent: 'center',
-        minHeight: '100vh',
+        justifyContent: 'flex-start',
+        minHeight: '60vh',
         padding: '2rem',
-        backgroundColor: '#09090E',
       }}
     >
       <div
@@ -37,11 +39,11 @@ export default function TermsPage() {
           style={{
             fontSize: '2rem',
             fontWeight: 900,
-            letterSpacing: '-0.02em',
-            color: '#E8F542',
-            fontFamily: "'Syne', sans-serif",
+            letterSpacing: '-0.04em',
+            color: 'var(--text-primary)',
+            fontFamily: 'var(--font-display)',
             textTransform: 'uppercase',
-            lineHeight: 1.1,
+            lineHeight: 0.95,
             margin: 0,
           }}
         >
@@ -50,11 +52,13 @@ export default function TermsPage() {
 
         <p
           style={{
-            fontSize: '0.9rem',
-            color: '#A1A1AA',
-            fontFamily: 'monospace',
+            fontSize: '0.8rem',
+            color: 'var(--text-tertiary)',
+            fontFamily: 'var(--font-mono)',
             lineHeight: 1.5,
             margin: 0,
+            textTransform: 'uppercase',
+            letterSpacing: '0.08em',
           }}
         >
           Full terms are coming soon.
@@ -62,9 +66,9 @@ export default function TermsPage() {
 
         <p
           style={{
-            fontSize: '0.9rem',
-            color: '#A1A1AA',
-            fontFamily: 'monospace',
+            fontSize: '0.95rem',
+            color: 'var(--text-secondary)',
+            fontFamily: 'var(--font-sans)',
             lineHeight: 1.6,
             margin: 0,
           }}
@@ -75,9 +79,9 @@ export default function TermsPage() {
         <Link
           href="/"
           style={{
-            color: '#E8F542',
+            color: 'var(--accent-win)',
             textDecoration: 'underline',
-            fontFamily: 'monospace',
+            fontFamily: 'var(--font-mono)',
             fontSize: '0.875rem',
             marginTop: '0.5rem',
           }}
