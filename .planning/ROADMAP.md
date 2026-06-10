@@ -368,7 +368,7 @@ Plans:
 **Requirements**: TBD (UI restyle of existing requirement surfaces; no new mechanical requirements)
 **Depends on:** Phase 9
 **Research:** 09.2-RESEARCH.md (compatibility audit, 2026-06-10 8-agent sweep: variant canon, token delta, screen-by-screen REUSE/PARTIAL/NEW-BUILD map, wiring-risk register, adoption sequence)
-**Plans:** 8/15 plans executed
+**Plans:** 9/15 plans executed
 Plans:
 **Wave 1**
 
@@ -392,7 +392,7 @@ Plans:
 
 **Wave 5** *(blocked on Wave 4 completion)*
 
-- [ ] 09.2-09-PLAN.md — Wave 5: /call/[id] live receipt branch (odds split bar, activity rows, CTAs → existing modals, WATCH cut)
+- [x] 09.2-09-PLAN.md — Wave 5: /call/[id] live receipt branch (odds split bar, activity rows, CTAs → existing modals, WATCH cut)
 
 **Wave 6** *(blocked on Wave 5 completion)*
 

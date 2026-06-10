@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: milestone
 status: executing
-stopped_at: Completed 09.2-08-PLAN.md
-last_updated: "2026-06-10T14:37:21.501Z"
+stopped_at: Completed 09.2-09-PLAN.md
+last_updated: "2026-06-10T15:10:45.801Z"
 last_activity: 2026-06-10 -- Phase 09.2 execution started
 progress:
   total_phases: 16
   completed_phases: 11
   total_plans: 98
-  completed_plans: 91
+  completed_plans: 92
   percent: 69
 ---
 
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-05-21)
 ## Current Position
 
 Phase: 09.2 (prototype-design-adoption-rebuild-apps-web-ui-to-the-call-it) — EXECUTING
-Plan: 9 of 15
+Plan: 10 of 15
 
 > **Strategic pivot (2026-06-09):** Mainnet is PAUSED till further notice. Phases **10 (mainnet deploy gate)** and **10.5 (mainnet multisig lockdown)** are ON HOLD. Active focus is **Phase 09.1 — Testnet Demo Hardening**: make the full product demo-perfect end-to-end on the live Arbitrum Sepolia deployment. Next: `/gsd-discuss-phase 09.1`.
 
@@ -178,6 +178,7 @@ All 3 operator actions were run this session (user explicitly authorized "run al
 | Phase 09.2 P06 | 25min | 2 tasks | 5 files |
 | Phase 09.2 P07 | 45min | 2 tasks | 1 files |
 | Phase 09.2 P08 | 12 min | 2 tasks | 4 files |
+| Phase 09.2 P09 | 26min | 2 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -361,6 +362,8 @@ completed: 2026-05-29
 - [Phase 09.2-07]: Settled receipt display colors come from the prototype SETTLED_OUTCOME_STYLES map (CALLED IT chartreuse #E8F542, COLD CALL slate #64748B) keyed by the resolveSettledWord word; lib/outcome-word.ts stays the untouched word/guard source
 - [Phase 09.2-07]: VIEW ALL CALLS BY {handle} control cut (D-08) — it linked /?caller= which the 09.2-06 feed rewrite no longer reads; SHARE THE RECEIPT wired to the twitter web intent (old button was unwired/dead)
 - [Phase 09.2]: 09.2-08: cream-surface accent rule — accents (#E8F542/#F87171/#FB923C/#A855F7) never render as raw text on cream; black chips/strips carry accent text, or accent-filled buttons get black text/borders; errors darken to #DC2626/#B91C1C
+- [Phase ?]: 09.2-09: Live receipt - dead live Share button cut with WATCH (no live-call share wiring; settled receipts carry the real intents, D-08/D-09)
+- [Phase ?]: 09.2-09: Receipt preview card cut from the live branch (the page IS the receipt); CHALLENGE CTA render-gated on openToChallenges with inline guards kept verbatim
 
 ## Performance
 
@@ -516,6 +519,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-06-10T14:37:03.667Z
-Stopped at: Completed 09.2-08-PLAN.md
+Last session: 2026-06-10T15:10:23.288Z
+Stopped at: Completed 09.2-09-PLAN.md
 Resume file: None
