@@ -18,7 +18,11 @@
  * poll, so the gate resolves automatically with no new props.
  *
  * FLEXBOX ONLY — no CSS grid (Pitfall 15).
- * Neobrutalist: 2-3px borders, hard offset shadows, #09090E background.
+ * Chrome: cream `.modal-panel` template (D-13, 09.2-08) — overlay
+ * rgba(0,0,0,0.82) + blur(4px) z-200, panel var(--bg-inverse) with BLACK text,
+ * 3px black border, var(--shadow-brutal-lg). Win chartreuse appears only on
+ * DARK elements or as a black-bordered fill (chartreuse TEXT on cream fails
+ * contrast); fade side uses var(--accent-loss) fills the same way.
  *
  * Requirements: SOCIAL-05, SOCIAL-06, SOCIAL-07, SOCIAL-08, UI-06
  * Spec: §15.3 — "Follow this call (filled yellow-green) · Fade · bet against (red outline)"
@@ -140,7 +144,7 @@ export function FollowFadeModal({
   const amountTooHigh = amountInUsdc > remainingHeadroom;
   // WR-02: while awaiting fresh reserves after a slippage revert, the submit
   // (Retry) button is non-interactive via the existing !isValid path (reuses the
-  // disabled #2E2E42 / not-allowed styling — no new colors/props).
+  // disabled / not-allowed styling — no new colors/props).
   const isValid =
     amountInUsdc >= MIN_POSITION && !amountTooHigh && !isSubmitting && !awaitingFreshReserves;
 
@@ -199,51 +203,79 @@ export function FollowFadeModal({
   return (
     <Dialog.Root open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
       <Dialog.Portal>
+        {/* .modal-overlay template (D-13): rgba(0,0,0,0.82) scrim + blur(4px), z-200 */}
         <Dialog.Overlay
           style={{
             position: 'fixed',
             inset: 0,
-            backgroundColor: 'rgba(0,0,0,0.75)',
-            zIndex: 40,
+            backgroundColor: 'rgba(0,0,0,0.82)',
+            backdropFilter: 'blur(4px)',
+            zIndex: 200,
           }}
         />
+        {/* .modal-panel template (D-13): cream var(--bg-inverse), BLACK text,
+            3px black border, brutal-lg shadow — every text token inside is inverse */}
         <Dialog.Content
           style={{
             position: 'fixed',
             top: '50%',
             left: '50%',
             transform: 'translate(-50%, -50%)',
-            zIndex: 50,
-            width: '440px',
+            zIndex: 201,
+            width: '620px',
             maxWidth: 'calc(100vw - 32px)',
-            backgroundColor: '#09090E',
-            border: `3px solid ${sideColor}`,
-            boxShadow: `6px 6px 0 0 ${sideColor}`,
-            padding: '28px',
+            maxHeight: '90vh',
+            overflowY: 'auto',
+            backgroundColor: 'var(--bg-inverse)',
+            color: '#000',
+            border: '3px solid #000',
+            boxShadow: 'var(--shadow-brutal-lg)',
+            borderRadius: 0,
+            padding: '36px',
             outline: 'none',
           }}
         >
-          {/* Header */}
+          {/* Header — mono overline voice + side chip (win/fade color on DARK chip only:
+              chartreuse text on cream fails contrast, so the side name sits on black) */}
           <div style={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-            <Dialog.Title
-              style={{
-                fontFamily: 'monospace',
-                fontSize: '18px',
-                fontWeight: 700,
-                color: sideColor,
-                letterSpacing: '0.05em',
-                textTransform: 'uppercase',
-                margin: 0,
-              }}
-            >
-              {sideLabel} This Call
-            </Dialog.Title>
+            <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: '10px' }}>
+              <Dialog.Title
+                style={{
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: '13px',
+                  fontWeight: 700,
+                  color: '#000',
+                  letterSpacing: '0.14em',
+                  textTransform: 'uppercase',
+                  margin: 0,
+                }}
+              >
+                {sideLabel} This Call
+              </Dialog.Title>
+              <span
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  backgroundColor: '#000',
+                  color: sideColor,
+                  border: '2px solid #000',
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: '10px',
+                  fontWeight: 700,
+                  letterSpacing: '0.12em',
+                  textTransform: 'uppercase',
+                  padding: '3px 8px',
+                }}
+              >
+                {sideLabel}
+              </span>
+            </div>
             <button
               onClick={onClose}
               style={{
                 background: 'none',
                 border: 'none',
-                color: '#94A3B8',
+                color: 'rgba(0,0,0,0.55)',
                 cursor: 'pointer',
                 fontSize: '20px',
                 lineHeight: 1,
@@ -263,43 +295,44 @@ export function FollowFadeModal({
               gap: '16px',
               marginBottom: '20px',
               padding: '12px',
-              border: '2px solid #2E2E42',
-              backgroundColor: '#13131D',
+              border: '2px solid #000',
+              backgroundColor: 'rgba(0,0,0,0.04)',
             }}
           >
             <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-              <span style={{ fontFamily: 'monospace', fontSize: '10px', color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'rgba(0,0,0,0.55)', textTransform: 'uppercase', letterSpacing: '0.12em' }}>
                 {sideLabel} Pool
               </span>
-              <span style={{ fontFamily: 'monospace', fontSize: '14px', fontWeight: 700, color: sideColor }}>
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: '14px', fontWeight: 700, color: '#000' }}>
                 ${formatUsdc(reserve)}
               </span>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-              <span style={{ fontFamily: 'monospace', fontSize: '10px', color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'rgba(0,0,0,0.55)', textTransform: 'uppercase', letterSpacing: '0.12em' }}>
                 Your Position
               </span>
-              <span style={{ fontFamily: 'monospace', fontSize: '14px', fontWeight: 700, color: '#E8E8E8' }}>
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: '14px', fontWeight: 700, color: '#000' }}>
                 ${formatUsdc(userPosition)} / $100
               </span>
             </div>
           </div>
 
-          {/* Amount input */}
+          {/* Amount input — .brutal-input recipe adapted for cream context */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '16px' }}>
             <label
               style={{
-                fontFamily: 'monospace',
+                fontFamily: 'var(--font-mono)',
                 fontSize: '11px',
-                color: '#94A3B8',
+                fontWeight: 700,
+                color: '#000',
                 textTransform: 'uppercase',
-                letterSpacing: '0.1em',
+                letterSpacing: '0.12em',
               }}
             >
               Amount (USDC)
             </label>
             <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: '8px' }}>
-              <span style={{ fontFamily: 'monospace', fontSize: '16px', color: '#94A3B8' }}>$</span>
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: '16px', color: 'rgba(0,0,0,0.7)' }}>$</span>
               <input
                 type="number"
                 min="1"
@@ -309,10 +342,11 @@ export function FollowFadeModal({
                 onChange={(e) => { setAmountUsd(e.target.value); setError(null); setSlippageHit(false); }}
                 style={{
                   flex: 1,
-                  backgroundColor: '#13131D',
-                  border: `2px solid ${amountTooLow || amountTooHigh ? '#F87171' : '#2E2E42'}`,
-                  color: '#E8E8E8',
-                  fontFamily: 'monospace',
+                  backgroundColor: 'rgba(255,255,255,0.55)',
+                  border: `2px solid ${amountTooLow || amountTooHigh ? '#DC2626' : '#000'}`,
+                  borderRadius: 0,
+                  color: '#000',
+                  fontFamily: 'var(--font-mono)',
                   fontSize: '18px',
                   padding: '10px 12px',
                   outline: 'none',
@@ -321,12 +355,12 @@ export function FollowFadeModal({
               />
             </div>
             {amountTooLow && (
-              <span style={{ fontFamily: 'monospace', fontSize: '11px', color: '#F87171' }}>
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', color: '#DC2626' }}>
                 Minimum position: $1.00
               </span>
             )}
             {amountTooHigh && (
-              <span style={{ fontFamily: 'monospace', fontSize: '11px', color: '#F87171' }}>
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', color: '#DC2626' }}>
                 Max remaining headroom: ${formatUsdc(remainingHeadroom)} (cumulative $100 cap)
               </span>
             )}
@@ -341,30 +375,31 @@ export function FollowFadeModal({
                 gap: '4px',
                 marginBottom: '20px',
                 padding: '10px 12px',
-                border: '2px solid #2E2E42',
-                backgroundColor: '#13131D',
+                border: '2px solid #000',
+                backgroundColor: 'rgba(0,0,0,0.04)',
               }}
             >
               <div style={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between' }}>
-                <span style={{ fontFamily: 'monospace', fontSize: '11px', color: '#94A3B8' }}>
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'rgba(0,0,0,0.6)' }}>
                   Expected shares
                 </span>
-                <span style={{ fontFamily: 'monospace', fontSize: '13px', fontWeight: 700, color: '#E8E8E8' }}>
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: '13px', fontWeight: 700, color: '#000' }}>
                   {formatShares(expectedShares)}
                 </span>
               </div>
               <div style={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between' }}>
-                <span style={{ fontFamily: 'monospace', fontSize: '11px', color: '#94A3B8' }}>
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'rgba(0,0,0,0.6)' }}>
                   Min shares (1% slippage)
                 </span>
-                <span style={{ fontFamily: 'monospace', fontSize: '11px', color: '#94A3B8' }}>
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'rgba(0,0,0,0.6)' }}>
                   {formatShares(minSharesOut)}
                 </span>
               </div>
             </div>
           )}
 
-          {/* SlippageExceeded error + retry (D-10) */}
+          {/* SlippageExceeded error + retry (D-10) — warning accent on a DARK strip
+              (#FB923C text on cream fails contrast, so the panel goes black) */}
           {slippageHit && error && (
             <div
               style={{
@@ -373,17 +408,17 @@ export function FollowFadeModal({
                 gap: '10px',
                 marginBottom: '16px',
                 padding: '12px',
-                border: '2px solid #FB923C',
-                backgroundColor: 'rgba(251, 146, 60, 0.08)',
+                border: '2px solid #000',
+                backgroundColor: '#000',
               }}
             >
-              <span style={{ fontFamily: 'monospace', fontSize: '12px', color: '#FB923C' }}>
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: '12px', color: '#FB923C' }}>
                 {error}
               </span>
               <button
                 onClick={handleReset}
                 style={{
-                  fontFamily: 'monospace',
+                  fontFamily: 'var(--font-mono)',
                   fontSize: '12px',
                   fontWeight: 700,
                   color: '#FB923C',
@@ -407,11 +442,11 @@ export function FollowFadeModal({
               style={{
                 marginBottom: '16px',
                 padding: '10px 12px',
-                border: '2px solid #F87171',
-                backgroundColor: 'rgba(248, 113, 113, 0.08)',
+                border: '2px solid #DC2626',
+                backgroundColor: 'rgba(220, 38, 38, 0.06)',
               }}
             >
-              <span style={{ fontFamily: 'monospace', fontSize: '12px', color: '#F87171' }}>
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: '12px', color: '#B91C1C' }}>
                 {error}
               </span>
             </div>
@@ -419,7 +454,7 @@ export function FollowFadeModal({
 
           {/* Action buttons — flexWrap + per-button minWidth stacks them full-width
               when the panel clamps to calc(100vw - 32px) on a phone, side-by-side on the
-              440px desktop panel. Intrinsic CSS only — no browser-only viewport read (Pitfall 2;
+              620px desktop panel. Intrinsic CSS only — no browser-only viewport read (Pitfall 2;
               this file feeds the Satori/@vercel/og Node build with no window). */}
           <div style={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap', gap: '12px' }}>
             <button
@@ -429,12 +464,12 @@ export function FollowFadeModal({
                 flex: '1 1 160px',
                 minWidth: '160px',
                 minHeight: '44px',
-                fontFamily: 'monospace',
+                fontFamily: 'var(--font-mono)',
                 fontSize: '14px',
                 fontWeight: 700,
-                color: '#E8E8E8',
+                color: '#000',
                 backgroundColor: 'transparent',
-                border: '2px solid #2E2E42',
+                border: '2px solid #000',
                 padding: '12px 16px',
                 cursor: isSubmitting ? 'not-allowed' : 'pointer',
                 opacity: isSubmitting ? 0.5 : 1,
@@ -451,16 +486,15 @@ export function FollowFadeModal({
                 flex: '2 1 200px',
                 minWidth: '200px',
                 minHeight: '44px',
-                fontFamily: 'monospace',
+                fontFamily: 'var(--font-mono)',
                 fontSize: '14px',
                 fontWeight: 700,
-                color: '#09090E',
-                backgroundColor: isValid ? sideBgAccent : '#2E2E42',
-                border: `2px solid ${isValid ? '#09090E' : '#2E2E42'}`,
-                boxShadow: isValid ? '4px 4px 0 0 #000' : 'none',
+                color: isValid ? '#000' : 'rgba(0,0,0,0.4)',
+                backgroundColor: isValid ? sideBgAccent : 'rgba(0,0,0,0.15)',
+                border: `2px solid ${isValid ? '#000' : 'rgba(0,0,0,0.3)'}`,
+                boxShadow: isValid ? 'var(--shadow-brutal)' : 'none',
                 padding: '12px 16px',
                 cursor: isValid ? 'pointer' : 'not-allowed',
-                opacity: isValid ? 1 : 0.5,
                 textTransform: 'uppercase',
                 letterSpacing: '0.08em',
                 transition: 'transform 0.1s, box-shadow 0.1s',
@@ -477,9 +511,9 @@ export function FollowFadeModal({
           {/* Fine print */}
           <p
             style={{
-              fontFamily: 'monospace',
+              fontFamily: 'var(--font-mono)',
               fontSize: '10px',
-              color: '#94A3B8',
+              color: 'rgba(0,0,0,0.55)',
               marginTop: '12px',
               textAlign: 'center',
             }}

@@ -7,7 +7,12 @@
  * nudge callers to think before bailing early.
  *
  * FLEXBOX ONLY — no CSS grid (Pitfall 15).
- * Neobrutalist: 2-3px borders, hard offset shadows, #09090E background.
+ * Chrome: cream `.modal-panel` template (D-13, 09.2-08) — overlay
+ * rgba(0,0,0,0.82) + blur(4px) z-200, panel var(--bg-inverse) with BLACK text,
+ * 3px black border, var(--shadow-brutal-lg). The exit is framed as a SLASH:
+ * the warning accent (#FB923C) carries the penalty line on a DARK strip
+ * (warning text on cream fails contrast) and fills the confirm CTA. The rep
+ * slash renders the REAL repDelta prop — never a mock number (D-05).
  *
  * Requirements: SOCIAL-17, SOCIAL-18, SOCIAL-19, SOCIAL-22, SOCIAL-25, SOCIAL-26, UI-07
  * Spec: §15.3 — caller-specific actions, confirmation modal
@@ -91,31 +96,39 @@ export function CallerExitModal({
   return (
     <Dialog.Root open={open} onOpenChange={(o) => { if (!o) handleClose(); }}>
       <Dialog.Portal>
+        {/* .modal-overlay template (D-13): rgba(0,0,0,0.82) scrim + blur(4px), z-200 */}
         <Dialog.Overlay
           style={{
             position: 'fixed',
             inset: 0,
-            backgroundColor: 'rgba(0,0,0,0.80)',
-            zIndex: 40,
+            backgroundColor: 'rgba(0,0,0,0.82)',
+            backdropFilter: 'blur(4px)',
+            zIndex: 200,
           }}
         />
+        {/* .modal-panel template (D-13): cream var(--bg-inverse), BLACK text,
+            3px black border, brutal-lg shadow — every text token inside is inverse */}
         <Dialog.Content
           style={{
             position: 'fixed',
             top: '50%',
             left: '50%',
             transform: 'translate(-50%, -50%)',
-            zIndex: 50,
-            width: '480px',
+            zIndex: 201,
+            width: '620px',
             maxWidth: 'calc(100vw - 32px)',
-            backgroundColor: '#09090E',
-            border: '3px solid #FB923C',
-            boxShadow: '6px 6px 0 0 #FB923C',
-            padding: '28px',
+            maxHeight: '90vh',
+            overflowY: 'auto',
+            backgroundColor: 'var(--bg-inverse)',
+            color: '#000',
+            border: '3px solid #000',
+            boxShadow: 'var(--shadow-brutal-lg)',
+            borderRadius: 0,
+            padding: '36px',
             outline: 'none',
           }}
         >
-          {/* Header */}
+          {/* Header — mono overline voice */}
           <div
             style={{
               display: 'flex',
@@ -127,11 +140,11 @@ export function CallerExitModal({
           >
             <Dialog.Title
               style={{
-                fontFamily: 'monospace',
-                fontSize: '18px',
+                fontFamily: 'var(--font-mono)',
+                fontSize: '13px',
                 fontWeight: 700,
-                color: '#FB923C',
-                letterSpacing: '0.05em',
+                color: '#000',
+                letterSpacing: '0.14em',
                 textTransform: 'uppercase',
                 margin: 0,
               }}
@@ -143,7 +156,7 @@ export function CallerExitModal({
               style={{
                 background: 'none',
                 border: 'none',
-                color: '#94A3B8',
+                color: 'rgba(0,0,0,0.55)',
                 cursor: 'pointer',
                 fontSize: '20px',
                 lineHeight: 1,
@@ -155,7 +168,8 @@ export function CallerExitModal({
             </button>
           </div>
 
-          {/* D-12: Decay context — penalty drops toward 15% as expiry nears */}
+          {/* D-12: Decay context — the SLASH framing. Warning #FB923C accent on a
+              DARK strip (warning text on cream fails contrast) */}
           <div
             style={{
               display: 'flex',
@@ -163,13 +177,13 @@ export function CallerExitModal({
               gap: '4px',
               marginBottom: '20px',
               padding: '14px',
-              border: '2px solid #FB923C',
-              backgroundColor: 'rgba(251, 146, 60, 0.06)',
+              border: '2px solid #000',
+              backgroundColor: '#000',
             }}
           >
             <span
               style={{
-                fontFamily: 'monospace',
+                fontFamily: 'var(--font-mono)',
                 fontSize: '15px',
                 fontWeight: 700,
                 color: '#FB923C',
@@ -180,23 +194,23 @@ export function CallerExitModal({
             </span>
             <span
               style={{
-                fontFamily: 'monospace',
+                fontFamily: 'var(--font-mono)',
                 fontSize: '12px',
-                color: '#94A3B8',
+                color: 'rgba(245,241,232,0.7)',
               }}
             >
               Penalty range: 15% (at expiry) → ~50% (first 24h after creation)
             </span>
           </div>
 
-          {/* Penalty breakdown */}
+          {/* Penalty breakdown — real values from props only (D-05) */}
           <div
             style={{
               display: 'flex',
               flexDirection: 'column',
               gap: '0px',
               marginBottom: '20px',
-              border: '2px solid #2E2E42',
+              border: '2px solid #000',
             }}
           >
             {/* Penalty amount */}
@@ -207,13 +221,13 @@ export function CallerExitModal({
                 justifyContent: 'space-between',
                 alignItems: 'center',
                 padding: '12px 14px',
-                borderBottom: '1px solid #2E2E42',
+                borderBottom: '1px solid rgba(0,0,0,0.25)',
               }}
             >
-              <span style={{ fontFamily: 'monospace', fontSize: '12px', color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: '12px', color: 'rgba(0,0,0,0.6)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
                 Penalty ({penaltyPct}%)
               </span>
-              <span style={{ fontFamily: 'monospace', fontSize: '15px', fontWeight: 700, color: '#F87171' }}>
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: '15px', fontWeight: 700, color: '#B91C1C' }}>
                 -{formatUsdc(penaltyUsdc)}
               </span>
             </div>
@@ -225,17 +239,17 @@ export function CallerExitModal({
                 justifyContent: 'space-between',
                 alignItems: 'center',
                 padding: '12px 14px',
-                borderBottom: '1px solid #2E2E42',
+                borderBottom: '1px solid rgba(0,0,0,0.25)',
               }}
             >
-              <span style={{ fontFamily: 'monospace', fontSize: '12px', color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: '12px', color: 'rgba(0,0,0,0.6)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
                 You receive
               </span>
-              <span style={{ fontFamily: 'monospace', fontSize: '15px', fontWeight: 700, color: '#E8E8E8' }}>
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: '15px', fontWeight: 700, color: '#000' }}>
                 {formatUsdc(stakeReturned)}
               </span>
             </div>
-            {/* Rep impact */}
+            {/* Rep impact — REAL repDelta from props, never a mock (D-05) */}
             <div
               style={{
                 display: 'flex',
@@ -245,10 +259,10 @@ export function CallerExitModal({
                 padding: '12px 14px',
               }}
             >
-              <span style={{ fontFamily: 'monospace', fontSize: '12px', color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: '12px', color: 'rgba(0,0,0,0.6)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
                 Rep impact
               </span>
-              <span style={{ fontFamily: 'monospace', fontSize: '15px', fontWeight: 700, color: '#F87171' }}>
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: '15px', fontWeight: 700, color: '#B91C1C' }}>
                 {repDelta} rep
               </span>
             </div>
@@ -262,16 +276,16 @@ export function CallerExitModal({
               gap: '6px',
               marginBottom: '20px',
               padding: '12px 14px',
-              border: '2px solid #94A3B8',
-              backgroundColor: '#13131D',
+              border: '2px solid #000',
+              backgroundColor: 'rgba(0,0,0,0.04)',
             }}
           >
             <span
               style={{
-                fontFamily: 'monospace',
+                fontFamily: 'var(--font-mono)',
                 fontSize: '11px',
                 fontWeight: 700,
-                color: '#E8E8E8',
+                color: '#000',
                 textTransform: 'uppercase',
                 letterSpacing: '0.12em',
               }}
@@ -280,9 +294,9 @@ export function CallerExitModal({
             </span>
             <span
               style={{
-                fontFamily: 'monospace',
+                fontFamily: 'var(--font-mono)',
                 fontSize: '12px',
-                color: '#94A3B8',
+                color: 'rgba(0,0,0,0.7)',
                 lineHeight: 1.5,
               }}
             >
@@ -291,18 +305,19 @@ export function CallerExitModal({
             </span>
           </div>
 
-          {/* Type-to-confirm input (D-11) */}
+          {/* Type-to-confirm input (D-11) — .brutal-input recipe adapted for cream */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '20px' }}>
             <label
               style={{
-                fontFamily: 'monospace',
+                fontFamily: 'var(--font-mono)',
                 fontSize: '12px',
-                color: '#94A3B8',
+                fontWeight: 700,
+                color: '#000',
                 textTransform: 'uppercase',
-                letterSpacing: '0.1em',
+                letterSpacing: '0.12em',
               }}
             >
-              Type <span style={{ color: '#FB923C', fontWeight: 700 }}>EXIT</span> to confirm
+              Type <span style={{ color: '#B45309', fontWeight: 700 }}>EXIT</span> to confirm
             </label>
             <input
               type="text"
@@ -315,10 +330,11 @@ export function CallerExitModal({
               autoCapitalize="off"
               spellCheck={false}
               style={{
-                backgroundColor: '#13131D',
-                border: `2px solid ${confirmMatch ? '#FB923C' : '#2E2E42'}`,
-                color: confirmMatch ? '#FB923C' : '#E8E8E8',
-                fontFamily: 'monospace',
+                backgroundColor: 'rgba(255,255,255,0.55)',
+                border: `2px solid ${confirmMatch ? '#FB923C' : '#000'}`,
+                borderRadius: 0,
+                color: '#000',
+                fontFamily: 'var(--font-mono)',
                 fontSize: '16px',
                 fontWeight: 700,
                 letterSpacing: '0.2em',
@@ -328,7 +344,7 @@ export function CallerExitModal({
               }}
             />
             {typeConfirm.length > 0 && !confirmMatch && (
-              <span style={{ fontFamily: 'monospace', fontSize: '11px', color: '#94A3B8' }}>
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'rgba(0,0,0,0.6)' }}>
                 Type &quot;EXIT&quot; exactly to unlock the confirm button
               </span>
             )}
@@ -340,11 +356,11 @@ export function CallerExitModal({
               style={{
                 marginBottom: '16px',
                 padding: '10px 12px',
-                border: '2px solid #F87171',
-                backgroundColor: 'rgba(248, 113, 113, 0.08)',
+                border: '2px solid #DC2626',
+                backgroundColor: 'rgba(220, 38, 38, 0.06)',
               }}
             >
-              <span style={{ fontFamily: 'monospace', fontSize: '12px', color: '#F87171' }}>
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: '12px', color: '#B91C1C' }}>
                 {error}
               </span>
             </div>
@@ -352,7 +368,7 @@ export function CallerExitModal({
 
           {/* Action buttons — flexWrap + per-button minWidth stacks them full-width
               when the panel clamps to calc(100vw - 32px) on a phone, side-by-side on the
-              480px desktop panel. Intrinsic CSS only — no browser-only viewport read (Pitfall 2;
+              620px desktop panel. Intrinsic CSS only — no browser-only viewport read (Pitfall 2;
               this file feeds the Satori/@vercel/og Node build with no window). */}
           <div style={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap', gap: '12px' }}>
             <button
@@ -362,12 +378,12 @@ export function CallerExitModal({
                 flex: '1 1 160px',
                 minWidth: '160px',
                 minHeight: '44px',
-                fontFamily: 'monospace',
+                fontFamily: 'var(--font-mono)',
                 fontSize: '14px',
                 fontWeight: 700,
-                color: '#E8E8E8',
+                color: '#000',
                 backgroundColor: 'transparent',
-                border: '2px solid #2E2E42',
+                border: '2px solid #000',
                 padding: '12px 16px',
                 cursor: isSubmitting ? 'not-allowed' : 'pointer',
                 opacity: isSubmitting ? 0.5 : 1,
@@ -384,16 +400,15 @@ export function CallerExitModal({
                 flex: '2 1 200px',
                 minWidth: '200px',
                 minHeight: '44px',
-                fontFamily: 'monospace',
+                fontFamily: 'var(--font-mono)',
                 fontSize: '14px',
                 fontWeight: 700,
-                color: isReady ? '#09090E' : '#2E2E42',
-                backgroundColor: isReady ? '#FB923C' : '#1A1A24',
-                border: `2px solid ${isReady ? '#09090E' : '#2E2E42'}`,
-                boxShadow: isReady ? '4px 4px 0 0 #000' : 'none',
+                color: isReady ? '#000' : 'rgba(0,0,0,0.4)',
+                backgroundColor: isReady ? '#FB923C' : 'rgba(0,0,0,0.15)',
+                border: `2px solid ${isReady ? '#000' : 'rgba(0,0,0,0.3)'}`,
+                boxShadow: isReady ? 'var(--shadow-brutal)' : 'none',
                 padding: '12px 16px',
                 cursor: isReady ? 'pointer' : 'not-allowed',
-                opacity: isReady ? 1 : 0.5,
                 textTransform: 'uppercase',
                 letterSpacing: '0.08em',
                 transition: 'transform 0.1s, box-shadow 0.1s',

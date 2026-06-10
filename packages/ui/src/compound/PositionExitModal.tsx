@@ -6,7 +6,11 @@
  * Shows penalty math and the amount the user will receive.
  *
  * FLEXBOX ONLY — no CSS grid (Pitfall 15).
- * Neobrutalist: 2-3px borders, hard offset shadows, #09090E background.
+ * Chrome: cream `.modal-panel` template (D-13, 09.2-08) — overlay
+ * rgba(0,0,0,0.82) + blur(4px) z-200, panel var(--bg-inverse) with BLACK text,
+ * 3px black border, var(--shadow-brutal-lg). Side accents (win chartreuse /
+ * fade red) appear only on DARK chips or as black-bordered fills (side-color
+ * TEXT on cream fails contrast). All money values are real props.
  *
  * Requirements: SOCIAL-12, SOCIAL-13, SOCIAL-14, SOCIAL-50, UI-07
  * Spec: §15.3 — "Position-holder actions" confirmation modal
@@ -84,31 +88,39 @@ export function PositionExitModal({
   return (
     <Dialog.Root open={open} onOpenChange={(o) => { if (!o) handleClose(); }}>
       <Dialog.Portal>
+        {/* .modal-overlay template (D-13): rgba(0,0,0,0.82) scrim + blur(4px), z-200 */}
         <Dialog.Overlay
           style={{
             position: 'fixed',
             inset: 0,
-            backgroundColor: 'rgba(0,0,0,0.75)',
-            zIndex: 40,
+            backgroundColor: 'rgba(0,0,0,0.82)',
+            backdropFilter: 'blur(4px)',
+            zIndex: 200,
           }}
         />
+        {/* .modal-panel template (D-13): cream var(--bg-inverse), BLACK text,
+            3px black border, brutal-lg shadow — every text token inside is inverse */}
         <Dialog.Content
           style={{
             position: 'fixed',
             top: '50%',
             left: '50%',
             transform: 'translate(-50%, -50%)',
-            zIndex: 50,
-            width: '420px',
+            zIndex: 201,
+            width: '620px',
             maxWidth: 'calc(100vw - 32px)',
-            backgroundColor: '#09090E',
-            border: `3px solid ${sideColor}`,
-            boxShadow: `6px 6px 0 0 ${sideColor}`,
-            padding: '28px',
+            maxHeight: '90vh',
+            overflowY: 'auto',
+            backgroundColor: 'var(--bg-inverse)',
+            color: '#000',
+            border: '3px solid #000',
+            boxShadow: 'var(--shadow-brutal-lg)',
+            borderRadius: 0,
+            padding: '36px',
             outline: 'none',
           }}
         >
-          {/* Header */}
+          {/* Header — mono overline voice */}
           <div
             style={{
               display: 'flex',
@@ -120,11 +132,11 @@ export function PositionExitModal({
           >
             <Dialog.Title
               style={{
-                fontFamily: 'monospace',
-                fontSize: '18px',
+                fontFamily: 'var(--font-mono)',
+                fontSize: '13px',
                 fontWeight: 700,
-                color: sideColor,
-                letterSpacing: '0.05em',
+                color: '#000',
+                letterSpacing: '0.14em',
                 textTransform: 'uppercase',
                 margin: 0,
               }}
@@ -136,7 +148,7 @@ export function PositionExitModal({
               style={{
                 background: 'none',
                 border: 'none',
-                color: '#94A3B8',
+                color: 'rgba(0,0,0,0.55)',
                 cursor: 'pointer',
                 fontSize: '20px',
                 lineHeight: 1,
@@ -148,7 +160,8 @@ export function PositionExitModal({
             </button>
           </div>
 
-          {/* Position info */}
+          {/* Position info — side name on a DARK chip (side-color text on cream
+              fails contrast, so the accent sits on black) */}
           <div
             style={{
               display: 'flex',
@@ -157,35 +170,39 @@ export function PositionExitModal({
               gap: '8px',
               marginBottom: '16px',
               padding: '10px 14px',
-              border: '2px solid #2E2E42',
-              backgroundColor: '#13131D',
+              border: '2px solid #000',
+              backgroundColor: 'rgba(0,0,0,0.04)',
             }}
           >
             <span
               style={{
-                fontFamily: 'monospace',
-                fontSize: '12px',
-                fontWeight: 700,
+                display: 'inline-flex',
+                alignItems: 'center',
+                backgroundColor: '#000',
                 color: sideColor,
+                fontFamily: 'var(--font-mono)',
+                fontSize: '10px',
+                fontWeight: 700,
                 textTransform: 'uppercase',
-                letterSpacing: '0.1em',
+                letterSpacing: '0.12em',
+                padding: '3px 8px',
               }}
             >
               {sideLabel}
             </span>
-            <span style={{ fontFamily: 'monospace', fontSize: '12px', color: '#94A3B8' }}>
+            <span style={{ fontFamily: 'var(--font-mono)', fontSize: '12px', color: 'rgba(0,0,0,0.6)' }}>
               position value: {formatUsdc(positionValue)}
             </span>
           </div>
 
-          {/* Penalty breakdown — D-11 shows the math */}
+          {/* Penalty breakdown — D-11 shows the math (real values from props) */}
           <div
             style={{
               display: 'flex',
               flexDirection: 'column',
               gap: '0px',
               marginBottom: '20px',
-              border: '2px solid #2E2E42',
+              border: '2px solid #000',
             }}
           >
             {/* Position value */}
@@ -196,13 +213,13 @@ export function PositionExitModal({
                 justifyContent: 'space-between',
                 alignItems: 'center',
                 padding: '12px 14px',
-                borderBottom: '1px solid #2E2E42',
+                borderBottom: '1px solid rgba(0,0,0,0.25)',
               }}
             >
-              <span style={{ fontFamily: 'monospace', fontSize: '12px', color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: '12px', color: 'rgba(0,0,0,0.6)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
                 Position value
               </span>
-              <span style={{ fontFamily: 'monospace', fontSize: '15px', fontWeight: 700, color: '#E8E8E8' }}>
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: '15px', fontWeight: 700, color: '#000' }}>
                 {formatUsdc(positionValue)}
               </span>
             </div>
@@ -214,13 +231,13 @@ export function PositionExitModal({
                 justifyContent: 'space-between',
                 alignItems: 'center',
                 padding: '12px 14px',
-                borderBottom: '1px solid #2E2E42',
+                borderBottom: '1px solid rgba(0,0,0,0.25)',
               }}
             >
-              <span style={{ fontFamily: 'monospace', fontSize: '12px', color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: '12px', color: 'rgba(0,0,0,0.6)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
                 10% exit penalty
               </span>
-              <span style={{ fontFamily: 'monospace', fontSize: '15px', fontWeight: 700, color: '#F87171' }}>
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: '15px', fontWeight: 700, color: '#B91C1C' }}>
                 -{formatUsdc(slash)}
               </span>
             </div>
@@ -232,13 +249,13 @@ export function PositionExitModal({
                 justifyContent: 'space-between',
                 alignItems: 'center',
                 padding: '12px 14px',
-                backgroundColor: '#13131D',
+                backgroundColor: 'rgba(0,0,0,0.04)',
               }}
             >
-              <span style={{ fontFamily: 'monospace', fontSize: '12px', color: '#E8E8E8', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 700 }}>
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: '12px', color: '#000', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 700 }}>
                 You receive
               </span>
-              <span style={{ fontFamily: 'monospace', fontSize: '17px', fontWeight: 700, color: '#E8E8E8' }}>
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: '17px', fontWeight: 700, color: '#000' }}>
                 {formatUsdc(userReceives)}
               </span>
             </div>
@@ -247,9 +264,9 @@ export function PositionExitModal({
           {/* Penalty distribution note */}
           <p
             style={{
-              fontFamily: 'monospace',
+              fontFamily: 'var(--font-mono)',
               fontSize: '11px',
-              color: '#94A3B8',
+              color: 'rgba(0,0,0,0.6)',
               marginBottom: '20px',
               lineHeight: 1.5,
             }}
@@ -263,11 +280,11 @@ export function PositionExitModal({
               style={{
                 marginBottom: '16px',
                 padding: '10px 12px',
-                border: '2px solid #F87171',
-                backgroundColor: 'rgba(248, 113, 113, 0.08)',
+                border: '2px solid #DC2626',
+                backgroundColor: 'rgba(220, 38, 38, 0.06)',
               }}
             >
-              <span style={{ fontFamily: 'monospace', fontSize: '12px', color: '#F87171' }}>
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: '12px', color: '#B91C1C' }}>
                 {error}
               </span>
             </div>
@@ -275,7 +292,7 @@ export function PositionExitModal({
 
           {/* Action buttons — D-11: single confirm button (no type-to-confirm).
               flexWrap + per-button minWidth stacks them full-width when the panel clamps
-              to calc(100vw - 32px) on a phone, side-by-side on the 420px desktop panel.
+              to calc(100vw - 32px) on a phone, side-by-side on the 620px desktop panel.
               Intrinsic CSS only — no browser-only viewport read (Pitfall 2; this file feeds the
               Satori/@vercel/og Node build with no window). */}
           <div style={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap', gap: '12px' }}>
@@ -286,12 +303,12 @@ export function PositionExitModal({
                 flex: '1 1 150px',
                 minWidth: '150px',
                 minHeight: '44px',
-                fontFamily: 'monospace',
+                fontFamily: 'var(--font-mono)',
                 fontSize: '14px',
                 fontWeight: 700,
-                color: '#E8E8E8',
+                color: '#000',
                 backgroundColor: 'transparent',
-                border: '2px solid #2E2E42',
+                border: '2px solid #000',
                 padding: '12px 16px',
                 cursor: isSubmitting ? 'not-allowed' : 'pointer',
                 opacity: isSubmitting ? 0.5 : 1,
@@ -308,16 +325,15 @@ export function PositionExitModal({
                 flex: '2 1 190px',
                 minWidth: '190px',
                 minHeight: '44px',
-                fontFamily: 'monospace',
+                fontFamily: 'var(--font-mono)',
                 fontSize: '14px',
                 fontWeight: 700,
-                color: '#09090E',
-                backgroundColor: isSubmitting ? '#2E2E42' : sideColor,
-                border: `2px solid ${isSubmitting ? '#2E2E42' : '#09090E'}`,
-                boxShadow: isSubmitting ? 'none' : '4px 4px 0 0 #000',
+                color: isSubmitting ? 'rgba(0,0,0,0.4)' : '#000',
+                backgroundColor: isSubmitting ? 'rgba(0,0,0,0.15)' : sideColor,
+                border: `2px solid ${isSubmitting ? 'rgba(0,0,0,0.3)' : '#000'}`,
+                boxShadow: isSubmitting ? 'none' : 'var(--shadow-brutal)',
                 padding: '12px 16px',
                 cursor: isSubmitting ? 'not-allowed' : 'pointer',
-                opacity: isSubmitting ? 0.5 : 1,
                 textTransform: 'uppercase',
                 letterSpacing: '0.08em',
                 transition: 'transform 0.1s, box-shadow 0.1s',
