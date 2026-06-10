@@ -1,17 +1,19 @@
 /**
- * Profile Overview tab Playwright tests — Plan 07-05 Task 1 (UI-09)
+ * Profile Overview Playwright tests — Plan 07-05 Task 1 (UI-09),
+ * lockstep-updated for the Phase 09.2 plan 05 prototype retheme (D-15).
  *
  * Strategy: Tier-1 (static source assertions) — always run.
  *           Tier-2 (browser tests) — skipped without PLAYWRIGHT_BASE_URL.
  *
- * Tier-1 verifies the Overview tab (UI-SPEC §Profile Overview) renders from
- * @call-it/ui primitives:
- *   1. ProfileClient imports @call-it/ui primitives (Card / CallCard / ProfileHeader).
- *   2. The 5 named stats render: Accuracy / Calibration / ROI / Contrarian hits / Streak.
- *   3. The section headings render: CATEGORY REPUTATION / RECENT CALLS / MOST FOLLOWED BY /
- *      NOTABLE RECEIPTS.
- *   4. Every list defines its empty-state copy (UI-SPEC empty-states table).
- *   5. No CSS grid (flexbox only, Pitfall 15).
+ * Tier-1 verifies the restyled profile renders from @call-it/ui primitives
+ * and honors D-07 (data with no live source is HIDDEN, never faked):
+ *   1. ProfileClient imports @call-it/ui primitives (ProfileHeader / Card).
+ *   2. Real-source stats render: Accuracy / W/L record / Streak / Calls.
+ *   3. No-source stat blocks are ABSENT (D-07) — the old em-dash stubs are gone.
+ *   4. RECENT CALLS section renders; removed no-source sections are ABSENT.
+ *   5. Honest empty state replaces the old list copy; the fake fill bars are gone.
+ *   6. No CSS grid (flexbox only, Pitfall 15).
+ *   7. Prototype markup contract: hero clamp, primitive classes, AUTH-44.
  */
 
 import { test, expect } from '@playwright/test';
@@ -36,37 +38,65 @@ test.describe('PROFILE-OVERVIEW: source assertions (Tier-1)', () => {
     expect(source).toMatch(/from ['"]@call-it\/ui['"]/);
     expect(source).toContain('ProfileHeader');
     expect(source).toContain('Card');
-    expect(source).toContain('CallCard');
+    // CallCard left the file with the always-empty RECENT CALLS list — the
+    // list is now an honest empty state (D-07); the import assert tracks the
+    // markup it serves (D-15: updated in lockstep, not deleted).
+    expect(source).not.toContain('CallCard');
   });
 
-  test('Test 2: the 5 named stats render', () => {
+  test('Test 2: real-source stats render (D-07: only stats with live data)', () => {
     const source = readFile(SRC);
     expect(source).toContain('Accuracy');
-    expect(source).toContain('Calibration');
-    expect(source).toContain('ROI');
-    expect(source).toContain('Contrarian hits');
+    expect(source).toContain('W/L record');
     expect(source).toContain('Streak');
+    expect(source).toContain('Calls');
+    expect(source).toContain('Global reputation');
   });
 
-  test('Test 3: the Overview section headings render', () => {
+  test('Test 3: no-source stat blocks are ABSENT (D-07: hidden, never faked)', () => {
+    // These stats have no relayer source — the old markup rendered em-dash
+    // stubs for them. D-07: they are now hidden entirely, not faked.
     const source = readFile(SRC);
-    expect(source).toContain('CATEGORY REPUTATION');
+    expect(source).not.toMatch(/calibration/i);
+    expect(source).not.toMatch(/roi/i);
+    expect(source).not.toMatch(/contrarian hits/i);
+    expect(source).not.toMatch(/sparkline/i);
+  });
+
+  test('Test 4: RECENT CALLS renders; removed no-source sections are ABSENT (D-07)', () => {
+    const source = readFile(SRC);
     expect(source).toContain('RECENT CALLS');
-    expect(source).toContain('MOST FOLLOWED BY');
-    expect(source).toContain('NOTABLE RECEIPTS');
+    // The category bars were HARDCODED fake data (the one active D-07
+    // violation); followers + receipts showcases had no source. All removed.
+    expect(source).not.toContain('CATEGORY REPUTATION');
+    expect(source).not.toContain('MOST FOLLOWED BY');
+    expect(source).not.toContain('NOTABLE RECEIPTS');
   });
 
-  test('Test 4: empty-state copy is present for the lists', () => {
+  test('Test 5: honest empty state present; fake fill bars gone (D-07)', () => {
     const source = readFile(SRC);
-    expect(source).toContain('No calls yet');
-    expect(source).toContain('No followers yet');
-    expect(source).toContain('No receipts yet');
+    expect(source).toContain('No calls on record yet.');
+    // The fake category bars rendered a hardcoded 60% width — gone for good.
+    expect(source).not.toMatch(/width:\s*['"]60%['"]/);
   });
 
-  test('Test 5: no CSS grid (flexbox only)', () => {
+  test('Test 6: no CSS grid (flexbox only)', () => {
     const source = readFile(SRC);
     expect(source).not.toMatch(/display:\s*['"]grid['"]/);
     expect(source).not.toContain("display: 'grid'");
+  });
+
+  test('Test 7: prototype markup contract (hero clamp, primitives, AUTH-44)', () => {
+    const source = readFile(SRC);
+    // Hero rep numeral display clamp (prototype hero recipe)
+    expect(source).toContain('clamp(64px, 18vw, 132px)');
+    // Primitive class recipes from the 09.2-01 token layer
+    expect(source).toContain('stat-block');
+    expect(source).toContain('section-divider');
+    expect(source).toContain('label-overline');
+    // AUTH-44 (T-09.2-12): no address formatting anywhere in the renderer —
+    // the address prop is a lookup key only and is never rendered.
+    expect(source).not.toMatch(/address\.slice|formatAddress/);
   });
 });
 
@@ -80,7 +110,7 @@ test.describe('PROFILE-OVERVIEW: browser tests (Tier-2)', () => {
     }
   });
 
-  test('Tier-2: Overview tab renders the 5-stat row + section headings', async ({ page, baseURL }) => {
+  test('Tier-2: profile renders real stats + RECENT CALLS empty state', async ({ page, baseURL }) => {
     await page.route(`**/api/profile/${TEST_ADDRESS}`, (route) => {
       route.fulfill({
         status: 200,
@@ -107,7 +137,9 @@ test.describe('PROFILE-OVERVIEW: browser tests (Tier-2)', () => {
 
     await page.goto(`${baseURL}/profile/${TEST_ADDRESS}`);
     await expect(page.getByText('Accuracy')).toBeVisible();
-    await expect(page.getByText('CATEGORY REPUTATION')).toBeVisible();
     await expect(page.getByText('RECENT CALLS')).toBeVisible();
+    await expect(page.getByText('No calls on record yet.')).toBeVisible();
+    // D-07: removed no-source sections must not render
+    await expect(page.getByText('CATEGORY REPUTATION')).toHaveCount(0);
   });
 });

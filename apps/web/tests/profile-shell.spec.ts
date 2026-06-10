@@ -1,6 +1,12 @@
 /**
  * Profile shell Playwright tests — Plan 01-09 Task 2
  *
+ * Phase 09.2 plan 05 (D-15 lockstep review): every assert below was
+ * reconciled against the prototype profile retheme — Test 2's @call-it/ui
+ * ProfileHeader import contract is still satisfied by the restyled
+ * ProfileClient, and no assert referenced the removed no-source sections
+ * (D-07), so all tests stand unchanged. None deleted.
+ *
  * Strategy: Tier-1 (static source assertions) — always run.
  *           Tier-2 (browser tests) — skipped without PLAYWRIGHT_BASE_URL.
  *
