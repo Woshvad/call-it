@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: milestone
 status: executing
-stopped_at: Completed 09.2-13-PLAN.md
-last_updated: "2026-06-10T16:36:25.762Z"
+stopped_at: Completed 09.2-14-PLAN.md
+last_updated: "2026-06-10T17:47:59.482Z"
 last_activity: 2026-06-10 -- Phase 09.2 execution started
 progress:
   total_phases: 16
   completed_phases: 11
   total_plans: 98
-  completed_plans: 96
+  completed_plans: 97
   percent: 69
 ---
 
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-05-21)
 ## Current Position
 
 Phase: 09.2 (prototype-design-adoption-rebuild-apps-web-ui-to-the-call-it) — EXECUTING
-Plan: 14 of 15
+Plan: 15 of 15
 
 > **Strategic pivot (2026-06-09):** Mainnet is PAUSED till further notice. Phases **10 (mainnet deploy gate)** and **10.5 (mainnet multisig lockdown)** are ON HOLD. Active focus is **Phase 09.1 — Testnet Demo Hardening**: make the full product demo-perfect end-to-end on the live Arbitrum Sepolia deployment. Next: `/gsd-discuss-phase 09.1`.
 
@@ -183,6 +183,7 @@ All 3 operator actions were run this session (user explicitly authorized "run al
 | Phase 09.2 P11 | 13min | 2 tasks | 1 files |
 | Phase 09.2 P12 | 11min | 2 tasks | 3 files |
 | Phase 09.2 P13 | 21min | 3 tasks | 15 files |
+| Phase 09.2 P14 | 15min | 2 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -376,6 +377,9 @@ completed: 2026-05-29
 - [Phase 09.2]: 09.2-13: Tagline step ships without .brutal-textarea — AUTH-21 line is spec-locked display copy, not user input (restyle-only invariant)
 - [Phase 09.2]: 09.2-13: WalletExportPrompt + PrivyFundButton intentionally unedited (prompt renders null; toast chrome = rethemed Toast primitive; fund button already token-recipe Button)
 - [Phase 09.2]: 09.2-13: Disputes back-to-feed link cut as redundant chrome (AppShell sidebar provides the route); OPEN pill = .pill neutral, upheld/overturned = win/loss pills
+- [Phase 09.2]: 09.2-14: OG Satori markup mirrors token literals (#2E2E42 = --border-active) since Satori cannot resolve CSS vars
+- [Phase 09.2]: 09.2-14: MobileDrawer registry mirrors Sidebar 1:1 (Settings + Disputes added; Make a call always-visible, /new middleware-guarded)
+- [Phase 09.2]: 09.2-14: OG Archivo refresh DEFERRED to Phase 09.1 (D-16 discretion record; D-04 UI/OG font divergence stands)
 
 ## Performance
 
@@ -531,6 +535,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-06-10T16:36:25.741Z
-Stopped at: Completed 09.2-13-PLAN.md
+Last session: 2026-06-10T17:47:59.457Z
+Stopped at: Completed 09.2-14-PLAN.md
 Resume file: None

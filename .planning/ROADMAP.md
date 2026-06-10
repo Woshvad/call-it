@@ -368,7 +368,7 @@ Plans:
 **Requirements**: TBD (UI restyle of existing requirement surfaces; no new mechanical requirements)
 **Depends on:** Phase 9
 **Research:** 09.2-RESEARCH.md (compatibility audit, 2026-06-10 8-agent sweep: variant canon, token delta, screen-by-screen REUSE/PARTIAL/NEW-BUILD map, wiring-risk register, adoption sequence)
-**Plans:** 13/15 plans executed
+**Plans:** 14/15 plans executed
 Plans:
 **Wave 1**
 
@@ -406,7 +406,7 @@ Plans:
 
 **Wave 8** *(blocked on Wave 7 completion)*
 
-- [ ] 09.2-14-PLAN.md — Wave 8: phase audit (legacy palette retirement, D-14 invariants, address/grid/postcss gates) + mobile clamp pass (UI-48)
+- [x] 09.2-14-PLAN.md — Wave 8: phase audit (legacy palette retirement, D-14 invariants, address/grid/postcss gates) + mobile clamp pass (UI-48)
 
 **Wave 9** *(blocked on Wave 8 completion)*
 
