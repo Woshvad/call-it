@@ -4,14 +4,14 @@ milestone: v1.1
 milestone_name: milestone
 status: executing
 stopped_at: Completed 09-01-PLAN.md
-last_updated: "2026-06-09T16:03:10.833Z"
-last_activity: 2026-06-09
+last_updated: "2026-06-10T10:43:54.072Z"
+last_activity: "2026-06-10 - Completed quick task 260610-f6s (--validate): polished the CONNECT SOCIALS linked state (full-width "✓ @username linked" indicators) AND fixed the Farcaster "Connecting…" infinite hang (surface the Warpcast QR/redirect via useSignIn `url` + timeout, never hangs) — 1 file SocialLinkControls.tsx, committed 1bc4e55, verifier 8/8 (human_needed = live Warpcast scan only), not pushed (operator deploys web via Vercel)"
 progress:
-  total_phases: 15
+  total_phases: 16
   completed_phases: 11
   total_plans: 83
   completed_plans: 83
-  percent: 73
+  percent: 69
 ---
 
 # Project State
@@ -25,7 +25,7 @@ See: .planning/PROJECT.md (updated 2026-05-21)
 
 ## Current Position
 
-Phase: 09.1 (testnet-demo-hardening-on-arbitrum-sepolia) — INSERTED, not yet planned
+Phase: 09.2 (prototype-design-adoption) — INSERTED, not yet planned (runs before 09.1)
 Plan: Not started
 
 > **Strategic pivot (2026-06-09):** Mainnet is PAUSED till further notice. Phases **10 (mainnet deploy gate)** and **10.5 (mainnet multisig lockdown)** are ON HOLD. Active focus is **Phase 09.1 — Testnet Demo Hardening**: make the full product demo-perfect end-to-end on the live Arbitrum Sepolia deployment. Next: `/gsd-discuss-phase 09.1`.
@@ -176,6 +176,7 @@ All 3 operator actions were run this session (user explicitly authorized "run al
 ### Roadmap Evolution
 
 - Phase 05.1 inserted after Phase 5: Non-Pyth Oracle Rail Activation (Bucket B — non-Pyth functional rail + dual-governance schema change) (URGENT)
+- 2026-06-10: **Phase 09.2 inserted after Phase 9 (URGENT): Prototype design adoption** — rebuild the apps/web UI to the canonical `call it frontend/` design prototype (root variant = design canon: Archivo/Inter/JetBrains Mono, cream #F5F1E8 inverse blocks, hard black offset shadows, radius 0, brutal-* primitives). **Executes BEFORE Phase 09.1** — demo hardening must polish the NEW design, not the old one (operator decision: the prototype was always the intended design; the app was built without it). Prototype = markup+token donor only; all logic/hooks/guards stay. Compatibility audit (2026-06-10, 8-agent workflow sweep) saved as 09.2-RESEARCH.md in the phase dir.
 - 2026-06-09: **Strategic pivot — mainnet PAUSED till further notice.** Phase 09.1 (Testnet Demo Hardening on Arbitrum Sepolia) INSERTED after Phase 9; Phases 10 (mainnet deploy gate) + 10.5 (mainnet multisig lockdown) marked ON HOLD (not deleted). Demo target is the live Sepolia deployment. Goal of 09.1: 4-pillar demo-readiness — (1) share-link receipt loop showing the TRUE outcome word + market line [requires the deferred relayer redeploy], (2) full creator flow (sign-in→create→follow/fade/challenge→settle→receipt) live on testnet, (3) browse surfaces with real seeded data, (4) live social/distribution ("From your X" feed + Twitter auto-post; needs X API + Neynar keys + X_API_WRITE_TOKEN).
 - 2026-06-04: ROADMAP.md restored (it had been accidentally truncated to 0 bytes at commit 4fdaaf2 during Phase 6 planning; recovered from 9091887). **Mainnet multisig promotion MOVED out of Phase 6 → new final Phase 10** (Mainnet multisig promotion / ownership lockdown), per operator decision. Phase 6 is now Sepolia-rehearsal-only; the mainnet deploy gate (today's Phase 10) launches mainnet under the deployer key, so a single-owner-key window (Risk #2) is live on mainnet from launch until the multisig lockdown (today's Phase 10.5). Phase count 9 → 10.
 - 2026-06-07: **Mainnet deploy gate renumbered → Phase 10; old Phase 10 (Mainnet multisig promotion / ownership lockdown) → Phase 10.5**, both reordered to run AFTER Phases 8–9 (operator decision — distribution/UX ships on testnet first; mainnet deploy then multisig lockdown last). Deps repointed: Phase 8 → Phase 7, Phase 9 → Phase 8, new Phase 10 → Phase 9, Phase 10.5 → Phase 10. Phase count unchanged (14). ROADMAP.md updated end-to-end (overview, numbering note, detail sections, execution order, progress table). Historical phase artifacts (06-*, 05-*, …) left as point-in-time records.
