@@ -36,18 +36,22 @@ let _privyClient: PrivyClient | undefined;
 
 /**
  * Returns the memoized PrivyClient singleton.
- * Reads PRIVY_APP_ID + PRIVY_APP_SECRET from process.env.
- * Throws if either is missing (caught at startup, not at request time).
+ * Reads the app id from NEXT_PUBLIC_PRIVY_APP_ID (primary, GCP-sourced /
+ * frontend-matching) with PRIVY_APP_ID as a legacy fallback, plus
+ * PRIVY_APP_SECRET, from process.env.
+ * Throws if the resolved app id or the secret is missing (caught at startup,
+ * not at request time).
  */
 export function getPrivyClient(): PrivyClient {
   if (_privyClient) return _privyClient;
 
-  const appId = process.env.PRIVY_APP_ID;
+  const appId = process.env.NEXT_PUBLIC_PRIVY_APP_ID ?? process.env.PRIVY_APP_ID;
   const appSecret = process.env.PRIVY_APP_SECRET;
 
   if (!appId || !appSecret) {
     throw new Error(
-      'PRIVY_APP_ID and PRIVY_APP_SECRET are required for privySessionPreHandler',
+      'NEXT_PUBLIC_PRIVY_APP_ID (primary) / PRIVY_APP_ID (fallback) and ' +
+        'PRIVY_APP_SECRET are required for privySessionPreHandler',
     );
   }
 
