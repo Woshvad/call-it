@@ -115,7 +115,9 @@ export function FollowFadeModal({
     if (awaitingFreshReserves) {
       setAwaitingFreshReserves(false);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // deps deliberately exclude awaitingFreshReserves: only fresh reserve
+    // props should clear the lock (this package's eslint config has no
+    // react-hooks plugin, so no disable directive is needed).
   }, [followReserve, fadeReserve, followTotalShares, fadeTotalShares]);
 
   // Parse amount input

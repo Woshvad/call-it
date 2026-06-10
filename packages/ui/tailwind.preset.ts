@@ -9,8 +9,8 @@
  * - Palette: brand-bg, brand-accent (chartreuse), brand-text, brand-muted,
  *            brand-border, brand-surface, brand-cream (signature inverse)
  * - Outcome colors: outcome-win (chartreuse), outcome-loss (soft red),
- *   outcome-contrarian (KEY kept on duel purple for duel identity — the
- *   CONTRARIAN HIT stamp itself takes the win color via COLOR_MAP, D-03)
+ *   outcome-contrarian (win color per D-03 — CONTRARIAN HIT is a win;
+ *   duel identity has its own accent-duel key)
  * - Font stack: display (Archivo), body (Inter), mono (JetBrains Mono) —
  *   loaded via next/font in apps/web/app/layout.tsx (D-04)
  * - Border widths: 3px, 4px (neobrutalist hard edges)
@@ -40,7 +40,7 @@ const uiPreset: Config = {
         // Outcome colors (D-03: win/loss = chartreuse/soft red)
         'outcome-win': 'var(--accent-win)',
         'outcome-loss': 'var(--accent-loss)',
-        'outcome-contrarian': 'var(--accent-duel)',
+        'outcome-contrarian': 'var(--accent-win)',
         // Semantic accents
         'accent-neutral': 'var(--accent-neutral)',
         'accent-warning': 'var(--accent-warning)',

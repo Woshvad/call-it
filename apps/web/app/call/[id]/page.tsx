@@ -1489,10 +1489,13 @@ export default function CallPage() {
   const followPct = total === 0n ? 50 : Number((followReserve * 100n) / total);
   const fadePct = 100 - followPct;
 
-  // User's position on this call (for FollowFadeModal headroom)
-  // Simplified: use followPosition/fadePosition in USDC; for now use shares as proxy
-  const userFollowPosition = followShares;
-  const userFadePosition = fadeShares;
+  // User's position on this call (for FollowFadeModal headroom).
+  // FollowFadeModal's userPosition is 6-decimal USDC; raw shares are 18-decimal,
+  // so pro-rate against the live reserve (same contract as userPositionValue above).
+  const userFollowPosition =
+    followTotalShares > 0n ? (followShares * followReserve) / followTotalShares : 0n;
+  const userFadePosition =
+    fadeTotalShares > 0n ? (fadeShares * fadeReserve) / fadeTotalShares : 0n;
 
   // ─── SETTLED / DISPUTED RECEIPT RENDER (09.2-07 — prototype receipt skin) ──
   // Renders for Settled + Disputed + CallerExited-settled states over the

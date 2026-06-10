@@ -71,9 +71,9 @@ export type ReceiptProps = {
   className?: string;
 };
 
-/** Format stake for display */
+/** Format stake for display — bigint stakes are 6-decimal micro-USDC (matches CallCard.formatStake) */
 function formatStake(stake: number | bigint): string {
-  const n = typeof stake === 'bigint' ? Number(stake) : stake;
+  const n = typeof stake === 'bigint' ? Number(stake) / 1_000_000 : stake;
   return `$${n.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
 }
 

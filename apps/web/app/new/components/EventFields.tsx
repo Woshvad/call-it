@@ -112,7 +112,7 @@ export function EventFields({ control, setValue, errors }: EventFieldsProps) {
           >
             <option value="">Select metric</option>
             {ONCHAIN_METRICS.map((metric) => (
-              <option key={metric} value={metric.toLowerCase().replace(' ', '_')}>
+              <option key={metric} value={metric.toLowerCase().replace(/ /g, '_')}>
                 {metric}
               </option>
             ))}

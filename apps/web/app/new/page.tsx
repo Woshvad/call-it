@@ -400,8 +400,11 @@ export default function NewCallPage() {
           {/* Conviction slider (Plan 04 ConvictionBar — UI-51) */}
           <ConvictionSliderField control={control} error={errors.conviction} />
 
-          {/* Criteria field (required for some event subtypes per CALL-15/16) */}
-          {marketType !== 'priceTarget' && (
+          {/* Criteria field (required for some event subtypes per CALL-15/16).
+              Event mode renders its own CriteriaField inside EventFields — only
+              spreadVs needs the page-level one (avoids two textareas bound to
+              the same RHF field). */}
+          {marketType === 'spreadVs' && (
             <CriteriaField control={control} errors={errors} isRequired={false} />
           )}
 
