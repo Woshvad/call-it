@@ -37,10 +37,13 @@ test.describe('FEED-SHELL: Feed page source assertions (Tier-1)', () => {
     expect(source).toContain('FeedList');
   });
 
-  test('Test 2: Empty state copy matches D-35 verbatim', () => {
-    // D-35 copy: "No calls yet. Be the first to go on record."
-    const feedListSource = readFile('components/FeedList.tsx');
-    expect(feedListSource).toContain('No calls yet. Be the first to go on record.');
+  test('Test 2: Empty state copy matches the UI-SPEC Copywriting Contract', () => {
+    // D-15 lockstep (09.2-06): the empty state moved from FeedList.tsx up to
+    // app/page.tsx and carries the prototype tape copy — mono overline heading
+    // "NOTHING ON THE TAPE" + body "Be the first to go on record." + cream CTA.
+    const pageSource = readFile('app/page.tsx');
+    expect(pageSource).toContain('NOTHING ON THE TAPE');
+    expect(pageSource).toContain('Be the first to go on record.');
   });
 
   test('Test 3: Feed cards have stagger animation (UI-53)', () => {
@@ -73,6 +76,20 @@ test.describe('FEED-SHELL: Feed page source assertions (Tier-1)', () => {
     const useFeedSrc = readFile('hooks/useFeed.ts');
     expect(useFeedSrc).not.toContain('SUBGRAPH_STUDIO_API_KEY');
   });
+
+  test('Test 7: D-08 — dead Following/Duels tabs are CUT from the tape', () => {
+    // D-08 (09.2-06): the 'Following' tab was unfiltered (rendered the same
+    // allItems) and the 'Duels' tab fetched /api/duels — a route that does not
+    // exist. Both are dead controls and must NOT ship. The tab bar renders
+    // ONLY Live + Settled.
+    const source = readFile('app/page.tsx');
+    expect(source).not.toContain('<DuelsTab');
+    expect(source).not.toContain("'/api/duels'");
+    expect(source).not.toContain('fetchDuels');
+    // The FeedTab union is narrowed to the two real tabs.
+    expect(source).toContain("type FeedTab = 'Live' | 'Settled'");
+    expect(source).not.toContain("'Following'");
+  });
 });
 
 test.describe('FEED-SHELL: Feed page browser tests (Tier-2)', () => {
@@ -84,7 +101,9 @@ test.describe('FEED-SHELL: Feed page browser tests (Tier-2)', () => {
     }
   });
 
-  test('Tier-2: Empty feed renders D-35 empty state', async ({ page, baseURL }) => {
+  test('Tier-2: Empty feed renders the NOTHING ON THE TAPE empty state', async ({ page, baseURL }) => {
+    // D-15 lockstep (09.2-06): empty-state copy updated to the prototype tape
+    // contract ("NOTHING ON THE TAPE" + "Be the first to go on record.").
     // Mock /api/feed to return empty
     await page.route('**/api/feed**', (route) => {
       route.fulfill({
@@ -95,7 +114,8 @@ test.describe('FEED-SHELL: Feed page browser tests (Tier-2)', () => {
     });
 
     await page.goto(baseURL ?? '/');
-    await expect(page.getByText('No calls yet. Be the first to go on record.')).toBeVisible();
+    await expect(page.getByText('NOTHING ON THE TAPE')).toBeVisible();
+    await expect(page.getByText('Be the first to go on record.')).toBeVisible();
     await expect(page.getByRole('button', { name: /NEW CALL/i })).toBeVisible();
   });
 

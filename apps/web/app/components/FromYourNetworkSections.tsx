@@ -18,7 +18,10 @@
  * { items: [], source: 'empty' }; an empty section renders a quiet empty state and
  * never throws. Both sections can appear simultaneously (AUTH-18).
  *
- * Neobrutalist tokens (#09090E / #E8F542, sharp 2px borders, hard shadow); flexbox only.
+ * 09.2-06 restyle: prototype `.section-divider` recipe header (live-dot + JBM
+ * overline title with the REAL caller count + collapse affordance — the toggle is
+ * existing working wiring, kept) over token-layer item rows. Markup only — gate,
+ * fetch, and collapse logic are unchanged (D-05). Flexbox only.
  *
  * Requirements: AUTH-14, AUTH-15, AUTH-16, AUTH-18.
  */
@@ -49,17 +52,6 @@ interface SectionResponse {
 
 const RELAYER_BASE = (process.env['NEXT_PUBLIC_RELAYER_BASE_URL'] ?? '').replace(/\/$/, '');
 
-const COLORS = {
-  bg: '#09090E',
-  surface: '#111118',
-  borderSubtle: '#1E1E2E',
-  borderActive: '#2E2E42',
-  accent: '#E8F542',
-  textPrimary: '#F1F5F9',
-  textSecondary: '#64748B',
-  textMuted: '#94A3B8',
-} as const;
-
 const EMPTY: SectionResponse = { items: [], source: 'empty' };
 
 /**
@@ -81,7 +73,7 @@ async function fetchSection(path: string, token: string | null): Promise<Section
   }
 }
 
-// ── Single feed item row (compact neobrutalist card) ────────────────────────────
+// ── Single feed item row (token-layer brutal row) ────────────────────────────────
 
 function ItemRow({ item, platform }: { item: NetworkFeedItem; platform: FollowGraphPlatform }) {
   // Every caller in this section is a linked (platform-verified) Call It user by
@@ -93,62 +85,35 @@ function ItemRow({ item, platform }: { item: NetworkFeedItem; platform: FollowGr
         display: 'flex',
         flexDirection: 'column',
         gap: 6,
-        border: `2px solid ${COLORS.borderActive}`,
-        background: COLORS.surface,
+        border: '2px solid var(--border-active)',
+        background: 'var(--bg-secondary)',
         padding: '10px 12px',
       }}
     >
       <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
         <span
+          className="mono"
           style={{
-            fontFamily: 'Space Grotesk, monospace',
-            fontSize: 15,
+            fontSize: 14,
             fontWeight: 700,
-            color: COLORS.textPrimary,
+            color: 'var(--text-primary)',
           }}
         >
           @{item.handle || 'caller'}
         </span>
-        <span
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            border: `2px solid ${COLORS.accent}`,
-            background: '#0D1A00',
-            color: COLORS.accent,
-            fontFamily: 'Space Grotesk, monospace',
-            fontSize: 11,
-            fontWeight: 700,
-            letterSpacing: '0.08em',
-            padding: '1px 5px',
-            lineHeight: 1,
-            whiteSpace: 'nowrap',
-          }}
-        >
-          {badge}
-        </span>
+        <span className="pill win">{badge}</span>
         {item.status === 'active-duel' && (
-          <span
-            style={{
-              fontFamily: 'monospace',
-              fontSize: 11,
-              color: '#FB923C',
-              fontWeight: 700,
-              letterSpacing: '0.06em',
-            }}
-          >
-            ⚔ DUEL
-          </span>
+          <span className="pill duel">⚔ DUEL</span>
         )}
       </div>
-      <span style={{ fontFamily: 'monospace', fontSize: 13, color: COLORS.textSecondary }}>
+      <span className="mono" style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
         {item.marketLine}
       </span>
     </div>
   );
 }
 
-// ── Collapsible section ─────────────────────────────────────────────────────────
+// ── Collapsible section (.section-divider header) ───────────────────────────────
 
 function NetworkSection({
   title,
@@ -163,62 +128,56 @@ function NetworkSection({
   collapsed: boolean;
   onToggle: () => void;
 }) {
+  // REAL caller count from the fetched items (unique handles) — never faked (D-07).
+  const callerCount = new Set(data.items.map((i) => i.handle)).size;
+  const countSuffix =
+    callerCount > 0
+      ? ` · ${callerCount} ${callerCount === 1 ? 'CALLER' : 'CALLERS'} YOU FOLLOW ${callerCount === 1 ? 'IS' : 'ARE'} LIVE`
+      : '';
+
   return (
-    <section
-      style={{
-        display: 'flex',
-        flexDirection: 'column',
-        border: `2px solid ${COLORS.borderSubtle}`,
-        background: COLORS.bg,
-      }}
-    >
-      {/* Header — collapse toggle (AUTH-18) */}
+    <section style={{ display: 'flex', flexDirection: 'column' }}>
+      {/* Header — .section-divider recipe; the whole row is the existing
+          collapse toggle (AUTH-18, working wiring kept) */}
       <button
         type="button"
         onClick={onToggle}
         aria-expanded={!collapsed}
+        className="section-divider"
         style={{
-          display: 'flex',
-          flexDirection: 'row',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: 8,
-          padding: '10px 12px',
           background: 'transparent',
           border: 'none',
-          borderBottom: collapsed ? 'none' : `2px solid ${COLORS.borderSubtle}`,
+          padding: 0,
+          margin: '0 0 14px',
           cursor: 'pointer',
+          width: '100%',
+          minHeight: 44,
+          textAlign: 'left',
         }}
       >
-        <span
-          style={{
-            fontFamily: 'Space Grotesk, monospace',
-            fontSize: 12,
-            fontWeight: 700,
-            letterSpacing: '0.12em',
-            textTransform: 'uppercase',
-            color: COLORS.accent,
-          }}
-        >
-          {title}
-          {data.items.length > 0 && (
-            <span style={{ color: COLORS.textSecondary, marginLeft: 8 }}>({data.items.length})</span>
-          )}
+        <span className="title">
+          <span className="live-dot" aria-hidden="true" />
+          {title.toUpperCase()}
+          {countSuffix}
         </span>
-        <span style={{ fontFamily: 'monospace', fontSize: 12, color: COLORS.textMuted }}>
-          {collapsed ? '▸' : '▾'}
+        <span className="line" />
+        <span
+          className="mono"
+          style={{ fontSize: 10.5, color: 'var(--text-tertiary)', letterSpacing: '0.06em' }}
+        >
+          {collapsed ? 'expand ↓' : 'collapse ↑'}
         </span>
       </button>
 
       {/* Body */}
       {!collapsed && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '10px 12px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {data.items.length === 0 ? (
             <span
+              className="mono"
               style={{
-                fontFamily: 'monospace',
                 fontSize: 12,
-                color: COLORS.textMuted,
+                color: 'var(--text-tertiary)',
                 lineHeight: 1.4,
               }}
             >

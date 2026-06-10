@@ -1,24 +1,30 @@
 /**
  * FeedList — renders an array of CallCards with stagger animation (UI-53).
  *
- * Shows the D-35 empty state when the items array is empty.
  * Each card gets className="card-enter" + --index CSS variable for stagger delay.
+ * Loading renders rethemed hard-edge skeletons in card slots.
+ *
+ * 09.2-06: the empty state moved up to app/page.tsx (the "NOTHING ON THE TAPE"
+ * copy block owns it there per the UI-SPEC Copywriting Contract) — an empty
+ * items array renders nothing here. `onItemClick` is the only card affordance
+ * (D-06: navigation to /call/[id]; no inline stake toggles).
  *
  * FLEXBOX ONLY — no display:grid (Pitfall 15 / Satori compatibility).
  *
- * Requirements: UI-04, UI-53, D-35, CALL-58
+ * Requirements: UI-04, UI-53, CALL-58
  */
 
 'use client';
 
 import React from 'react';
-import { CallCard, SkeletonFeedCard, Button, Card } from '@call-it/ui';
+import { CallCard, SkeletonFeedCard } from '@call-it/ui';
 import type { FeedItem } from '@/lib/relayer-client';
 
 interface FeedListProps {
   items: FeedItem[];
   isLoading?: boolean;
-  onNewCallClick?: () => void;
+  /** D-06: card tap navigates to the call page (real modals live there). */
+  onItemClick?: (item: FeedItem) => void;
 }
 
 function feedItemToCallCardData(item: FeedItem) {
@@ -49,9 +55,9 @@ function truncateAddress(address: string): string {
 }
 
 /**
- * FeedList — renders the call feed or the D-35 empty state.
+ * FeedList — renders the call feed (or skeleton slots while loading).
  */
-export function FeedList({ items, isLoading, onNewCallClick }: FeedListProps) {
+export function FeedList({ items, isLoading, onItemClick }: FeedListProps) {
   // Loading skeleton
   if (isLoading) {
     return (
@@ -63,36 +69,9 @@ export function FeedList({ items, isLoading, onNewCallClick }: FeedListProps) {
     );
   }
 
-  // D-35: empty state
+  // Empty: the page-level "NOTHING ON THE TAPE" block owns the empty state (09.2-06).
   if (items.length === 0) {
-    return (
-      <Card
-        style={{
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          gap: '16px',
-          padding: '48px 24px',
-          textAlign: 'center',
-        }}
-      >
-        {/* Skeleton placeholder shape per D-35 */}
-        <SkeletonFeedCard />
-        <h3
-          style={{
-            fontSize: '1.125rem',
-            fontFamily: 'monospace',
-            color: '#A1A1AA',
-            margin: 0,
-          }}
-        >
-          No calls yet. Be the first to go on record.
-        </h3>
-        <Button intent="primary" size="md" onClick={onNewCallClick}>
-          + NEW CALL
-        </Button>
-      </Card>
-    );
+    return null;
   }
 
   // Populated feed with stagger animation (UI-53)
@@ -108,7 +87,10 @@ export function FeedList({ items, isLoading, onNewCallClick }: FeedListProps) {
             } as React.CSSProperties
           }
         >
-          <CallCard call={feedItemToCallCardData(item)} />
+          <CallCard
+            call={feedItemToCallCardData(item)}
+            onClick={onItemClick ? () => onItemClick(item) : undefined}
+          />
         </div>
       ))}
     </div>
