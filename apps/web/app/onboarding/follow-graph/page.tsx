@@ -18,6 +18,9 @@
  * best-effort POSTed to the relayer (durable server-side). A persistence failure never
  * blocks advancing (Pitfall 5/16).
  *
+ * 09.2-13 retheme: Archivo heading; opt-out CTA carries the .toggle-pill recipe;
+ * handleOptIn persistence/advance logic and all data-testid hooks untouched (D-05/D-14).
+ *
  * Requirements: AUTH-16, AUTH-19, D-14
  */
 
@@ -74,17 +77,18 @@ export default function FollowGraphPage() {
 
   return (
     <>
-      {/* Screen header */}
+      {/* Screen header — Archivo display voice */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
         <h2
           style={{
-            fontSize: '1.25rem',
+            fontSize: '1.5rem',
             fontWeight: 900,
-            color: '#F4F4F5',
-            fontFamily: "'Syne', sans-serif",
+            color: 'var(--text-primary)',
+            fontFamily: 'var(--font-display)',
             textTransform: 'uppercase',
             margin: 0,
-            letterSpacing: '-0.02em',
+            letterSpacing: '-0.03em',
+            lineHeight: 0.95,
           }}
         >
           YOUR NETWORK
@@ -93,9 +97,9 @@ export default function FollowGraphPage() {
         <p
           style={{
             fontSize: '0.9rem',
-            color: '#F4F4F5',
-            fontFamily: "'Syne', sans-serif",
-            fontWeight: 600,
+            color: 'var(--text-primary)',
+            fontFamily: 'var(--font-display)',
+            fontWeight: 700,
             margin: 0,
             lineHeight: 1.4,
           }}
@@ -108,8 +112,8 @@ export default function FollowGraphPage() {
         <p
           style={{
             fontSize: '0.75rem',
-            color: '#A1A1AA',
-            fontFamily: 'monospace',
+            color: 'var(--text-secondary)',
+            fontFamily: 'var(--font-mono)',
             margin: 0,
           }}
         >
@@ -119,8 +123,8 @@ export default function FollowGraphPage() {
         <p
           style={{
             fontSize: '0.7rem',
-            color: '#71717A',
-            fontFamily: 'monospace',
+            color: 'var(--text-tertiary)',
+            fontFamily: 'var(--font-mono)',
             margin: '0.25rem 0 0 0',
             lineHeight: 1.5,
           }}
@@ -132,14 +136,14 @@ export default function FollowGraphPage() {
 
       {error && (
         <p
-          style={{ fontSize: '0.75rem', color: '#ef4444', fontFamily: 'monospace', margin: 0 }}
+          style={{ fontSize: '0.75rem', color: 'var(--accent-loss)', fontFamily: 'var(--font-mono)', margin: 0 }}
           role="alert"
         >
           {error}
         </p>
       )}
 
-      {/* Opt-in / opt-out CTAs */}
+      {/* Opt-in / opt-out CTAs — cream primary + .toggle-pill opt-out */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
         <Button
           intent="primary"
@@ -151,21 +155,25 @@ export default function FollowGraphPage() {
           data-testid="follow-graph-yes-button"
           style={isMobile ? { minHeight: '44px' } : undefined}
         >
-          {isLoading ? 'Saving...' : '[ Yes, show me ]'}
+          {isLoading ? 'Saving...' : 'Yes, show me'}
         </Button>
 
-        <Button
-          intent="secondary"
-          size="md"
+        <button
+          type="button"
+          className="toggle-pill"
           onClick={() => {
             void handleOptIn(false);
           }}
           disabled={isLoading}
           data-testid="follow-graph-no-button"
-          style={isMobile ? { minHeight: '44px' } : undefined}
+          style={{
+            justifyContent: 'center',
+            opacity: isLoading ? 0.5 : 1,
+            minHeight: '44px',
+          }}
         >
-          [ No thanks ]
-        </Button>
+          {isLoading ? 'Saving...' : 'No thanks'}
+        </button>
       </div>
     </>
   );

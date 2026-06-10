@@ -71,7 +71,7 @@ function StatusLine({
     return (
       <p
         data-testid={`${testId}-ok`}
-        style={{ fontSize: '0.7rem', color: '#22C55E', fontFamily: 'monospace', margin: 0 }}
+        style={{ fontSize: '0.7rem', color: 'var(--accent-win)', fontFamily: 'var(--font-mono)', margin: 0 }}
       >
         Linked.
       </p>
@@ -82,7 +82,7 @@ function StatusLine({
       <p
         data-testid={`${testId}-error`}
         role="alert"
-        style={{ fontSize: '0.7rem', color: '#ef4444', fontFamily: 'monospace', margin: 0 }}
+        style={{ fontSize: '0.7rem', color: 'var(--accent-loss)', fontFamily: 'var(--font-mono)', margin: 0 }}
       >
         {errorMsg ?? 'Something went wrong — try again.'}
       </p>
@@ -309,6 +309,7 @@ export function SocialLinkControls({ mode }: SocialLinkControlsProps) {
   const twitterLinkedLabel = twitterUsername ? `✓ @${twitterUsername} linked` : '✓ X linked';
 
   // Full-width on-brand "linked" indicator (mirrors the link CTAs' `flex: 1` width).
+  // 09.2-13: cream linked-state treatment (var(--bg-inverse) panel, black text/border).
   const linkedIndicatorStyle: CSSProperties = {
     flex: 1,
     display: 'flex',
@@ -316,13 +317,14 @@ export function SocialLinkControls({ mode }: SocialLinkControlsProps) {
     boxSizing: 'border-box',
     padding: '0.5rem 0.75rem',
     minHeight: '44px',
-    border: '2px solid #22C55E',
-    background: 'transparent',
-    color: '#22C55E',
-    fontFamily: 'monospace',
+    border: '2px solid #000',
+    background: 'var(--bg-inverse)',
+    color: '#000',
+    fontFamily: 'var(--font-mono)',
     fontSize: '0.8rem',
     fontWeight: 700,
     textAlign: 'left',
+    boxShadow: 'var(--shadow-brutal-sm)',
   };
 
   return (
@@ -412,9 +414,9 @@ export function SocialLinkControls({ mode }: SocialLinkControlsProps) {
                 alignItems: isMobile ? 'stretch' : 'center',
                 gap: '0.5rem',
                 padding: '0.75rem',
-                border: '2px solid #22C55E',
-                background: 'transparent',
-                fontFamily: 'monospace',
+                border: '2px solid var(--border-strong)',
+                background: 'var(--bg-secondary)',
+                fontFamily: 'var(--font-mono)',
               }}
             >
               {isMobile ? (
@@ -429,28 +431,28 @@ export function SocialLinkControls({ mode }: SocialLinkControlsProps) {
                   >
                     Open in Warpcast
                   </Button>
-                  <p style={{ fontSize: '0.7rem', color: '#22C55E', margin: 0 }}>
+                  <p style={{ fontSize: '0.7rem', color: 'var(--accent-win)', margin: 0 }}>
                     Approve in Warpcast, then return here
                   </p>
                 </>
               ) : (
                 <>
                   <QRCode uri={url} size={176} />
-                  <p style={{ fontSize: '0.7rem', color: '#22C55E', margin: 0 }}>
+                  <p style={{ fontSize: '0.7rem', color: 'var(--accent-win)', margin: 0 }}>
                     Scan with the Warpcast app on your phone
                   </p>
                   <a
                     href={url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    style={{ fontSize: '0.7rem', color: '#22C55E' }}
+                    style={{ fontSize: '0.7rem', color: 'var(--accent-win)' }}
                   >
                     Open link
                   </a>
                 </>
               )}
               {isPolling && (
-                <p style={{ fontSize: '0.7rem', color: '#888', margin: 0 }}>Waiting for approval…</p>
+                <p style={{ fontSize: '0.7rem', color: 'var(--text-tertiary)', margin: 0 }}>Waiting for approval…</p>
               )}
               <button
                 type="button"
@@ -460,8 +462,8 @@ export function SocialLinkControls({ mode }: SocialLinkControlsProps) {
                 style={{
                   background: 'transparent',
                   border: 'none',
-                  color: '#888',
-                  fontFamily: 'monospace',
+                  color: 'var(--text-tertiary)',
+                  fontFamily: 'var(--font-mono)',
                   fontSize: '0.7rem',
                   cursor: 'pointer',
                   padding: 0,

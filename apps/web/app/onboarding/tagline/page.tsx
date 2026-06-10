@@ -1,7 +1,7 @@
 /**
  * Screen 4: Tagline commitment (AUTH-21)
  *
- * Displays the SPEC-LOCKED AUTH-21 commitment line in large Syne type:
+ * Displays the SPEC-LOCKED AUTH-21 commitment line in large Archivo type:
  *   "EVERY CALL IS PERMANENT. WINS AND LOSSES. WE DON'T SUGAR-COAT."
  *
  * A single [ Commit ] button POSTs /api/onboarding/advance { step: 'tagline' }
@@ -9,6 +9,11 @@
  *
  * This is the completion gate: taglineCommittedAt IS NOT NULL = onboarding done.
  * Middleware stops redirecting after this screen is submitted.
+ *
+ * 09.2-13 retheme: Archivo display voice + cream commit CTA; the advance('tagline')
+ * completion gate and all data-testid hooks untouched (D-05/D-14). Note: this screen
+ * has no user-editable input — the commitment line is spec-locked display copy, so
+ * no .brutal-textarea applies here (restyle-only invariant).
  *
  * Requirements: AUTH-21, AUTH-19
  */
@@ -54,13 +59,13 @@ export default function TaglinePage() {
       >
         <p
           style={{
-            fontSize: '1.5rem',
+            fontSize: '1.75rem',
             fontWeight: 900,
-            fontFamily: "'Syne', sans-serif",
-            color: '#E8F542',
+            fontFamily: 'var(--font-display)',
+            color: 'var(--accent-win)',
             textTransform: 'uppercase',
-            letterSpacing: '-0.02em',
-            lineHeight: 1.2,
+            letterSpacing: '-0.03em',
+            lineHeight: 1.05,
             margin: 0,
           }}
           data-testid="commitment-line"
@@ -71,8 +76,8 @@ export default function TaglinePage() {
         <p
           style={{
             fontSize: '0.75rem',
-            color: '#A1A1AA',
-            fontFamily: 'monospace',
+            color: 'var(--text-secondary)',
+            fontFamily: 'var(--font-mono)',
             lineHeight: 1.6,
             margin: 0,
             maxWidth: '360px',
@@ -85,14 +90,14 @@ export default function TaglinePage() {
 
       {error && (
         <p
-          style={{ fontSize: '0.75rem', color: '#ef4444', fontFamily: 'monospace', margin: 0 }}
+          style={{ fontSize: '0.75rem', color: 'var(--accent-loss)', fontFamily: 'var(--font-mono)', margin: 0 }}
           role="alert"
         >
           {error}
         </p>
       )}
 
-      {/* Commit button */}
+      {/* Commit button — cream primary CTA */}
       <Button
         intent="primary"
         size="lg"
@@ -101,7 +106,7 @@ export default function TaglinePage() {
         data-testid="commit-button"
         style={{ width: '100%', letterSpacing: '0.1em' }}
       >
-        {isCommitting ? 'Committing...' : '[ COMMIT ]'}
+        {isCommitting ? 'Committing...' : 'COMMIT'}
       </Button>
     </>
   );

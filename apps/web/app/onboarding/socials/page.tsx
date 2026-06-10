@@ -13,6 +13,9 @@
  * Linking is purely additive (Pitfall 5/16): a link failure surfaces inline in
  * SocialLinkControls and NEVER blocks advancing or skipping.
  *
+ * 09.2-13 retheme: Archivo heading + JBM microcopy on the token layer; advance/skip
+ * routing and all data-testid hooks untouched (D-05/D-14).
+ *
  * Requirements: AUTH-07, AUTH-08, AUTH-19
  */
 
@@ -70,17 +73,18 @@ export default function SocialsPage() {
 
   return (
     <>
-      {/* Screen header */}
+      {/* Screen header — Archivo display voice */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <h2
           style={{
-            fontSize: '1.25rem',
+            fontSize: '1.5rem',
             fontWeight: 900,
-            color: '#F4F4F5',
-            fontFamily: "'Syne', sans-serif",
+            color: 'var(--text-primary)',
+            fontFamily: 'var(--font-display)',
             textTransform: 'uppercase',
             margin: 0,
-            letterSpacing: '-0.02em',
+            letterSpacing: '-0.03em',
+            lineHeight: 0.95,
           }}
         >
           CONNECT SOCIALS
@@ -88,8 +92,8 @@ export default function SocialsPage() {
         <p
           style={{
             fontSize: '0.75rem',
-            color: '#A1A1AA',
-            fontFamily: 'monospace',
+            color: 'var(--text-secondary)',
+            fontFamily: 'var(--font-mono)',
             margin: 0,
           }}
         >
@@ -103,7 +107,7 @@ export default function SocialsPage() {
 
       {error && (
         <p
-          style={{ fontSize: '0.75rem', color: '#ef4444', fontFamily: 'monospace', margin: 0 }}
+          style={{ fontSize: '0.75rem', color: 'var(--accent-loss)', fontFamily: 'var(--font-mono)', margin: 0 }}
           role="alert"
         >
           {error}
@@ -139,8 +143,8 @@ export default function SocialsPage() {
           e.currentTarget.style.textDecoration = 'none';
         }}
         style={{
-          color: '#A1A1AA',
-          fontFamily: 'monospace',
+          color: 'var(--text-secondary)',
+          fontFamily: 'var(--font-mono)',
           fontSize: '0.8rem',
           background: 'transparent',
           border: 'none',

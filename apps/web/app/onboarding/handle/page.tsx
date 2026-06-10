@@ -11,6 +11,9 @@
  *
  * On submit: calls `useOnboardingState().advance('handle')` then navigates to /onboarding/socials.
  *
+ * 09.2-13 retheme: .brutal-input recipe + Archivo heading; validation/advance
+ * logic and all data-testid hooks untouched (D-05/D-14).
+ *
  * Requirements: AUTH-19, AUTH-20, AUTH-22, AUTH-44
  */
 
@@ -92,7 +95,7 @@ export default function HandlePage() {
 
   if (stateLoading) {
     return (
-      <div style={{ textAlign: 'center', color: '#A1A1AA', fontFamily: 'monospace', fontSize: '0.875rem' }}>
+      <div style={{ textAlign: 'center', color: 'var(--text-secondary)', fontFamily: 'var(--font-mono)', fontSize: '0.875rem' }}>
         Loading...
       </div>
     );
@@ -100,17 +103,18 @@ export default function HandlePage() {
 
   return (
     <>
-      {/* Screen header */}
+      {/* Screen header — Archivo display voice */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <h2
           style={{
-            fontSize: '1.25rem',
+            fontSize: '1.5rem',
             fontWeight: 900,
-            color: '#F4F4F5',
-            fontFamily: "'Syne', sans-serif",
+            color: 'var(--text-primary)',
+            fontFamily: 'var(--font-display)',
             textTransform: 'uppercase',
             margin: 0,
-            letterSpacing: '-0.02em',
+            letterSpacing: '-0.03em',
+            lineHeight: 0.95,
           }}
         >
           YOUR HANDLE
@@ -118,8 +122,8 @@ export default function HandlePage() {
         <p
           style={{
             fontSize: '0.75rem',
-            color: '#A1A1AA',
-            fontFamily: 'monospace',
+            color: 'var(--text-secondary)',
+            fontFamily: 'var(--font-mono)',
             margin: 0,
           }}
         >
@@ -127,7 +131,7 @@ export default function HandlePage() {
         </p>
       </div>
 
-      {/* Handle input */}
+      {/* Handle input — .brutal-input recipe */}
       <form
         onSubmit={(e) => { void handleSubmit(e); }}
         style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}
@@ -141,25 +145,17 @@ export default function HandlePage() {
           maxLength={32}
           autoFocus
           data-testid="handle-input"
+          className="brutal-input mono"
           style={{
-            width: '100%',
-            padding: '12px 14px',
-            backgroundColor: '#0F0F14',
-            border: '2px solid #3F3F46',
-            color: '#F4F4F5',
-            fontFamily: 'monospace',
             fontSize: '1rem',
-            outline: 'none',
-            boxSizing: 'border-box',
+            ...(error ? { borderColor: 'var(--accent-loss)' } : {}),
             ...(isMobile ? { minHeight: '44px' } : {}),
           }}
-          onFocus={(e) => { e.target.style.borderColor = '#E8F542'; }}
-          onBlur={(e) => { e.target.style.borderColor = '#3F3F46'; }}
         />
 
         {error && (
           <p
-            style={{ fontSize: '0.75rem', color: '#ef4444', fontFamily: 'monospace', margin: 0 }}
+            style={{ fontSize: '0.75rem', color: 'var(--accent-loss)', fontFamily: 'var(--font-mono)', margin: 0 }}
             role="alert"
           >
             {error}

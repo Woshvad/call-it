@@ -3,7 +3,11 @@
  *
  * Renders a 5-dot progress bar at the top of the screen showing the current
  * step (handle → socials → follow-graph → fund → tagline), with the current
- * step highlighted in brand-accent (#E8F542).
+ * step highlighted in the accent (var(--accent-win)).
+ *
+ * 09.2-13 retheme: page-header voice — Archivo brand mark + JBM overline step
+ * counter; square accent progress dots. Step order, dot count/testids,
+ * completion gates, and redirect logic are UNTOUCHED (D-05/D-14).
  *
  * AUTH-44: No wallet address rendered here — handle-only in all onboarding screens.
  *
@@ -56,19 +60,19 @@ export default function OnboardingLayout({ children }: OnboardingLayoutProps) {
         justifyContent: 'flex-start',
         minHeight: '100vh',
         padding: '2rem 1rem',
-        backgroundColor: '#09090E',
+        backgroundColor: 'var(--bg-primary)',
         gap: '1.5rem',
       }}
     >
-      {/* Brand mark */}
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.25rem' }}>
+      {/* Brand mark — Archivo display voice */}
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem' }}>
         <h1
           style={{
             fontSize: '2rem',
             fontWeight: 900,
             letterSpacing: '-0.04em',
-            color: '#E8F542',
-            fontFamily: "'Syne', sans-serif",
+            color: 'var(--accent-win)',
+            fontFamily: 'var(--font-display)',
             textTransform: 'uppercase',
             lineHeight: 1,
             margin: 0,
@@ -76,9 +80,13 @@ export default function OnboardingLayout({ children }: OnboardingLayoutProps) {
         >
           CALL IT
         </h1>
+        {/* JBM overline step counter */}
+        <span className="label-overline">
+          STEP {currentIndex + 1} / {STEPS.length} // {STEPS[currentIndex]?.label ?? ''}
+        </span>
       </div>
 
-      {/* Step progress indicator — 5 dots */}
+      {/* Step progress indicator — 5 dots (square, accent for active) */}
       <div
         style={{ display: 'flex', flexDirection: 'row', gap: '8px', alignItems: 'center' }}
         data-testid="onboarding-progress"
@@ -95,12 +103,12 @@ export default function OnboardingLayout({ children }: OnboardingLayoutProps) {
               width: i === currentIndex ? '24px' : '10px',
               height: '10px',
               backgroundColor: i === currentIndex
-                ? '#E8F542'
+                ? 'var(--accent-win)'
                 : i < currentIndex
-                  ? '#52525B'
-                  : '#27272A',
+                  ? 'var(--text-tertiary)'
+                  : 'var(--bg-tertiary)',
               border: '2px solid',
-              borderColor: i === currentIndex ? '#E8F542' : '#3F3F46',
+              borderColor: i === currentIndex ? 'var(--border-accent)' : 'var(--border-active)',
               transition: 'all 0.2s ease',
             }}
             title={step.label}
