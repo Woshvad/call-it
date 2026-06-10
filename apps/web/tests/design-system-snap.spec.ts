@@ -42,6 +42,23 @@
 
 import { test, expect } from '@playwright/test';
 
+// ── Platform guard (quick-260610-vab) ────────────────────────────────────────
+// Playwright suffixes screenshot baselines per-platform, and the committed
+// goldens for this suite are exclusively `-chromium-win32.png`. On CI, missing
+// snapshots are NEVER auto-written — a linux run would fail every screenshot
+// assertion with "A snapshot doesn't exist". This is CI/platform SCOPING, not
+// assertion weakening: no screenshot assertion or maxDiffPixelRatio threshold
+// is modified (D-15); win32 goldens stay authoritative for local runs. Belt-and-suspenders: the phase-1-gates gate job no longer bakes
+// NEXT_PUBLIC_DEV_ROUTES (so this suite already self-skips on CI via the
+// disabled-state detection below), but this guard keeps the suite safe if an
+// operator ever re-enables dev routes on a linux CI build. To regenerate
+// goldens, run the `--update-snapshots` command from the file header on the
+// win32 dev box. (decision: quick-260610-vab)
+test.skip(
+  process.platform !== 'win32',
+  'Visual goldens are win32-only (*-chromium-win32.png) — no baselines exist for this platform'
+);
+
 test.describe('Design-system snapshot: @call-it/ui primitives', () => {
   // Animations are disabled for deterministic snapshots via the global
   // reducedMotion: 'reduce' (contextOptions) in playwright.config.ts `use`.

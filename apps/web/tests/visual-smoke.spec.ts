@@ -28,15 +28,36 @@
  *
  * ## Skip condition
  *
- * All tests are skipped when `NEXT_PUBLIC_PRIVY_APP_ID` is a mock value and
- * the app renders a Privy error boundary. The test detects this and skips
- * gracefully so CI still passes while Tier-1 source tests still run.
+ * 1. Platform guard: the entire file skips on any non-win32 platform — the
+ *    committed goldens are exclusively `*-chromium-win32.png` (see below).
+ * 2. All tests are skipped when `NEXT_PUBLIC_PRIVY_APP_ID` is a mock value and
+ *    the app renders a Privy error boundary. The test detects this and skips
+ *    gracefully so CI still passes while Tier-1 source tests still run.
  *
  * Requirements: UI-38, UI-39, UI-40, UI-41, UI-42, UI-43
  * Plan: 01-10, Task 2
  */
 
 import { test, expect, type Page } from '@playwright/test';
+
+// ── Platform guard (quick-260610-vab) ────────────────────────────────────────
+// Playwright suffixes screenshot baselines per-platform (`-chromium-win32.png`,
+// `-chromium-linux.png`, ...), and the committed goldens for this suite are
+// exclusively `-chromium-win32.png`. On CI, missing snapshots are NEVER
+// auto-written — a linux run would fail every screenshot assertion with
+// "A snapshot doesn't exist". This is CI/platform SCOPING, not assertion
+// weakening: no screenshot assertion or maxDiffPixelRatio threshold is
+// modified (D-15), and the win32 goldens remain authoritative for local runs
+// on the dev box.
+// CI-scoping was chosen over committing a linux baseline set because the dev
+// box is win32 and every future visual change would need a CI artifact
+// round-trip to regenerate linux goldens (decision: quick-260610-vab).
+// To regenerate goldens, run the `--update-snapshots` command from the file
+// header on the win32 dev box.
+test.skip(
+  process.platform !== 'win32',
+  'Visual goldens are win32-only (*-chromium-win32.png) — no baselines exist for this platform'
+);
 
 // ── Mock helpers ─────────────────────────────────────────────────────────────
 
