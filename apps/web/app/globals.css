@@ -195,6 +195,71 @@ textarea::placeholder {
 }
 
 /* ══════════════════════════════════════════════════════════════════════ */
+/*  PAGE-LEVEL SHELL GRID (plan 09.2-03 — AppShell/Sidebar chrome)          */
+/*                                                                          */
+/*  Grid is allowed here: page-level code, never packages/ui (Satori ban).  */
+/*  Sticky offsets DERIVE from --shell-offset (0px ticker-off / 32px        */
+/*  ticker-on), set inline by AppShell — the prototype's hardcoded top      */
+/*  offsets are never used (D-11).                                          */
+/* ══════════════════════════════════════════════════════════════════════ */
+
+.app-header {
+  position: sticky;
+  top: var(--shell-offset, 0px);
+  z-index: 50;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 24px;
+  padding: 14px 24px;
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--bg-primary);
+  height: 64px;
+}
+.brand {
+  display: flex; align-items: baseline; gap: 10px;
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 900;
+  letter-spacing: -0.03em;
+  text-transform: uppercase;
+}
+.brand .slash { color: var(--text-tertiary); font-weight: 400; font-size: 18px; }
+.brand .tagline {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--text-tertiary);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding-left: 4px;
+}
+.header-right {
+  display: flex; align-items: center; gap: 8px;
+  justify-self: end;
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  min-height: calc(100vh - var(--shell-offset, 0px) - 64px);
+}
+.sidebar {
+  border-right: 1px solid var(--border-subtle);
+  padding: 24px 14px 20px;
+  position: sticky;
+  top: calc(var(--shell-offset, 0px) + 64px);
+  align-self: start;
+  height: calc(100vh - var(--shell-offset, 0px) - 64px);
+  display: flex; flex-direction: column;
+  background: var(--bg-primary);
+}
+.main {
+  min-width: 0;
+  padding: 0 32px 80px;
+}
+
+/* ══════════════════════════════════════════════════════════════════════ */
 /*  HEADER / NAV PRIMITIVES (shell chrome lands in plan 09.2-03)            */
 /* ══════════════════════════════════════════════════════════════════════ */
 
