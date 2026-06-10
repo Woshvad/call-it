@@ -1003,8 +1003,8 @@ function ProvenanceModal({ open, onClose, provenance, isLoading }: ProvenanceMod
 // ─── Settled receipt styles (09.2-07 — prototype SETTLED_OUTCOMES port) ──────
 //
 // Color/tint/sub map ported from `call it frontend/screens/receipt.jsx:284-290`
-// (the canonical SETTLED_OUTCOMES — NEVER data.jsx OUTCOMES, whose CSS vars are
-// broken), keyed by the resolveSettledWord outcome word. WORDS always come from
+// (the canonical SETTLED_OUTCOMES — NEVER the prototype data module's OUTCOMES,
+// whose CSS vars are broken), keyed by the resolveSettledWord outcome word. WORDS always come from
 // lib/outcome-word.ts (the D-09 per-viewer FADED CORRECTLY guard + the PENDING
 // RESULT neutral fail-safe live there); this map supplies COLORS/tints/sub-lines
 // ONLY. The neutral word has no entry here — it degrades to the resolveSettledWord

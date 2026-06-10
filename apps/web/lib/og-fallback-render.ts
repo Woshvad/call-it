@@ -14,7 +14,7 @@
  *   - Subtext: SpaceGrotesk 18px, #94A3B8
  *   - Footer: brand string (env-var, D-12) + ARBITRUM (JetBrainsMono 12px)
  *
- * PITFALL 15: Only `display: flex` is used — Satori does NOT support display: grid.
+ * PITFALL 15: Only `display: flex` is used — Satori does NOT support CSS grid.
  * PITFALL E: No NEXT_PUBLIC_* env vars (except NEXT_PUBLIC_BRAND_FOOTER per D-12).
  * PITFALL F: Fonts loaded from app/fonts/ at module init time (see og-fonts.ts).
  * D-12: footerBrand is env-var construction — domain literal is FORBIDDEN here; see CONTEXT.md §D-12.
@@ -88,7 +88,7 @@ function cornerBracket(pos: CornerPos): ReactElement {
 
 /**
  * Build the card JSX tree using React.createElement (no JSX transform required).
- * All layout uses `display: flex` — Satori does NOT support display: grid (PITFALL 15).
+ * All layout uses `display: flex` — Satori does NOT support CSS grid (PITFALL 15).
  */
 function buildCard(handle: string, footerBrand: string): ReactElement {
   return h(
@@ -98,7 +98,7 @@ function buildCard(handle: string, footerBrand: string): ReactElement {
         width: '1200px',
         height: '630px',
         background: '#09090E',
-        display: 'flex',               // PITFALL 15: flexbox only — Satori does not support display: grid
+        display: 'flex',               // PITFALL 15: flexbox only — Satori does not support CSS grid
         flexDirection: 'column',
         position: 'relative',
         border: '3px solid #E8F542',   // §16.6 3px accent border

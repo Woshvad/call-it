@@ -25,7 +25,7 @@ export const runtime = 'nodejs';
  *
  * Runtime: 'nodejs' — CRITICAL (Pitfall 15; T-3-07-03). NOT 'edge'.
  * Security:
- *   - T-3-07-01: ZERO display:grid or gridTemplateColumns anywhere
+ *   - T-3-07-01: ZERO CSS grid usage (no grid display or gridTemplateColumns) anywhere
  *   - T-3-07-02: any error → renderFallback(); never 500; X-Reason header only
  *   - T-3-07-03: export const runtime = 'nodejs' is FIRST export (line 1)
  *   - T-3-07-06: ARBITRUM_SEPOLIA_RPC_URL server-side only (no NEXT_PUBLIC_ prefix)
@@ -212,7 +212,7 @@ function buildDuelCard(props: DuelCardProps): ReactElement {
         width: '1200px',
         height: '630px',
         background: '#09090E',
-        display: 'flex',           // PITFALL 15: flexbox only — Satori does not support display:grid
+        display: 'flex',           // PITFALL 15: flexbox only — Satori does not support CSS grid
         flexDirection: 'column',
         position: 'relative',
         border: '3px solid #E8F542',

@@ -39,7 +39,7 @@ export function ProfileTabs({ address, initialTab = 'overview' }: ProfileTabsPro
           gap: '8px',
           // Mobile (UI-49): allow tabs to wrap if they exceed 343px width.
           flexWrap: isMobile ? 'wrap' : undefined,
-          borderBottom: '2px solid #27272A',
+          borderBottom: '2px solid var(--border-subtle)',
           paddingBottom: '8px',
         }}
       >
@@ -51,7 +51,7 @@ export function ProfileTabs({ address, initialTab = 'overview' }: ProfileTabsPro
             fontFamily: 'monospace',
             fontSize: '0.875rem',
             fontWeight: activeTab === 'overview' ? 700 : 400,
-            color: activeTab === 'overview' ? '#E8F542' : '#A1A1AA',
+            color: activeTab === 'overview' ? '#E8F542' : 'var(--text-secondary)',
             background: 'none',
             border: 'none',
             borderBottom: activeTab === 'overview' ? '2px solid #E8F542' : '2px solid transparent',
@@ -72,7 +72,7 @@ export function ProfileTabs({ address, initialTab = 'overview' }: ProfileTabsPro
             fontFamily: 'monospace',
             fontSize: '0.875rem',
             fontWeight: 400,
-            color: '#A1A1AA',
+            color: 'var(--text-secondary)',
             textDecoration: 'none',
           }}
         >
@@ -89,7 +89,7 @@ export function ProfileTabs({ address, initialTab = 'overview' }: ProfileTabsPro
             style={{
               fontFamily: 'monospace',
               fontSize: '0.875rem',
-              color: '#52525B',
+              color: 'var(--text-tertiary)',
               margin: 0,
             }}
           >

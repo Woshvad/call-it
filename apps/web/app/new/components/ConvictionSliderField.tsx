@@ -17,7 +17,7 @@ interface ConvictionSliderFieldProps {
 
 /**
  * Conviction zone words (prototype CONVICTION_WORDS thresholds — values ported
- * as a local constant per D-05; never import prototype data.jsx).
+ * as a local constant per D-05; never import the prototype data module).
  */
 const CONVICTION_ZONES: ReadonlyArray<{ max: number; word: string; color: string }> = [
   { max: 35, word: 'Hesitant', color: 'var(--text-tertiary)' },

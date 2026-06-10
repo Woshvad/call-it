@@ -15,9 +15,9 @@
  * Runtime: 'nodejs' — CRITICAL. NOT 'edge'. resvg-wasm bundling fails on edge runtime.
  * Security:
  *   - T-02-09-01: statusVersion bump via ?v= param forces CDN cache-miss
- *   - T-02-09-02: export const runtime = 'nodejs' enforced; no display:grid (Pitfall 15)
+ *   - T-02-09-02: export const runtime = 'nodejs' enforced; no CSS grid (Pitfall 15)
  *   - T-04-07-01: AUTH-44 — caller address internal only; OG card shows @handle only
- *   - T-04-07-02: CI grep guard — zero display:grid in this file
+ *   - T-04-07-02: CI grep guard — zero CSS grid usage in this file
  *   - T-04-07-03: CONTRARIAN HIT = #E8F542 (explicit hex, NOT purple #A855F7)
  *   - T-04-07-05: D-09 — ?as=fader only shows FADED CORRECTLY when isViewerFader=true
  *   - SHARE-10: On any RPC/lookup failure, fall through to renderFallback
@@ -175,7 +175,7 @@ function cornerBracket(pos: CornerPos): ReactElement {
 }
 
 // ── Live card JSX builder ──────────────────────────────────────────────────────
-// ALL layout uses display:flex — Satori does NOT support display:grid (Pitfall 15).
+// ALL layout uses display:flex — Satori does NOT support CSS grid (Pitfall 15).
 
 interface LiveCardProps {
   callStatement: string;
@@ -202,7 +202,7 @@ function buildLiveCard(props: LiveCardProps): ReactElement {
         width: '1200px',
         height: '630px',
         background: '#09090E',
-        display: 'flex',           // PITFALL 15: flexbox only — Satori does not support display:grid
+        display: 'flex',           // PITFALL 15: flexbox only — Satori does not support CSS grid
         flexDirection: 'column',
         position: 'relative',
         border: '3px solid #E8F542',
@@ -316,7 +316,7 @@ function buildLiveCard(props: LiveCardProps): ReactElement {
             height: 20,
             borderRadius: 2,
             overflow: 'hidden',
-            border: '1px solid #2A2A30',
+            border: '1px solid #2E2E42', // --border-active literal (Satori cannot resolve CSS vars; legacy gray retired per D-02)
           },
         },
         h('div', {
@@ -331,7 +331,7 @@ function buildLiveCard(props: LiveCardProps): ReactElement {
           style: {
             display: 'flex',
             width: `${fadeWidth}%`,
-            background: '#2A2A30',
+            background: '#2E2E42', // --border-active literal (Satori cannot resolve CSS vars; legacy gray retired per D-02)
             height: '100%',
           },
         }),
@@ -377,7 +377,7 @@ function buildLiveCard(props: LiveCardProps): ReactElement {
 
 // ── Settled card builder (Phase 4, variant 2) ────────────────────────────────
 // SHARE-05/06: Settled OG card variant 2 (§16.3)
-// ALL layout uses display:flex — Satori does NOT support display:grid (Pitfall 15 / T-04-07-02)
+// ALL layout uses display:flex — Satori does NOT support CSS grid (Pitfall 15 / T-04-07-02)
 // AUTH-44: @handle only, never raw wallet address
 
 interface SettledCardProps {
@@ -555,7 +555,7 @@ function buildSettledCard(props: SettledCardProps): ReactElement {
 // ── CallerExited card builder (Phase 4, variant 4) ────────────────────────────
 // SHARE-08: CallerExited OG card variant 4 (§16.5)
 // Caller avatar at 40% opacity per SHARE-08 / UI-22
-// ALL layout uses display:flex — Satori does NOT support display:grid (Pitfall 15)
+// ALL layout uses display:flex — Satori does NOT support CSS grid (Pitfall 15)
 
 interface CallerExitedCardProps {
   callStatement: string;
