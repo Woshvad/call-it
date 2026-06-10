@@ -203,6 +203,11 @@ query ActiveCallsByCallers($callers: [Bytes!]!, $excluded: [String!]!, $first: I
 
 // ── GraphQL client ────────────────────────────────────────────────────────────
 
+// quick-260610-sr0: bound EVERY subgraph fetch — undici's default header
+// timeout is minutes, which lets a stalled Studio endpoint hang consumers
+// (feed, profiles, settled fields) indefinitely.
+const SUBGRAPH_FETCH_TIMEOUT_MS = 10_000;
+
 /**
  * Execute a raw GraphQL query against the Subgraph Studio endpoint.
  * Adds Authorization header with the API key (D-27).
@@ -226,6 +231,7 @@ async function executeQuery<T>(
       ...(apiKey ? { Authorization: `Bearer ${apiKey}` } : {}),
     },
     body: JSON.stringify({ query, variables }),
+    signal: AbortSignal.timeout(SUBGRAPH_FETCH_TIMEOUT_MS),
   });
 
   if (!res.ok) {

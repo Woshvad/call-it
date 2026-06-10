@@ -26,7 +26,12 @@ import { getLogger } from './logger.js';
 
 const mainnetClient = createPublicClient({
   chain: mainnet,
-  transport: http(process.env.ENS_MAINNET_RPC_URL ?? 'https://eth-mainnet.g.alchemy.com/v2/demo'),
+  // quick-260610-sr0: bounded transport — the demo-key fallback 429s/hangs
+  // when ENS_MAINNET_RPC_URL is unset; never let a lookup stall the caller.
+  transport: http(process.env.ENS_MAINNET_RPC_URL ?? 'https://eth-mainnet.g.alchemy.com/v2/demo', {
+    timeout: 5_000,
+    retryCount: 1,
+  }),
 });
 
 /**
@@ -45,8 +50,21 @@ export async function resolveEns(
 ): Promise<string | null> {
   const cacheKey = `ens:${address.toLowerCase()}`;
 
-  // Check cache first
-  const cached = await redis.get(cacheKey);
+  // Check cache first — guarded (quick-260610-sr0): a Redis quota rejection
+  // (Upstash free tier exhausted) degrades to a cache miss, never a failure.
+  let cached: string | null = null;
+  try {
+    cached = await redis.get(cacheKey);
+  } catch (cacheErr) {
+    getLogger().warn(
+      {
+        event: 'ens_cache_read_failed',
+        address: address.toLowerCase(),
+        err: cacheErr instanceof Error ? cacheErr.message : String(cacheErr),
+      },
+      'ENS cache read failed — treating as cache miss',
+    );
+  }
 
   if (cached !== null) {
     // Negative-cache hit: sentinel means "we tried and there was no ENS name"
@@ -60,8 +78,22 @@ export async function resolveEns(
   try {
     const name = await mainnetClient.getEnsName({ address });
 
-    // Cache the result (positive or negative) for 24h
-    await redis.set(cacheKey, name ?? '::null::', 'EX', 86400);
+    // Cache the result (positive or negative) for 24h — guarded separately
+    // (quick-260610-sr0): a cache-write rejection must NOT discard a
+    // successfully resolved name (previously it fell into the outer catch
+    // and returned null even on RPC success).
+    try {
+      await redis.set(cacheKey, name ?? '::null::', 'EX', 86400);
+    } catch (cacheErr) {
+      getLogger().warn(
+        {
+          event: 'ens_cache_write_failed',
+          address: address.toLowerCase(),
+          err: cacheErr instanceof Error ? cacheErr.message : String(cacheErr),
+        },
+        'ENS cache write failed — returning resolved name without caching',
+      );
+    }
 
     getLogger().info(
       { event: 'ens_resolved', address: address.toLowerCase(), name: name ?? null },

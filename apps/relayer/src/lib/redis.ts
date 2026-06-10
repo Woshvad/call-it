@@ -46,6 +46,11 @@ export function getRedis(): Redis {
     lazyConnect: false,
     // Disable offline queue for tests to fail fast
     enableOfflineQueue: process.env.NODE_ENV !== 'test',
+    // quick-260610-sr0: any Redis command that stalls (e.g. Upstash quota
+    // exhaustion) rejects after 2s instead of hanging forever. Safe for
+    // BullMQ blocking commands because settlement-watcher uses its OWN
+    // redisConfig connection, not this singleton.
+    commandTimeout: 2_000,
   });
 
   _redis.on('error', (err: Error) => {
