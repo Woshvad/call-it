@@ -46,11 +46,12 @@ export function getRedis(): Redis {
     lazyConnect: false,
     // Disable offline queue for tests to fail fast
     enableOfflineQueue: process.env.NODE_ENV !== 'test',
-    // quick-260610-sr0: any Redis command that stalls (e.g. Upstash quota
-    // exhaustion) rejects after 2s instead of hanging forever. Safe for
-    // BullMQ blocking commands because settlement-watcher uses its OWN
-    // redisConfig connection, not this singleton.
-    commandTimeout: 2_000,
+    // quick-260610-sr0 NOTE: deliberately NO commandTimeout here. A client-side
+    // reply timeout on the shared singleton would split non-idempotent
+    // claim/increment pairs (upstash-counter SETNX + INCRBY, T-01-45) while the
+    // command still executes server-side → silent permanent undercount of the
+    // paymaster cap counter. Response-critical Redis calls in the profile route
+    // are bounded per-call with withTimeout() instead.
   });
 
   _redis.on('error', (err: Error) => {

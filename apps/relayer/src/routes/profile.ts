@@ -31,7 +31,7 @@ import { getRedis } from '../lib/redis.js';
 import { getLogger } from '../lib/logger.js';
 import { resolveEns } from '../lib/ens-resolver.js';
 import { queryProfileSocials } from '../lib/subgraph-client.js';
-import { withTimeout } from '../lib/with-timeout.js';
+import { withTimeout, TimeoutError } from '../lib/with-timeout.js';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -104,6 +104,15 @@ function truncateAddress(address: string): string {
   return `${address.slice(0, 6)}...${address.slice(-4)}`;
 }
 
+// ── Env timeout parsing (quick-260610-sr0, WR-02) ─────────────────────────────
+// Number('') === 0 and Number('5s') === NaN — both make setTimeout fire
+// immediately, instantly degrading every response. Guard with isFinite + > 0.
+
+function parseTimeout(raw: string | undefined, fallback: number): number {
+  const n = Number(raw);
+  return Number.isFinite(n) && n > 0 ? n : fallback;
+}
+
 // ── Deadline-degraded fallback body (quick-260610-sr0) ───────────────────────
 // Shape is IDENTICAL to ProfileResponseBody's truncated path so the web's
 // getProfile keeps rendering consistently; globalRep 100 matches the REP-01
@@ -165,8 +174,12 @@ export async function profileRoute(
       const cacheKey = `profile:${normalizedAddress}`;
 
       // ── 60s Redis cache ────────────────────────────────────────────────────
+      // quick-260610-sr0: the initial cache read runs BEFORE the route deadline
+      // starts, so it gets its own 2s bound (a stalled Redis must not push the
+      // worst case past ~deadline + 2s). A timeout rejects into the catch below
+      // and is treated as a cache miss.
       try {
-        const cached = await redis.get(cacheKey);
+        const cached = await withTimeout(redis.get(cacheKey), 2_000, 'profile-cache-read');
         if (cached) {
           logger.info({ event: 'profile_cache_hit', address: normalizedAddress }, 'Profile served from cache');
           const parsed = JSON.parse(cached) as ProfileResponseBody;
@@ -178,9 +191,10 @@ export async function profileRoute(
       }
 
       // quick-260610-sr0: env-tunable timeouts, read PER REQUEST so tests can
-      // tune them without re-importing the module.
-      const legTimeoutMs = Number(process.env.PROFILE_LEG_TIMEOUT_MS ?? 5_000);
-      const deadlineMs = Number(process.env.PROFILE_DEADLINE_MS ?? 8_000);
+      // tune them without re-importing the module. Malformed values (NaN, 0,
+      // negative) fall back to defaults instead of instantly degrading (WR-02).
+      const legTimeoutMs = parseTimeout(process.env.PROFILE_LEG_TIMEOUT_MS, 5_000);
+      const deadlineMs = parseTimeout(process.env.PROFILE_DEADLINE_MS, 8_000);
 
       // ── Bounded resolution block (quick-260610-sr0) ─────────────────────────
       // By construction this function cannot reject: allSettled absorbs every
@@ -299,11 +313,27 @@ export async function profileRoute(
           verifiedFc: !!farcasterHandle,
         };
 
-        // ── Cache the response ──────────────────────────────────────────────────
-        try {
-          await redis.set(cacheKey, JSON.stringify(responseBody), 'EX', 60);
-        } catch (cacheErr) {
-          logger.warn({ event: 'profile_cache_write_failed', err: String(cacheErr) }, 'Cache write failed');
+        // ── Cache the response — ONLY if fully resolved (CR-01) ────────────────
+        // If ANY leg settled as a withTimeout TimeoutError, the body is degraded
+        // or partial (e.g. a tarpit-throttled displayHandle read silently drops
+        // the user's on-chain identity). Caching it would serve the wrong
+        // profile for 60s with x-source: cache and no degraded marker — so a
+        // timed-out resolution is never cached.
+        const anyLegTimedOut = [ensName, displayHandle, settledCallsRaw, socials].some(
+          (r) => r.status === 'rejected' && r.reason instanceof TimeoutError,
+        );
+
+        if (anyLegTimedOut) {
+          logger.warn(
+            { event: 'profile_cache_skipped_degraded', address: normalizedAddress },
+            'Leg timeout — not caching degraded/partial profile body',
+          );
+        } else {
+          try {
+            await redis.set(cacheKey, JSON.stringify(responseBody), 'EX', 60);
+          } catch (cacheErr) {
+            logger.warn({ event: 'profile_cache_write_failed', err: String(cacheErr) }, 'Cache write failed');
+          }
         }
 
         logger.info(
@@ -316,10 +346,11 @@ export async function profileRoute(
 
       // ── Hard route-level deadline (defense-in-depth) ─────────────────────────
       // Per-leg timeouts bound each leg; this deadline bounds the whole block
-      // even if a leg timeout somehow fails. The deadline-degraded body is NEVER
-      // cached (a transient stall must not poison the 60s cache) — the still-
-      // running resolveProfile populates the cache itself once its bounded legs
-      // settle (~legTimeoutMs later), which is fine and intentional.
+      // even if a leg timeout somehow fails. Degraded bodies are NEVER cached
+      // (a transient stall must not poison the 60s cache): the deadline path
+      // below doesn't write, and the still-running resolveProfile skips its own
+      // cache write whenever any leg timed out (CR-01) — only fully-resolved
+      // profiles ever reach the 60s cache.
       try {
         const responseBody = await withTimeout(resolveProfile(), deadlineMs, 'profile_deadline');
         reply.header('x-source', 'live');

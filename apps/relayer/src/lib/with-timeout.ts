@@ -11,12 +11,25 @@
  * Behavior contract:
  *   - Resolves/rejects with the underlying promise's value/error if it settles
  *     before the timeout (original error propagates UNCHANGED).
- *   - Rejects with `Error("${label} timed out after ${ms}ms")` if the timer
- *     fires first.
+ *   - Rejects with `TimeoutError("${label} timed out after ${ms}ms")` if the
+ *     timer fires first — callers can `instanceof TimeoutError` to distinguish
+ *     a timeout from a real upstream error (CR-01: the profile route skips its
+ *     60s cache write when any leg timed out).
  *   - The setTimeout handle is ALWAYS cleared when the race settles (no leaked
  *     handles in vitest), and unref()'d where available so it never keeps the
  *     process alive.
  */
+
+/**
+ * Dedicated error class for withTimeout deadline expiry, so consumers can
+ * reliably distinguish "the timer fired" from "the upstream rejected".
+ */
+export class TimeoutError extends Error {
+  constructor(label: string, ms: number) {
+    super(`${label} timed out after ${ms}ms`);
+    this.name = 'TimeoutError';
+  }
+}
 
 export function withTimeout<T>(
   promise: Promise<T>,
@@ -27,7 +40,7 @@ export function withTimeout<T>(
 
   const timeoutPromise = new Promise<never>((_, reject) => {
     timer = setTimeout(() => {
-      reject(new Error(`${label} timed out after ${ms}ms`));
+      reject(new TimeoutError(label, ms));
     }, ms);
     // Don't keep the process alive for this timer (guarded — mocked
     // environments may not provide unref on the handle).

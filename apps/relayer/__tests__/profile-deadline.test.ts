@@ -7,7 +7,10 @@
  *      'truncated', NO x-degraded header).
  *   B. EVERY upstream hangs forever → route deadline fires, route responds
  *      200 with the deadline-degraded body (x-degraded: deadline, identical
- *      ProfileResponseBody shape, degraded body never cached).
+ *      ProfileResponseBody shape, degraded body never cached — asserted AFTER
+ *      the abandoned background resolution settles, WR-03).
+ *   C. Malformed timeout env vars (empty string → 0, "5s" → NaN) fall back to
+ *      sane defaults instead of instantly degrading every response (WR-02).
  *
  * Lives in its own file (not profile.test.ts) because the existing suite
  * deliberately does NOT mock subgraph-client and its mock topology must not
@@ -37,6 +40,16 @@ const { mockQueryProfileSocials } = vi.hoisted(() => ({
   mockQueryProfileSocials: vi.fn(),
 }));
 
+// Shared logger spies (single object returned by every getLogger() call) so
+// tests can observe the BACKGROUND resolveProfile settling (WR-03): the
+// abandoned resolution logs 'profile_resolved' after its legs time out, which
+// is the signal that the cache-write decision has been made.
+const { mockLoggerInfo, mockLoggerWarn, mockLoggerError } = vi.hoisted(() => ({
+  mockLoggerInfo: vi.fn(),
+  mockLoggerWarn: vi.fn(),
+  mockLoggerError: vi.fn(),
+}));
+
 // Mock ens-resolver
 vi.mock('../src/lib/ens-resolver.js', () => ({
   resolveEns: mockResolveEns,
@@ -61,17 +74,18 @@ vi.mock('../src/lib/redis.js', () => ({
   })),
 }));
 
-// Mock logger
+// Mock logger — every getLogger() call returns the SAME spies so assertions
+// can see calls from the background (post-response) resolution block.
 vi.mock('../src/lib/logger.js', () => ({
   getLogger: vi.fn(() => ({
-    info: vi.fn(),
-    warn: vi.fn(),
-    error: vi.fn(),
+    info: mockLoggerInfo,
+    warn: mockLoggerWarn,
+    error: mockLoggerError,
   })),
   logger: {
-    info: vi.fn(),
-    warn: vi.fn(),
-    error: vi.fn(),
+    info: mockLoggerInfo,
+    warn: mockLoggerWarn,
+    error: mockLoggerError,
   },
 }));
 
@@ -127,6 +141,9 @@ describe('GET /api/profile/:address — deadline regression (quick-260610-sr0)',
     delete process.env.PROFILE_LEG_TIMEOUT_MS;
     delete process.env.PROFILE_DEADLINE_MS;
     await app.close();
+    // WR-03 hygiene: each test awaits its background resolution before exiting,
+    // so clearing here guarantees no late mock calls leak into later tests.
+    vi.clearAllMocks();
   });
 
   it('Test A: per-leg timeout bounds a hung dependency — fast 200 truncated, no x-degraded', async () => {
@@ -156,10 +173,26 @@ describe('GET /api/profile/:address — deadline regression (quick-260610-sr0)',
     expect(response.headers['x-source']).toBe('live');
     // Per-leg timeout (120ms) bounds the hung leg — comfortably under suite timeout
     expect(elapsed).toBeLessThan(10_000);
+
+    // CR-01: a leg timed out, so this partial body must NOT reach the 60s
+    // cache (it silently drops the on-chain displayHandle). resolveProfile
+    // completed in-band here (response is the live body), so the cache-write
+    // decision has already been made — assertion is deterministic.
+    const profileCacheWrites = mockRedisSet.mock.calls.filter(
+      ([key]) => typeof key === 'string' && key.startsWith('profile:'),
+    );
+    expect(profileCacheWrites).toHaveLength(0);
+    expect(mockLoggerWarn).toHaveBeenCalledWith(
+      expect.objectContaining({ event: 'profile_cache_skipped_degraded' }),
+      expect.any(String),
+    );
   });
 
   it('Test B: route deadline catches a total hang — 200 deadline-degraded, shape intact, not cached', async () => {
-    process.env.PROFILE_LEG_TIMEOUT_MS = '5000';
+    // WR-03: leg timeout (400ms) must be LOW so the abandoned background
+    // resolveProfile settles within this test (awaited below), but still above
+    // the 200ms deadline so the deadline-degraded path is what responds.
+    process.env.PROFILE_LEG_TIMEOUT_MS = '400';
     process.env.PROFILE_DEADLINE_MS = '200';
 
     // EVERY upstream hangs forever
@@ -188,12 +221,73 @@ describe('GET /api/profile/:address — deadline regression (quick-260610-sr0)',
     // Shape drift fails loudly: exact ProfileResponseBody key set (15 fields)
     expect(Object.keys(body).sort()).toEqual([...EXPECTED_BODY_KEYS].sort());
 
-    // Deadline-degraded body must NEVER be written to the 60s profile cache
+    // WR-03: the response above raced AHEAD of the abandoned resolveProfile
+    // (its legs are still pending until ~400ms). Asserting "never cached"
+    // before that block settles would pass even against a cache-poisoning
+    // implementation. Wait for the background resolution to finish — it logs
+    // 'profile_resolved' AFTER the cache-write decision — then assert.
+    await vi.waitFor(
+      () => {
+        expect(mockLoggerInfo).toHaveBeenCalledWith(
+          expect.objectContaining({ event: 'profile_resolved' }),
+          expect.any(String),
+        );
+      },
+      { timeout: 2_000 },
+    );
+
+    // CR-01: every leg timed out, so NEITHER the deadline path NOR the
+    // background resolveProfile may write the degraded body to the 60s cache.
     const profileCacheWrites = mockRedisSet.mock.calls.filter(
       ([key]) => typeof key === 'string' && key.startsWith('profile:'),
     );
     expect(profileCacheWrites).toHaveLength(0);
+    expect(mockLoggerWarn).toHaveBeenCalledWith(
+      expect.objectContaining({ event: 'profile_cache_skipped_degraded' }),
+      expect.any(String),
+    );
 
     expect(elapsed).toBeLessThan(10_000);
+  });
+
+  it('Test C: malformed timeout env vars fall back to defaults — response fully resolved, not instantly degraded (WR-02)', async () => {
+    // Empty string → Number('') === 0; '5s' → NaN. Pre-WR-02 both made
+    // setTimeout fire immediately, timing out every leg on every request.
+    process.env.PROFILE_LEG_TIMEOUT_MS = '';
+    process.env.PROFILE_DEADLINE_MS = '5s';
+
+    // ENS resolves after a small REAL delay (50ms) — with a 0ms/NaN leg
+    // timeout this leg would lose the race and degrade; with the 5000ms
+    // default it resolves fine.
+    mockResolveEns.mockImplementation(
+      () => new Promise((resolve) => setTimeout(() => resolve('vitalik.eth'), 50)),
+    );
+    mockReadContract.mockImplementation(({ functionName }: { functionName: string }) => {
+      switch (functionName) {
+        case 'displayHandle': return Promise.resolve('');
+        case 'settledCalls': return Promise.resolve(BigInt(3));
+        default: return Promise.resolve(null);
+      }
+    });
+
+    const response = await app.inject({
+      method: 'GET',
+      url: `/api/profile/${TEST_ADDRESS}`,
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.headers['x-degraded']).toBeUndefined();
+    expect(response.headers['x-source']).toBe('live');
+
+    const body = response.json<{ source: string; handle: string; settledCalls: number }>();
+    expect(body.source).toBe('ens');
+    expect(body.handle).toBe('vitalik.eth');
+    expect(body.settledCalls).toBe(3);
+
+    // Fully resolved (no leg timed out) → the 60s cache IS written
+    const profileCacheWrites = mockRedisSet.mock.calls.filter(
+      ([key]) => typeof key === 'string' && key.startsWith('profile:'),
+    );
+    expect(profileCacheWrites).toHaveLength(1);
   });
 });
