@@ -3,12 +3,12 @@
  * MobileDrawer — left-anchored slide-over navigation drawer (Phase 9, D-05/D-06/D-07).
  *
  * Structural mirror of `NotificationInbox.tsx`, anchored LEFT instead of right.
- * Renders the only global mobile-navigation surface (UI-49): the app has no
- * sidebar today — `GlobalNav` is just wordmark + NotificationBell — so this
- * drawer is additive and fills a real gap.
+ * Remains the only global <768px navigation surface after plan 09.2-03: the
+ * desktop Sidebar is hidden on mobile and AppShell's header hamburger opens
+ * this drawer (the hand-off pattern previously owned by GlobalNav).
  *
  * Props: { open: boolean; onClose: () => void }. Renders null when !open.
- * Visibility (isMobile gate) is owned by the parent (GlobalNav) so this file
+ * Visibility (isMobile gate) is owned by the parent (AppShell) so this file
  * imports NO `useIsMobile` — the drawer stays pure (Pitfall 2 register).
  *
  * Auth-aware destinations (D-06):
@@ -21,44 +21,28 @@
  *
  * Close behavior (mirrors NotificationInbox): Esc key · backdrop click · any link tap.
  *
- * Neobrutalist design tokens:
- *   - #09090E panel background
- *   - #E8F542 accent (border edge + hard offset shadow)
- *   - 2-3px borders, hard shadows, monospace/uppercase link labels
+ * Chrome rides the 09.2-01 token layer (D-02 — legacy grays retired):
+ * bg var(--bg-secondary) panel, 2px token borders, `.nav-item` link recipes,
+ * `.btn cream / outline-white` auth CTAs, radius 0 everywhere.
  *
- * Requirements: UI-49, D-05, D-06, D-07
+ * Requirements: UI-49, D-05, D-06, D-07, D-14 (logic/focus handling unchanged)
  */
 
 import { useCallback, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { usePrivy } from '@privy-io/react-auth';
 import { useAccount } from 'wagmi';
+import { Icon } from './Icon';
 
 interface MobileDrawerProps {
   open: boolean;
   onClose: () => void;
 }
 
-/** Neobrutalist drawer link/button base style — ≥44px tall (D-03). */
-const linkBaseStyle: React.CSSProperties = {
-  display: 'flex',
-  alignItems: 'center',
+/** ≥44px touch-target floor on drawer rows (D-03). */
+const navItemTouchStyle: React.CSSProperties = {
   minHeight: 44,
-  width: '100%',
-  padding: '0 14px',
-  marginBottom: 12,
-  background: 'transparent',
-  border: '2px solid #2A2A30',
-  boxShadow: '3px 3px 0 0 #2A2A30',
-  color: '#F1F5F9',
-  fontFamily: 'monospace',
-  fontSize: 14,
-  fontWeight: 700,
-  letterSpacing: 1,
-  textTransform: 'uppercase',
   textDecoration: 'none',
-  cursor: 'pointer',
-  boxSizing: 'border-box',
 };
 
 export function MobileDrawer({ open, onClose }: MobileDrawerProps) {
@@ -101,7 +85,7 @@ export function MobileDrawer({ open, onClose }: MobileDrawerProps) {
   const showAuthedLinks = authenticated && ready;
 
   return (
-    /* Backdrop — tokens copied verbatim from NotificationInbox */
+    /* Backdrop — scrim tokens match the modal-overlay treatment */
     <div
       onClick={handleBackdropClick}
       style={{
@@ -120,12 +104,9 @@ export function MobileDrawer({ open, onClose }: MobileDrawerProps) {
           left: 0,
           width: 'min(300px, 85vw)',
           height: '100vh',
-          background: '#09090E',
-          border: '3px solid #E8F542',
-          borderLeft: 'none',
-          borderTop: 'none',
-          borderBottom: 'none',
-          boxShadow: '4px 0 0 0 #E8F542',
+          background: 'var(--bg-secondary)',
+          borderRight: '2px solid var(--border-accent)',
+          boxShadow: '4px 0 0 0 #000',
           display: 'flex',
           flexDirection: 'column',
           padding: '20px',
@@ -141,50 +122,37 @@ export function MobileDrawer({ open, onClose }: MobileDrawerProps) {
             alignItems: 'center',
             marginBottom: 20,
             paddingBottom: 16,
-            borderBottom: '2px solid #2A2A30',
+            borderBottom: '2px solid var(--border-active)',
           }}
         >
-          <span
-            style={{
-              fontFamily: 'monospace',
-              fontSize: 14,
-              fontWeight: 700,
-              color: '#E8F542',
-              letterSpacing: 2,
-              textTransform: 'uppercase',
-            }}
-          >
-            Menu
+          <span className="nav-section-label" style={{ padding: 0 }}>
+            {'// MENU'}
           </span>
           <button
             onClick={onClose}
             aria-label="Close menu"
-            style={{
-              background: 'transparent',
-              border: '2px solid #2A2A30',
-              color: '#94A3B8',
-              fontSize: 16,
-              cursor: 'pointer',
-              minWidth: 44,
-              minHeight: 44,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              lineHeight: 1,
-            }}
+            className="icon-btn"
+            style={{ minWidth: 44, minHeight: 44 }}
           >
-            ×
+            <Icon name="x" size={16} />
           </button>
         </div>
 
         {/* Navigation destinations (D-06, auth-aware) */}
-        <nav style={{ display: 'flex', flexDirection: 'column' }}>
+        <nav style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
           {/* Always-visible destinations */}
-          <Link href="/" onClick={onClose} style={linkBaseStyle}>
-            Feed
+          <Link href="/" onClick={onClose} className="nav-item" style={navItemTouchStyle}>
+            <Icon name="feed" size={15} strokeWidth={1.7} />
+            <span>The Tape</span>
           </Link>
-          <Link href="/leaderboard" onClick={onClose} style={linkBaseStyle}>
-            Leaderboard
+          <Link
+            href="/leaderboard"
+            onClick={onClose}
+            className="nav-item"
+            style={navItemTouchStyle}
+          >
+            <Icon name="leaderboard" size={15} strokeWidth={1.7} />
+            <span>Leaderboard</span>
           </Link>
 
           {/* Authenticated-only destinations (Pitfall 5 — gated on authenticated && ready) */}
@@ -194,13 +162,21 @@ export function MobileDrawer({ open, onClose }: MobileDrawerProps) {
                 <Link
                   href={`/profile/${profileAddr}`}
                   onClick={onClose}
-                  style={linkBaseStyle}
+                  className="nav-item"
+                  style={navItemTouchStyle}
                 >
-                  Profile
+                  <Icon name="profile" size={15} strokeWidth={1.7} />
+                  <span>Your profile</span>
                 </Link>
               )}
-              <Link href="/new" onClick={onClose} style={linkBaseStyle}>
-                New Call
+              <Link
+                href="/new"
+                onClick={onClose}
+                className="nav-item"
+                style={navItemTouchStyle}
+              >
+                <Icon name="create" size={15} strokeWidth={1.7} />
+                <span>Make a call</span>
               </Link>
             </>
           )}
@@ -210,12 +186,8 @@ export function MobileDrawer({ open, onClose }: MobileDrawerProps) {
             <button
               type="button"
               onClick={handleSignOut}
-              style={{
-                ...linkBaseStyle,
-                border: '2px solid #E8F542',
-                boxShadow: '3px 3px 0 0 #E8F542',
-                color: '#E8F542',
-              }}
+              className="btn outline-white full"
+              style={{ marginTop: 14, minHeight: 44 }}
             >
               Sign out
             </button>
@@ -223,12 +195,8 @@ export function MobileDrawer({ open, onClose }: MobileDrawerProps) {
             <Link
               href="/signin"
               onClick={onClose}
-              style={{
-                ...linkBaseStyle,
-                border: '2px solid #E8F542',
-                boxShadow: '3px 3px 0 0 #E8F542',
-                color: '#E8F542',
-              }}
+              className="btn cream full"
+              style={{ marginTop: 14, minHeight: 44, textDecoration: 'none' }}
             >
               Sign in
             </Link>

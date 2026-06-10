@@ -2,8 +2,10 @@ import './globals.css';
 import type { Metadata } from 'next';
 import { Archivo, Inter, JetBrains_Mono } from 'next/font/google';
 import { ClientProviders } from './ClientProviders';
-// GlobalNav mounts NotificationBell (authenticated users only — SOCIAL-24, D-13)
-import { GlobalNav } from './components/GlobalNav';
+// AppShell is the app chrome (ticker flag + 64px header + 240px sidebar, D-10).
+// It mounts NotificationBell + the wallet pill, so it lives INSIDE
+// ClientProviders — Providers.tsx itself is never edited (AST-locked).
+import { AppShell } from './components/AppShell';
 
 // Brand fonts via next/font (D-04). Weight contract from 09.2-UI-SPEC:
 // Archivo only 700/800/900, Inter only 400/500/600, JBM only 500/600/700.
@@ -44,8 +46,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       {/* body styles live in globals.css html,body rule (prototype token layer) */}
       <body>
         <ClientProviders>
-          <GlobalNav />
-          {children}
+          <AppShell>{children}</AppShell>
         </ClientProviders>
       </body>
     </html>

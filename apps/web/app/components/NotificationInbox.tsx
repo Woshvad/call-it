@@ -13,7 +13,7 @@
  * Neobrutalist design tokens:
  *   - #09090E background
  *   - #E8F542 accent (borders, warning icon)
- *   - 2-3px borders, hard shadows (#E8F542 or #2A2A30)
+ *   - 2-3px borders, hard shadows (#E8F542 or var(--border-active))
  *   - SpaceGrotesk / monospace typography
  *
  * Security (T-02-09-03):
@@ -76,7 +76,7 @@ function NotificationCard({
     <div
       style={{
         background: isUnread ? 'rgba(232,245,66,0.04)' : 'transparent',
-        border: `2px solid ${isUnread ? '#E8F542' : '#2A2A30'}`,
+        border: `2px solid ${isUnread ? '#E8F542' : 'var(--border-active)'}`,
         padding: '12px 14px',
         marginBottom: 8,
         position: 'relative',
@@ -271,7 +271,7 @@ export function NotificationInbox({
             justifyContent: 'space-between',
             alignItems: 'center',
             padding: '20px 20px 16px 20px',
-            borderBottom: '2px solid #2A2A30',
+            borderBottom: '2px solid var(--border-active)',
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -311,7 +311,7 @@ export function NotificationInbox({
                 onClick={handleMarkAllRead}
                 style={{
                   background: 'transparent',
-                  border: '2px solid #2A2A30',
+                  border: '2px solid var(--border-active)',
                   color: '#94A3B8',
                   fontSize: 11,
                   fontFamily: 'monospace',
@@ -323,7 +323,7 @@ export function NotificationInbox({
                   e.currentTarget.style.color = '#E8F542';
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.borderColor = '#2A2A30';
+                  e.currentTarget.style.borderColor = 'var(--border-active)';
                   e.currentTarget.style.color = '#94A3B8';
                 }}
               >
@@ -337,7 +337,7 @@ export function NotificationInbox({
               aria-label="Close notifications"
               style={{
                 background: 'transparent',
-                border: '2px solid #2A2A30',
+                border: '2px solid var(--border-active)',
                 color: '#94A3B8',
                 fontSize: 16,
                 cursor: 'pointer',
@@ -353,7 +353,7 @@ export function NotificationInbox({
                 e.currentTarget.style.color = '#E8F542';
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.borderColor = '#2A2A30';
+                e.currentTarget.style.borderColor = 'var(--border-active)';
                 e.currentTarget.style.color = '#94A3B8';
               }}
             >
@@ -387,7 +387,7 @@ export function NotificationInbox({
                 style={{
                   width: 48,
                   height: 48,
-                  border: '2px solid #2A2A30',
+                  border: '2px solid var(--border-active)',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
@@ -453,7 +453,7 @@ export function NotificationInbox({
                         letterSpacing: 2,
                         textTransform: 'uppercase',
                         marginBottom: 8,
-                        borderTop: '1px solid #2A2A30',
+                        borderTop: '1px solid var(--border-active)',
                         paddingTop: 12,
                       }}
                     >
@@ -473,7 +473,7 @@ export function NotificationInbox({
         <div
           style={{
             padding: '12px 20px',
-            borderTop: '2px solid #2A2A30',
+            borderTop: '2px solid var(--border-active)',
           }}
         >
           <span

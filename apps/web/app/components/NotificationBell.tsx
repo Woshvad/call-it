@@ -6,10 +6,10 @@
  * Only renders when user is authenticated (Privy + wagmi).
  * Shows yellow-green unread count badge when unreadCount > 0.
  *
- * Neobrutalist design tokens:
- *   - #09090E background
- *   - #E8F542 accent (badge + active border)
- *   - 2px borders, hard offset shadows
+ * Trigger chrome (plan 09.2-03): `.icon-btn` recipe from the 09.2-01 token
+ * layer — 36px square, 2px var(--border-active) border, radius 0; unread
+ * state rides var(--accent-win)/var(--border-accent). Poll wiring and
+ * inbox-open logic are untouched (the inbox panel itself is plan 09.2-13).
  *
  * Security (T-02-09-03):
  *   - address from useAccount(), NOT URL param
@@ -23,6 +23,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { usePrivy } from '@privy-io/react-auth';
 import { useAccount } from 'wagmi';
 import { NotificationInbox } from './NotificationInbox';
+import { Icon } from './Icon';
 
 // Relayer base URL from env (NEXT_PUBLIC_RELAYER_URL set in apps/web/.env)
 const RELAYER_URL = process.env['NEXT_PUBLIC_RELAYER_URL'] ?? '';
@@ -41,26 +42,6 @@ export interface Notification {
   };
   createdAt: string;
   readAt: string | null;
-}
-
-/** Bell SVG icon — neobrutalist, no emoji fallback */
-function BellIcon({ hasUnread }: { hasUnread: boolean }) {
-  return (
-    <svg
-      width="22"
-      height="22"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke={hasUnread ? '#E8F542' : '#94A3B8'}
-      strokeWidth="2.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
-      <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-    </svg>
-  );
 }
 
 export function NotificationBell() {
@@ -138,32 +119,23 @@ export function NotificationBell() {
 
   return (
     <>
-      {/* Bell button */}
+      {/* Bell button — .icon-btn trigger chrome (square, 2px border, radius 0) */}
       <div style={{ position: 'relative', display: 'inline-flex' }}>
         <button
           onClick={handleOpen}
           aria-label={`Notifications${hasUnread ? ` (${unreadCount} unread)` : ''}`}
-          style={{
-            background: 'transparent',
-            border: `2px solid ${hasUnread ? '#E8F542' : '#2A2A30'}`,
-            cursor: 'pointer',
-            padding: '6px 8px',
-            display: 'inline-flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            position: 'relative',
-            color: hasUnread ? '#E8F542' : '#94A3B8',
-            boxShadow: hasUnread ? '2px 2px 0 0 #E8F542' : 'none',
-            transition: 'all 0.1s ease',
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.borderColor = '#E8F542';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.borderColor = hasUnread ? '#E8F542' : '#2A2A30';
-          }}
+          className="icon-btn"
+          style={
+            hasUnread
+              ? {
+                  borderColor: 'var(--border-accent)',
+                  color: 'var(--accent-win)',
+                  boxShadow: '2px 2px 0 0 var(--accent-win)',
+                }
+              : undefined
+          }
         >
-          <BellIcon hasUnread={hasUnread} />
+          <Icon name="bell" size={16} strokeWidth={1.7} />
 
           {/* Unread count badge */}
           {hasUnread && (
@@ -172,13 +144,13 @@ export function NotificationBell() {
                 position: 'absolute',
                 top: -6,
                 right: -6,
-                background: '#E8F542',
-                color: '#09090E',
+                background: 'var(--accent-win)',
+                color: 'var(--bg-primary)',
                 fontSize: 10,
-                fontFamily: 'monospace',
+                fontFamily: 'var(--font-mono)',
                 fontWeight: 700,
                 borderRadius: 0,
-                border: '2px solid #09090E',
+                border: '2px solid var(--bg-primary)',
                 minWidth: 18,
                 height: 18,
                 display: 'flex',
