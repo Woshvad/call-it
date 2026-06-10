@@ -17,7 +17,7 @@ const SPREAD_METRICS = [
 ] as const;
 
 /**
- * SpreadVsFields — sub-form for Spread vs market type.
+ * SpreadVsFields — sub-form for Spread vs market type (ROOT `.brutal-input` skin).
  *
  * Shows: assetA, assetB (two coin pickers), metric (5 options per CALL-02).
  *
@@ -25,12 +25,10 @@ const SPREAD_METRICS = [
  */
 export function SpreadVsFields({ control, errors }: SpreadVsFieldsProps) {
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-5">
       {/* Asset A */}
-      <div className="flex flex-col gap-1">
-        <label className="text-sm font-mono text-brand-text uppercase tracking-wide">
-          Asset A
-        </label>
+      <div className="flex flex-col gap-2">
+        <label className="label-overline">Asset A</label>
         <Controller
           name="assetA"
           control={control}
@@ -39,24 +37,21 @@ export function SpreadVsFields({ control, errors }: SpreadVsFieldsProps) {
               {...field}
               type="text"
               placeholder="First asset (e.g. BTC)"
-              className={[
-                'border-2 bg-brand-surface text-brand-text font-mono px-3 py-2',
-                'focus:outline-none focus:border-brand-accent',
-                errors.assetA ? 'border-red-500' : 'border-brand-border',
-              ].join(' ')}
+              className="brutal-input mono"
+              style={errors.assetA ? { borderColor: 'var(--accent-loss)' } : undefined}
             />
           )}
         />
         {errors.assetA && (
-          <div className="text-red-500 text-xs font-mono">{errors.assetA.message}</div>
+          <div className="mono" style={{ fontSize: 11, color: 'var(--accent-loss)' }}>
+            {errors.assetA.message}
+          </div>
         )}
       </div>
 
       {/* Asset B */}
-      <div className="flex flex-col gap-1">
-        <label className="text-sm font-mono text-brand-text uppercase tracking-wide">
-          Asset B
-        </label>
+      <div className="flex flex-col gap-2">
+        <label className="label-overline">Asset B</label>
         <Controller
           name="assetB"
           control={control}
@@ -65,20 +60,15 @@ export function SpreadVsFields({ control, errors }: SpreadVsFieldsProps) {
               {...field}
               type="text"
               placeholder="Second asset (e.g. ETH)"
-              className={[
-                'border-2 bg-brand-surface text-brand-text font-mono px-3 py-2',
-                'focus:outline-none focus:border-brand-accent',
-              ].join(' ')}
+              className="brutal-input mono"
             />
           )}
         />
       </div>
 
       {/* Spread metric */}
-      <div className="flex flex-col gap-1">
-        <label className="text-sm font-mono text-brand-text uppercase tracking-wide">
-          Metric
-        </label>
+      <div className="flex flex-col gap-2">
+        <label className="label-overline">Metric</label>
         <Controller
           name="eventSubtype"
           control={control}
@@ -87,11 +77,7 @@ export function SpreadVsFields({ control, errors }: SpreadVsFieldsProps) {
               value={field.value ?? 'none'}
               onChange={(e) => field.onChange(e.target.value)}
               onBlur={field.onBlur}
-              className={[
-                'border-2 bg-brand-surface text-brand-text font-mono px-3 py-2',
-                'focus:outline-none focus:border-brand-accent',
-                'border-brand-border',
-              ].join(' ')}
+              className="brutal-select"
             >
               {SPREAD_METRICS.map((m) => (
                 <option key={m.value} value={m.value}>
@@ -104,10 +90,8 @@ export function SpreadVsFields({ control, errors }: SpreadVsFieldsProps) {
       </div>
 
       {/* Target value */}
-      <div className="flex flex-col gap-1">
-        <label className="text-sm font-mono text-brand-text uppercase tracking-wide">
-          Target Ratio
-        </label>
+      <div className="flex flex-col gap-2">
+        <label className="label-overline">Target Ratio</label>
         <Controller
           name="targetValue"
           control={control}
@@ -124,16 +108,15 @@ export function SpreadVsFields({ control, errors }: SpreadVsFieldsProps) {
               onBlur={field.onBlur}
               placeholder="e.g. 2.5 (A is 2.5x B)"
               step="0.01"
-              className={[
-                'border-2 bg-brand-surface text-brand-text font-mono px-3 py-2',
-                'focus:outline-none focus:border-brand-accent',
-                errors.targetValue ? 'border-red-500' : 'border-brand-border',
-              ].join(' ')}
+              className="brutal-input mono"
+              style={errors.targetValue ? { borderColor: 'var(--accent-loss)' } : undefined}
             />
           )}
         />
         {errors.targetValue && (
-          <div className="text-red-500 text-xs font-mono">{String(errors.targetValue.message)}</div>
+          <div className="mono" style={{ fontSize: 11, color: 'var(--accent-loss)' }}>
+            {String(errors.targetValue.message)}
+          </div>
         )}
       </div>
     </div>

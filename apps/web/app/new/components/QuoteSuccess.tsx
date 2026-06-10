@@ -5,9 +5,9 @@
  *   - "Quote posted" heading (Syne)
  *   - a THREAD PREVIEW: the parent card + the user's quote stacked VERTICALLY
  *   - a "Share receipt" button → Twitter web-intent URL built by the shared
- *     share-text builder (SHARE-15) — same canonical builders the relayer
- *     auto-post worker uses (relocated to @call-it/shared in 07-04, re-exported
- *     from apps/web/lib/share-text.ts).
+ *     share-text builder (SHARE-15) — same canonical builders the relayer's
+ *     social publishing worker uses (relocated to @call-it/shared in 07-04,
+ *     re-exported from apps/web/lib/share-text.ts).
  *
  * The Share button is the reusable affordance the receipt/profile pages can also
  * use (it takes a receipt URL + outcome/handle/statement and produces the intent).

@@ -34,7 +34,7 @@ const ONCHAIN_METRICS = [
 ];
 
 /**
- * EventFields — sub-form for Event market type with 7 subtypes.
+ * EventFields — sub-form for Event market type with 7 subtypes (ROOT skin).
  *
  * Subtype-conditional inputs:
  *   - cexListing: exchange dropdown (8 options per CALL-02)
@@ -50,36 +50,31 @@ export function EventFields({ control, setValue, errors }: EventFieldsProps) {
     : false;
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-5">
       {/* Asset */}
-      <div className="flex flex-col gap-1">
-        <label className="text-sm font-mono text-brand-text uppercase tracking-wide">
-          Asset / Protocol
-        </label>
+      <div className="flex flex-col gap-2">
+        <label className="label-overline">Asset / Protocol</label>
         <input
           type="text"
           placeholder="e.g. ETH, Uniswap, EigenLayer"
           onChange={(e) => setValue('assetA', e.target.value)}
-          className={[
-            'border-2 bg-brand-surface text-brand-text font-mono px-3 py-2',
-            'focus:outline-none focus:border-brand-accent',
-            errors.assetA ? 'border-red-500' : 'border-brand-border',
-          ].join(' ')}
+          className="brutal-input mono"
+          style={errors.assetA ? { borderColor: 'var(--accent-loss)' } : undefined}
         />
         {errors.assetA && (
-          <div className="text-red-500 text-xs font-mono">{errors.assetA.message}</div>
+          <div className="mono" style={{ fontSize: 11, color: 'var(--accent-loss)' }}>
+            {errors.assetA.message}
+          </div>
         )}
       </div>
 
       {/* Event subtype */}
-      <div className="flex flex-col gap-1">
-        <label className="text-sm font-mono text-brand-text uppercase tracking-wide">
-          Event Type
-        </label>
+      <div className="flex flex-col gap-2">
+        <label className="label-overline">Event Type</label>
         <select
           value={eventSubtype ?? 'none'}
           onChange={(e) => setValue('eventSubtype', e.target.value as EventSubtype)}
-          className="border-2 bg-brand-surface text-brand-text font-mono px-3 py-2 focus:outline-none focus:border-brand-accent border-brand-border"
+          className="brutal-select"
         >
           {EVENT_SUBTYPES.filter((s) => s !== 'none').map((subtype) => (
             <option key={subtype} value={subtype}>
@@ -91,13 +86,11 @@ export function EventFields({ control, setValue, errors }: EventFieldsProps) {
 
       {/* cexListing: exchange dropdown */}
       {eventSubtype === 'cexListing' && (
-        <div className="flex flex-col gap-1">
-          <label className="text-sm font-mono text-brand-text uppercase tracking-wide">
-            Exchange
-          </label>
+        <div className="flex flex-col gap-2">
+          <label className="label-overline">Exchange</label>
           <select
             onChange={(e) => setValue('assetB', e.target.value)}
-            className="border-2 bg-brand-surface text-brand-text font-mono px-3 py-2 focus:outline-none focus:border-brand-accent border-brand-border"
+            className="brutal-select"
           >
             <option value="">Select exchange</option>
             {CEX_EXCHANGES.map((exchange) => (
@@ -111,13 +104,11 @@ export function EventFields({ control, setValue, errors }: EventFieldsProps) {
 
       {/* onchainMetric: metric dropdown */}
       {eventSubtype === 'onchainMetric' && (
-        <div className="flex flex-col gap-1">
-          <label className="text-sm font-mono text-brand-text uppercase tracking-wide">
-            Metric
-          </label>
+        <div className="flex flex-col gap-2">
+          <label className="label-overline">Metric</label>
           <select
             onChange={(e) => setValue('assetB', e.target.value)}
-            className="border-2 bg-brand-surface text-brand-text font-mono px-3 py-2 focus:outline-none focus:border-brand-accent border-brand-border"
+            className="brutal-select"
           >
             <option value="">Select metric</option>
             {ONCHAIN_METRICS.map((metric) => (
@@ -131,10 +122,8 @@ export function EventFields({ control, setValue, errors }: EventFieldsProps) {
 
       {/* Target value (for non-milestone events) */}
       {eventSubtype !== 'governance' && eventSubtype !== 'tokenLaunch' && (
-        <div className="flex flex-col gap-1">
-          <label className="text-sm font-mono text-brand-text uppercase tracking-wide">
-            Target Value
-          </label>
+        <div className="flex flex-col gap-2">
+          <label className="label-overline">Target Value</label>
           <input
             type="number"
             placeholder="e.g. 1000000 (for $1M TVL)"
@@ -145,7 +134,7 @@ export function EventFields({ control, setValue, errors }: EventFieldsProps) {
               }
             }}
             step="1"
-            className="border-2 bg-brand-surface text-brand-text font-mono px-3 py-2 focus:outline-none focus:border-brand-accent border-brand-border"
+            className="brutal-input mono"
           />
         </div>
       )}

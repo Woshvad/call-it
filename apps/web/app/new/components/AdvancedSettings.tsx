@@ -4,7 +4,6 @@ import { useState } from 'react';
 import { Controller, type Control } from 'react-hook-form';
 import type { CreateCallInput } from '@call-it/shared';
 import { CATEGORIES } from '@call-it/shared';
-import { Card } from '@call-it/ui';
 
 interface AdvancedSettingsProps {
   control: Control<CreateCallInput>;
@@ -16,45 +15,89 @@ const CATEGORY_LABELS: Record<string, string> = {
   other: 'Other',
 };
 
+/**
+ * AdvancedSettings — collapsible advanced block (ROOT skin).
+ *
+ * openToChallenges is the ONLY toggle (`.toggle-pill` recipe — D-07/D-08: no
+ * prototype toggles without backing fields ship). Category select on
+ * `.brutal-select`. RHF Controller bindings unchanged.
+ *
+ * Requirement: CALL-62/63/64
+ */
 export function AdvancedSettings({ control }: AdvancedSettingsProps) {
   const [isOpen, setIsOpen] = useState(false);
   return (
     <div>
-      <button type="button" onClick={() => setIsOpen((o) => !o)} className="flex items-center gap-2 text-sm font-mono text-brand-muted hover:text-brand-text" aria-expanded={isOpen}>
-        <span className="text-brand-accent">{isOpen ? '▼' : '▶'}</span>
+      <button
+        type="button"
+        onClick={() => setIsOpen((o) => !o)}
+        className="mono"
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+          fontSize: 11,
+          fontWeight: 600,
+          letterSpacing: '0.08em',
+          textTransform: 'uppercase',
+          color: 'var(--text-tertiary)',
+          background: 'none',
+          border: 'none',
+          cursor: 'pointer',
+          padding: 0,
+          minHeight: 44,
+        }}
+        aria-expanded={isOpen}
+      >
+        <span style={{ color: 'var(--accent-win)' }}>{isOpen ? '▼' : '▶'}</span>
         Advanced Settings
       </button>
       {isOpen && (
-        <Card className="mt-3 flex flex-col gap-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="text-sm font-mono text-brand-text">Open to Challenges</div>
-              <div className="text-xs font-mono text-brand-muted">Allow 1v1 challenges (CALL-64)</div>
-            </div>
-            <Controller name="openToChallenges" control={control} render={({ field }) => (
-              <button type="button" onClick={() => field.onChange(!field.value)} className={['w-12 h-6 border-2 relative', field.value ? 'bg-brand-accent border-brand-accent' : 'bg-brand-surface border-brand-border'].join(' ')} aria-checked={field.value} role="switch">
-                <span className={['absolute top-0.5 h-4 w-4 border-2 border-brand-bg', field.value ? 'translate-x-6 bg-brand-bg' : 'translate-x-0.5 bg-brand-border'].join(' ')} />
-              </button>
-            )} />
-          </div>
-          <div className="flex flex-col gap-1">
-            <label className="text-sm font-mono text-brand-text">Category</label>
-            <Controller name="category" control={control} render={({ field }) => (
-              <select value={field.value ?? 'majors'} onChange={(e) => field.onChange(e.target.value)} onBlur={field.onBlur} className="border-2 bg-brand-surface text-brand-text font-mono px-3 py-2 border-brand-border">
-                {CATEGORIES.map((cat) => <option key={cat} value={cat}>{CATEGORY_LABELS[cat] ?? cat}</option>)}
-              </select>
-            )} />
-          </div>
-          <div className="flex items-center justify-between opacity-50">
-            <div>
-              <div className="text-sm font-mono text-brand-text">Auto-post to X</div>
-              <div className="text-xs font-mono text-brand-muted">Coming in Phase 7</div>
-            </div>
-            <div className="w-12 h-6 bg-brand-accent border-2 border-brand-accent relative cursor-not-allowed">
-              <span className="absolute top-0.5 left-6 h-4 w-4 border-2 border-brand-bg bg-brand-bg" />
+        <div className="brutal-card mt-3 flex flex-col gap-5">
+          <div className="flex flex-col gap-2">
+            <div className="label-overline">Challenges</div>
+            <Controller
+              name="openToChallenges"
+              control={control}
+              render={({ field }) => (
+                <button
+                  type="button"
+                  onClick={() => field.onChange(!field.value)}
+                  className={`toggle-pill ${field.value ? 'on' : ''}`}
+                  style={{ minHeight: 44, alignSelf: 'flex-start' }}
+                  aria-checked={field.value}
+                  role="switch"
+                >
+                  {field.value ? '✓' : '+'} Open to challenges
+                </button>
+              )}
+            />
+            <div className="mono" style={{ fontSize: 10.5, color: 'var(--text-tertiary)' }}>
+              Allow 1v1 challenges (CALL-64)
             </div>
           </div>
-        </Card>
+          <div className="flex flex-col gap-2">
+            <label className="label-overline">Category</label>
+            <Controller
+              name="category"
+              control={control}
+              render={({ field }) => (
+                <select
+                  value={field.value ?? 'majors'}
+                  onChange={(e) => field.onChange(e.target.value)}
+                  onBlur={field.onBlur}
+                  className="brutal-select"
+                >
+                  {CATEGORIES.map((cat) => (
+                    <option key={cat} value={cat}>
+                      {CATEGORY_LABELS[cat] ?? cat}
+                    </option>
+                  ))}
+                </select>
+              )}
+            />
+          </div>
+        </div>
       )}
     </div>
   );

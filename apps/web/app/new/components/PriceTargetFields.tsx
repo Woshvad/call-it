@@ -9,7 +9,7 @@ interface PriceTargetFieldsProps {
 }
 
 /**
- * PriceTargetFields — sub-form for Price Target market type.
+ * PriceTargetFields — sub-form for Price Target market type (ROOT `.brutal-input` skin).
  *
  * Shows: asset (symbol input — allowlist validated by relayer), targetValue, direction (≥ / ≤).
  *
@@ -20,12 +20,10 @@ interface PriceTargetFieldsProps {
  */
 export function PriceTargetFields({ control, errors }: PriceTargetFieldsProps) {
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-5">
       {/* Asset */}
-      <div className="flex flex-col gap-1">
-        <label className="text-sm font-mono text-brand-text uppercase tracking-wide">
-          Asset
-        </label>
+      <div className="flex flex-col gap-2">
+        <label className="label-overline">Asset</label>
         <Controller
           name="assetA"
           control={control}
@@ -34,24 +32,21 @@ export function PriceTargetFields({ control, errors }: PriceTargetFieldsProps) {
               {...field}
               type="text"
               placeholder="BTC, ETH, SOL... (Pyth feed or symbol)"
-              className={[
-                'border-2 bg-brand-surface text-brand-text font-mono px-3 py-2',
-                'focus:outline-none focus:border-brand-accent',
-                errors.assetA ? 'border-red-500' : 'border-brand-border',
-              ].join(' ')}
+              className="brutal-input mono"
+              style={errors.assetA ? { borderColor: 'var(--accent-loss)' } : undefined}
             />
           )}
         />
         {errors.assetA && (
-          <div className="text-red-500 text-xs font-mono">{errors.assetA.message}</div>
+          <div className="mono" style={{ fontSize: 11, color: 'var(--accent-loss)' }}>
+            {errors.assetA.message}
+          </div>
         )}
       </div>
 
       {/* Target value */}
-      <div className="flex flex-col gap-1">
-        <label className="text-sm font-mono text-brand-text uppercase tracking-wide">
-          Price Target (USD)
-        </label>
+      <div className="flex flex-col gap-2">
+        <label className="label-overline">Price Target (USD)</label>
         <Controller
           name="targetValue"
           control={control}
@@ -69,16 +64,15 @@ export function PriceTargetFields({ control, errors }: PriceTargetFieldsProps) {
               onBlur={field.onBlur}
               placeholder="e.g. 80000 (for $80k)"
               step="any"
-              className={[
-                'border-2 bg-brand-surface text-brand-text font-mono px-3 py-2',
-                'focus:outline-none focus:border-brand-accent',
-                errors.targetValue ? 'border-red-500' : 'border-brand-border',
-              ].join(' ')}
+              className="brutal-input mono"
+              style={errors.targetValue ? { borderColor: 'var(--accent-loss)' } : undefined}
             />
           )}
         />
         {errors.targetValue && (
-          <div className="text-red-500 text-xs font-mono">{String(errors.targetValue.message)}</div>
+          <div className="mono" style={{ fontSize: 11, color: 'var(--accent-loss)' }}>
+            {String(errors.targetValue.message)}
+          </div>
         )}
       </div>
     </div>
