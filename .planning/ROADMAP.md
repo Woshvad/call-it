@@ -22,7 +22,7 @@ Call It ships as a person-first onchain social prediction product on Arbitrum ma
 - [x] **Phase 7: OG service final variants + Subgraph final mappings** - 5 OG card variants finalized (Live, Settled, DuelSettled, CallerExited, Fallback) via @vercel/og + Satori, subgraph published to Decentralized Network on Arbitrum, auto-post-to-X gated by cache-warm verification, Twitter Card Validator pre-flight, 200px readability QA gate (completed 2026-06-08)
 - [x] **Phase 8: Farcaster Mini Apps** - `fc:frame` meta tags, Mini App manifest, Farcaster receipt rendering, Follow/Fade/Challenge actions from Frame (complete 2026-06-09: 4 plans + UAT — 2 live bugs found & fixed in 08-05/08-06 (fake "CALLED IT" on a loss; blank Mini App), pushed + tested web 97/relayer 209; RESIDUALS: relayer Fly redeploy post-soak unlocks true "LOUD AND WRONG" word, + Phase-10 in-Warpcast tap-to-transact per D-01)
 - [x] **Phase 9: Mobile responsive on 7 critical pages** - 375px breakpoint on Feed, Live Receipt, Settled Receipt, Profile, Leaderboard, Sign-in, Onboarding; desktop-only banner on Duel, Quote composer, New Call (completed 2026-06-09)
-- [ ] **Phase 09.2: Prototype design adoption** (INSERTED 2026-06-10 — ACTIVE, runs BEFORE 09.1) — rebuild the entire apps/web UI to the canonical `call it frontend/` design prototype (root variant): design tokens + brutal-* primitives + @call-it/ui retheme, app shell (header/sidebar/ticker), route-by-route markup adoption (feed, call receipt live+settled, /new, duel, leaderboard, profile, landing) + reskin of uncovered surfaces (signin, onboarding, disputes, settings, notifications, modals). Prototype is a markup/token donor ONLY — all hooks, logic, guards, and tx wiring stay.
+- [x] **Phase 09.2: Prototype design adoption** (INSERTED 2026-06-10 — ACTIVE, runs BEFORE 09.1) — rebuild the entire apps/web UI to the canonical `call it frontend/` design prototype (root variant): design tokens + brutal-* primitives + @call-it/ui retheme, app shell (header/sidebar/ticker), route-by-route markup adoption (feed, call receipt live+settled, /new, duel, leaderboard, profile, landing) + reskin of uncovered surfaces (signin, onboarding, disputes, settings, notifications, modals). Prototype is a markup/token donor ONLY — all hooks, logic, guards, and tx wiring stay. (completed 2026-06-10)
 - [ ] **Phase 09.1: Testnet demo hardening on Arbitrum Sepolia** (INSERTED 2026-06-09 — runs AFTER 09.2) — make the full product demo-perfect end-to-end on the live Sepolia deployment: share-link receipt loop (true outcome word + market line), full creator flow, browse surfaces with real data, live social/distribution. Mainnet paused.
 - [ ] **⏸ ON HOLD — Phase 10: Mainnet deploy gate** (mainnet paused 2026-06-09 till further notice) - 20-minute §19.11 smoke test checklist; deploy + verify (under the deployer key — multisig transfer is the final Phase 10.5) + first authenticated session + funding + first sponsored tx + receipt share Twitter Card Validator (reordered from 7.5 to after 8–9 per operator decision 2026-06-07)
 - [ ] **⏸ ON HOLD — Phase 10.5: Mainnet multisig promotion (ownership lockdown)** (mainnet paused 2026-06-09 till further notice) - FINAL phase. Deploy the production Safe 2-of-3 on Arbitrum One; transfer ownership of all 6 mainnet surfaces from the deployer key to the Safe via Ownable2Step; prove Safe-gated pause + upgrade; single-owner-key path closed (Risk #2). The multisig mechanism was rehearsed on Sepolia in Phase 6.
@@ -368,7 +368,7 @@ Plans:
 **Requirements**: TBD (UI restyle of existing requirement surfaces; no new mechanical requirements)
 **Depends on:** Phase 9
 **Research:** 09.2-RESEARCH.md (compatibility audit, 2026-06-10 8-agent sweep: variant canon, token delta, screen-by-screen REUSE/PARTIAL/NEW-BUILD map, wiring-risk register, adoption sequence)
-**Plans:** 14/15 plans executed
+**Plans:** 15/15 plans complete
 Plans:
 **Wave 1**
 
@@ -410,7 +410,7 @@ Plans:
 
 **Wave 9** *(blocked on Wave 8 completion)*
 
-- [ ] 09.2-15-PLAN.md — Wave 9: [OPERATOR CHECKPOINT] design approval vs prototype ground truth → visual-golden regeneration + full Playwright suite green (D-15)
+- [x] 09.2-15-PLAN.md — Wave 9: [OPERATOR CHECKPOINT] design approval vs prototype ground truth → visual-golden regeneration + full Playwright suite green (D-15)
 
 ### Phase 09.1: Testnet demo hardening on Arbitrum Sepolia (INSERTED)
 
