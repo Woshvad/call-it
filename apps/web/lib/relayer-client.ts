@@ -392,7 +392,11 @@ export interface ProfileResponse {
  * ENS cached at 24h Redis TTL (D-13).
  */
 export async function getProfile(address: `0x${string}`): Promise<ProfileResponse> {
-  return relayerFetch<ProfileResponse>(`/api/profile/${address}`);
+  // Bounded SSR fetch: the relayer can hang >60s resolving unknown addresses,
+  // which would otherwise hold the profile page's RSC stream open indefinitely.
+  return relayerFetch<ProfileResponse>(`/api/profile/${address}`, {
+    signal: AbortSignal.timeout(8_000),
+  });
 }
 
 // ─── Calls ─────────────────────────────────────────────────────────────────────
