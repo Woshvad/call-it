@@ -82,7 +82,10 @@ jobs:
         run: forge test --match-contract CallRegistryParityTest -vv
 
       - name: Run Vitest call-gates parity test (generates .vitest-parity-output.json)
-        run: pnpm --filter @call-it/shared vitest run __tests__/call-gates-parity.test.ts
+        # `exec vitest` (not `pnpm --filter ... vitest`): @call-it/shared has no
+        # "vitest" script — the bare form fails with ERR_PNPM_RECURSIVE_RUN_NO_SCRIPT
+        # (latent since this workflow never ran; exposed by quick-260610-vab).
+        run: pnpm --filter @call-it/shared exec vitest run __tests__/call-gates-parity.test.ts
 
       - name: Run parity-diff (compare Solidity vs TS outcomes)
         run: pnpm tsx scripts/parity-diff.ts
@@ -136,17 +139,32 @@ jobs:
 
       - name: Assert no bridged USDC.e address
         run: |
-          # Allow only the canonical negative-test reference in usdc.ts
+          # Allowlist: the canonical negative-test fixtures only (quick-260610-vab —
+          # the original single-file allowlist was stale; these 4 files deliberately
+          # reference the bridged address as DO-NOT-USE warnings/negative tests):
+          #   packages/shared/src/constants/usdc.ts   (canonical negative-test constant)
+          #   packages/shared/test/usdc.test.ts        (asserts that constant's value)
+          #   packages/contracts/src/constants/USDC.sol (WARNING comment naming the bad address)
+          #   packages/contracts/test/USDC.t.sol       (negative-test constant)
+          # Any OTHER occurrence indicates a dangerous hardcoded wrong-USDC paste.
+          # Build-artifact dirs excluded too (dist/.next/.turbo/out/target): the
+          # phase-1-complete-gate job builds shared/ui/web BEFORE this grep runs,
+          # and the generated dist/*.d.ts re-declares the negative-test constant.
           VIOLATIONS=$(grep -rE "0xFF970A61[A-Fa-f0-9]+" \
             --include="*.sol" --include="*.ts" --include="*.tsx" \
-            --exclude-dir=node_modules \
-            . 2>/dev/null | grep -v "packages/shared/src/constants/usdc.ts" || true)
+            --exclude-dir=node_modules --exclude-dir=dist --exclude-dir=.next \
+            --exclude-dir=.turbo --exclude-dir=out --exclude-dir=target \
+            . 2>/dev/null \
+            | grep -v "packages/shared/src/constants/usdc.ts" \
+            | grep -v "packages/shared/test/usdc.test.ts" \
+            | grep -v "packages/contracts/src/constants/USDC.sol" \
+            | grep -v "packages/contracts/test/USDC.t.sol" || true)
           if [ -n "$VIOLATIONS" ]; then
-            echo "::error::Bridged USDC.e address found outside the canonical constants file:"
+            echo "::error::Bridged USDC.e address found outside the canonical negative-test fixtures:"
             echo "$VIOLATIONS"
             exit 1
           fi
-          echo "PASS: No bridged USDC.e address outside packages/shared/src/constants/usdc.ts"
+          echo "PASS: No bridged USDC.e address outside the canonical negative-test fixtures"
 
   # ─── No display:grid in OG card templates (Satori limitation) ───────────────
   no-display-grid-eslint:
@@ -395,7 +413,8 @@ jobs:
 
       # ── (b) Parity-diff ───────────────────────────────────────────────────
       - name: Run Vitest parity test
-        run: pnpm --filter @call-it/shared vitest run __tests__/call-gates-parity.test.ts
+        # `exec vitest` — @call-it/shared has no "vitest" script (see parity-diff job).
+        run: pnpm --filter @call-it/shared exec vitest run __tests__/call-gates-parity.test.ts
 
       - name: Run parity-diff (Solidity vs TS Zod schema)
         run: pnpm tsx scripts/parity-diff.ts
@@ -453,16 +472,26 @@ jobs:
       # ── (h) Phase 0 grep guards ───────────────────────────────────────────
       - name: Assert no bridged USDC.e address
         run: |
+          # Same negative-test-fixture allowlist as the usdc-paste-guard job
+          # (quick-260610-vab) — see that job's comment for the rationale.
+          # Build-artifact dirs excluded too (dist/.next/.turbo/out/target): the
+          # phase-1-complete-gate job builds shared/ui/web BEFORE this grep runs,
+          # and the generated dist/*.d.ts re-declares the negative-test constant.
           VIOLATIONS=$(grep -rE "0xFF970A61[A-Fa-f0-9]+" \
             --include="*.sol" --include="*.ts" --include="*.tsx" \
-            --exclude-dir=node_modules \
-            . 2>/dev/null | grep -v "packages/shared/src/constants/usdc.ts" || true)
+            --exclude-dir=node_modules --exclude-dir=dist --exclude-dir=.next \
+            --exclude-dir=.turbo --exclude-dir=out --exclude-dir=target \
+            . 2>/dev/null \
+            | grep -v "packages/shared/src/constants/usdc.ts" \
+            | grep -v "packages/shared/test/usdc.test.ts" \
+            | grep -v "packages/contracts/src/constants/USDC.sol" \
+            | grep -v "packages/contracts/test/USDC.t.sol" || true)
           if [ -n "$VIOLATIONS" ]; then
-            echo "::error::Bridged USDC.e address found outside canonical constants file"
+            echo "::error::Bridged USDC.e address found outside the canonical negative-test fixtures"
             echo "$VIOLATIONS"
             exit 1
           fi
-          echo "PASS: No bridged USDC.e address outside packages/shared/src/constants/usdc.ts"
+          echo "PASS: No bridged USDC.e address outside the canonical negative-test fixtures"
 
       - name: Assert Solidity pragma pin (=0.8.30)
         run: |
