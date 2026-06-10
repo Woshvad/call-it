@@ -1,7 +1,9 @@
 /**
- * CornerBrackets test — RED phase
- * Tests the 4 absolutely-positioned spans with correct border classes
- * Visual parity with apps/web/lib/og-fallback-render.ts cornerBracket()
+ * CornerBrackets test
+ * Tests the 4 absolutely-positioned spans with correct border classes.
+ *
+ * Phase 09.2 retheme (D-15 lockstep update): prototype `.bracketed` recipe —
+ * 14px L-shaped 1px var(--border-active) corner marks (was 16px 4px accent).
  */
 import { describe, it, expect } from 'vitest';
 import { render } from '@testing-library/react';
@@ -19,7 +21,7 @@ describe('CornerBrackets component', () => {
     expect(spans).toHaveLength(4);
   });
 
-  it('top-left span has border-t-4 and border-l-4', () => {
+  it('top-left span has border-t and border-l (1px L-mark)', () => {
     const { container } = render(
       <div style={{ position: 'relative' }}>
         <CornerBrackets />
@@ -27,11 +29,11 @@ describe('CornerBrackets component', () => {
     );
     const spans = Array.from(container.querySelectorAll('span[aria-hidden="true"]'));
     const topLeft = spans[0];
-    expect(topLeft?.className).toContain('border-t-4');
-    expect(topLeft?.className).toContain('border-l-4');
+    expect(topLeft?.className).toContain('border-t');
+    expect(topLeft?.className).toContain('border-l');
   });
 
-  it('top-right span has border-t-4 and border-r-4', () => {
+  it('top-right span has border-t and border-r', () => {
     const { container } = render(
       <div style={{ position: 'relative' }}>
         <CornerBrackets />
@@ -39,11 +41,11 @@ describe('CornerBrackets component', () => {
     );
     const spans = Array.from(container.querySelectorAll('span[aria-hidden="true"]'));
     const topRight = spans[1];
-    expect(topRight?.className).toContain('border-t-4');
-    expect(topRight?.className).toContain('border-r-4');
+    expect(topRight?.className).toContain('border-t');
+    expect(topRight?.className).toContain('border-r');
   });
 
-  it('bottom-left span has border-b-4 and border-l-4', () => {
+  it('bottom-left span has border-b and border-l', () => {
     const { container } = render(
       <div style={{ position: 'relative' }}>
         <CornerBrackets />
@@ -51,11 +53,11 @@ describe('CornerBrackets component', () => {
     );
     const spans = Array.from(container.querySelectorAll('span[aria-hidden="true"]'));
     const bottomLeft = spans[2];
-    expect(bottomLeft?.className).toContain('border-b-4');
-    expect(bottomLeft?.className).toContain('border-l-4');
+    expect(bottomLeft?.className).toContain('border-b');
+    expect(bottomLeft?.className).toContain('border-l');
   });
 
-  it('bottom-right span has border-b-4 and border-r-4', () => {
+  it('bottom-right span has border-b and border-r', () => {
     const { container } = render(
       <div style={{ position: 'relative' }}>
         <CornerBrackets />
@@ -63,8 +65,8 @@ describe('CornerBrackets component', () => {
     );
     const spans = Array.from(container.querySelectorAll('span[aria-hidden="true"]'));
     const bottomRight = spans[3];
-    expect(bottomRight?.className).toContain('border-b-4');
-    expect(bottomRight?.className).toContain('border-r-4');
+    expect(bottomRight?.className).toContain('border-b');
+    expect(bottomRight?.className).toContain('border-r');
   });
 
   it('all spans are absolutely positioned', () => {
@@ -79,7 +81,7 @@ describe('CornerBrackets component', () => {
     }
   });
 
-  it('all spans have brand-accent border color', () => {
+  it('all spans are 14px var(--border-active) marks (.bracketed recipe)', () => {
     const { container } = render(
       <div style={{ position: 'relative' }}>
         <CornerBrackets />
@@ -87,7 +89,9 @@ describe('CornerBrackets component', () => {
     );
     const spans = Array.from(container.querySelectorAll('span[aria-hidden="true"]'));
     for (const span of spans) {
-      expect(span.className).toContain('border-brand-accent');
+      expect(span.className).toContain('w-[14px]');
+      expect(span.className).toContain('h-[14px]');
+      expect(span.className).toContain('border-[var(--border-active)]');
     }
   });
 });

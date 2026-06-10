@@ -1,9 +1,9 @@
 /**
  * CornerBrackets — 4 absolutely-positioned bracket spans
  *
- * CSS pseudo-element corner brackets (D-17).
- * Visual parity with apps/web/lib/og-fallback-render.ts cornerBracket() helper.
- * Phase 7 OG card templates reuse this pattern (Satori-safe — pure spans, no assets).
+ * Prototype `.bracketed` recipe (Phase 09.2): 14px L-shaped 1px
+ * var(--border-active) corner marks, 8px inset. Flexbox/absolute
+ * positioning only (Satori-safe — pure spans, no assets, no grid).
  *
  * Parent MUST be `position: relative`.
  * Component is purely presentational (aria-hidden on each span).
@@ -20,22 +20,22 @@ export function CornerBrackets() {
       {/* Top-left */}
       <span
         aria-hidden="true"
-        className="absolute top-2 left-2 w-4 h-4 border-t-4 border-l-4 border-brand-accent pointer-events-none"
+        className="absolute top-2 left-2 w-[14px] h-[14px] border-t border-l border-[var(--border-active)] pointer-events-none"
       />
       {/* Top-right */}
       <span
         aria-hidden="true"
-        className="absolute top-2 right-2 w-4 h-4 border-t-4 border-r-4 border-brand-accent pointer-events-none"
+        className="absolute top-2 right-2 w-[14px] h-[14px] border-t border-r border-[var(--border-active)] pointer-events-none"
       />
       {/* Bottom-left */}
       <span
         aria-hidden="true"
-        className="absolute bottom-2 left-2 w-4 h-4 border-b-4 border-l-4 border-brand-accent pointer-events-none"
+        className="absolute bottom-2 left-2 w-[14px] h-[14px] border-b border-l border-[var(--border-active)] pointer-events-none"
       />
       {/* Bottom-right */}
       <span
         aria-hidden="true"
-        className="absolute bottom-2 right-2 w-4 h-4 border-b-4 border-r-4 border-brand-accent pointer-events-none"
+        className="absolute bottom-2 right-2 w-[14px] h-[14px] border-b border-r border-[var(--border-active)] pointer-events-none"
       />
     </>
   );

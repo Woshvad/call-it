@@ -2,17 +2,18 @@
  * VerifiedBadge — reusable VERIFIED · X / · FC / · X · FC badge (AUTH-09)
  *
  * Presentational only. Derives a combined VERIFIED label from the two social
- * link flags and reuses the neobrutalist `Tag` primitive (intent="warning" =
- * brand-accent #E8F542). Returns `null` when neither flag is set so callers can
- * unconditionally drop it next to a handle.
+ * link flags and reuses the `Tag` primitive, now carrying the prototype
+ * `.pill` recipe (Phase 09.2 — JBM 11px uppercase, 1px border, radius 0).
+ * intent="warning" = brand-accent #E8F542. Returns `null` when neither flag
+ * is set so callers can unconditionally drop it next to a handle.
  *
  * Data source (no fetch here — flags are supplied by the caller):
  *   - lists/feed:   subgraph Profile.twitterHandle / farcasterHandle (Phase 1)
  *   - single page:  /api/profile → { verifiedX, verifiedFc } (enriched 01.5-02)
  *
  * FLEXBOX ONLY — Tag is inline-flex (NEVER grid). This is load-bearing for
- * Satori/OG rendering (Pitfall 15). Do not introduce display:grid here or in
- * any surface that renders this badge.
+ * Satori/OG rendering (Pitfall 15). Do not introduce CSS grid layout here or
+ * in any surface that renders this badge.
  *
  * AUTH-10 / D-09: verification is purely cosmetic. These flags MUST NOT reach
  * any rep / stake-limit / fee / payout code path — enforced by the
