@@ -587,58 +587,75 @@ function DisputeModal({ open, onClose, callId, outcomeWord, smAddr, usdcAddr, re
 
   return (
     <div
+      // .modal-overlay template (D-13): rgba(0,0,0,0.82) scrim + blur(4px), z-200
       style={{
-        position: 'fixed', inset: 0, zIndex: 100,
-        backgroundColor: 'rgba(9,9,14,0.8)',
-        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '24px',
+        position: 'fixed',
+        inset: 0,
+        zIndex: 200,
+        background: 'rgba(0,0,0,0.82)',
+        backdropFilter: 'blur(4px)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '40px 20px',
       }}
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
       {toast && (
         <div style={{
-          position: 'fixed', top: '24px', right: '24px', zIndex: 200,
-          backgroundColor: '#111118', borderLeft: `4px solid ${toast.isError ? '#F87171' : '#FB923C'}`,
-          padding: '14px 18px', fontFamily: 'monospace', fontSize: '13px', color: '#F1F5F9', maxWidth: '340px',
+          position: 'fixed', top: '24px', right: '24px', zIndex: 300,
+          background: 'var(--bg-secondary)',
+          borderLeft: `4px solid ${toast.isError ? 'var(--accent-loss)' : 'var(--accent-warning)'}`,
+          padding: '14px 18px', fontFamily: 'var(--font-mono)', fontSize: '13px',
+          color: 'var(--text-primary)', maxWidth: '340px',
         }}>
           {toast.text}
         </div>
       )}
-      {/* Modal panel — amber neobrutalist (Surface 4). Clamps to viewport at mobile (D-04). */}
+      {/* .modal-panel template (D-13): cream var(--bg-inverse), BLACK text,
+          3px black border, brutal shadow — every text token inside is inverse */}
       <div style={{
-        position: 'relative', backgroundColor: '#111118',
-        border: '3px solid #FB923C', boxShadow: '4px 4px 0 #FB923C',
-        padding: '24px', width: '100%', maxWidth: isMobile ? 'calc(100vw - 32px)' : '480px',
-        display: 'flex', flexDirection: 'column', gap: '20px',
+        background: 'var(--bg-inverse)',
+        color: '#000',
+        border: '3px solid #000',
+        boxShadow: 'var(--shadow-brutal-lg)',
+        maxWidth: '620px',
+        width: '100%',
+        padding: isMobile ? '24px' : '36px',
+        position: 'relative',
+        maxHeight: '90vh',
+        overflowY: 'auto',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '20px',
       }}>
-        {/* Corner brackets — amber (top-left + bottom-right) */}
-        <div style={{ position: 'absolute', top: -2, left: -2, pointerEvents: 'none' }}>
-          <div style={{ width: '16px', height: '4px', backgroundColor: '#FB923C' }} />
-          <div style={{ width: '4px', height: '12px', backgroundColor: '#FB923C' }} />
-        </div>
-        <div style={{ position: 'absolute', bottom: -2, right: -2, pointerEvents: 'none', display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
-          <div style={{ width: '4px', height: '12px', backgroundColor: '#FB923C' }} />
-          <div style={{ width: '16px', height: '4px', backgroundColor: '#FB923C' }} />
-        </div>
-
-        {/* Title + close */}
+        {/* Header — FINAL · CONFIRM mono voice + close */}
         <div style={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-          <h2 style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: '28px', fontWeight: 700, color: '#F1F5F9', margin: 0 }}>
-            DISPUTE THIS SETTLEMENT
+          <h2 style={{ fontFamily: 'var(--font-mono)', fontSize: '13px', fontWeight: 700, color: '#000', letterSpacing: '0.14em', textTransform: 'uppercase', margin: 0 }}>
+            RAISE DISPUTE
           </h2>
-          <button onClick={onClose} style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#64748B', fontSize: '20px', padding: '4px' }}>✕</button>
+          <button
+            onClick={onClose}
+            aria-label="Close"
+            style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'rgba(0,0,0,0.55)', fontSize: '20px', padding: '4px', lineHeight: 1 }}
+          >
+            ✕
+          </button>
         </div>
 
-        {/* Currently settled read-only */}
-        <div style={{ border: '2px solid #1E1E2E', backgroundColor: '#0D0D15', padding: '10px 14px' }}>
-          <div style={{ fontFamily: 'monospace', fontSize: '10px', color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: '4px' }}>
+        {/* Currently settled — read-only */}
+        <div style={{ border: '2px solid #000', background: 'rgba(0,0,0,0.04)', padding: '10px 14px' }}>
+          <div style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'rgba(0,0,0,0.55)', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: '4px' }}>
             Currently settled:
           </div>
-          <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: '14px', fontWeight: 700, color: '#F1F5F9' }}>{outcomeWord}</span>
+          <span style={{ fontFamily: 'var(--font-display)', fontSize: '15px', fontWeight: 800, color: '#000', textTransform: 'uppercase', letterSpacing: '0.02em' }}>
+            {outcomeWord}
+          </span>
         </div>
 
-        {/* YOUR EVIDENCE upload */}
+        {/* YOUR EVIDENCE upload — handler + 5 MB validation unchanged (WR-06) */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-          <label style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: '12px', fontWeight: 700, color: '#F1F5F9', textTransform: 'uppercase', letterSpacing: '0.12em' }}>
+          <label style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', fontWeight: 700, color: '#000', textTransform: 'uppercase', letterSpacing: '0.12em' }}>
             YOUR EVIDENCE
           </label>
           <input
@@ -654,18 +671,18 @@ function DisputeModal({ open, onClose, callId, outcomeWord, smAddr, usdcAddr, re
               setEvidenceFile(file);
               void handleEvidenceUpload(file);
             }}
-            style={{ fontFamily: 'monospace', fontSize: '12px', color: '#94A3B8', cursor: 'pointer' }}
+            style={{ fontFamily: 'var(--font-mono)', fontSize: '12px', color: 'rgba(0,0,0,0.7)', cursor: 'pointer' }}
           />
           {uploadingEvidence && (
-            <span style={{ fontFamily: 'monospace', fontSize: '12px', color: '#94A3B8' }}>Uploading to IPFS…</span>
+            <span style={{ fontFamily: 'var(--font-mono)', fontSize: '12px', color: 'rgba(0,0,0,0.6)' }}>Uploading to IPFS…</span>
           )}
           {evidenceCid && !uploadingEvidence && (
-            <span style={{ fontFamily: 'monospace', fontSize: '12px', color: '#4ADE80' }}>
+            <span style={{ fontFamily: 'var(--font-mono)', fontSize: '12px', color: '#000', fontWeight: 700 }}>
               evidence pinned ✓ — {evidenceCid.slice(0, 16)}…
             </span>
           )}
           {!evidenceFile && (
-            <span style={{ fontFamily: 'monospace', fontSize: '11px', color: '#64748B' }}>
+            <span style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'rgba(0,0,0,0.55)' }}>
               Evidence required before you can submit.
             </span>
           )}
@@ -673,7 +690,7 @@ function DisputeModal({ open, onClose, callId, outcomeWord, smAddr, usdcAddr, re
 
         {/* WHAT'S WRONG — optional note */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-          <label style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: '12px', fontWeight: 700, color: '#F1F5F9', textTransform: 'uppercase', letterSpacing: '0.12em' }}>
+          <label style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', fontWeight: 700, color: '#000', textTransform: 'uppercase', letterSpacing: '0.12em' }}>
             WHAT&apos;S WRONG (optional)
           </label>
           <textarea
@@ -681,40 +698,42 @@ function DisputeModal({ open, onClose, callId, outcomeWord, smAddr, usdcAddr, re
             onChange={(e) => setNote(e.target.value)}
             rows={3}
             style={{
-              fontFamily: "'Space Grotesk', sans-serif", fontSize: '14px', color: '#F1F5F9',
-              backgroundColor: '#09090E', border: '2px solid #2E2E42',
+              fontFamily: 'var(--font-sans)', fontSize: '14px', color: '#000',
+              background: 'rgba(255,255,255,0.55)', border: '2px solid #000', borderRadius: 0,
               padding: '10px', resize: 'vertical', outline: 'none',
             }}
             placeholder="Describe what's wrong with this settlement…"
           />
         </div>
 
-        {/* DISPUTE BOND */}
-        <div style={{ borderTop: '1px solid #1E1E2E', paddingTop: '16px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-          <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: '12px', fontWeight: 700, color: '#F1F5F9', textTransform: 'uppercase', letterSpacing: '0.12em' }}>
+        {/* DISPUTE BOND — amount EXPLICIT before the confirm CTA (UI-SPEC destructive contract) */}
+        <div style={{ borderTop: '1px solid rgba(0,0,0,0.25)', paddingTop: '16px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+          <div style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', fontWeight: 700, color: '#000', textTransform: 'uppercase', letterSpacing: '0.12em' }}>
             DISPUTE BOND
           </div>
-          <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '13px', color: '#94A3B8' }}>
+          <span style={{ fontFamily: 'var(--font-mono)', fontSize: '13px', color: 'rgba(0,0,0,0.7)' }}>
             $5.00 USDC · refunded + $2 reward if you win, forfeited if you lose
           </span>
         </div>
 
-        {/* USDC preflight — inline approve sub-step */}
+        {/* USDC preflight — inline approve sub-step (preflight logic unchanged) */}
         {needsApproval && !isSmZero && (
-          <div style={{ border: '1px solid #2E2E42', padding: '12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            <span style={{ fontFamily: 'monospace', fontSize: '12px', color: '#94A3B8' }}>
+          <div style={{ border: '2px solid #000', padding: '12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <span style={{ fontFamily: 'var(--font-mono)', fontSize: '12px', color: 'rgba(0,0,0,0.7)' }}>
               Approve USDC first — allow $5.00 to SettlementManager
             </span>
             <button
               onClick={() => void handleApprove()}
               disabled={isApproving || approveConfirming}
               style={{
-                fontFamily: 'monospace', fontSize: '13px', fontWeight: 700,
-                color: '#09090E',
-                backgroundColor: isApproving || approveConfirming ? '#2E2E42' : '#FB923C',
-                border: `2px solid ${isApproving || approveConfirming ? '#2E2E42' : '#09090E'}`,
-                boxShadow: isApproving || approveConfirming ? 'none' : '4px 4px 0 #09090E',
-                padding: '10px 16px', cursor: isApproving || approveConfirming ? 'not-allowed' : 'pointer',
+                fontFamily: 'var(--font-display)', fontSize: '13px', fontWeight: 800,
+                textTransform: 'uppercase', letterSpacing: '0.04em',
+                color: '#000',
+                background: isApproving || approveConfirming ? 'rgba(0,0,0,0.15)' : 'var(--accent-warning)',
+                border: '2px solid #000',
+                boxShadow: isApproving || approveConfirming ? 'none' : 'var(--shadow-brutal)',
+                padding: '10px 16px',
+                cursor: isApproving || approveConfirming ? 'not-allowed' : 'pointer',
               }}
             >
               {isApproving || approveConfirming ? 'Approving…' : 'Approve USDC ▸'}
@@ -723,19 +742,21 @@ function DisputeModal({ open, onClose, callId, outcomeWord, smAddr, usdcAddr, re
         )}
 
         {isSmZero && (
-          <div style={{ fontFamily: 'monospace', fontSize: '12px', color: '#94A3B8', border: '1px solid #2E2E42', padding: '10px' }}>
+          <div style={{ fontFamily: 'var(--font-mono)', fontSize: '12px', color: 'rgba(0,0,0,0.7)', border: '1px solid rgba(0,0,0,0.35)', padding: '10px' }}>
             SettlementManager not yet deployed — disputes available after Phase 4 deploy.
           </div>
         )}
 
-        {/* Action row — stacks full-width at mobile (D-04), each button ≥44px tall */}
+        {/* Action row — stacks full-width at mobile (D-04), each button ≥44px tall.
+            Confirm = warning treatment (#FB923C) — cream-on-cream needs contrast. */}
         <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: '12px' }}>
           <button
             onClick={onClose}
             style={{
               flex: isMobile ? undefined : 1, width: isMobile ? '100%' : undefined,
-              fontFamily: "'Space Grotesk', sans-serif", fontSize: '14px', fontWeight: 700,
-              color: '#64748B', backgroundColor: 'transparent', border: '2px solid #2E2E42',
+              fontFamily: 'var(--font-display)', fontSize: '13px', fontWeight: 700,
+              textTransform: 'uppercase', letterSpacing: '0.04em',
+              color: '#000', background: 'transparent', border: '2px solid #000',
               padding: '14px', cursor: 'pointer',
             }}
           >
@@ -746,11 +767,12 @@ function DisputeModal({ open, onClose, callId, outcomeWord, smAddr, usdcAddr, re
             disabled={!canSubmit}
             style={{
               flex: isMobile ? undefined : 2, width: isMobile ? '100%' : undefined,
-              fontFamily: "'Space Grotesk', sans-serif", fontSize: '14px', fontWeight: 700,
-              color: canSubmit ? '#09090E' : '#64748B',
-              backgroundColor: canSubmit ? '#FB923C' : '#2E2E42',
-              border: `3px solid ${canSubmit ? '#09090E' : '#2E2E42'}`,
-              boxShadow: canSubmit ? '4px 4px 0 #09090E' : 'none',
+              fontFamily: 'var(--font-display)', fontSize: '13px', fontWeight: 800,
+              textTransform: 'uppercase', letterSpacing: '0.04em',
+              color: canSubmit ? '#000' : 'rgba(0,0,0,0.4)',
+              background: canSubmit ? 'var(--accent-warning)' : 'rgba(0,0,0,0.12)',
+              border: '3px solid #000',
+              boxShadow: canSubmit ? 'var(--shadow-brutal)' : 'none',
               padding: '14px', cursor: canSubmit ? 'pointer' : 'not-allowed',
               display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: '8px',
             }}
@@ -824,56 +846,67 @@ function ProvenanceModal({ open, onClose, provenance, isLoading }: ProvenanceMod
 
   return (
     <div
+      // .modal-overlay template (D-13): rgba(0,0,0,0.82) scrim + blur(4px), z-200
       style={{
-        position: 'fixed', inset: 0, zIndex: 100,
-        backgroundColor: 'rgba(9,9,14,0.8)',
-        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '24px',
+        position: 'fixed',
+        inset: 0,
+        zIndex: 200,
+        background: 'rgba(0,0,0,0.82)',
+        backdropFilter: 'blur(4px)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '40px 20px',
       }}
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
-      {/* Modal panel — accent neobrutalist (Surface 5). 560px OVERFLOWS 375px →
-          clamp to calc(100vw - 32px) at mobile (D-04 — the one inline modal that must change). */}
+      {/* .modal-panel template (D-13): cream var(--bg-inverse), BLACK text,
+          3px black border, brutal shadow — real provenance values only (D-07) */}
       <div style={{
-        position: 'relative', backgroundColor: '#111118',
-        border: '3px solid #E8F542', boxShadow: '4px 4px 0 #E8F542',
-        padding: '24px', width: '100%', maxWidth: isMobile ? 'calc(100vw - 32px)' : '560px',
-        display: 'flex', flexDirection: 'column', gap: '20px',
-        maxHeight: '85vh', overflowY: 'auto',
+        background: 'var(--bg-inverse)',
+        color: '#000',
+        border: '3px solid #000',
+        boxShadow: 'var(--shadow-brutal-lg)',
+        maxWidth: '620px',
+        width: '100%',
+        padding: isMobile ? '24px' : '36px',
+        position: 'relative',
+        maxHeight: '90vh',
+        overflowY: 'auto',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '20px',
       }}>
-        {/* Corner brackets — accent (top-left + bottom-right) */}
-        <div style={{ position: 'absolute', top: -2, left: -2, pointerEvents: 'none' }}>
-          <div style={{ width: '16px', height: '4px', backgroundColor: '#E8F542' }} />
-          <div style={{ width: '4px', height: '12px', backgroundColor: '#E8F542' }} />
-        </div>
-        <div style={{ position: 'absolute', bottom: -2, right: -2, pointerEvents: 'none', display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
-          <div style={{ width: '4px', height: '12px', backgroundColor: '#E8F542' }} />
-          <div style={{ width: '16px', height: '4px', backgroundColor: '#E8F542' }} />
-        </div>
-
-        {/* Title + close */}
+        {/* Header — mono voice + close */}
         <div style={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-          <h2 style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: '28px', fontWeight: 700, color: '#F1F5F9', margin: 0 }}>
+          <h2 style={{ fontFamily: 'var(--font-mono)', fontSize: '13px', fontWeight: 700, color: '#000', letterSpacing: '0.14em', textTransform: 'uppercase', margin: 0 }}>
             ORACLE PROOF
           </h2>
-          <button onClick={onClose} style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#64748B', fontSize: '20px', padding: '4px' }}>✕</button>
+          <button
+            onClick={onClose}
+            aria-label="Close"
+            style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'rgba(0,0,0,0.55)', fontSize: '20px', padding: '4px', lineHeight: 1 }}
+          >
+            ✕
+          </button>
         </div>
 
         {isLoading ? (
-          <div style={{ fontFamily: 'monospace', fontSize: '14px', color: '#94A3B8', padding: '24px 0', textAlign: 'center' }}>
+          <div style={{ fontFamily: 'var(--font-mono)', fontSize: '14px', color: 'rgba(0,0,0,0.6)', padding: '24px 0', textAlign: 'center' }}>
             Loading provenance data…
           </div>
         ) : (
           <>
             {/* ORACLE SOURCE */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-              <span style={{ fontFamily: 'monospace', fontSize: '11px', fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.12em' }}>
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', fontWeight: 700, color: 'rgba(0,0,0,0.55)', textTransform: 'uppercase', letterSpacing: '0.12em' }}>
                 ORACLE SOURCE
               </span>
               <a
                 href={oracleUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: '16px', color: '#F1F5F9', textDecoration: 'none' }}
+                style={{ fontFamily: 'var(--font-mono)', fontSize: '14px', fontWeight: 700, color: '#000', textDecoration: 'underline' }}
               >
                 {provenance?.oracle?.host ?? 'oracle'}{feedId ? ` · ${feedId.slice(0, 12)}…` : ''} ↗
               </a>
@@ -881,7 +914,7 @@ function ProvenanceModal({ open, onClose, provenance, isLoading }: ProvenanceMod
 
             {/* SETTLEMENT TX */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-              <span style={{ fontFamily: 'monospace', fontSize: '11px', fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.12em' }}>
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', fontWeight: 700, color: 'rgba(0,0,0,0.55)', textTransform: 'uppercase', letterSpacing: '0.12em' }}>
                 SETTLEMENT TX
               </span>
               {txHash ? (
@@ -889,25 +922,22 @@ function ProvenanceModal({ open, onClose, provenance, isLoading }: ProvenanceMod
                   href={`https://arbiscan.io/tx/${txHash}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '12px', color: '#E8F542', textDecoration: 'none' }}
+                  style={{ fontFamily: 'var(--font-mono)', fontSize: '12px', fontWeight: 700, color: '#000', textDecoration: 'underline' }}
                 >
                   {txHash.slice(0, 10)}…{txHash.slice(-8)} ↗
                 </a>
               ) : (
-                <span style={{ fontFamily: 'monospace', fontSize: '12px', color: '#64748B' }}>—</span>
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: '12px', color: 'rgba(0,0,0,0.55)' }}>—</span>
               )}
             </div>
 
-            {/* RAW ORACLE DATA — path-aware per oracle.type */}
+            {/* RAW ORACLE DATA — path-aware per oracle.type (logic unchanged) */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-              <span style={{ fontFamily: 'monospace', fontSize: '11px', fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.12em' }}>
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', fontWeight: 700, color: 'rgba(0,0,0,0.55)', textTransform: 'uppercase', letterSpacing: '0.12em' }}>
                 RAW ORACLE DATA
               </span>
-              <div style={{
-                backgroundColor: '#0D0D18', border: '2px solid #1E1E2E',
-                padding: '12px', overflowX: 'auto',
-              }}>
-                <pre style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '12px', color: '#B4B4C8', margin: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
+              <div style={{ background: 'rgba(0,0,0,0.06)', border: '2px solid #000', padding: '12px', overflowX: 'auto' }}>
+                <pre style={{ fontFamily: 'var(--font-mono)', fontSize: '12px', color: '#000', margin: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
                   {/* path-aware raw data: branch on oracle.type */}
                   {oracleType === 'pyth' && provenance?.rawOracleData ? (() => {
                     const d = provenance.rawOracleData as { pythPrice?: string; pythConf?: string; pythPublishTime?: string };
@@ -926,28 +956,28 @@ function ProvenanceModal({ open, onClose, provenance, isLoading }: ProvenanceMod
             {/* RELAYER SIGNATURE (EIP-712, chainId 42161-bound — Pitfall 7) */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
               <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: '8px' }}>
-                <span style={{ fontFamily: 'monospace', fontSize: '11px', fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.12em' }}>
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', fontWeight: 700, color: 'rgba(0,0,0,0.55)', textTransform: 'uppercase', letterSpacing: '0.12em' }}>
                   RELAYER SIGNATURE (EIP-712)
                 </span>
-                <span style={{ fontFamily: 'monospace', fontSize: '10px', color: '#E8F542', border: '1px solid #E8F542', padding: '1px 5px' }}>
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', color: '#000', border: '1px solid #000', padding: '1px 5px' }}>
                   chainId 42161
                 </span>
               </div>
               {sig ? (
                 <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: '8px' }}>
-                  <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '12px', color: '#94A3B8' }}>
+                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: '12px', color: 'rgba(0,0,0,0.7)' }}>
                     {/* truncated: first 10 + last 8 chars (SETTLE-52) */}
                     {truncatedSig}
                   </span>
                   <button
                     onClick={handleCopySig}
-                    style={{ fontFamily: 'monospace', fontSize: '11px', color: sigCopied ? '#4ADE80' : '#64748B', background: 'transparent', border: 'none', cursor: 'pointer', padding: '0 4px' }}
+                    style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', fontWeight: 700, color: sigCopied ? '#000' : 'rgba(0,0,0,0.55)', background: 'transparent', border: 'none', cursor: 'pointer', padding: '0 4px' }}
                   >
                     {sigCopied ? 'copied ✓' : 'copy'}
                   </button>
                 </div>
               ) : (
-                <span style={{ fontFamily: 'monospace', fontSize: '12px', color: '#64748B' }}>— (not available)</span>
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: '12px', color: 'rgba(0,0,0,0.55)' }}>— (not available)</span>
               )}
             </div>
           </>
@@ -958,8 +988,9 @@ function ProvenanceModal({ open, onClose, provenance, isLoading }: ProvenanceMod
           <button
             onClick={onClose}
             style={{
-              fontFamily: "'Space Grotesk', sans-serif", fontSize: '14px', fontWeight: 700,
-              color: '#64748B', backgroundColor: 'transparent', border: '2px solid #2E2E42',
+              fontFamily: 'var(--font-display)', fontSize: '13px', fontWeight: 700,
+              textTransform: 'uppercase', letterSpacing: '0.04em',
+              color: '#000', background: 'transparent', border: '2px solid #000',
               padding: '10px 24px', cursor: 'pointer',
             }}
           >
