@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: milestone
 status: executing
-stopped_at: Completed 09.2-04-PLAN.md
-last_updated: "2026-06-10T12:41:51.977Z"
+stopped_at: Completed 09.2-05-PLAN.md
+last_updated: "2026-06-10T12:59:40.931Z"
 last_activity: 2026-06-10 -- Phase 09.2 execution started
 progress:
   total_phases: 16
   completed_phases: 11
   total_plans: 98
-  completed_plans: 87
+  completed_plans: 88
   percent: 69
 ---
 
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-05-21)
 ## Current Position
 
 Phase: 09.2 (prototype-design-adoption-rebuild-apps-web-ui-to-the-call-it) — EXECUTING
-Plan: 5 of 15
+Plan: 6 of 15
 
 > **Strategic pivot (2026-06-09):** Mainnet is PAUSED till further notice. Phases **10 (mainnet deploy gate)** and **10.5 (mainnet multisig lockdown)** are ON HOLD. Active focus is **Phase 09.1 — Testnet Demo Hardening**: make the full product demo-perfect end-to-end on the live Arbitrum Sepolia deployment. Next: `/gsd-discuss-phase 09.1`.
 
@@ -174,6 +174,7 @@ All 3 operator actions were run this session (user explicitly authorized "run al
 | Phase 09.2 P02 | 11min | 2 tasks | 14 files |
 | Phase 09.2 P03 | 17min | 2 tasks | 11 files |
 | Phase 09.2 P04 | 9min | 2 tasks | 2 files |
+| Phase 09.2 P05 | 13min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -349,6 +350,9 @@ completed: 2026-05-29
 - [Phase ?]: 09.2-03: Page-level shell grid classes landed in globals.css with var(--shell-offset) calc() sticky offsets — prototype's hardcoded top:96px never used (D-11)
 - [Phase 09.2]: Leaderboard hero overline shows real rank only; specialist/streak copy cut (no data source, D-07)
 - [Phase 09.2]: Tier-2 leaderboard browser assert retargeted to heading role — getByText would strict-mode collide with the new markup
+- [Phase 09.2-05]: Deleted (not hid) the hardcoded fake category bars on profile — D-07 treats fabricated data as removal, not conditional hiding
+- [Phase 09.2-05]: Removed the null-profile truncated-address fallback handle in ProfileClient — it was a live AUTH-44 violation; failed fetch now renders the error banner only
+- [Phase 09.2-05]: ProfileHeader renders the stats prop as a JBM interpunct metadata line (prototype voice) — chrome change only, props API unchanged
 
 ## Performance
 
@@ -504,6 +508,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-06-10T12:41:51.961Z
-Stopped at: Completed 09.2-04-PLAN.md
+Last session: 2026-06-10T12:59:40.917Z
+Stopped at: Completed 09.2-05-PLAN.md
 Resume file: None
