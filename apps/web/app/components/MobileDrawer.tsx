@@ -11,10 +11,13 @@
  * Visibility (isMobile gate) is owned by the parent (AppShell) so this file
  * imports NO `useIsMobile` — the drawer stays pure (Pitfall 2 register).
  *
- * Auth-aware destinations (D-06):
- *   - Feed + Leaderboard: ALWAYS.
- *   - Profile + New Call: ONLY when `authenticated && ready` (Pitfall 5 —
- *     never flash authenticated links to a logged-out viewer).
+ * Destination registry mirrors the desktop Sidebar 1:1 (09.2-14 nav-parity
+ * mandate — no dead nav below 768px):
+ *   - The Tape + Leaderboard + Make a call + Disputes: ALWAYS (same as the
+ *     Sidebar; /new is middleware-guarded so a logged-out tap redirects to
+ *     /signin — no authed link is "flashed", it is a public entry point).
+ *   - Your profile + Settings: ONLY when `authenticated && ready` with a
+ *     resolvable address (Pitfall 5 — never flash viewer-identity links).
  *   - Sign in (when !authenticated) / Sign out (when authenticated, calls logout()).
  *
  * The NotificationBell STAYS pinned in the top bar (D-06) — it is NOT moved here.
@@ -155,31 +158,52 @@ export function MobileDrawer({ open, onClose }: MobileDrawerProps) {
             <span>Leaderboard</span>
           </Link>
 
-          {/* Authenticated-only destinations (Pitfall 5 — gated on authenticated && ready) */}
-          {showAuthedLinks && (
+          {/* Always-visible like the Sidebar — /new is middleware-guarded (logged-out
+              taps redirect to /signin), so the entry point itself is public. */}
+          <Link
+            href="/new"
+            onClick={onClose}
+            className="nav-item"
+            style={navItemTouchStyle}
+          >
+            <Icon name="create" size={15} strokeWidth={1.7} />
+            <span>Make a call</span>
+          </Link>
+
+          {/* Viewer-identity destinations (Pitfall 5 — gated on authenticated && ready) */}
+          {showAuthedLinks && profileAddr && (
             <>
-              {profileAddr && (
-                <Link
-                  href={`/profile/${profileAddr}`}
-                  onClick={onClose}
-                  className="nav-item"
-                  style={navItemTouchStyle}
-                >
-                  <Icon name="profile" size={15} strokeWidth={1.7} />
-                  <span>Your profile</span>
-                </Link>
-              )}
               <Link
-                href="/new"
+                href={`/profile/${profileAddr}`}
                 onClick={onClose}
                 className="nav-item"
                 style={navItemTouchStyle}
               >
-                <Icon name="create" size={15} strokeWidth={1.7} />
-                <span>Make a call</span>
+                <Icon name="profile" size={15} strokeWidth={1.7} />
+                <span>Your profile</span>
+              </Link>
+              <Link
+                href={`/profile/${profileAddr}/settings`}
+                onClick={onClose}
+                className="nav-item"
+                style={navItemTouchStyle}
+              >
+                <Icon name="settings" size={15} strokeWidth={1.7} />
+                <span>Settings</span>
               </Link>
             </>
           )}
+
+          {/* Sidebar parity: Disputes is an always-visible public destination */}
+          <Link
+            href="/disputes"
+            onClick={onClose}
+            className="nav-item"
+            style={navItemTouchStyle}
+          >
+            <Icon name="book" size={15} strokeWidth={1.7} />
+            <span>Disputes</span>
+          </Link>
 
           {/* Auth toggle: Sign in (logged out) / Sign out (logged in) */}
           {authenticated ? (
