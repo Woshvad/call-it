@@ -1,24 +1,29 @@
 /**
  * LeaderboardClient — client renderer for "The Tape" (/leaderboard).
  *
- * Built from @call-it/ui primitives (Card). FLEXBOX ONLY — no CSS grid anywhere
- * (consistency with OG + Pitfall 15; UI-SPEC §Leaderboard).
+ * Phase 09.2 (plan 04): prototype leaderboard markup (`call it frontend/screens/
+ * leaderboard.jsx` is the markup donor — D-05: never a logic donor) over the
+ * EXISTING props contract. page.tsx's RSC fetch is untouched; this stays a dumb
+ * props renderer.
  *
- * Layout (UI-SPEC §Leaderboard):
- *   - Title block: "The Tape" (Syne display) + "Top of book" (muted subtitle).
- *   - Time toggle: 7D / 30D / ALL-TIME segmented control; active = accent.
- *   - Category chips: All / Majors / DeFi / Other; active = accent.
- *   - #1 Hero Card: accent border + giant low-opacity "01" Syne watermark behind content.
- *   - Table: rows on brand-surface; the VIEWER'S OWN ROW highlighted with accent
- *     (left border + #1A1A24 bg, UI-13). Rank + rep in mono bold, handle in mono.
+ * Layout (renders inside the AppShell `.main` column):
+ *   - .page-header: Archivo display title + sub copy.
+ *   - #1 hero: <Card accent> with a giant low-opacity "01" watermark behind a
+ *     giant Archivo rep numeral + stat blocks (UI-12).
+ *   - .brutal-table: rank (.slot-num mono) / caller (square avatar + handle +
+ *     call count) / rep (mono 600) / acc% (wins ÷ settledCalls). The VIEWER'S
+ *     own row carries .your-row-tint: #1A1A24 bg (= --bg-tertiary) + ACCENT
+ *     left border (UI-13).
  *
- * D-06: the 7D/30D toggles are wired but ALL backed by All-time globalRep data — a
- * documented v1 limitation rendered as a visible note. The LeaderboardEntry entity
- * is NOT used.
+ * D-07: stats with no live data source are HIDDEN, never faked.
+ * D-08: dead prototype controls (period toggles, non-filtering category chips,
+ *       NEXT-10 pagination, row click navigation, SORT) are CUT — no dead
+ *       buttons ship. The D-06 v1 limitation note stays as static microcopy.
+ * AUTH-44: handles only — the `address` field is used for the isViewer
+ *          comparison ONLY and is never rendered.
  *
- * Accent (#E8F542) usage here is on the EXACT reserved list (UI-SPEC §Color):
- *   - active toggle / active category chip (#7)
- *   - #1 Hero card border + "01" watermark (#4)
+ * Accent (#E8F542) usage stays on the reserved list (UI-SPEC §Color):
+ *   - #1 hero card border + "01" watermark (#4)
  *   - the viewer's own highlighted row (#3)
  *
  * Requirements: UI-12, UI-13, D-06
@@ -26,140 +31,90 @@
 
 'use client';
 
-import { useState } from 'react';
 import { useAccount } from 'wagmi';
 import { Card } from '@call-it/ui';
 import { useIsMobile } from '@/app/hooks/useIsMobile';
-import type { LeaderboardData, LeaderboardRow, LeaderboardWindow } from '@/lib/leaderboard-client';
+import type { LeaderboardData, LeaderboardRow } from '@/lib/leaderboard-client';
 
 const ACCENT = '#E8F542';
+// #1A1A24 IS --bg-tertiary — the literal is the UI-13 viewer-row tint.
 const ROW_HIGHLIGHT_BG = '#1A1A24';
-
-type CategoryChip = 'All' | 'Majors' | 'DeFi' | 'Other';
 
 interface LeaderboardClientProps {
   data: LeaderboardData | null;
   fetchError: string | null;
 }
 
-const TIME_WINDOWS: { id: LeaderboardWindow; label: string }[] = [
-  { id: '7d', label: '7D' },
-  { id: '30d', label: '30D' },
-  { id: 'all', label: 'ALL-TIME' },
-];
+/** Deterministic prototype avatar grad (a–f) from the handle. */
+const AVATAR_GRADS = ['a', 'b', 'c', 'd', 'e', 'f'] as const;
+function gradFor(handle: string): string {
+  let sum = 0;
+  for (let i = 0; i < handle.length; i++) sum += handle.charCodeAt(i);
+  return AVATAR_GRADS[sum % AVATAR_GRADS.length] ?? 'a';
+}
 
-const CATEGORY_CHIPS: CategoryChip[] = ['All', 'Majors', 'DeFi', 'Other'];
+function initialFor(handle: string): string {
+  const ch = handle.replace(/^@/, '').charAt(0);
+  return ch ? ch.toUpperCase() : '?';
+}
+
+/** Accuracy % from real fields (wins ÷ settledCalls); null when nothing settled (D-07). */
+function accuracyPct(row: LeaderboardRow): number | null {
+  if (row.settledCalls <= 0) return null;
+  return Math.round((row.wins / row.settledCalls) * 100);
+}
 
 export function LeaderboardClient({ data, fetchError }: LeaderboardClientProps) {
-  const isMobile = useIsMobile(); // Phase 9 (09-05): container clamp + >=44px toggles/chips at mobile (UI-48/D-03)
-  // ALL-TIME is the only window with real data (D-06) — default to it.
-  const [activeWindow, setActiveWindow] = useState<LeaderboardWindow>('all');
-  const [activeCategory, setActiveCategory] = useState<CategoryChip>('All');
+  const isMobile = useIsMobile(); // UI-48: single-column hero + scrollable table + 44px rows at 375px
 
-  // Viewer address for the UI-13 own-row highlight.
+  // Viewer address for the UI-13 own-row highlight (comparison only — AUTH-44).
   const { address: viewerAddress } = useAccount();
   const viewer = viewerAddress?.toLowerCase() ?? null;
 
   const rows = data?.rows ?? [];
   const hero = rows[0] ?? null;
-  const tableRows = rows;
+  const heroAccuracy = hero ? accuracyPct(hero) : null;
 
   return (
-    <main
-      style={{
-        // Phase 9 (09-05): full-width clamp at mobile so the 760px container never forces scroll (UI-48).
-        width: isMobile ? '100%' : undefined,
-        maxWidth: isMobile ? '100%' : '760px',
-        margin: '0 auto',
-        padding: '24px 16px',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '24px',
-      }}
-    >
-      {/* Title block */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-        <h1 className="font-display font-bold text-brand-text text-3xl uppercase tracking-wide">
-          The Tape
-        </h1>
-        <p className="font-body text-brand-muted text-base">Top of book</p>
-      </div>
-
-      {/* Time toggle — 7D / 30D / ALL-TIME (active = accent) */}
-      <div style={{ display: 'flex', flexDirection: 'row', gap: '8px' }}>
-        {TIME_WINDOWS.map((w) => {
-          const active = w.id === activeWindow;
-          return (
-            <button
-              key={w.id}
-              onClick={() => setActiveWindow(w.id)}
-              className="font-mono text-xs uppercase tracking-wide"
-              style={{
-                padding: isMobile ? '0 14px' : '6px 14px',
-                minHeight: isMobile ? '44px' : undefined,
-                border: '3px solid',
-                borderColor: active ? ACCENT : '#27272A',
-                color: active ? ACCENT : '#A1A1AA',
-                backgroundColor: '#18181B',
-                cursor: 'pointer',
-                fontWeight: active ? 700 : 400,
-              }}
-            >
-              {w.label}
-            </button>
-          );
-        })}
-      </div>
-
-      {/* D-06 v1-limitation note (only matters off the all-time window) */}
-      {activeWindow !== 'all' && (
-        <div
-          className="font-mono text-xs text-brand-muted"
-          style={{
-            padding: '8px 12px',
-            borderLeft: `3px solid ${ACCENT}`,
-            backgroundColor: '#18181B',
-          }}
-        >
-          v1 limitation: windowed rankings show All-time reputation. Time-windowed
-          leaderboards land in a later release.
+    <div>
+      {/* Page header — period toggles CUT (D-08: they never refetched; data is All-time only) */}
+      <div className="page-header">
+        <div>
+          <h1>The Tape · Top of book</h1>
+          <div className="sub">
+            Reputation is a function of <span className="em">accuracy</span> ×{' '}
+            <span className="em">volume</span>. Easy to climb. Easy to fall.
+          </div>
         </div>
-      )}
+      </div>
 
-      {/* Category chips — All / Majors / DeFi / Other (active = accent) */}
-      <div style={{ display: 'flex', flexDirection: 'row', gap: '8px', flexWrap: 'wrap' }}>
-        {CATEGORY_CHIPS.map((c) => {
-          const active = c === activeCategory;
-          return (
-            <button
-              key={c}
-              onClick={() => setActiveCategory(c)}
-              className="font-mono text-xs"
-              style={{
-                padding: isMobile ? '0 12px' : '4px 12px',
-                minHeight: isMobile ? '44px' : undefined,
-                border: '2px solid',
-                borderColor: active ? ACCENT : '#27272A',
-                color: active ? ACCENT : '#A1A1AA',
-                backgroundColor: '#18181B',
-                cursor: 'pointer',
-                fontWeight: active ? 700 : 400,
-              }}
-            >
-              {c}
-            </button>
-          );
-        })}
+      {/* D-06 v1 limitation note — the board is All-time reputation only */}
+      <div
+        className="mono"
+        style={{
+          fontSize: '11px',
+          letterSpacing: '0.04em',
+          color: 'var(--text-tertiary)',
+          padding: '8px 12px',
+          borderLeft: `3px solid ${ACCENT}`,
+          background: 'var(--bg-secondary)',
+          marginBottom: '24px',
+        }}
+      >
+        v1 limitation: the board shows All-time reputation. Time-windowed leaderboards
+        land in a later release.
       </div>
 
       {/* Error state (UI-SPEC error-states table) */}
       {fetchError && (
         <div
-          className="font-mono text-sm text-brand-muted"
+          className="mono"
           style={{
+            fontSize: '13px',
+            color: 'var(--text-secondary)',
             padding: '12px 16px',
-            borderLeft: '3px solid #EF4444',
-            backgroundColor: '#18181B',
+            borderLeft: '3px solid var(--accent-loss)',
+            background: 'var(--bg-secondary)',
           }}
         >
           Couldn&apos;t load the tape. The data feed is catching up — refresh in a moment.
@@ -169,128 +124,247 @@ export function LeaderboardClient({ data, fetchError }: LeaderboardClientProps) 
       {/* Empty state (UI-SPEC empty-states table) */}
       {!fetchError && rows.length === 0 && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', padding: '32px 0' }}>
-          <h2 className="font-display font-bold text-brand-text text-xl">Nothing on the tape yet</h2>
-          <p className="font-body text-brand-muted text-base">
-            No callers ranked for this period. Make a call to get on the board.
+          <h2 className="h-2" style={{ margin: 0 }}>
+            Nothing on the tape yet
+          </h2>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '15px', margin: 0 }}>
+            No callers ranked yet. Make a call to get on the board.
           </p>
         </div>
       )}
 
-      {/* #1 Hero card — accent border + giant faded "01" Syne watermark (UI-12) */}
+      {/* #1 HERO — <Card accent> + giant low-opacity "01" watermark (UI-12) */}
       {!fetchError && hero && (
-        <Card accent style={{ position: 'relative', overflow: 'hidden' }}>
-          {/* Giant low-opacity "01" watermark behind content */}
-          <span
+        <Card
+          accent
+          style={{
+            position: 'relative',
+            overflow: 'hidden',
+            padding: isMobile ? '28px 20px' : '48px',
+            marginBottom: '36px',
+          }}
+        >
+          {/* Watermark "01" */}
+          <div
             aria-hidden="true"
-            className="font-display font-bold"
             style={{
               position: 'absolute',
-              right: '8px',
-              top: '-24px',
-              fontSize: '160px',
-              lineHeight: 1,
+              top: '-40px',
+              right: '-20px',
+              fontFamily: 'var(--font-display)',
+              fontSize: 'clamp(160px, 48vw, 360px)',
+              fontWeight: 900,
+              letterSpacing: '-0.06em',
               color: ACCENT,
-              opacity: 0.08,
+              opacity: 0.06,
+              lineHeight: 1,
               pointerEvents: 'none',
               userSelect: 'none',
             }}
           >
             01
-          </span>
-          <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            <span className="font-mono text-xs uppercase tracking-wide text-brand-muted">#1 on the tape</span>
-            <a
-              href={`/profile/${hero.address}`}
-              className="font-display font-bold text-brand-text text-xl"
-              style={{
-                textDecoration: 'none',
-                // Mobile (D-03): pad the hit area to >=44px without altering desktop density.
-                display: isMobile ? 'inline-flex' : undefined,
-                alignItems: isMobile ? 'center' : undefined,
-                minHeight: isMobile ? '44px' : undefined,
-              }}
-            >
-              @{hero.handle}
-            </a>
-            <div style={{ display: 'flex', flexDirection: 'row', gap: '24px', marginTop: '4px' }}>
-              <HeroStat label="Rep" value={String(hero.globalRep)} />
-              <HeroStat label="Calls" value={String(hero.totalCalls)} />
-              <HeroStat label="Wins" value={String(hero.wins)} />
+          </div>
+
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: isMobile ? 'column' : 'row',
+              alignItems: isMobile ? 'flex-start' : 'center',
+              justifyContent: 'space-between',
+              gap: '36px',
+              position: 'relative',
+              zIndex: 1,
+            }}
+          >
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+              <span
+                className="mono"
+                style={{
+                  fontSize: '11px',
+                  color: ACCENT,
+                  letterSpacing: '0.14em',
+                  fontWeight: 700,
+                  textTransform: 'uppercase',
+                }}
+              >
+                Rank 01 · Top of book
+              </span>
+              <div className="row" style={{ gap: '18px' }}>
+                <span className={`avatar xl avatar-grad-${gradFor(hero.handle)}`}>
+                  {initialFor(hero.handle)}
+                </span>
+                <span
+                  style={{
+                    fontFamily: 'var(--font-display)',
+                    fontSize: 'clamp(28px, 7vw, 44px)',
+                    fontWeight: 900,
+                    letterSpacing: '-0.04em',
+                    lineHeight: 0.95,
+                    textTransform: 'uppercase',
+                    overflowWrap: 'anywhere',
+                  }}
+                >
+                  {hero.handle}
+                </span>
+              </div>
+            </div>
+
+            <div>
+              <div className="label-overline" style={{ marginBottom: '12px' }}>
+                Global rep
+              </div>
+              <div
+                style={{
+                  fontFamily: 'var(--font-display)',
+                  fontSize: 'clamp(64px, 18vw, 132px)',
+                  fontWeight: 900,
+                  letterSpacing: '-0.06em',
+                  lineHeight: 0.85,
+                  color: 'var(--text-primary)',
+                }}
+              >
+                {hero.globalRep.toLocaleString()}
+              </div>
+            </div>
+          </div>
+
+          {/* Stat blocks — ONLY stats with a real source render (D-07) */}
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: isMobile ? 'column' : 'row',
+              gap: '12px',
+              marginTop: '32px',
+              position: 'relative',
+              zIndex: 1,
+            }}
+          >
+            {heroAccuracy != null && (
+              <div className="stat-block" style={{ flex: 1 }}>
+                <div className="stat-label">Accuracy</div>
+                <div className="stat-value" style={{ color: 'var(--accent-win)' }}>
+                  {heroAccuracy}%
+                </div>
+                <div className="stat-sub">
+                  {hero.wins} of {hero.settledCalls} settled
+                </div>
+              </div>
+            )}
+            <div className="stat-block" style={{ flex: 1 }}>
+              <div className="stat-label">Calls</div>
+              <div className="stat-value">{hero.totalCalls}</div>
             </div>
           </div>
         </Card>
       )}
 
-      {/* Table — rows on brand-surface; viewer row highlighted (UI-13) */}
-      {!fetchError && tableRows.length > 0 && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-          {/* Header row */}
-          <div
-            className="font-mono text-xs uppercase tracking-wide text-brand-muted"
-            style={{ display: 'flex', flexDirection: 'row', padding: '8px 12px' }}
-          >
-            <span style={{ width: '48px' }}>#</span>
-            <span style={{ flex: 1 }}>Caller</span>
-            <span style={{ width: '80px', textAlign: 'right' }}>Rep</span>
-            <span style={{ width: '72px', textAlign: 'right' }}>Calls</span>
-          </div>
-          {tableRows.map((row) => (
-            <LeaderboardTableRow
-              key={row.address}
-              row={row}
-              isViewer={viewer != null && row.address.toLowerCase() === viewer}
-            />
-          ))}
+      {/* Table — .brutal-table; viewer row tinted (UI-13). Row click navigation CUT (D-08). */}
+      {!fetchError && rows.length > 0 && (
+        <div
+          className="brutal-card"
+          style={{ padding: 0, overflowX: isMobile ? 'auto' : undefined }}
+        >
+          <table className="brutal-table" style={{ minWidth: isMobile ? '480px' : undefined }}>
+            <thead>
+              <tr>
+                <th style={{ width: '60px' }}>#</th>
+                <th>Caller</th>
+                <th style={{ textAlign: 'right' }}>Rep</th>
+                <th style={{ textAlign: 'right' }}>Acc</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((row) => (
+                <LeaderboardTableRow
+                  key={row.rank}
+                  row={row}
+                  isViewer={viewer != null && row.address.toLowerCase() === viewer}
+                />
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
-    </main>
-  );
-}
 
-function HeroStat({ label, value }: { label: string; value: string }) {
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-      <span className="font-mono text-xs uppercase tracking-wide text-brand-muted">{label}</span>
-      <span className="font-mono font-bold text-brand-text text-lg">{value}</span>
+      {/* Footer microcopy — real count only; NEXT-10 pagination CUT (D-08) */}
+      {!fetchError && rows.length > 0 && (
+        <div style={{ marginTop: '18px' }}>
+          <span
+            className="mono"
+            style={{ fontSize: '11px', color: 'var(--text-tertiary)', letterSpacing: '0.04em' }}
+          >
+            {rows.length} caller{rows.length === 1 ? '' : 's'} on the board · all stats on-chain
+          </span>
+        </div>
+      )}
     </div>
   );
 }
 
 function LeaderboardTableRow({ row, isViewer }: { row: LeaderboardRow; isViewer: boolean }) {
-  const isMobile = useIsMobile(); // Phase 9 (09-05): each row >=44px tall at mobile (D-03); viewer accent preserved
+  const isMobile = useIsMobile(); // UI-48: each row >=44px tall at mobile
+  const acc = accuracyPct(row);
   return (
-    <a
-      href={`/profile/${row.address}`}
+    <tr
+      className={isViewer ? 'your-row-tint' : undefined}
       style={{
-        display: 'flex',
-        flexDirection: 'row', // Stays row at mobile (Divergence #1: live 4-col layout already fits 343px — no column drop).
-        alignItems: 'center',
-        padding: '10px 12px',
-        minHeight: isMobile ? '44px' : undefined,
-        // UI-13: the viewer's own row is highlighted with accent (left border + #1A1A24 bg) — preserved through the mobile path.
-        backgroundColor: isViewer ? ROW_HIGHLIGHT_BG : '#18181B',
+        // UI-13: viewer's own row — #1A1A24 bg (--bg-tertiary) + ACCENT left border.
+        backgroundColor: isViewer ? ROW_HIGHLIGHT_BG : undefined,
         borderLeft: isViewer ? `3px solid ${ACCENT}` : '3px solid transparent',
-        textDecoration: 'none',
+        height: isMobile ? '44px' : undefined,
       }}
     >
-      <span className="font-mono font-bold text-brand-text text-sm" style={{ width: '48px' }}>
-        {row.rank}
-      </span>
-      <span className="font-mono text-brand-text text-sm" style={{ flex: 1 }}>
-        @{row.handle}
-      </span>
-      <span
-        className="font-mono font-bold text-brand-text text-sm"
-        style={{ width: '80px', textAlign: 'right' }}
+      <td>
+        <span
+          className="mono slot-num"
+          style={{ fontSize: '13px', color: 'var(--text-tertiary)', fontWeight: 600 }}
+        >
+          {String(row.rank).padStart(2, '0')}
+        </span>
+      </td>
+      <td>
+        <div className="row" style={{ gap: '12px' }}>
+          <span className={`avatar sm avatar-grad-${gradFor(row.handle)}`}>
+            {initialFor(row.handle)}
+          </span>
+          <div className="col" style={{ gap: '2px' }}>
+            <span style={{ fontWeight: 700, fontSize: '13.5px' }}>
+              {row.handle}
+              {isViewer && (
+                <span
+                  className="mono"
+                  style={{
+                    marginLeft: '8px',
+                    fontSize: '10px',
+                    color: 'var(--accent-win)',
+                    letterSpacing: '0.1em',
+                    fontWeight: 700,
+                  }}
+                >
+                  · YOU
+                </span>
+              )}
+            </span>
+            <span className="mono" style={{ fontSize: '10.5px', color: 'var(--text-tertiary)' }}>
+              {row.totalCalls} call{row.totalCalls === 1 ? '' : 's'}
+            </span>
+          </div>
+        </div>
+      </td>
+      <td className="mono" style={{ textAlign: 'right', fontSize: '16px', fontWeight: 600 }}>
+        {row.globalRep.toLocaleString()}
+      </td>
+      <td
+        className="mono"
+        style={{
+          textAlign: 'right',
+          fontSize: '13px',
+          fontWeight: 600,
+          color: acc != null && acc >= 70 ? 'var(--accent-win)' : 'var(--text-secondary)',
+        }}
       >
-        {row.globalRep}
-      </span>
-      <span
-        className="font-mono text-brand-muted text-sm"
-        style={{ width: '72px', textAlign: 'right' }}
-      >
-        {row.totalCalls}
-      </span>
-    </a>
+        {acc != null ? `${acc}%` : '—'}
+      </td>
+    </tr>
   );
 }
