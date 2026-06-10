@@ -13,6 +13,12 @@ name: Phase 1 Gates
 
 on:
   push:
+    # GitHub gotcha: a `push` block that declares `tags:` but no `branches:` NEVER
+    # triggers on branch pushes — this workflow had ZERO runs since repo creation
+    # because of exactly that (verified 2026-06-10, quick-260610-vab). `branches`
+    # must be declared explicitly alongside `tags`. `paths:` still scopes branch
+    # pushes; per GitHub docs, `paths` is not evaluated for tag pushes.
+    branches: ['**']
     paths:
       - 'packages/contracts/**'
       - 'packages/shared/**'
@@ -20,9 +26,11 @@ on:
       - 'apps/web/**'
       - '.github/workflows/phase-1-gates.yml'
     tags:
-      # Tag-gated: triggers the phase-1-complete-gate job only.
-      # Per-PR jobs are skipped on tag pushes (they have no path changes to trigger them).
-      # The phase-1-complete-gate job itself uses: if: startsWith(github.ref, 'refs/tags/phase-1-complete')
+      # Tag-gated: on a 'phase-1-complete*' tag push ALL jobs run (paths filters
+      # apply at the workflow trigger level and are skipped for tag pushes, not
+      # per-job) — desirable: the phase-1-complete-gate job `needs:` all of them.
+      # The phase-1-complete-gate job itself uses:
+      #   if: startsWith(github.ref, 'refs/tags/phase-1-complete') || workflow_dispatch
       - 'phase-1-complete*'
   pull_request:
     paths:
@@ -247,7 +255,13 @@ jobs:
     env:
       # Mock env vars — the Playwright tests mock the actual Privy API calls,
       # so these values only need to be non-empty strings to satisfy env schema validation.
-      NEXT_PUBLIC_PRIVY_APP_ID: mock-app-id-for-ci-tests
+      # `test-app-id` is the one mock sentinel EVERY spec's skip guard recognizes:
+      # new-call-publish.spec.ts and utc-day-boundary.spec.ts Tier-2 guards match it
+      # exactly (`!== 'test-app-id'`), and all other specs' HAS_REAL_PRIVY_APP_ID
+      # checks catch it via the `test-` prefix / `test` substring / length < 28.
+      # The previous `mock-` prefixed value silently un-skipped two real-Privy
+      # Tier-2 browser suites on CI (quick-260610-vab).
+      NEXT_PUBLIC_PRIVY_APP_ID: test-app-id
       NEXT_PUBLIC_RELAYER_BASE_URL: http://localhost:3001
       NEXT_PUBLIC_ARBITRUM_RPC_URL: https://arb1.arbitrum.io/rpc
       NEXT_PUBLIC_ARBITRUM_SEPOLIA_RPC_URL: https://sepolia-rollup.arbitrum.io/rpc
@@ -270,7 +284,12 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Build Next.js app (webpack, bakes NEXT_PUBLIC_* vars into bundle)
-        run: pnpm --filter @call-it/web build
+        # turbo (not a bare `pnpm --filter` build): apps/web depends on workspace
+        # packages @call-it/shared and @call-it/ui whose dist/ is gitignored — a
+        # bare filter build fails on a fresh runner. turbo's `^build` dependsOn
+        # builds dependencies first (same recipe as the green CI workflow; no
+        # TURBO_TOKEN needed — turbo just skips remote cache). (quick-260610-vab)
+        run: pnpm turbo run build --filter=@call-it/web
         # Note: build uses `next build --webpack` (see package.json scripts)
 
       - name: Install Playwright Chromium
@@ -280,9 +299,13 @@ jobs:
         # webServer config uses `pnpm start` which serves the production build
         run: pnpm --filter @call-it/web exec playwright test tests/signin.spec.ts
 
-  # ─── Phase 1 complete gate (tag-gated) ───────────────────────────────────────
+  # ─── Phase 1 complete gate (tag-gated OR dispatchable) ───────────────────────
   #
   # Tag trigger: git tag phase-1-complete-YYYYMMDD && git push --tags
+  # Dispatch alternative (no tag needed — exercises the FULL gate on any ref):
+  #   gh workflow run "Phase 1 Gates" --ref <branch>
+  # Use the dispatch path for pre-master verification of workflow/test changes
+  # (quick-260610-vab landed this way: green dispatch run BEFORE merging to master).
   #
   # This is the canonical "phase done" gate, distinct from per-PR gates above.
   # It composes ALL per-PR invariants (via `needs:`) PLUS the full Playwright e2e
@@ -300,6 +323,9 @@ jobs:
   phase-1-complete-gate:
     name: Phase 1 complete gate (tag-gated — full suite)
     runs-on: ubuntu-latest
+    # Full suite is roughly 10-20 min on a 2-core runner; 45 caps a hung
+    # Playwright webServer (job default would otherwise be 360 minutes).
+    timeout-minutes: 45
     needs:
       - parity-diff
       - solc-pin-guard
@@ -308,19 +334,35 @@ jobs:
       - relayer-tests
       - provider-order-ast
       - signin-smoke
-    # Only runs on tags matching 'phase-1-complete*' (e.g. phase-1-complete-20260523)
-    if: startsWith(github.ref, 'refs/tags/phase-1-complete')
+    # Runs on tags matching 'phase-1-complete*' (e.g. phase-1-complete-20260523)
+    # OR on manual workflow_dispatch — dispatch exercises the full gate without
+    # pushing a tag (used for pre-master verification, see comment block above).
+    if: startsWith(github.ref, 'refs/tags/phase-1-complete') || github.event_name == 'workflow_dispatch'
 
     env:
-      # Mock env vars for CI — real values come from GitHub Secrets for staging runs
-      NEXT_PUBLIC_PRIVY_APP_ID: mock-app-id-for-ci-tests
+      # Mock env vars for CI — real values come from GitHub Secrets for staging runs.
+      # `test-app-id` is the one mock sentinel EVERY spec's skip guard recognizes —
+      # see the signin-smoke env comment above (quick-260610-vab).
+      NEXT_PUBLIC_PRIVY_APP_ID: test-app-id
       NEXT_PUBLIC_RELAYER_BASE_URL: http://localhost:3001
       NEXT_PUBLIC_ARBITRUM_RPC_URL: https://arb1.arbitrum.io/rpc
       NEXT_PUBLIC_ARBITRUM_SEPOLIA_RPC_URL: https://sepolia-rollup.arbitrum.io/rpc
       NEXT_PUBLIC_ALCHEMY_AA_POLICY_ID: mock-policy-id-for-ci
       NEXT_PUBLIC_NETWORK: testnet
-      # Enable design-system dev route for snapshot tests
-      NEXT_PUBLIC_DEV_ROUTES: '1'
+      # NEXT_PUBLIC_DEV_ROUTES deliberately NOT set here (quick-260610-vab):
+      # design-system-snap goldens are win32-only; baking dev routes into the
+      # linux CI build would un-skip its 5 snapshot tests with no linux baselines
+      # to compare against, and the gate should test a production-faithful build
+      # anyway. Goldens are regenerated on the win32 dev box (command in the
+      # design-system-snap.spec.ts header).
+      #
+      # OG_BENCH_SLO enables og-fallback-bench.spec.ts Test 3 (SHARE-11 p95 < 100ms
+      # hard gate). CI runners are quiet hardware — the authoritative enforcement
+      # point per that spec's own header (the dev box measures the box, not the
+      # pipeline). PROVISIONAL: this line survives only because the quick-260610-vab
+      # verification run proved the runner holds the SLO; if a future runner class
+      # cannot, remove it and record the measured p95 here instead.
+      OG_BENCH_SLO: '1'
 
     steps:
       - name: Checkout repository
@@ -364,31 +406,45 @@ jobs:
 
       # ── (d) Build Next.js app ─────────────────────────────────────────────
       - name: Build Next.js app
-        run: pnpm --filter @call-it/web build
+        # turbo (not a bare `pnpm --filter` build): apps/web depends on workspace
+        # packages @call-it/shared and @call-it/ui whose dist/ is gitignored — a
+        # bare filter build fails on a fresh runner. turbo's `^build` dependsOn
+        # builds dependencies first. (quick-260610-vab)
+        run: pnpm turbo run build --filter=@call-it/web
 
       # ── (e) Install Playwright browsers ───────────────────────────────────
       - name: Install Playwright Chromium with dependencies
         run: pnpm --filter @call-it/web exec playwright install --with-deps chromium
 
       # ── (f) Full Playwright e2e suite ─────────────────────────────────────
-      # Tests run in this order: auth → onboarding → publish → boundary → paymaster →
-      # address-book → feed → profile → OG fallback → visual-smoke → design-system-snap
+      # Runs the ENTIRE apps/web/tests/ directory (20 specs) with NO explicit
+      # file list, so new specs are gated automatically. NO `|| echo` escape —
+      # any test failure fails the job (the previous escape made this gate
+      # unable to fail; quick-260610-vab). Env-gated tiers self-skip
+      # deterministically on CI:
+      #   - Tier-2 deployed-URL tests (PLAYWRIGHT_BASE_URL unset)
+      #   - real-Privy tiers (test-app-id mock sentinel)
+      #   - og-thumbnail-200px (OG_200PX_BASELINES unset)
+      #   - win32-only visual goldens (in-spec platform guard, quick-260610-vab)
+      # `--reporter=list,html` overrides playwright.config.ts's pinned
+      # `reporter: 'list'` so the html reporter writes apps/web/playwright-report/
+      # for the failure artifact below; it does not auto-open on CI.
       - name: Run full Playwright e2e suite
-        run: |
-          pnpm --filter @call-it/web exec playwright test \
-            tests/signin.spec.ts \
-            tests/onboarding.spec.ts \
-            tests/new-call-publish.spec.ts \
-            tests/utc-day-boundary.spec.ts \
-            tests/paymaster-cap-handoff.spec.ts \
-            tests/address-book-cooldown.spec.ts \
-            tests/feed-shell.spec.ts \
-            tests/profile-shell.spec.ts \
-            tests/og-fallback.spec.ts \
-            tests/og-fallback-routing.spec.ts \
-            tests/visual-smoke.spec.ts \
-            tests/design-system-snap.spec.ts \
-            || echo "::notice::Some Playwright tests may use --update-snapshots on first run. Check the report."
+        run: pnpm --filter @call-it/web exec playwright test --reporter=list,html
+
+      # On failure, ship the HTML report + test-results for debuggability.
+      # Traces are recorded on first retry (trace: 'on-first-retry', CI retries: 2),
+      # so failures ship with traces.
+      - name: Upload Playwright report on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-${{ github.run_id }}
+          path: |
+            apps/web/playwright-report/
+            apps/web/test-results/
+          if-no-files-found: ignore
+          retention-days: 7
 
       # ── (g) ESLint — no display:grid in OG templates ─────────────────────
       - name: Lint UI package (no-display-grid guard)
@@ -426,10 +482,10 @@ jobs:
             echo "PASS: NEXT_PUBLIC_NETWORK guard present"
           fi
 
-      # ── (i) Wallet export prompt Vitest test ─────────────────────────────
-      - name: Run wallet export prompt tests
-        run: pnpm --filter @call-it/web exec playwright test tests/wallet-export-prompt.spec.ts || echo "::notice::wallet-export-prompt tests skipped (real Privy required)"
-
+      # NOTE: the former step (i) (re-running wallet-export-prompt.spec.ts with its
+      # own `|| echo` escape) was DELETED (quick-260610-vab): the spec now runs
+      # inside the whole-suite step (f) — Tier-1 source assertions execute; Tier-2
+      # self-skips on the test-app-id mock sentinel.
       - name: Phase 1 complete — all gates green
         run: |
           echo "========================================"
