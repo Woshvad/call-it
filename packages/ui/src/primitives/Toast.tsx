@@ -1,15 +1,21 @@
 /**
  * Toast — 3-status stacking toast with countdown drain animation (D-19)
  *
+ * Phase 09.2 retheme: radius 0, 2px border, bg var(--bg-secondary)
+ * (brand-surface alias), brutal black shadow. Enter animation uses the
+ * app-cascade `fadeIn` keyframe (apps/web/app/globals.css) — the previous
+ * tailwindcss-animate utilities (animate-in/slide-in-*) were removed: that
+ * plugin was never registered, so they were latent no-ops.
+ *
  * Built on Radix Toast primitives for a11y (focus management, screen reader announcements).
- * Countdown bar drains over `duration` ms via CSS animation (keyframes defined in styles.css).
+ * Countdown bar drains over `duration` ms via the `drain` CSS keyframe (app cascade).
  * framer-motion is NOT used here — CSS animation is sufficient (scope restriction: framer-motion
- * is limited to Stamp + live-pulse only per RESEARCH "Standard Stack").
+ * is limited to Stamp only per RESEARCH "Standard Stack").
  *
  * Status → styling:
- *   success → border-outcome-win
+ *   success → border var(--accent-win)  (outcome-win)
  *   info    → border-brand-accent
- *   error   → border-outcome-loss
+ *   error   → border var(--accent-loss) (outcome-loss #F87171)
  */
 import * as ToastPrimitive from '@radix-ui/react-toast';
 import { cva } from 'class-variance-authority';
@@ -24,10 +30,10 @@ const toastVariants = cva(
     'min-w-[280px] max-w-[380px]',
     'p-4',
     'border-2',
+    'rounded-none',
     'bg-brand-surface text-brand-text',
     'shadow-[4px_4px_0_0_#000]',
-    'data-[state=open]:animate-in data-[state=open]:slide-in-from-right-full',
-    'data-[state=closed]:animate-out data-[state=closed]:slide-out-to-right-full',
+    'animate-[fadeIn_0.18s_linear]',
   ],
   {
     variants: {

@@ -1,8 +1,9 @@
 /**
- * Skeleton — 6 static gray skeleton variants (D-18)
+ * Skeleton — 6 skeleton variants (Phase 09.2 retheme)
  *
- * NO shimmer / NO animate-pulse / NO animate-shimmer
- * Static #27272A (brand-border) blocks with neobrutalist hard offset shadow.
+ * Radius 0, hard edges, slow opacity pulse on var(--bg-tertiary).
+ * NO shimmer / NO animate-pulse / NO animate-shimmer utility — the pulse is
+ * the app-cascade `liveDot` opacity keyframe at a slow 2s cadence.
  * Variants map to distinct layout-placeholder dimensions.
  *
  * Named exports for tree-shaking convenience:
@@ -17,8 +18,13 @@ import { cva, type VariantProps } from 'class-variance-authority';
 import { cn } from '../lib/cn';
 
 const skeleton = cva(
-  // Base: static gray — never animate
-  ['bg-brand-border', 'shadow-[4px_4px_0_0_#000]'],
+  // Base: hard-edged block on --bg-tertiary with a slow opacity pulse
+  [
+    'bg-[var(--bg-tertiary)]',
+    'border border-[var(--border-subtle)]',
+    'rounded-none',
+    'animate-[liveDot_2s_ease-in-out_infinite]',
+  ],
   {
     variants: {
       variant: {

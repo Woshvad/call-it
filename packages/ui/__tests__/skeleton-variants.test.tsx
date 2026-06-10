@@ -1,6 +1,10 @@
 /**
- * Skeleton variants test — RED phase
- * Tests all 6 static skeleton variants (D-18 — no shimmer)
+ * Skeleton variants test
+ * Tests all 6 skeleton variants.
+ *
+ * Phase 09.2 retheme (D-15 lockstep update): hard-edged blocks on
+ * var(--bg-tertiary) with a slow opacity pulse (app-cascade `liveDot`
+ * keyframe) — still NO shimmer and NO Tailwind animate-pulse utility.
  */
 import { describe, it, expect } from 'vitest';
 import { render } from '@testing-library/react';
@@ -16,17 +20,18 @@ const VARIANTS = [
   'listItem',
 ] as const;
 
-describe('Skeleton 6-variant static blocks (D-18)', () => {
+describe('Skeleton 6-variant hard-edged blocks (09.2 retheme)', () => {
   for (const variant of VARIANTS) {
-    it(`renders ${variant} skeleton as static gray block`, () => {
+    it(`renders ${variant} skeleton on var(--bg-tertiary)`, () => {
       const { container } = render(<Skeleton variant={variant} />);
       const el = container.firstChild as HTMLElement;
       expect(el).toBeTruthy();
-      // Must be a static background — bg-brand-border or equivalent
-      expect(el?.className).toContain('bg-brand-border');
+      expect(el?.className).toContain('bg-[var(--bg-tertiary)]');
+      // Hard edges — radius 0
+      expect(el?.className).toContain('rounded-none');
     });
 
-    it(`${variant} has NO shimmer/pulse animation`, () => {
+    it(`${variant} has NO shimmer/animate-pulse utility`, () => {
       const { container } = render(<Skeleton variant={variant} />);
       const el = container.firstChild as HTMLElement;
       expect(el?.className).not.toContain('animate-pulse');

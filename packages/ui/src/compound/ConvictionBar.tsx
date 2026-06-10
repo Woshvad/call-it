@@ -1,10 +1,12 @@
 /**
- * ConvictionBar — Radix Slider with neobrutalist styling (UI-51)
+ * ConvictionBar — Radix Slider carrying the prototype `.brutal-bar` /
+ * `.brutal-slider` recipes (UI-51, Phase 09.2 retheme)
  *
- * Track: brand-border (#27272A)
- * Range fill: interpolated color from brand-muted (#A1A1AA) at value=1
- *             to brand-accent (#E8F542) at value=100 via CSS custom property.
- * Thumb: neobrutalist square with hard offset shadow.
+ * Track: 10px, var(--bg-tertiary), 1px var(--border-subtle) border, radius 0.
+ * Range fill: interpolated color from brand-muted (#94A3B8) at value=1
+ *             to brand-accent (#E8F542) at value=100 via CSS custom property
+ *             (UI-51 — fill interpolates as conviction rises; logic unchanged).
+ * Thumb: 26px cream square, 2px black border, 2px 2px 0 #000 shadow.
  *
  * @example
  *   <ConvictionBar value={75} onChange={(v) => setConviction(v)} />
@@ -58,22 +60,23 @@ export function ConvictionBar({
       className={cn('relative flex w-full touch-none select-none items-center', className)}
       style={{ '--fill-color': fillColor } as React.CSSProperties}
     >
-      <SliderPrimitive.Track className="relative h-2 w-full grow overflow-hidden bg-brand-border">
+      {/* .brutal-bar track: 10px, --bg-tertiary, 1px border, radius 0 */}
+      <SliderPrimitive.Track className="relative h-[10px] w-full grow overflow-hidden bg-[var(--bg-tertiary)] border border-[var(--border-subtle)] rounded-none">
         <SliderPrimitive.Range
           className="absolute h-full"
           style={{ backgroundColor: 'var(--fill-color)' }}
         />
       </SliderPrimitive.Track>
+      {/* .brutal-slider thumb: 26px cream square, 2px black border, hard shadow */}
       <SliderPrimitive.Thumb
         className={cn(
-          'block h-5 w-5',
-          'bg-brand-accent',
+          'block h-[26px] w-[26px]',
+          'bg-brand-cream',
           'border-2 border-black',
           'shadow-[2px_2px_0_0_#000]',
-          'hover:translate-x-[1px] hover:translate-y-[1px]',
+          'rounded-none',
           'focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent',
-          'cursor-pointer',
-          'transition-shadow duration-100'
+          'cursor-grab active:cursor-grabbing'
         )}
       />
     </SliderPrimitive.Root>

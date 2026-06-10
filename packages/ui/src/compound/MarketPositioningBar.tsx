@@ -1,11 +1,13 @@
 /**
  * MarketPositioningBar — Follow/Fade split progress bar
+ * (prototype `.brutal-bar.split` recipe, Phase 09.2 retheme)
  *
- * Reads live followReserve / fadeReserve props and renders a two-section
- * flexbox bar: left (accent #E8F542) = follow%, right (dark) = fade%.
+ * Reads live followReserve / fadeReserve props and renders a two-segment
+ * flexbox bar: follow side var(--accent-win), 2px black gap, fade side
+ * var(--accent-loss). Fill widths transition 0.4s cubic-bezier(0.16,1,0.3,1).
  *
  * FLEXBOX ONLY — no CSS grid (Pitfall 15 / Satori constraint).
- * Neobrutalist: 2px border, hard offset shadow, #09090E background.
+ * Brutalist: 10px bar, 1px var(--border-subtle) border, radius 0.
  *
  * Requirements: SOCIAL-05, SOCIAL-06, UI-06
  * Spec: §15.3 — "MARKET POSITIONING bar with X% follow / Y% fade labels"
@@ -27,6 +29,9 @@ function formatUsdc(amount: bigint): string {
   return `$${dollars.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
 }
 
+const MONO_STACK = 'var(--font-mono), ui-monospace, monospace';
+const FILL_TRANSITION = 'width 0.4s cubic-bezier(0.16, 1, 0.3, 1)';
+
 export function MarketPositioningBar({
   followReserve,
   fadeReserve,
@@ -45,45 +50,56 @@ export function MarketPositioningBar({
         style={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between', marginBottom: '6px' }}
       >
         <span
-          style={{ fontFamily: 'monospace', fontSize: '11px', letterSpacing: '0.1em', textTransform: 'uppercase', color: '#94A3B8' }}
+          style={{ fontFamily: MONO_STACK, fontSize: '11px', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-tertiary)' }}
         >
           Market Positioning
         </span>
         {total === 0n && (
-          <span style={{ fontFamily: 'monospace', fontSize: '11px', color: '#94A3B8' }}>
+          <span style={{ fontFamily: MONO_STACK, fontSize: '11px', color: 'var(--text-tertiary)' }}>
             No positions yet
           </span>
         )}
       </div>
 
-      {/* Two-section bar — flexbox only */}
+      {/* .brutal-bar.split — two segments + 2px black gap, flexbox only */}
       <div
         style={{
           display: 'flex',
           flexDirection: 'row',
           width: '100%',
-          height: '20px',
-          border: '2px solid #2E2E42',
-          boxShadow: '3px 3px 0 0 #E8F542',
+          height: '10px',
+          border: '1px solid var(--border-subtle)',
+          borderRadius: 0,
+          background: 'var(--bg-tertiary)',
           overflow: 'hidden',
         }}
       >
-        {/* Follow side — accent yellow-green */}
+        {/* Follow side — accent win */}
         <div
           style={{
             width: `${followPct}%`,
-            backgroundColor: '#E8F542',
+            backgroundColor: 'var(--accent-win)',
             height: '100%',
-            transition: 'width 0.3s ease',
+            transition: FILL_TRANSITION,
             minWidth: followPct > 0 ? '2px' : '0px',
           }}
         />
-        {/* Fade side — dark */}
+        {/* 2px black gap between segments */}
+        <div
+          style={{
+            flex: '0 0 2px',
+            width: '2px',
+            backgroundColor: '#000',
+            height: '100%',
+          }}
+        />
+        {/* Fade side — accent loss */}
         <div
           style={{
             flex: 1,
-            backgroundColor: '#13131D',
+            backgroundColor: 'var(--accent-loss)',
             height: '100%',
+            transition: FILL_TRANSITION,
           }}
         />
       </div>
@@ -101,16 +117,16 @@ export function MarketPositioningBar({
         <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
           <span
             style={{
-              fontFamily: 'monospace',
+              fontFamily: MONO_STACK,
               fontSize: '13px',
               fontWeight: 700,
-              color: '#E8F542',
+              color: 'var(--accent-win)',
             }}
           >
             {followPct}% Following
           </span>
           {showPoolSizes && total > 0n && (
-            <span style={{ fontFamily: 'monospace', fontSize: '11px', color: '#94A3B8' }}>
+            <span style={{ fontFamily: MONO_STACK, fontSize: '11px', color: 'var(--text-tertiary)' }}>
               {formatUsdc(followReserve)} pool
             </span>
           )}
@@ -120,16 +136,16 @@ export function MarketPositioningBar({
         <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', alignItems: 'flex-end' }}>
           <span
             style={{
-              fontFamily: 'monospace',
+              fontFamily: MONO_STACK,
               fontSize: '13px',
               fontWeight: 700,
-              color: '#F87171',
+              color: 'var(--accent-loss)',
             }}
           >
             {fadePct}% Fading
           </span>
           {showPoolSizes && total > 0n && (
-            <span style={{ fontFamily: 'monospace', fontSize: '11px', color: '#94A3B8' }}>
+            <span style={{ fontFamily: MONO_STACK, fontSize: '11px', color: 'var(--text-tertiary)' }}>
               {formatUsdc(fadeReserve)} pool
             </span>
           )}

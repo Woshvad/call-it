@@ -2,7 +2,7 @@
  * Receipt — multi-mode receipt component (D-21)
  *
  * FLEXBOX ONLY — see Pitfall 15. Phase 7 OG via Satori will reuse this component.
- * No display:grid, no grid-cols-*. All layouts must be flexbox.
+ * No CSS grid layout, no grid utility classes. All layouts must be flexbox.
  *
  * AUTH-44: This component NEVER renders the wallet address.
  * The data prop type signature explicitly excludes an `address` field.
