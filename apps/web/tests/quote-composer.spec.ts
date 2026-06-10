@@ -84,6 +84,12 @@ test.describe('QUOTE-COMPOSER: source assertions (Tier-1)', () => {
       expect(src).not.toContain("display: 'grid'");
     }
   });
+
+  test('Test 6: success screen carries the cream inverse panel (09.2-10 ROOT skin)', () => {
+    const source = readFile(SUCCESS);
+    expect(source).toContain('variant="cream"');
+    expect(source).toContain('ON RECORD · PERMANENT');
+  });
 });
 
 test.describe('QUOTE-COMPOSER: browser tests (Tier-2)', () => {

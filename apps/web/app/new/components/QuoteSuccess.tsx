@@ -1,8 +1,8 @@
 /**
- * QuoteSuccess — Quote Composer success screen (UI-28, SHARE-15).
+ * QuoteSuccess — Quote Composer success screen (UI-28, SHARE-15, ROOT cream skin).
  *
  * Renders after a quote is posted:
- *   - "Quote posted" heading (Syne)
+ *   - cream success block ("Quote posted" — inverse panel, Archivo voice)
  *   - a THREAD PREVIEW: the parent card + the user's quote stacked VERTICALLY
  *   - a "Share receipt" button → Twitter web-intent URL built by the shared
  *     share-text builder (SHARE-15) — same canonical builders the relayer's
@@ -54,9 +54,37 @@ export function QuoteSuccess({
         gap: '24px',
       }}
     >
-      <h1 className="font-display font-bold text-brand-text text-xl uppercase tracking-wide">
-        Quote posted
-      </h1>
+      {/* Cream success block — inverse panel (the signature treatment) */}
+      <Card variant="cream">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <span
+            style={{
+              fontFamily: 'var(--font-mono)',
+              fontSize: 11,
+              fontWeight: 700,
+              letterSpacing: '0.14em',
+              textTransform: 'uppercase',
+              color: 'rgba(0,0,0,0.55)',
+            }}
+          >
+            ON RECORD · PERMANENT
+          </span>
+          <h1
+            style={{
+              fontFamily: 'var(--font-display)',
+              fontSize: 32,
+              fontWeight: 900,
+              letterSpacing: '-0.025em',
+              lineHeight: 1.05,
+              textTransform: 'uppercase',
+              color: '#000',
+              margin: 0,
+            }}
+          >
+            Quote posted
+          </h1>
+        </div>
+      </Card>
 
       {/* Thread preview: parent card + the user's quote stacked vertically */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
@@ -64,15 +92,27 @@ export function QuoteSuccess({
 
         {/* The user's quote (the new call) */}
         <Card accent>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            <span className="font-mono text-xs uppercase tracking-wide text-brand-muted">
-              Your quote
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <span className="label-overline">Your quote</span>
+            <span
+              style={{
+                fontFamily: 'var(--font-display)',
+                fontSize: 20,
+                fontWeight: 800,
+                letterSpacing: '-0.015em',
+                lineHeight: 1.15,
+                color: 'var(--text-primary)',
+              }}
+            >
+              {quoteMarketLine}
             </span>
-            <span className="font-display font-bold text-brand-text text-lg">{quoteMarketLine}</span>
             {thesis.trim().length > 0 && (
-              <span className="font-body text-brand-text text-base">{thesis}</span>
+              <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>{thesis}</span>
             )}
-            <span className="font-mono font-bold text-brand-accent text-sm">
+            <span
+              className="mono"
+              style={{ fontSize: 13, fontWeight: 700, color: 'var(--accent-win)' }}
+            >
               {quoteConviction}% conviction
             </span>
           </div>

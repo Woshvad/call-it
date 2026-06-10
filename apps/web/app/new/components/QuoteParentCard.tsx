@@ -1,13 +1,17 @@
 /**
- * QuoteParentCard — read-only parent context card for the Quote Composer (UI-26).
+ * QuoteParentCard — read-only parent context card for the Quote Composer (UI-26,
+ * ROOT `.brutal-card` skin).
  *
  * Renders the quoted (parent) call as a read-only Card:
- *   - QUOTING label
- *   - parent caller info + parent statement (italic Syne)
- *   - stake / conviction / follow / fade meta row
- *   - "view original" link
+ *   - QUOTING overline label (JBM mono)
+ *   - parent statement (Archivo display voice)
+ *   - "view original" mono link
  * UI-26: NO corner brackets on the parent card (distinguishes it from the active
  * composer surface).
+ *
+ * Stance pill (FOLLOWING/FADING) intentionally NOT rendered: the quote stance is
+ * keyed to the on-chain CallQuoted event at publish time — there is no stance
+ * data source at compose time, so it degrades to hidden per D-07 (never faked).
  *
  * Data: fetched client-side from the relayer marketLine + subgraph (D-04 — full
  * cross-origin hydration verified at deploy, Plan 07-06). Until the fetch resolves
@@ -61,9 +65,20 @@ export function QuoteParentCard({ parentCallId }: QuoteParentCardProps) {
   if (unavailable) {
     return (
       <Card>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-          <span className="font-display font-bold text-brand-text text-xl">Call unavailable</span>
-          <span className="font-body text-brand-muted text-base">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <span
+            style={{
+              fontFamily: 'var(--font-display)',
+              fontSize: 20,
+              fontWeight: 800,
+              textTransform: 'uppercase',
+              letterSpacing: '-0.01em',
+              color: 'var(--text-primary)',
+            }}
+          >
+            Call unavailable
+          </span>
+          <span className="mono" style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>
             This call can&apos;t be quoted right now. It may be unsettled or removed.
           </span>
         </div>
@@ -72,24 +87,46 @@ export function QuoteParentCard({ parentCallId }: QuoteParentCardProps) {
   }
 
   return (
-    // NO corner brackets on the parent card (UI-26) — a plain Card.
+    // NO corner brackets on the parent card (UI-26) — a plain .brutal-card.
     <Card>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-        <span className="font-mono text-xs uppercase tracking-wide text-brand-muted">QUOTING</span>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <span className="label-overline">QUOTING</span>
         <span
-          className="font-display font-bold text-brand-text"
-          style={{ fontSize: '20px', fontStyle: 'italic', lineHeight: 1.2 }}
+          style={{
+            fontFamily: 'var(--font-display)',
+            fontSize: 20,
+            fontWeight: 800,
+            letterSpacing: '-0.015em',
+            lineHeight: 1.15,
+            color: 'var(--text-primary)',
+          }}
         >
           {loading ? 'Loading call…' : statement}
         </span>
         <div
-          style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}
+          style={{
+            display: 'flex',
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            borderTop: '1px solid var(--border-subtle)',
+            paddingTop: 10,
+          }}
         >
-          <span className="font-mono text-sm text-brand-muted">Original call</span>
+          <span className="mono" style={{ fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--text-tertiary)' }}>
+            Original call
+          </span>
           <a
             href={`/call/${parentCallId}`}
-            className="font-mono text-sm text-brand-muted"
-            style={{ textDecoration: 'underline' }}
+            className="mono"
+            style={{
+              fontSize: 11,
+              fontWeight: 700,
+              letterSpacing: '0.04em',
+              textTransform: 'uppercase',
+              color: 'var(--text-secondary)',
+              textDecoration: 'underline',
+            }}
           >
             view original
           </a>
