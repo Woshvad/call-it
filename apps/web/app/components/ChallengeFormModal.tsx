@@ -9,6 +9,13 @@
  * $5–$100 Zod bounds. USDC allowance + balance preflight (Rule 2 / T-3-06-06).
  * callerMatchingStake = min(callerInputStake, challengerStake) — SOCIAL-31 (D-09).
  *
+ * Chrome: cream `.modal-panel` template (D-13, 09.2-08) — overlay
+ * rgba(0,0,0,0.82) + blur(4px) z-200, panel var(--bg-inverse) with BLACK text,
+ * 3px black border, var(--shadow-brutal-lg). Duel purple #A855F7 (D-03) is
+ * confined to the 1V1 DUEL identity pill on a DARK chip (purple text on cream
+ * fails contrast). Quick-stake selectors use the .toggle-pill recipe with the
+ * black-filled active state.
+ *
  * Security: never renders wallet address (AUTH-44). Only handles displayed.
  * Threat: T-3-06-01 (stake bounds), T-3-06-02 (self-challenge guard), T-3-06-06 (allowance).
  *
@@ -291,33 +298,35 @@ export function ChallengeFormModal({
   // ─── Render ────────────────────────────────────────────────────────────────
   return (
     <div
+      // .modal-overlay template (D-13): rgba(0,0,0,0.82) scrim + blur(4px), z-200
       style={{
         position: 'fixed',
         inset: 0,
-        zIndex: 100,
-        backgroundColor: 'rgba(9,9,14,0.85)',
+        zIndex: 200,
+        backgroundColor: 'rgba(0,0,0,0.82)',
+        backdropFilter: 'blur(4px)',
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
-        padding: '24px',
+        padding: '40px 20px',
       }}
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
-      {/* Toast */}
+      {/* Toast — floating dark notice (kept dark for contrast over the scrim) */}
       {toastMsg && (
         <div
           style={{
             position: 'fixed',
             top: '24px',
             right: '24px',
-            zIndex: 200,
-            backgroundColor: '#111118',
-            borderLeft: `4px solid ${toastMsg.isError ? '#F87171' : '#4ADE80'}`,
+            zIndex: 300,
+            backgroundColor: 'var(--bg-secondary)',
+            borderLeft: `4px solid ${toastMsg.isError ? 'var(--accent-loss)' : '#4ADE80'}`,
             padding: '14px 18px',
-            fontFamily: 'monospace',
+            fontFamily: 'var(--font-mono)',
             fontSize: '13px',
-            color: '#F1F5F9',
+            color: 'var(--text-primary)',
             maxWidth: '340px',
           }}
         >
@@ -325,42 +334,56 @@ export function ChallengeFormModal({
         </div>
       )}
 
-      {/* Modal panel */}
+      {/* .modal-panel template (D-13): cream var(--bg-inverse), BLACK text,
+          3px black border, brutal-lg shadow — every text token inside is inverse */}
       <div
         style={{
           position: 'relative',
-          backgroundColor: '#111118',
-          border: '3px solid #E8F542',
-          boxShadow: '4px 4px 0 #E8F542',
-          padding: '24px',
+          backgroundColor: 'var(--bg-inverse)',
+          color: '#000',
+          border: '3px solid #000',
+          boxShadow: 'var(--shadow-brutal-lg)',
+          borderRadius: 0,
+          padding: 'clamp(24px, 5vw, 36px)',
           width: '100%',
           // Mobile (D-04): never exceed the viewport minus a 16px gutter each side.
           // Intrinsic viewport-relative clamp — no JS viewport read needed.
-          maxWidth: 'min(480px, calc(100vw - 32px))',
+          maxWidth: 'min(620px, calc(100vw - 32px))',
+          maxHeight: '90vh',
+          overflowY: 'auto',
           display: 'flex',
           flexDirection: 'column',
           gap: '20px',
         }}
       >
-        {/* CornerBrackets top-left */}
-        <div style={{ position: 'absolute', top: -2, left: -2, pointerEvents: 'none' }}>
-          <div style={{ width: '16px', height: '4px', backgroundColor: '#E8F542' }} />
-          <div style={{ width: '4px', height: '12px', backgroundColor: '#E8F542' }} />
-        </div>
-        {/* CornerBrackets bottom-right */}
-        <div style={{ position: 'absolute', bottom: -2, right: -2, pointerEvents: 'none', display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
-          <div style={{ width: '4px', height: '12px', backgroundColor: '#E8F542' }} />
-          <div style={{ width: '16px', height: '4px', backgroundColor: '#E8F542' }} />
-        </div>
-
-        {/* Title */}
+        {/* Header — duel identity pill (D-03: purple is duel identity, on a DARK
+            chip only — purple text on cream fails contrast) + mono confirm voice */}
         <div style={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-          <h2 style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: '32px', fontWeight: 700, color: '#F1F5F9', margin: 0 }}>
-            CHALLENGE {callerHandle}
-          </h2>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <span
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                alignSelf: 'flex-start',
+                backgroundColor: '#000',
+                color: '#A855F7',
+                fontFamily: 'var(--font-mono)',
+                fontSize: '10px',
+                fontWeight: 700,
+                letterSpacing: '0.14em',
+                textTransform: 'uppercase',
+                padding: '4px 10px',
+              }}
+            >
+              1V1 DUEL · PROPOSE
+            </span>
+            <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(22px, 5vw, 30px)', fontWeight: 800, color: '#000', textTransform: 'uppercase', letterSpacing: '0.01em', margin: 0 }}>
+              CHALLENGE {callerHandle}
+            </h2>
+          </div>
           <button
             onClick={onClose}
-            style={{ backgroundColor: 'transparent', border: 'none', cursor: 'pointer', color: '#64748B', fontSize: '20px', padding: '4px' }}
+            style={{ backgroundColor: 'transparent', border: 'none', cursor: 'pointer', color: 'rgba(0,0,0,0.55)', fontSize: '20px', padding: '4px', lineHeight: 1 }}
             aria-label="Close"
           >
             ✕
@@ -370,25 +393,25 @@ export function ChallengeFormModal({
         {/* Parent call read-only card */}
         <div
           style={{
-            border: '2px solid #1E1E2E',
-            backgroundColor: '#0D0D15',
+            border: '2px solid #000',
+            backgroundColor: 'rgba(0,0,0,0.04)',
             padding: '12px 14px',
           }}
         >
-          <div style={{ fontFamily: 'monospace', fontSize: '10px', color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: '6px' }}>
+          <div style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'rgba(0,0,0,0.55)', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: '6px' }}>
             CHALLENGING
           </div>
-          <p style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: '14px', color: '#F1F5F9', margin: 0, lineHeight: 1.4 }}>
+          <p style={{ fontFamily: 'var(--font-sans)', fontSize: '14px', color: '#000', margin: 0, lineHeight: 1.4 }}>
             {marketLine || `Call #${String(callId)}`}
           </p>
-          <div style={{ marginTop: '6px', fontFamily: 'monospace', fontSize: '11px', color: '#64748B' }}>
+          <div style={{ marginTop: '6px', fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'rgba(0,0,0,0.6)' }}>
             Caller stake: {formatUsdc(callerStake)}
           </div>
         </div>
 
-        {/* YOUR STAKE input */}
+        {/* YOUR STAKE input — .brutal-input recipe adapted for cream context */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-          <label style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: '12px', fontWeight: 700, color: '#F1F5F9', textTransform: 'uppercase', letterSpacing: '0.12em' }}>
+          <label style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', fontWeight: 700, color: '#000', textTransform: 'uppercase', letterSpacing: '0.12em' }}>
             YOUR STAKE
           </label>
           <div
@@ -396,8 +419,8 @@ export function ChallengeFormModal({
               display: 'flex',
               flexDirection: 'row',
               alignItems: 'center',
-              border: `2px solid ${stakeError ? '#F87171' : (stakeInput && !stakeError ? '#E8F542' : '#2E2E42')}`,
-              backgroundColor: '#09090E',
+              border: `2px solid ${stakeError ? '#DC2626' : '#000'}`,
+              backgroundColor: 'rgba(255,255,255,0.55)',
             }}
           >
             <input
@@ -416,27 +439,28 @@ export function ChallengeFormModal({
                 backgroundColor: 'transparent',
                 border: 'none',
                 outline: 'none',
-                fontFamily: "'Space Grotesk', sans-serif",
+                fontFamily: 'var(--font-sans)',
                 fontSize: '16px',
-                color: '#F1F5F9',
+                color: '#000',
                 padding: '12px 14px',
               }}
               placeholder="100.00"
             />
-            <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '12px', color: '#64748B', padding: '0 14px' }}>
+            <span style={{ fontFamily: 'var(--font-mono)', fontSize: '12px', color: 'rgba(0,0,0,0.55)', padding: '0 14px' }}>
               USDC
             </span>
           </div>
           {stakeError && (
-            <span style={{ fontFamily: 'monospace', fontSize: '12px', color: '#F87171' }}>
+            <span style={{ fontFamily: 'var(--font-mono)', fontSize: '12px', color: '#DC2626' }}>
               {stakeError}
             </span>
           )}
-          <span style={{ fontFamily: 'monospace', fontSize: '12px', color: '#64748B' }}>
+          <span style={{ fontFamily: 'var(--font-mono)', fontSize: '12px', color: 'rgba(0,0,0,0.6)' }}>
             Pre-filled: matches {callerHandle}&apos;s stake of {formatUsdc(callerStake)}
           </span>
 
-          {/* Quick-stake buttons */}
+          {/* Quick-stake buttons — .toggle-pill recipe: black-filled active state
+              (.on = bg #000 cream text; inverse-on-inverse needs the dark fill) */}
           <div style={{ display: 'flex', flexDirection: 'row', gap: '8px', marginTop: '4px' }}>
             {[5, 25, 50, 100].map((amt) => (
               <button
@@ -450,11 +474,14 @@ export function ChallengeFormModal({
                 style={{
                   flex: 1,
                   minHeight: '44px',
-                  fontFamily: 'monospace',
+                  fontFamily: 'var(--font-mono)',
                   fontSize: '12px',
-                  color: '#94A3B8',
-                  backgroundColor: 'transparent',
-                  border: '1px solid #2E2E42',
+                  fontWeight: 600,
+                  letterSpacing: '0.06em',
+                  color: stakeInput === amt.toFixed(2) ? 'var(--bg-inverse)' : '#000',
+                  backgroundColor: stakeInput === amt.toFixed(2) ? '#000' : 'transparent',
+                  border: '2px solid #000',
+                  borderRadius: 0,
                   padding: '6px 4px',
                   cursor: 'pointer',
                 }}
@@ -467,21 +494,21 @@ export function ChallengeFormModal({
 
         {/* Balance error */}
         {insufficientBalance && stakeValue !== null && (
-          <div style={{ fontFamily: 'monospace', fontSize: '12px', color: '#F87171', border: '1px solid #F87171', padding: '8px 12px' }}>
+          <div style={{ fontFamily: 'var(--font-mono)', fontSize: '12px', color: '#B91C1C', border: '2px solid #DC2626', padding: '8px 12px' }}>
             Insufficient USDC balance — you need {formatUsdc(stakeValue - currentBalance)} more
           </div>
         )}
 
-        {/* POT IF ACCEPTED */}
-        <div style={{ borderTop: '1px solid #1E1E2E', paddingTop: '16px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-          <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: '12px', fontWeight: 700, color: '#F1F5F9', textTransform: 'uppercase', letterSpacing: '0.12em' }}>
-            POT IF ACCEPTED
+        {/* POT IF ACCEPTED — FINAL · CONFIRM voice */}
+        <div style={{ borderTop: '1px solid rgba(0,0,0,0.25)', paddingTop: '16px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+          <div style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', fontWeight: 700, color: '#000', textTransform: 'uppercase', letterSpacing: '0.12em' }}>
+            FINAL · POT IF ACCEPTED
           </div>
-          <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '16px', color: '#F1F5F9' }}>
+          <div style={{ fontFamily: 'var(--font-mono)', fontSize: '16px', fontWeight: 700, color: '#000' }}>
             {stakeValue !== null ? formatUsdc(potIfAccepted) : '—'} · winner takes all
           </div>
           {isAsymmetric && stakeValue !== null && (
-            <div style={{ fontFamily: 'monospace', fontSize: '12px', color: '#94A3B8', marginTop: '4px' }}>
+            <div style={{ fontFamily: 'var(--font-mono)', fontSize: '12px', color: 'rgba(0,0,0,0.6)', marginTop: '4px' }}>
               Asymmetric duel — pot: {formatUsdc(potIfAccepted)}; overage returned to you at settlement
             </div>
           )}
@@ -489,21 +516,21 @@ export function ChallengeFormModal({
 
         {/* USDC approval preflight (T-3-06-06) */}
         {needsApproval && stakeValue !== null && !insufficientBalance && (
-          <div style={{ border: '1px solid #2E2E42', padding: '12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            <span style={{ fontFamily: 'monospace', fontSize: '12px', color: '#94A3B8' }}>
+          <div style={{ border: '2px solid #000', padding: '12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <span style={{ fontFamily: 'var(--font-mono)', fontSize: '12px', color: 'rgba(0,0,0,0.7)' }}>
               Approve USDC first — allow {formatUsdc(stakeValue)} to ChallengeEscrow
             </span>
             <button
               onClick={() => void handleApprove()}
               disabled={approving || approveConfirming}
               style={{
-                fontFamily: 'monospace',
+                fontFamily: 'var(--font-mono)',
                 fontSize: '13px',
                 fontWeight: 700,
-                color: '#09090E',
-                backgroundColor: approving || approveConfirming ? '#2E2E42' : '#E8F542',
-                border: '2px solid #09090E',
-                boxShadow: approving || approveConfirming ? 'none' : '4px 4px 0 #09090E',
+                color: approving || approveConfirming ? 'rgba(0,0,0,0.4)' : '#000',
+                backgroundColor: approving || approveConfirming ? 'rgba(0,0,0,0.15)' : '#E8F542',
+                border: '2px solid #000',
+                boxShadow: approving || approveConfirming ? 'none' : 'var(--shadow-brutal)',
                 padding: '10px 16px',
                 cursor: approving || approveConfirming ? 'not-allowed' : 'pointer',
               }}
@@ -515,13 +542,13 @@ export function ChallengeFormModal({
 
         {/* Placeholder notice when contract not yet deployed */}
         {isZeroAddr && (
-          <div style={{ fontFamily: 'monospace', fontSize: '12px', color: '#94A3B8', border: '1px solid #2E2E42', padding: '10px' }}>
+          <div style={{ fontFamily: 'var(--font-mono)', fontSize: '12px', color: 'rgba(0,0,0,0.7)', border: '1px solid rgba(0,0,0,0.35)', padding: '10px' }}>
             ChallengeEscrow not yet deployed — challenges available after operator deploy (03-03)
           </div>
         )}
 
         {/* Action row — flexWrap + per-button minWidth so the row stays side-by-side
-            on the 480px desktop panel but stacks full-width when the panel clamps to
+            on the desktop panel but stacks full-width when the panel clamps to
             calc(100vw - 32px) on a 375px phone (D-04). Intrinsic — no JS viewport read. */}
         <div style={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap', gap: '12px', marginTop: '4px' }}>
           {/* Keep call open — cancel */}
@@ -531,19 +558,21 @@ export function ChallengeFormModal({
               flex: '1 1 160px',
               minWidth: '160px',
               minHeight: '44px',
-              fontFamily: "'Space Grotesk', sans-serif",
+              fontFamily: 'var(--font-display)',
               fontSize: '14px',
               fontWeight: 700,
-              color: '#64748B',
+              textTransform: 'uppercase',
+              letterSpacing: '0.04em',
+              color: '#000',
               backgroundColor: 'transparent',
-              border: '2px solid #2E2E42',
+              border: '2px solid #000',
               padding: '14px 16px',
               cursor: 'pointer',
             }}
           >
             Keep call open
           </button>
-          {/* Send Challenge */}
+          {/* Send Challenge — strong CTA on cream = black fill, cream text */}
           <button
             onClick={() => void handleSendChallenge()}
             disabled={!canSend}
@@ -551,13 +580,15 @@ export function ChallengeFormModal({
               flex: '2 1 200px',
               minWidth: '200px',
               minHeight: '44px',
-              fontFamily: "'Space Grotesk', sans-serif",
+              fontFamily: 'var(--font-display)',
               fontSize: '14px',
-              fontWeight: 700,
-              color: canSend ? '#09090E' : '#64748B',
-              backgroundColor: canSend ? '#E8F542' : '#2E2E42',
-              border: `3px solid ${canSend ? '#09090E' : '#2E2E42'}`,
-              boxShadow: canSend ? '4px 4px 0 #09090E' : 'none',
+              fontWeight: 800,
+              textTransform: 'uppercase',
+              letterSpacing: '0.04em',
+              color: canSend ? 'var(--bg-inverse)' : 'rgba(0,0,0,0.4)',
+              backgroundColor: canSend ? '#000' : 'rgba(0,0,0,0.15)',
+              border: `3px solid ${canSend ? '#000' : 'rgba(0,0,0,0.3)'}`,
+              boxShadow: canSend ? 'var(--shadow-brutal)' : 'none',
               padding: '14px 16px',
               cursor: canSend ? 'pointer' : 'not-allowed',
               display: 'flex',
