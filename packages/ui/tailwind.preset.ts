@@ -1,11 +1,18 @@
 /**
  * @call-it/ui — shared Tailwind CSS preset
  *
- * Neobrutalist design system tokens (spec §14.6):
- * - Palette: brand-bg, brand-accent (yellow-green), brand-text, brand-muted,
- *            brand-border, brand-surface
- * - Outcome colors: outcome-win (green), outcome-loss (red), outcome-contrarian (purple)
- * - Font stack: display (Syne), body (Space Grotesk), mono (JetBrains Mono)
+ * Phase 09.2: values remapped to the prototype token layer (CSS custom
+ * properties defined in apps/web/app/globals.css :root — the single source
+ * of truth, D-01/D-02). Every existing KEY is preserved so ~30 @call-it/ui
+ * consumer files keep compiling; only the VALUES changed.
+ *
+ * - Palette: brand-bg, brand-accent (chartreuse), brand-text, brand-muted,
+ *            brand-border, brand-surface, brand-cream (signature inverse)
+ * - Outcome colors: outcome-win (chartreuse), outcome-loss (soft red),
+ *   outcome-contrarian (KEY kept on duel purple for duel identity — the
+ *   CONTRARIAN HIT stamp itself takes the win color via COLOR_MAP, D-03)
+ * - Font stack: display (Archivo), body (Inter), mono (JetBrains Mono) —
+ *   loaded via next/font in apps/web/app/layout.tsx (D-04)
  * - Border widths: 3px, 4px (neobrutalist hard edges)
  *
  * Consumed by apps/web/tailwind.config.ts via `presets: [uiPreset]`.
@@ -22,22 +29,26 @@ const uiPreset: Config = {
   theme: {
     extend: {
       colors: {
-        // Neobrutalist palette (spec §14.6)
-        'brand-bg': '#09090E',
-        'brand-accent': '#E8F542',
-        'brand-text': '#FFFFFF',
-        'brand-muted': '#A1A1AA',
-        'brand-border': '#27272A',
-        'brand-surface': '#18181B',
-        // Outcome colors (spec §14.6)
-        'outcome-win': '#22C55E',
-        'outcome-loss': '#EF4444',
-        'outcome-contrarian': '#A855F7',
+        // Prototype palette via CSS custom properties (globals.css :root)
+        'brand-bg': 'var(--bg-primary)',
+        'brand-accent': 'var(--accent-win)',
+        'brand-text': 'var(--text-primary)',
+        'brand-muted': 'var(--text-secondary)',
+        'brand-border': 'var(--border-subtle)',
+        'brand-surface': 'var(--bg-secondary)',
+        'brand-cream': 'var(--bg-inverse)',
+        // Outcome colors (D-03: win/loss = chartreuse/soft red)
+        'outcome-win': 'var(--accent-win)',
+        'outcome-loss': 'var(--accent-loss)',
+        'outcome-contrarian': 'var(--accent-duel)',
+        // Semantic accents
+        'accent-neutral': 'var(--accent-neutral)',
+        'accent-warning': 'var(--accent-warning)',
       },
       fontFamily: {
-        display: ['Syne', 'system-ui', 'sans-serif'],
-        body: ['Space Grotesk', 'system-ui', 'sans-serif'],
-        mono: ['JetBrains Mono', 'Menlo', 'monospace'],
+        display: ['var(--font-archivo)', 'system-ui', 'sans-serif'],
+        body: ['var(--font-inter)', 'system-ui', 'sans-serif'],
+        mono: ['var(--font-jetbrains-mono)', 'ui-monospace', 'monospace'],
       },
       borderWidth: {
         '3': '3px',
