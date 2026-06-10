@@ -6,7 +6,7 @@
  *
  * ## Baseline goldens
  *
- * Stored in: apps/web/tests/__screenshots__/design-system-snap.spec.ts/
+ * Stored in: apps/web/tests/design-system-snap.spec.ts-snapshots/
  * Committed to version control. Any visual drift in existing primitives
  * (accidental Tailwind class changes, token mutations, etc.) trips the test.
  *

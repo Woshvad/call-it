@@ -6,7 +6,7 @@
  * Playwright's built-in `toHaveScreenshot()` API captures a golden screenshot on
  * first run and compares on subsequent runs with pixelmatch (maxDiffPixelRatio: 0.02).
  *
- * Goldens live in: apps/web/tests/__screenshots__/visual-smoke.spec.ts/
+ * Goldens live in: apps/web/tests/visual-smoke.spec.ts-snapshots/
  * They are committed to version control. CI passes on first green run and flags drift.
  * To regenerate: `pnpm --filter @call-it/web exec playwright test tests/visual-smoke.spec.ts --update-snapshots`
  *

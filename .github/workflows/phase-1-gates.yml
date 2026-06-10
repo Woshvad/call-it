@@ -8,7 +8,7 @@ name: Phase 1 Gates
 #
 # Requirements: D-29, T-01-27, SAFETY-01, SAFETY-12, AUTH-01..04, AUTH-36..38, CALL-13..16, CALL-22..36
 #
-# Triggers on changes to contracts, shared, relayer, or web — the four
+# Triggers on changes to contracts, shared, ui, relayer, or web — the five
 # packages whose invariants this workflow gates.
 
 on:
@@ -22,7 +22,8 @@ on:
     paths:
       - 'packages/contracts/**'
       - 'packages/shared/**'
-      - 'apps/relayer/src/**'
+      - 'packages/ui/**'
+      - 'apps/relayer/**'
       - 'apps/web/**'
       - '.github/workflows/phase-1-gates.yml'
     tags:
@@ -36,7 +37,8 @@ on:
     paths:
       - 'packages/contracts/**'
       - 'packages/shared/**'
-      - 'apps/relayer/src/**'
+      - 'packages/ui/**'
+      - 'apps/relayer/**'
       - 'apps/web/**'
       - '.github/workflows/phase-1-gates.yml'
   workflow_dispatch:
@@ -150,7 +152,11 @@ jobs:
           # Build-artifact dirs excluded too (dist/.next/.turbo/out/target): the
           # phase-1-complete-gate job builds shared/ui/web BEFORE this grep runs,
           # and the generated dist/*.d.ts re-declares the negative-test constant.
-          VIOLATIONS=$(grep -rE "0xFF970A61[A-Fa-f0-9]+" \
+          # Case-insensitive (-i): addresses pasted from viem/subgraph/explorer
+          # output are frequently all-lowercase and would evade a cased match
+          # (quick-260610-vab WR-02). The grep -v allowlist filters match on
+          # path, not address casing, so they are unaffected.
+          VIOLATIONS=$(grep -riE "0xFF970A61[A-Fa-f0-9]+" \
             --include="*.sol" --include="*.ts" --include="*.tsx" \
             --exclude-dir=node_modules --exclude-dir=dist --exclude-dir=.next \
             --exclude-dir=.turbo --exclude-dir=out --exclude-dir=target \
@@ -171,8 +177,9 @@ jobs:
     name: No display:grid in OG card JSX
     runs-on: ubuntu-latest
     # Satori does NOT support CSS Grid — layouts must use flexbox.
-    # This job runs @call-it/ui lint (Plan 04 will populate Receipt.tsx).
-    # Until Plan 04, this is a no-op but the job slot is ready.
+    # Runs @call-it/ui lint (eslint src/) — the package is populated; a lint
+    # failure fails the job. The former `|| echo` "Plan 04 not yet available"
+    # escape was stale and swallowed real failures (quick-260610-vab WR-01).
 
     steps:
       - name: Checkout repository
@@ -190,8 +197,8 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Lint UI package (Plan 04 populates — currently no-op)
-        run: pnpm --filter @call-it/ui lint || echo "::notice::@call-it/ui not yet available (Plan 04). Job will enforce display:grid check when populated."
+      - name: Lint UI package (no-display-grid guard)
+        run: pnpm --filter @call-it/ui lint
 
       - name: Assert no display:grid in OG template files
         run: |
@@ -210,8 +217,10 @@ jobs:
   relayer-tests:
     name: Relayer unit tests
     runs-on: ubuntu-latest
-    # Runs @call-it/relayer test suite. Tolerates missing test script gracefully
-    # until Plan 07 populates the relayer with test-covered routes.
+    # Runs @call-it/relayer test suite (vitest run — 10+ suites under
+    # apps/relayer/__tests__/). A test failure fails the job. The former
+    # `|| echo` "Plan 07 not yet populated" escape was stale and swallowed
+    # real failures since the workflow first ran (quick-260610-vab CR-01).
 
     steps:
       - name: Checkout repository
@@ -230,7 +239,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Run relayer tests
-        run: pnpm --filter @call-it/relayer test || echo "::notice::@call-it/relayer test script not yet populated (Plan 07). Will enforce when available."
+        run: pnpm --filter @call-it/relayer test
 
   # ─── 01-05: Privy provider order AST regression gate (Pitfall 13) ────────────
   #
@@ -460,7 +469,11 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: playwright-report-${{ github.run_id }}
+          # run_attempt suffix: upload-artifact@v4 409-conflicts if a same-named
+          # artifact already exists in the run — run_id alone collides on
+          # re-run attempts, exactly the flaky-retry path where the report
+          # matters most (quick-260610-vab IN-01).
+          name: playwright-report-${{ github.run_id }}-${{ github.run_attempt }}
           path: |
             apps/web/playwright-report/
             apps/web/test-results/
@@ -479,7 +492,8 @@ jobs:
           # Build-artifact dirs excluded too (dist/.next/.turbo/out/target): the
           # phase-1-complete-gate job builds shared/ui/web BEFORE this grep runs,
           # and the generated dist/*.d.ts re-declares the negative-test constant.
-          VIOLATIONS=$(grep -rE "0xFF970A61[A-Fa-f0-9]+" \
+          # Case-insensitive (-i) — see usdc-paste-guard job comment (WR-02).
+          VIOLATIONS=$(grep -riE "0xFF970A61[A-Fa-f0-9]+" \
             --include="*.sol" --include="*.ts" --include="*.tsx" \
             --exclude-dir=node_modules --exclude-dir=dist --exclude-dir=.next \
             --exclude-dir=.turbo --exclude-dir=out --exclude-dir=target \
