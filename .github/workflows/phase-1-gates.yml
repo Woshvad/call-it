@@ -374,13 +374,14 @@ jobs:
       # anyway. Goldens are regenerated on the win32 dev box (command in the
       # design-system-snap.spec.ts header).
       #
-      # OG_BENCH_SLO enables og-fallback-bench.spec.ts Test 3 (SHARE-11 p95 < 100ms
-      # hard gate). CI runners are quiet hardware — the authoritative enforcement
-      # point per that spec's own header (the dev box measures the box, not the
-      # pipeline). PROVISIONAL: this line survives only because the quick-260610-vab
-      # verification run proved the runner holds the SLO; if a future runner class
-      # cannot, remove it and record the measured p95 here instead.
-      OG_BENCH_SLO: '1'
+      # OG_BENCH_SLO deliberately NOT set (quick-260610-vab, decided 2026-06-10):
+      # the provisional OG_BENCH_SLO=1 verification run (dispatch 27309389648)
+      # showed the GitHub 2-core runner CANNOT reliably hold the SHARE-11
+      # p95 < 100ms warm-render gate — og-fallback-bench Test 3 measured
+      # p95 = 150.85ms, then 134.87ms (retry #1), then 99.88ms (retry #2,
+      # a 0.12ms margin) and passed only as "flaky". GitHub 2-core runner
+      # cannot hold SHARE-11 p95<100ms deterministically; the SLO gate remains
+      # opt-in via OG_BENCH_SLO=1 on quiet dedicated hardware.
 
     steps:
       - name: Checkout repository
@@ -444,6 +445,7 @@ jobs:
       #   - Tier-2 deployed-URL tests (PLAYWRIGHT_BASE_URL unset)
       #   - real-Privy tiers (test-app-id mock sentinel)
       #   - og-thumbnail-200px (OG_200PX_BASELINES unset)
+      #   - og-fallback-bench SLO Test 3 (OG_BENCH_SLO unset — see env comment)
       #   - win32-only visual goldens (in-spec platform guard, quick-260610-vab)
       # `--reporter=list,html` overrides playwright.config.ts's pinned
       # `reporter: 'list'` so the html reporter writes apps/web/playwright-report/
