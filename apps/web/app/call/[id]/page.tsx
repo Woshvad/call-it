@@ -2349,327 +2349,245 @@ export default function CallPage() {
           )}
         </div>
 
-        {/* ── Phase 3: Challenge toast ───────────────────────────────────────── */}
-        {challengeToast && (
-          <div
-            style={{
-              position: 'fixed',
-              top: '24px',
-              right: '24px',
-              zIndex: 200,
-              backgroundColor: '#111118',
-              borderLeft: `4px solid ${challengeToast.isError ? '#F87171' : '#4ADE80'}`,
-              padding: '14px 18px',
-              fontFamily: 'monospace',
-              fontSize: '13px',
-              color: '#F1F5F9',
-              maxWidth: '340px',
-            }}
-          >
-            {challengeToast.text}
-          </div>
-        )}
+      {/* ── Phase 3: Challenge toast — wiring untouched; error accent stays
+          #F87171 (= var(--accent-loss)); chrome on the token layer ── */}
+      {challengeToast && (
+        <div
+          className="mono"
+          style={{
+            position: 'fixed',
+            top: 24,
+            right: 24,
+            zIndex: 200,
+            backgroundColor: 'var(--bg-secondary)',
+            border: '2px solid var(--border-active)',
+            borderLeft: `4px solid ${challengeToast.isError ? '#F87171' : 'var(--accent-win)'}`,
+            padding: '14px 18px',
+            fontSize: 13,
+            color: 'var(--text-primary)',
+            maxWidth: 340,
+          }}
+        >
+          {challengeToast.text}
+        </div>
+      )}
 
-        {/* ── Phase 3: Pending challenge notification block (Surface 7) ─────── */}
-        {/* Renders when challenge_proposed notification exists for this callId  */}
-        {pendingChallenge && (
-          <div
-            style={{
-              borderLeft: '2px solid #FB923C',
-              backgroundColor: '#111118',
-              padding: '16px 20px',
-              marginBottom: '24px',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '12px',
-            }}
-          >
-            {/* challenge_proposed notification text */}
-            <p
-              style={{
-                fontFamily: "'Space Grotesk', sans-serif",
-                fontSize: '16px',
-                color: '#F1F5F9',
-                margin: 0,
-              }}
-            >
-              ⚔ Challenge pending — {pendingChallenge.challengerHandle} challenged this call ·{' '}
+      {/* ── Pending challenge block (Surface 7) — .brutal-card.heavy with the
+          duel-purple identity pill. Accept/reject handlers + the USDC approve
+          preflight (T-3-06-06, SOCIAL-31 matching-stake formula) are kept
+          VERBATIM — only the chrome changes (T-09.2-24). ── */}
+      {pendingChallenge && (
+        <div className="brutal-card heavy" style={{ marginTop: 24, display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <div className="row" style={{ gap: 10, flexWrap: 'wrap' }}>
+            <span className="pill duel">⚔ 1V1 DUEL · PENDING</span>
+            <span className="mono" style={{ fontSize: 12, color: 'var(--text-secondary)', letterSpacing: '0.02em' }}>
+              {pendingChallenge.challengerHandle} challenged this call ·{' '}
               {displayHandle} has{' '}
               {Math.max(0, Math.floor((Number(pendingChallenge.proposedAt) + 86400 - Date.now() / 1000) / 3600))}h to accept or reject
-            </p>
-
-            {/* Caller-only accept/reject section (SOCIAL-49) */}
-            {userIsCaller && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                <p style={{ fontFamily: 'monospace', fontSize: '13px', color: '#94A3B8', margin: 0 }}>
-                  You have {Math.max(0, Math.floor((Number(pendingChallenge.proposedAt) + 86400 - Date.now() / 1000) / 3600))}h to accept or reject this challenge.
-                  Accepting will lock {formatUsdc(callerMatchingStake)} USDC (your matching stake).
-                </p>
-                <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: '10px', alignItems: isMobile ? 'stretch' : 'center' }}>
-                  {callerNeedsApproval ? (
-                    /* Step 1: Approve USDC (T-3-06-06) */
-                    <button
-                      onClick={() => void handleChallengeApprove()}
-                      disabled={challengeApproving || ceApproveConfirming}
-                      style={{
-                        width: isMobile ? '100%' : undefined,
-                        fontFamily: 'monospace',
-                        fontSize: '13px',
-                        fontWeight: 700,
-                        color: '#09090E',
-                        backgroundColor: (challengeApproving || ceApproveConfirming) ? '#2E2E42' : '#E8F542',
-                        border: '2px solid #09090E',
-                        boxShadow: (challengeApproving || ceApproveConfirming) ? 'none' : '4px 4px 0 #09090E',
-                        padding: '12px 18px',
-                        cursor: (challengeApproving || ceApproveConfirming) ? 'not-allowed' : 'pointer',
-                      }}
-                    >
-                      {(challengeApproving || ceApproveConfirming) ? 'Approving…' : `Approve USDC (${formatUsdc(callerMatchingStake)})`}
-                    </button>
-                  ) : (
-                    /* Step 2: Accept challenge (callerMatchingStake = min(callerInputStake, challengerStake) — SOCIAL-31) */
-                    <button
-                      onClick={() => void handleChallengeAccept()}
-                      disabled={challengeAccepting || isZeroCE}
-                      style={{
-                        width: isMobile ? '100%' : undefined,
-                        fontFamily: 'monospace',
-                        fontSize: '13px',
-                        fontWeight: 700,
-                        color: '#09090E',
-                        backgroundColor: (challengeAccepting || isZeroCE) ? '#2E2E42' : '#4ADE80',
-                        border: `2px solid ${(challengeAccepting || isZeroCE) ? '#2E2E42' : '#09090E'}`,
-                        boxShadow: (challengeAccepting || isZeroCE) ? 'none' : '4px 4px 0 #09090E',
-                        padding: '12px 18px',
-                        cursor: (challengeAccepting || isZeroCE) ? 'not-allowed' : 'pointer',
-                      }}
-                    >
-                      {challengeAccepting ? 'Accepting…' : `Accept challenge`}
-                    </button>
-                  )}
-
-                  {/* Reject path */}
-                  {!rejectConfirmOpen ? (
-                    <button
-                      onClick={() => setRejectConfirmOpen(true)}
-                      style={{
-                        width: isMobile ? '100%' : undefined,
-                        fontFamily: 'monospace',
-                        fontSize: '13px',
-                        color: '#F87171',
-                        backgroundColor: 'transparent',
-                        border: '2px solid #F87171',
-                        padding: '12px 18px',
-                        cursor: 'pointer',
-                      }}
-                    >
-                      Reject challenge
-                    </button>
-                  ) : (
-                    <div style={{ display: 'flex', flexDirection: 'row', gap: '8px', alignItems: 'center', flexWrap: 'wrap', fontFamily: 'monospace', fontSize: '12px', color: '#94A3B8' }}>
-                      <span>This will immediately refund {pendingChallenge.challengerHandle}&apos;s stake. Are you sure?</span>
-                      <button
-                        onClick={() => setRejectConfirmOpen(false)}
-                        style={{ fontFamily: 'monospace', fontSize: '12px', color: '#94A3B8', backgroundColor: 'transparent', border: '1px solid #2E2E42', padding: '4px 10px', cursor: 'pointer' }}
-                      >
-                        Keep call open
-                      </button>
-                      <button
-                        onClick={() => void handleChallengeReject()}
-                        disabled={challengeRejecting}
-                        style={{ fontFamily: 'monospace', fontSize: '12px', color: '#F87171', backgroundColor: 'transparent', border: '2px solid #F87171', padding: '4px 10px', cursor: challengeRejecting ? 'not-allowed' : 'pointer' }}
-                      >
-                        {challengeRejecting ? 'Rejecting…' : 'Yes, reject'}
-                      </button>
-                    </div>
-                  )}
-                </div>
-
-                {isZeroCE && (
-                  <p style={{ fontFamily: 'monospace', fontSize: '11px', color: '#94A3B8', margin: 0 }}>
-                    ChallengeEscrow not yet deployed — accepting enabled after operator deploy (03-03)
-                  </p>
-                )}
-              </div>
-            )}
+            </span>
           </div>
-        )}
 
-        {/* ── Two-column content: ActivityFeed (left) + QuoteCalls (right) ───
-            Mobile: stacks to a single column — activity feed FIRST, quote-calls below.
-            The quote-calls column is a READ-ONLY display surface (NOT the composer) →
-            stays in scope, gets NO desktop-only banner. */}
-        <div style={{
-          display: 'flex', flexDirection: isMobile ? 'column' : 'row',
-          gap: isMobile ? '16px' : '24px', alignItems: 'flex-start', marginBottom: '24px',
-        }}>
-
-          {/* Left: Activity feed (D-08) — full width at mobile, listed first */}
-          <div style={{ flex: 3, width: isMobile ? '100%' : undefined, display: 'flex', flexDirection: 'column', gap: '0px' }}>
-            <div
-              style={{
-                display: 'flex',
-                flexDirection: 'row',
-                alignItems: 'center',
-                gap: '8px',
-                padding: '10px 14px',
-                border: '2px solid #2E2E42',
-                borderBottom: 'none',
-                backgroundColor: '#0D0D18',
-              }}
-            >
-              {/* Live pulse indicator */}
-              <span
-                style={{
-                  width: '8px',
-                  height: '8px',
-                  borderRadius: '50%',
-                  backgroundColor: '#E8F542',
-                  display: 'inline-block',
-                  boxShadow: '0 0 4px #E8F542',
-                }}
-              />
-              <span style={{ fontFamily: 'monospace', fontSize: '11px', color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
-                Live Activity
-              </span>
-              <span style={{ fontFamily: 'monospace', fontSize: '10px', color: '#94A3B8' }}>
-                updating
-              </span>
-            </div>
-
-            {/* Activity entries */}
-            {activityFeed.length === 0 ? (
-              <div
-                style={{
-                  padding: '20px 14px',
-                  border: '2px solid #2E2E42',
-                  backgroundColor: '#0D0D18',
-                  fontFamily: 'monospace',
-                  fontSize: '12px',
-                  color: '#94A3B8',
-                }}
-              >
-                No activity yet — be the first to follow or fade.
-              </div>
-            ) : (
-              activityFeed.slice(0, 20).map((entry) => (
-                <div
-                  key={entry.id}
-                  style={{
-                    display: 'flex',
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    gap: '8px',
-                    padding: '10px 14px',
-                    border: '2px solid #2E2E42',
-                    borderTop: 'none',
-                    backgroundColor: '#0D0D18',
-                  }}
-                >
-                  <span style={{ fontFamily: 'monospace', fontSize: '13px', fontWeight: 700, color: '#E8E8E8' }}>
-                    {entry.handle}
-                  </span>
-                  <span
+          {/* Caller-only accept/reject section (SOCIAL-49) */}
+          {userIsCaller && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <p className="mono" style={{ fontSize: 12, color: 'var(--text-tertiary)', margin: 0, lineHeight: 1.5 }}>
+                You have {Math.max(0, Math.floor((Number(pendingChallenge.proposedAt) + 86400 - Date.now() / 1000) / 3600))}h to accept or reject this challenge.
+                Accepting will lock {formatUsdc(callerMatchingStake)} USDC (your matching stake).
+              </p>
+              <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: 10, alignItems: isMobile ? 'stretch' : 'center', flexWrap: 'wrap' }}>
+                {callerNeedsApproval ? (
+                  /* Step 1: Approve USDC (T-3-06-06) */
+                  <button
+                    onClick={() => void handleChallengeApprove()}
+                    disabled={challengeApproving || ceApproveConfirming}
+                    className="btn cream"
                     style={{
-                      fontFamily: 'monospace',
-                      fontSize: '12px',
-                      color: entry.action === 'followed' ? '#E8F542' : entry.action === 'faded' ? '#F87171' : '#94A3B8',
+                      width: isMobile ? '100%' : undefined,
+                      minHeight: 44,
+                      opacity: (challengeApproving || ceApproveConfirming) ? 0.5 : 1,
+                      cursor: (challengeApproving || ceApproveConfirming) ? 'not-allowed' : 'pointer',
                     }}
                   >
-                    {entry.action === 'followed' ? 'followed with' :
-                     entry.action === 'faded' ? 'faded with' :
-                     entry.action === 'caller_exited' ? 'exited (caller)' :
-                     'exited'}
-                  </span>
-                  {entry.amountUsdc > 0n && (
-                    <span style={{ fontFamily: 'monospace', fontSize: '12px', color: '#E8E8E8' }}>
-                      {formatUsdc(entry.amountUsdc)}
-                    </span>
-                  )}
-                  <span style={{ fontFamily: 'monospace', fontSize: '11px', color: '#94A3B8', marginLeft: 'auto' }}>
-                    {formatRelativeTime(entry.timestamp)}
-                  </span>
-                </div>
-              ))
+                    {(challengeApproving || ceApproveConfirming) ? 'APPROVING…' : `APPROVE USDC (${formatUsdc(callerMatchingStake)})`}
+                  </button>
+                ) : (
+                  /* Step 2: Accept challenge (callerMatchingStake = min(callerInputStake, challengerStake) — SOCIAL-31) */
+                  <button
+                    onClick={() => void handleChallengeAccept()}
+                    disabled={challengeAccepting || isZeroCE}
+                    className="btn cream"
+                    style={{
+                      width: isMobile ? '100%' : undefined,
+                      minHeight: 44,
+                      opacity: (challengeAccepting || isZeroCE) ? 0.5 : 1,
+                      cursor: (challengeAccepting || isZeroCE) ? 'not-allowed' : 'pointer',
+                    }}
+                  >
+                    {challengeAccepting ? 'ACCEPTING…' : 'ACCEPT CHALLENGE ▸'}
+                  </button>
+                )}
+
+                {/* Reject path */}
+                {!rejectConfirmOpen ? (
+                  <button
+                    onClick={() => setRejectConfirmOpen(true)}
+                    className="btn outline-white"
+                    style={{ width: isMobile ? '100%' : undefined, minHeight: 44 }}
+                  >
+                    REJECT CHALLENGE
+                  </button>
+                ) : (
+                  <div className="mono" style={{ display: 'flex', flexDirection: 'row', gap: 8, alignItems: 'center', flexWrap: 'wrap', fontSize: 12, color: 'var(--text-tertiary)' }}>
+                    <span>This will immediately refund {pendingChallenge.challengerHandle}&apos;s stake. Are you sure?</span>
+                    <button
+                      onClick={() => setRejectConfirmOpen(false)}
+                      className="btn ghost"
+                      style={{ minHeight: 44 }}
+                    >
+                      Keep call open
+                    </button>
+                    <button
+                      onClick={() => void handleChallengeReject()}
+                      disabled={challengeRejecting}
+                      className="btn fade"
+                      style={{ minHeight: 44, cursor: challengeRejecting ? 'not-allowed' : 'pointer', opacity: challengeRejecting ? 0.5 : 1 }}
+                    >
+                      {challengeRejecting ? 'Rejecting…' : 'Yes, reject'}
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {isZeroCE && (
+                <p className="mono" style={{ fontSize: 11, color: 'var(--text-tertiary)', margin: 0 }}>
+                  ChallengeEscrow not yet deployed — accepting enabled after operator deploy (03-03)
+                </p>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── Two-column: ACTIVITY (left) + QUOTE CALLS (right) — prototype
+          section-divider + .activity-row recipes over the existing 5s-polled
+          activityFeed/quoteCalls data. Handles only (AUTH-44). Mobile stacks
+          to a single column, activity first. The quote-calls column is a
+          READ-ONLY display surface (NOT the composer). Quotes section is
+          HIDDEN entirely when empty (D-07). */}
+      <div
+        style={{
+          display: 'flex',
+          flexDirection: isMobile ? 'column' : 'row',
+          gap: isMobile ? 16 : 24,
+          alignItems: 'flex-start',
+          marginTop: 32,
+          marginBottom: 24,
+        }}
+      >
+        {/* Left: activity feed (D-08) */}
+        <div style={{ flex: 3, width: isMobile ? '100%' : undefined, minWidth: 0 }}>
+          <div className="section-divider" style={{ marginTop: 0 }}>
+            <span className="title">
+              <span className="live-dot" />
+              ACTIVITY · UPDATING
+            </span>
+            <span className="line" />
+            {activityFeed.length > 0 && (
+              <span className="mono" style={{ fontSize: 10.5, color: 'var(--text-tertiary)' }}>
+                {activityFeed.length} actions
+              </span>
             )}
           </div>
 
-          {/* Right: Quote-calls column (D-08, SOCIAL-44, SOCIAL-45) — full width at mobile, below the feed */}
-          <div style={{ flex: 2, width: isMobile ? '100%' : undefined, display: 'flex', flexDirection: 'column', gap: '0px' }}>
-            <div
-              style={{
-                padding: '10px 14px',
-                border: '2px solid #2E2E42',
-                borderBottom: 'none',
-                backgroundColor: '#0D0D18',
-              }}
-            >
-              <span style={{ fontFamily: 'monospace', fontSize: '11px', color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
-                Quote Calls
-              </span>
+          {activityFeed.length === 0 ? (
+            <div className="mono" style={{ padding: '16px 0', fontSize: 12, color: 'var(--text-tertiary)', letterSpacing: '0.04em' }}>
+              No activity yet.
+            </div>
+          ) : (
+            <div className="col" style={{ gap: 0 }}>
+              {activityFeed.slice(0, 20).map((entry) => {
+                // Side → pill color: follow=win, fade=loss, exits=neutral
+                const sidePill =
+                  entry.action === 'followed' ? 'win' : entry.action === 'faded' ? 'loss' : 'neutral';
+                const actionLabel =
+                  entry.action === 'followed' ? 'FOLLOWED' :
+                  entry.action === 'faded' ? 'FADED' :
+                  entry.action === 'caller_exited' ? 'CALLER EXITED' :
+                  'EXITED';
+                return (
+                  <div key={entry.id} className="activity-row">
+                    <span className={`avatar sm ${avatarGradClass(entry.handle)}`} aria-hidden="true">
+                      {(entry.handle.replace(/^[@#]/, '')[0] ?? '?').toUpperCase()}
+                    </span>
+                    <div className="row" style={{ gap: 10, flexWrap: 'wrap' }}>
+                      {/* handle only — AUTH-44 */}
+                      <span style={{ fontWeight: 700, fontSize: 13 }}>{entry.handle}</span>
+                      <span className={`pill ${sidePill}`}>{actionLabel}</span>
+                      {entry.amountUsdc > 0n && (
+                        <span className="mono" style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
+                          {formatUsdc(entry.amountUsdc)}
+                        </span>
+                      )}
+                    </div>
+                    <span className="mono" style={{ fontSize: 10.5, color: 'var(--text-tertiary)', letterSpacing: '0.04em' }}>
+                      {formatRelativeTime(entry.timestamp)}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* Right: quote calls (SOCIAL-44/45) — hidden when empty (D-07) */}
+        {quoteCalls.length > 0 && (
+          <div style={{ flex: 2, width: isMobile ? '100%' : undefined, minWidth: 0 }}>
+            <div className="section-divider" style={{ marginTop: 0 }}>
+              <span className="title">QUOTE CALLS · {quoteCalls.length}</span>
+              <span className="line" />
             </div>
 
-            {quoteCalls.length === 0 ? (
-              <div
-                style={{
-                  padding: '20px 14px',
-                  border: '2px solid #2E2E42',
-                  backgroundColor: '#0D0D18',
-                  fontFamily: 'monospace',
-                  fontSize: '12px',
-                  color: '#94A3B8',
-                }}
-              >
-                No quote-calls yet.
-              </div>
-            ) : (
-              quoteCalls.slice(0, 10).map((entry) => (
-                <div
-                  key={String(entry.id)}
-                  style={{
-                    padding: '12px 14px',
-                    border: '2px solid #2E2E42',
-                    borderTop: 'none',
-                    backgroundColor: '#0D0D18',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '6px',
-                  }}
-                >
-                  <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: '8px' }}>
-                    <span style={{ fontFamily: 'monospace', fontSize: '13px', fontWeight: 700, color: '#E8E8E8' }}>
-                      {entry.handle}
-                    </span>
-                    {/* FADING/FOLLOWING stance tag — SOCIAL-45 */}
-                    <span
-                      style={{
-                        fontFamily: 'monospace',
-                        fontSize: '10px',
-                        fontWeight: 700,
-                        color: entry.stance === 'following' ? '#E8F542' : '#F87171',
-                        border: `1px solid ${entry.stance === 'following' ? '#E8F542' : '#F87171'}`,
-                        padding: '1px 6px',
-                        textTransform: 'uppercase',
-                        letterSpacing: '0.08em',
-                      }}
-                    >
+            <div className="col" style={{ gap: 12 }}>
+              {quoteCalls.slice(0, 10).map((entry) => (
+                <div key={String(entry.id)} className="brutal-card" style={{ padding: 18 }}>
+                  <div className="spread" style={{ marginBottom: 10, flexWrap: 'wrap', gap: 8 }}>
+                    <div className="row" style={{ gap: 8 }}>
+                      <span className={`avatar sm ${avatarGradClass(entry.handle)}`} aria-hidden="true">
+                        {(entry.handle.replace(/^[@#]/, '')[0] ?? '?').toUpperCase()}
+                      </span>
+                      {/* handle only — AUTH-44 */}
+                      <span style={{ fontSize: 13, fontWeight: 700 }}>{entry.handle}</span>
+                    </div>
+                    {/* FOLLOWING/FADING stance pill — SOCIAL-45 */}
+                    <span className={`pill ${entry.stance === 'following' ? 'win' : 'loss'}`}>
                       {entry.stance === 'following' ? 'FOLLOWING' : 'FADING'}
                     </span>
                   </div>
-                  <p style={{ fontFamily: 'monospace', fontSize: '12px', color: '#B4B4C8', margin: 0 }}>
+                  <p style={{ margin: 0, fontSize: 13, lineHeight: 1.5, color: 'var(--text-secondary)' }}>
                     {entry.marketLine}
                   </p>
                   <Link
                     href={`/call/${entry.id}`}
-                    style={{ fontFamily: 'monospace', fontSize: '11px', color: '#94A3B8', textDecoration: 'none' }}
+                    className="mono"
+                    style={{
+                      fontSize: 11,
+                      color: 'var(--text-tertiary)',
+                      textDecoration: 'none',
+                      letterSpacing: '0.04em',
+                      marginTop: 10,
+                      minHeight: 44,
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                    }}
                   >
                     view quote call ↗
                   </Link>
                 </div>
-              ))
-            )}
+              ))}
+            </div>
           </div>
-        </div>
+        )}
+      </div>
 
       {/* ── Modals ──────────────────────────────────────────────────────────── */}
       <FollowFadeModal
