@@ -369,23 +369,47 @@ Plans:
 **Depends on:** Phase 9
 **Research:** 09.2-RESEARCH.md (compatibility audit, 2026-06-10 8-agent sweep: variant canon, token delta, screen-by-screen REUSE/PARTIAL/NEW-BUILD map, wiring-risk register, adoption sequence)
 **Plans:** 15 plans
-
 Plans:
+**Wave 1**
 
 - [ ] 09.2-01-PLAN.md — Wave 1: foundations — prototype :root tokens + brutal-* primitive classes into globals.css, next/font Archivo/Inter/JBM, tailwind.preset.ts + COLOR_MAP remap (D-01/D-02/D-03/D-04)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
 - [ ] 09.2-02-PLAN.md — Wave 2: @call-it/ui retheme — Button/Card/Stamp/Tag/VerifiedBadge/Skeleton/Toast + ConvictionBar/MarketPositioningBar (contrarian stamp fix, flexbox-only)
 - [ ] 09.2-03-PLAN.md — Wave 2: app shell — Icon/AppShell/Sidebar/SystemTicker(flag OFF), layout mount swap, GlobalNav retirement, MobileDrawer fold (D-10/D-11)
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
 - [ ] 09.2-04-PLAN.md — Wave 3: leaderboard restyle (hero + brutal-table, D-07 degradation, D-08 cuts) + leaderboard.spec lockstep
 - [ ] 09.2-05-PLAN.md — Wave 3: profile restyle (fake 60% bars removed, no-source sections hidden) + ProfileHeader retheme + spec lockstep
 - [ ] 09.2-06-PLAN.md — Wave 3: feed restyle (CallCard, Live/Settled tabs only, FROM YOUR X divider, NOTHING ON THE TAPE empty state)
+
+**Wave 4** *(blocked on Wave 3 completion)*
+
 - [ ] 09.2-07-PLAN.md — Wave 4: /call/[id] settled receipt branch (stamp + SETTLED_OUTCOMES tints + 2-node timeline + share wiring kept) + Dispute/Provenance cream chrome
 - [ ] 09.2-08-PLAN.md — Wave 4: cream .modal-panel retheme — FollowFadeModal/CallerExitModal/PositionExitModal/ChallengeFormModal (logic untouched, D-06/D-13)
+
+**Wave 5** *(blocked on Wave 4 completion)*
+
 - [ ] 09.2-09-PLAN.md — Wave 5: /call/[id] live receipt branch (odds split bar, activity rows, CTAs → existing modals, WATCH cut)
+
+**Wave 6** *(blocked on Wave 5 completion)*
+
 - [ ] 09.2-10-PLAN.md — Wave 6: /new restyle over RHF/zod/hooks + conviction-zone words + $5/25/50/100 quick-picks + cream PublishConfirmModal + Receipt preview retheme
+
+**Wave 7** *(blocked on Wave 6 completion)*
+
 - [ ] 09.2-11-PLAN.md — Wave 7: duel restyle (VS hero, riders, consensus bar; non-transacting Side-with stubs CUT per D-08)
 - [ ] 09.2-12-PLAN.md — Wave 7: landing — restyled /signin carries home.jsx hero (D-12 lower-risk option; middleware untouched, testids preserved)
 - [ ] 09.2-13-PLAN.md — Wave 7: uncovered surfaces — onboarding 5 steps, disputes, notification inbox, terms, settings, system banners (D-13)
+
+**Wave 8** *(blocked on Wave 7 completion)*
+
 - [ ] 09.2-14-PLAN.md — Wave 8: phase audit (legacy palette retirement, D-14 invariants, address/grid/postcss gates) + mobile clamp pass (UI-48)
+
+**Wave 9** *(blocked on Wave 8 completion)*
+
 - [ ] 09.2-15-PLAN.md — Wave 9: [OPERATOR CHECKPOINT] design approval vs prototype ground truth → visual-golden regeneration + full Playwright suite green (D-15)
 
 ### Phase 09.1: Testnet demo hardening on Arbitrum Sepolia (INSERTED)

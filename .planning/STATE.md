@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: milestone
 status: executing
-stopped_at: Completed 09-01-PLAN.md
-last_updated: "2026-06-10T10:43:54.072Z"
+stopped_at: Phase 09.2 UI-SPEC approved
+last_updated: "2026-06-10T11:33:15.398Z"
 last_activity: "2026-06-10 - Completed quick task 260610-f6s (--validate): polished the CONNECT SOCIALS linked state (full-width "✓ @username linked" indicators) AND fixed the Farcaster "Connecting…" infinite hang (surface the Warpcast QR/redirect via useSignIn `url` + timeout, never hangs) — 1 file SocialLinkControls.tsx, committed 1bc4e55, verifier 8/8 (human_needed = live Warpcast scan only), not pushed (operator deploys web via Vercel)"
 progress:
   total_phases: 16
@@ -491,6 +491,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-06-09T13:08:36.143Z
-Stopped at: Completed 09-01-PLAN.md
-Resume file: .planning/phases/09-mobile-responsive-on-7-critical-pages/09-UI-SPEC.md
+Last session: 2026-06-10T11:00:20.280Z
+Stopped at: Phase 09.2 UI-SPEC approved
+Resume file: .planning/phases/09.2-prototype-design-adoption-rebuild-apps-web-ui-to-the-call-it/09.2-UI-SPEC.md
