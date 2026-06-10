@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: milestone
 status: executing
-stopped_at: Completed 09.2-12-PLAN.md
-last_updated: "2026-06-10T16:08:14.508Z"
+stopped_at: Completed 09.2-13-PLAN.md
+last_updated: "2026-06-10T16:36:25.762Z"
 last_activity: 2026-06-10 -- Phase 09.2 execution started
 progress:
   total_phases: 16
   completed_phases: 11
   total_plans: 98
-  completed_plans: 95
+  completed_plans: 96
   percent: 69
 ---
 
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-05-21)
 ## Current Position
 
 Phase: 09.2 (prototype-design-adoption-rebuild-apps-web-ui-to-the-call-it) — EXECUTING
-Plan: 13 of 15
+Plan: 14 of 15
 
 > **Strategic pivot (2026-06-09):** Mainnet is PAUSED till further notice. Phases **10 (mainnet deploy gate)** and **10.5 (mainnet multisig lockdown)** are ON HOLD. Active focus is **Phase 09.1 — Testnet Demo Hardening**: make the full product demo-perfect end-to-end on the live Arbitrum Sepolia deployment. Next: `/gsd-discuss-phase 09.1`.
 
@@ -182,6 +182,7 @@ All 3 operator actions were run this session (user explicitly authorized "run al
 | Phase 09.2 P10 | 24min | 3 tasks | 16 files |
 | Phase 09.2 P11 | 13min | 2 tasks | 1 files |
 | Phase 09.2 P12 | 11min | 2 tasks | 3 files |
+| Phase 09.2 P13 | 21min | 3 tasks | 15 files |
 
 ## Accumulated Context
 
@@ -372,6 +373,9 @@ completed: 2026-05-29
 - [Phase 09.2-11]: Duel page: Side-with no-op CTAs + FollowFadeModal stubs CUT (D-08); live-spread + rep-payload hidden (D-07); hardcoded LOCKED replaced by real ChallengeStatus word; explicit error state replaces placeholder-identity render
 - [Phase ?]: [09.2-12]: D-12 decision of record — restyled /signin carries the home.jsx landing hero; public-/ middleware carve-out rejected (auth perimeter frozen: middleware diff empty, privy-token cookie flow + onboarding redirects untouched)
 - [Phase ?]: [09.2-12]: Landing platform totals + The Tape/leaderboard previews hidden not faked (D-07); .lp-hero-headline recipe applied locally in page.tsx (class absent from globals.css, file not in plan scope)
+- [Phase 09.2]: 09.2-13: Tagline step ships without .brutal-textarea — AUTH-21 line is spec-locked display copy, not user input (restyle-only invariant)
+- [Phase 09.2]: 09.2-13: WalletExportPrompt + PrivyFundButton intentionally unedited (prompt renders null; toast chrome = rethemed Toast primitive; fund button already token-recipe Button)
+- [Phase 09.2]: 09.2-13: Disputes back-to-feed link cut as redundant chrome (AppShell sidebar provides the route); OPEN pill = .pill neutral, upheld/overturned = win/loss pills
 
 ## Performance
 
@@ -527,6 +531,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-06-10T16:08:01.285Z
-Stopped at: Completed 09.2-12-PLAN.md
+Last session: 2026-06-10T16:36:25.741Z
+Stopped at: Completed 09.2-13-PLAN.md
 Resume file: None
