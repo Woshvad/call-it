@@ -119,7 +119,7 @@ Requirements for the v1 mainnet release. Each line is an atomic, testable behavi
 - [ ] **CALL-46**: Frontend displays the rounded UTC day next to the chosen deadline so duplicate-detection day-boundary surprises are visible (§6.2, App.A.1)
 - [ ] **CALL-47**: Stake input offers quick-stake buttons $5 / $25 / $50 / $100, capped at $100 per call (§15.2)
 - [ ] **CALL-48**: Inline validation shows red border and "Minimum stake is $5 USDC" if user enters <$5 (§15.2)
-- [ ] **CALL-49**: Inline duplicate detection shows amber "⚠ A nearly identical call is already live. Quote it instead →" block above the conviction slider when fields hash to an existing call (§15.2, §6.2)
+- [x] **CALL-49**: Inline duplicate detection shows amber "⚠ A nearly identical call is already live. Quote it instead →" block above the conviction slider when fields hash to an existing call (§15.2, §6.2)
 - [ ] **CALL-50**: Reasoning field is optional at all stake levels (§6.4, §15.2)
 - [ ] **CALL-51**: Advanced Settings disclosure exposes three toggles: "Allow followers to ride the call" (default ON), "Open to 1v1 challenges" (default ON), "Auto-post receipt to socials on settle" (default ON) (§15.2)
 - [ ] **CALL-52**: Two-step publish flow: clicking "Publish call · stake $XX" opens a confirmation modal with full-size receipt preview + breakdown table (stake, conviction, payout, penalty, rep impact, $10 fee) before the wallet transaction triggers (§15.2)
@@ -660,7 +660,7 @@ Which phases cover which requirements. Updated during roadmap creation by the ro
 | CALL-46 | Phase 1 | Pending |
 | CALL-47 | Phase 1 | Pending |
 | CALL-48 | Phase 1 | Pending |
-| CALL-49 | Phase 1 | Pending |
+| CALL-49 | Phase 1 | Complete |
 | CALL-50 | Phase 1 | Pending |
 | CALL-51 | Phase 1 | Pending |
 | CALL-52 | Phase 1 | Pending |

@@ -368,7 +368,7 @@ Plans:
 **Requirements**: TBD (UI restyle of existing requirement surfaces; no new mechanical requirements)
 **Depends on:** Phase 9
 **Research:** 09.2-RESEARCH.md (compatibility audit, 2026-06-10 8-agent sweep: variant canon, token delta, screen-by-screen REUSE/PARTIAL/NEW-BUILD map, wiring-risk register, adoption sequence)
-**Plans:** 9/15 plans executed
+**Plans:** 10/15 plans executed
 Plans:
 **Wave 1**
 
@@ -396,7 +396,7 @@ Plans:
 
 **Wave 6** *(blocked on Wave 5 completion)*
 
-- [ ] 09.2-10-PLAN.md — Wave 6: /new restyle over RHF/zod/hooks + conviction-zone words + $5/25/50/100 quick-picks + cream PublishConfirmModal + Receipt preview retheme
+- [x] 09.2-10-PLAN.md — Wave 6: /new restyle over RHF/zod/hooks + conviction-zone words + $5/25/50/100 quick-picks + cream PublishConfirmModal + Receipt preview retheme
 
 **Wave 7** *(blocked on Wave 6 completion)*
 
