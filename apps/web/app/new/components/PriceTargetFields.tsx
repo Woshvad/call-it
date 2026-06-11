@@ -61,7 +61,10 @@ export function PriceTargetFields({ control, errors }: PriceTargetFieldsProps) {
         )}
         {price !== null && (
           <div className="mono" style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>
-            Current price · ${formatUsdPrice(price)}
+            Current price ·{' '}
+            <span style={{ color: 'var(--accent-win)', fontWeight: 600 }}>
+              ${formatUsdPrice(price)}
+            </span>
           </div>
         )}
         {errors.assetA && (
