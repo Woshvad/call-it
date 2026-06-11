@@ -8,6 +8,7 @@
  */
 
 export { callRegistryAbi } from './CallRegistry';
+export { erc20Abi } from './erc20';
 export { profileRegistryAbi } from './ProfileRegistry';
 export { followFadeMarketAbi } from './FollowFadeMarket';
 export { challengeEscrowAbi } from './ChallengeEscrow';

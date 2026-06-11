@@ -5,19 +5,34 @@ import { useRouter } from 'next/navigation';
 import type { UseFormSetError } from 'react-hook-form';
 import { usePrivy } from '@privy-io/react-auth';
 import { useAccount } from 'wagmi';
-import { encodeFunctionData } from 'viem';
+import {
+  getBalance,
+  readContract,
+  writeContract,
+  waitForTransactionReceipt,
+} from 'wagmi/actions';
 import type { CreateCallInput } from '@call-it/shared';
 import {
   MARKET_TYPE_TO_UINT,
   EVENT_SUBTYPE_TO_UINT,
   CATEGORY_TO_UINT,
+  CREATION_FEE,
 } from '@call-it/shared';
-import { callRegistryAbi } from '@/lib/abis';
-import { createAaClient } from '@/lib/aa-config';
-import { useCirclePaymaster } from '@/hooks/useCirclePaymaster';
+import { callRegistryAbi, erc20Abi } from '@/lib/abis';
+import { wagmiConfig } from '@/lib/wagmi';
+import {
+  ACTIVE_CHAIN_ID,
+  USDC_ADDRESS,
+  CALL_REGISTRY_ADDRESS,
+} from '@/lib/chain';
 import { useToast } from '@call-it/ui';
 import { RelayerError, postPreflight } from '@/lib/relayer-client';
 import { buildPreflightBody } from '../lib/preflight-body';
+import {
+  extractCallIdFromLogs,
+  extractRevertErrorName,
+  isUserRejection,
+} from '../lib/call-created-log';
 import { keccak256, toBytes } from 'viem';
 
 /**
@@ -36,9 +51,24 @@ const HIDDEN_ERROR_FIELDS = new Set([
   'root',
 ]);
 
+/**
+ * Minimum native-token balance required before we attempt ANY transaction.
+ * 0.00001 ETH — far below one tx's actual gas cost, so this only catches the
+ * truly-empty (0 ETH) wallet case and directs the user to a faucet instead of
+ * letting the wallet throw an opaque gas-estimation error.
+ */
+const GAS_FLOOR_WEI = 10_000_000_000_000n;
+
+/**
+ * wagmi/actions take the typed wagmiConfig as their first argument, so the
+ * `chainId` param is narrowed to the config's chain-id union (421614 | 42161).
+ * ACTIVE_CHAIN_ID is declared `number` in @/lib/chain — narrow it here.
+ */
+type ActiveChainId = (typeof wagmiConfig)['chains'][number]['id'];
+
 export interface PublishState {
   isPublishing: boolean;
-  step: 'idle' | 'preflight' | 'signing' | 'waiting' | 'success' | 'error';
+  step: 'idle' | 'preflight' | 'approving' | 'signing' | 'waiting' | 'success' | 'error';
   error: string | null;
   txHash: string | null;
 }
@@ -55,13 +85,17 @@ export interface PublishResult {
 /**
  * usePublishCall — orchestrates the full call publish flow.
  *
- * Flow (D-28, Plan 07 paymaster handoff):
+ * Flow (D-28, direct EOA — quick-260611-co5):
  *   1. POST /api/calls/preflight — server-side gate; on 422 → setError fields + close modal
- *   2. Build calldata via encodeFunctionData({ abi: callRegistryAbi, functionName: 'createCall' })
- *   3. Create AA client via createAaClient() (Plan 05 stub, wired in Plan 07/08)
- *   4. sendUserOperation with ERC-7677 paymaster
- *   5. On -32000 sponsorship-cap-exceeded → call useCirclePaymaster().buildPaymasterAndData()
- *   6. waitForUserOperationReceipt → toast success → redirect to /profile/{address}
+ *   2. Gas guard — getBalance; 0-ETH wallets get a faucet-direction toast BEFORE any tx
+ *   3. USDC allowance check — approve(stake + CREATION_FEE) when allowance is short
+ *   4. CallRegistry.createCall via direct wagmi writeContract (connected EOA signs)
+ *   5. waitForTransactionReceipt → extract callId from the CallCreated log
+ *   6. Toast success → redirect to /call/{callId} (the receipt page)
+ *
+ * Direct EOA until the AA client lands (quick-260611-co5 — the AA stub at
+ * lib/aa-config.ts was never wired; verified live 2026-06-11). No gas
+ * sponsorship is configured, so the wallet needs Sepolia ETH for gas.
  *
  * Requirement: CALL-37..70, AUTH-27, AUTH-33, AUTH-34, D-28, D-31
  */
@@ -71,7 +105,6 @@ export function usePublishCall(
   const router = useRouter();
   const { getAccessToken } = usePrivy();
   const { address } = useAccount();
-  const { buildPaymasterAndData, isConfigured: isCircleConfigured } = useCirclePaymaster();
   const { show: showToast } = useToast();
 
   const [state, setState] = useState<PublishState>({
@@ -116,16 +149,68 @@ export function usePublishCall(
         // Apply suggested conviction (auto-cap from Gate 6.3)
         const effectiveConviction = preflight.suggestedConviction;
 
-        // ─── Step 2: Build calldata ────────────────────────────────────────
+        // ─── Step 2: Gas guard — BEFORE any transaction ────────────────────
+        // No Privy gas sponsorship is configured; a direct EOA write needs
+        // native ETH for gas. A 0-ETH wallet would otherwise stall on an
+        // opaque gas-estimation error — direct it to a faucet instead.
+        const balance = await getBalance(wagmiConfig, {
+          address,
+          chainId: ACTIVE_CHAIN_ID as ActiveChainId,
+        });
+        if (balance.value < GAS_FLOOR_WEI) {
+          const faucetMessage =
+            'This wallet has no Sepolia ETH for gas — get a free drip from a faucet (e.g. the Alchemy Arbitrum Sepolia faucet), then retry.';
+          showToast({ status: 'error', message: faucetMessage, duration: 5000 });
+          setState({
+            isPublishing: false,
+            step: 'error',
+            error: faucetMessage,
+            txHash: null,
+          });
+          return { status: 'error' };
+        }
+
+        // ─── Step 3: USDC allowance check + approve when short ─────────────
+        // CallRegistry pulls stake + the $10 creation fee in one transferFrom.
+        const allowance = await readContract(wagmiConfig, {
+          address: USDC_ADDRESS,
+          abi: erc20Abi,
+          functionName: 'allowance',
+          args: [address, CALL_REGISTRY_ADDRESS],
+          chainId: ACTIVE_CHAIN_ID as ActiveChainId,
+        });
+        const required = input.stake + CREATION_FEE;
+
+        if (allowance < required) {
+          setState((s) => ({ ...s, step: 'approving' }));
+          const approveHash = await writeContract(wagmiConfig, {
+            address: USDC_ADDRESS,
+            abi: erc20Abi,
+            functionName: 'approve',
+            args: [CALL_REGISTRY_ADDRESS, required],
+            chainId: ACTIVE_CHAIN_ID as ActiveChainId,
+          });
+          const approveReceipt = await waitForTransactionReceipt(wagmiConfig, {
+            hash: approveHash,
+            chainId: ACTIVE_CHAIN_ID as ActiveChainId,
+          });
+          if (approveReceipt.status !== 'success') {
+            throw new Error('USDC approval transaction reverted on-chain');
+          }
+        }
+
+        // ─── Step 4: createCall via direct wagmi write ─────────────────────
         setState((s) => ({ ...s, step: 'signing' }));
 
         const criteriaHash = input.criteriaText
           ? keccak256(toBytes(input.criteriaText))
           : '0x0000000000000000000000000000000000000000000000000000000000000000' as `0x${string}`;
 
-        const calldata = encodeFunctionData({
+        const txHash = await writeContract(wagmiConfig, {
+          address: CALL_REGISTRY_ADDRESS,
           abi: callRegistryAbi,
           functionName: 'createCall',
+          chainId: ACTIVE_CHAIN_ID as ActiveChainId,
           args: [
             MARKET_TYPE_TO_UINT[input.marketType],                       // marketType uint8
             EVENT_SUBTYPE_TO_UINT[input.eventSubtype ?? 'none'],          // eventSubtype uint8
@@ -142,44 +227,19 @@ export function usePublishCall(
           ],
         });
 
-        // ─── Step 3: Send userOp via AA client ────────────────────────────
-        const aaClient = createAaClient(null);
-        let userOpHash: `0x${string}`;
-
-        try {
-          userOpHash = await aaClient.sendUserOperation(calldata);
-        } catch (err: unknown) {
-          // Check for sponsorship-cap-exceeded error from relayer paymaster (-32000)
-          const errMsg = err instanceof Error ? err.message : String(err);
-          if (
-            errMsg.includes('sponsorship-cap-exceeded') ||
-            errMsg.includes('-32000')
-          ) {
-            if (isCircleConfigured) {
-              // D-06: Handoff to Circle USDC Paymaster for tx 6+
-              const paymasterAndData = await buildPaymasterAndData(
-                null,
-                2_000_000n, // estimate $2 USDC max gas
-              );
-              // TODO: Re-submit userOp with paymasterAndData (requires full AA client wiring)
-              // For Phase 1, surface a clear error so the user knows to enable Circle paymaster
-              throw new Error(
-                `Circle paymaster handoff required (tx 6+). paymasterAndData built: ${paymasterAndData.slice(0, 10)}...`,
-              );
-            } else {
-              throw new Error(
-                'Sponsorship cap exceeded. Please configure NEXT_PUBLIC_CIRCLE_PAYMASTER_ADDRESS to continue.',
-              );
-            }
-          }
-          throw err;
+        // ─── Step 5: Wait for receipt ──────────────────────────────────────
+        setState((s) => ({ ...s, step: 'waiting', txHash }));
+        const receipt = await waitForTransactionReceipt(wagmiConfig, {
+          hash: txHash,
+          chainId: ACTIVE_CHAIN_ID as ActiveChainId,
+        });
+        if (receipt.status !== 'success') {
+          throw new Error('Transaction reverted on-chain');
         }
 
-        // ─── Step 4: Wait for receipt ──────────────────────────────────────
-        setState((s) => ({ ...s, step: 'waiting', txHash: userOpHash }));
-        await aaClient.waitForUserOperationReceipt(userOpHash);
+        // ─── Step 6: Success + redirect to the receipt page ────────────────
+        const callId = extractCallIdFromLogs(receipt.logs, CALL_REGISTRY_ADDRESS);
 
-        // ─── Step 5: Success ──────────────────────────────────────────────
         setState((s) => ({ ...s, step: 'success', isPublishing: false }));
 
         showToast({
@@ -188,9 +248,16 @@ export function usePublishCall(
           duration: 5000,
         });
 
-        // Redirect to profile (Plan 09 will route to /call/[id] once feed is live)
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        router.push(`/profile/${address}` as any);
+        if (callId !== null) {
+          // The receipt page IS the product moment.
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          router.push(`/call/${callId}` as any);
+        } else {
+          // Defensive: a success receipt should always carry CallCreated —
+          // never dead-end a succeeded tx; fall back to the profile page.
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          router.push(`/profile/${address}` as any);
+        }
 
         return { status: 'success' };
       } catch (err: unknown) {
@@ -212,8 +279,21 @@ export function usePublishCall(
           }
         }
 
-        const message =
-          err instanceof Error ? err.message : 'Failed to publish call';
+        // quick-260611-co5 error honesty: user rejections and decoded
+        // contract reverts surface as human-readable messages BEFORE the
+        // generic err.message fallback — never a silent stall.
+        const revertName = extractRevertErrorName(err);
+        let message: string;
+        if (isUserRejection(err)) {
+          message = 'Signature request rejected — nothing was sent.';
+        } else if (revertName !== null) {
+          message =
+            revertName === 'AssetNotAllowlisted'
+              ? "This asset isn't allowlisted on this deployment yet."
+              : `Transaction reverted: ${revertName}`;
+        } else {
+          message = err instanceof Error ? err.message : 'Failed to publish call';
+        }
 
         setState({
           isPublishing: false,
@@ -255,8 +335,6 @@ export function usePublishCall(
     [
       address,
       getAccessToken,
-      buildPaymasterAndData,
-      isCircleConfigured,
       showToast,
       router,
       setError,

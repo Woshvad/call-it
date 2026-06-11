@@ -48,7 +48,7 @@ export function PublishConfirmModal({
 }: PublishConfirmModalProps) {
   if (!isOpen) return null;
 
-  const isSigning = isPublishing && (publishStep === 'preflight' || publishStep === 'signing' || publishStep === 'waiting');
+  const isSigning = isPublishing && (publishStep === 'preflight' || publishStep === 'approving' || publishStep === 'signing' || publishStep === 'waiting');
 
   return (
     <div className="modal-overlay" style={{ position: 'fixed', inset: 0, zIndex: 200 }}>
@@ -204,6 +204,7 @@ export function PublishConfirmModal({
                 }}
               >
                 {isPublishing && publishStep === 'preflight' && 'Running gate checks...'}
+                {isPublishing && publishStep === 'approving' && 'Approving USDC spend…'}
                 {isPublishing && publishStep === 'signing' && 'Please sign in your wallet...'}
                 {isPublishing && publishStep === 'waiting' && 'Waiting for on-chain confirmation...'}
                 {!isPublishing && 'Processing...'}

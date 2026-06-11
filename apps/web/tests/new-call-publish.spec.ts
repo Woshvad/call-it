@@ -10,7 +10,7 @@
  *   - no display:grid in /new page or components (Pitfall 15)
  *   - DuplicateWarning has the CALL-49 copy verbatim
  *   - DeadlinePicker imports dayBucketUtc from @call-it/shared
- *   - usePublishCall calls postPreflight BEFORE sendUserOperation (D-28)
+ *   - usePublishCall calls postPreflight BEFORE writeContract (D-28)
  *   - ConvictionSliderField uses ConvictionBar from @call-it/ui
  *   - MarketTypeSwitcher supports all 3 market types
  *   - 3 sub-form components exist (PriceTargetFields, SpreadVsFields, EventFields)
@@ -108,20 +108,26 @@ test.describe('Tier 1: /new page source assertions (D-29 + Pitfall 15)', () => {
     expect(source).toContain('CONVICTION_AUTOCAP');
   });
 
-  test('usePublishCall calls postPreflight before sendUserOperation (D-28)', () => {
+  test('usePublishCall calls postPreflight before writeContract (D-28)', () => {
     const source = readFileSync(PUBLISH_HOOK, 'utf-8');
-    const preflightIdx = source.indexOf('postPreflight');
-    const sendUserOpIdx = source.indexOf('sendUserOperation');
+    // Anchor on the awaited CALL SITES (not bare identifiers): 'writeContract'
+    // first appears in the wagmi/actions import block, which would false-pass
+    // or false-fail on import ordering rather than execution order.
+    const preflightIdx = source.indexOf('await postPreflight');
+    const writeContractIdx = source.indexOf('await writeContract');
     expect(preflightIdx).toBeGreaterThan(-1);
-    expect(sendUserOpIdx).toBeGreaterThan(-1);
-    // preflight must come BEFORE sendUserOperation in source order (D-28)
-    expect(preflightIdx).toBeLessThan(sendUserOpIdx);
+    expect(writeContractIdx).toBeGreaterThan(-1);
+    // preflight must come BEFORE writeContract in source order (D-28)
+    expect(preflightIdx).toBeLessThan(writeContractIdx);
   });
 
-  test('usePublishCall handles sponsorship-cap-exceeded via Circle paymaster (Plan 07)', () => {
+  test('usePublishCall uses the direct-EOA path — gas guard + approve + createCall (quick-260611-co5)', () => {
     const source = readFileSync(PUBLISH_HOOK, 'utf-8');
-    expect(source).toMatch(/sponsorship-cap-exceeded/);
-    expect(source).toMatch(/buildPaymasterAndData|useCirclePaymaster/);
+    expect(source).toContain('getBalance'); // gas guard before any tx
+    expect(source).toContain('allowance'); // USDC allowance check
+    expect(source).toContain('approve'); // USDC approval path
+    expect(source).toContain('extractCallIdFromLogs'); // receipt → callId redirect
+    expect(source).not.toContain('sendUserOperation'); // the AA stub is gone
   });
 
   test('useDebouncedDupCheck has 400ms debounce (D-22)', () => {
