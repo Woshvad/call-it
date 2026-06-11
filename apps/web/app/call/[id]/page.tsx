@@ -77,6 +77,7 @@ import {
   SETTLEMENT_MANAGER_ADDRESS,
   USDC_ADDRESS,
 } from '@/lib/chain';
+import { ensureActiveChain } from '@/lib/ensure-chain';
 import { getOutcomeWordResult, resolveSettledWord, SETTLED_NEUTRAL_WORD } from '@/lib/outcome-word';
 import { followFadeMarketAbi } from '@/lib/abis';
 import {
@@ -661,7 +662,9 @@ function DisputeModal({ open, onClose, callId, outcomeWord, smAddr, usdcAddr, re
   const handleApprove = async () => {
     setIsApproving(true);
     try {
+      await ensureActiveChain();
       const hash = await writeContractAsync({
+        chainId: ACTIVE_CHAIN_ID,
         address: usdcAddr,
         abi: USDC_ALLOWANCE_ABI,
         functionName: 'approve',
@@ -678,7 +681,9 @@ function DisputeModal({ open, onClose, callId, outcomeWord, smAddr, usdcAddr, re
     if (!evidenceHash) return;
     setIsSubmitting(true);
     try {
+      await ensureActiveChain();
       const hash = await writeContractAsync({
+        chainId: ACTIVE_CHAIN_ID,
         address: smAddr,
         abi: SM_ABI,
         functionName: 'raiseDispute',
@@ -1432,7 +1437,9 @@ export default function CallPage() {
   }, [provenanceData, isProvenanceLoading, loadProvenance]);
 
   const handleFollow = useCallback(async (amountIn: bigint, minSharesOut: bigint) => {
+    await ensureActiveChain();
     await writeContractAsync({
+        chainId: ACTIVE_CHAIN_ID,
       address: FFM_ADDR,
       abi: followFadeMarketAbi,
       functionName: 'follow',
@@ -1441,7 +1448,9 @@ export default function CallPage() {
   }, [callId, writeContractAsync]);
 
   const handleFade = useCallback(async (amountIn: bigint, minSharesOut: bigint) => {
+    await ensureActiveChain();
     await writeContractAsync({
+        chainId: ACTIVE_CHAIN_ID,
       address: FFM_ADDR,
       abi: followFadeMarketAbi,
       functionName: 'fade',
@@ -1450,7 +1459,9 @@ export default function CallPage() {
   }, [callId, writeContractAsync]);
 
   const handleCallerExit = useCallback(async () => {
+    await ensureActiveChain();
     await writeContractAsync({
+        chainId: ACTIVE_CHAIN_ID,
       address: FFM_ADDR,
       abi: followFadeMarketAbi,
       functionName: 'callerExit',
@@ -1460,7 +1471,9 @@ export default function CallPage() {
 
   const handlePositionExit = useCallback(async () => {
     const side = userIsFollower ? 0 : 1; // 0=Follow, 1=Fade (enum IFollowFadeMarket.Side)
+    await ensureActiveChain();
     await writeContractAsync({
+        chainId: ACTIVE_CHAIN_ID,
       address: FFM_ADDR,
       abi: followFadeMarketAbi,
       functionName: 'exitPosition',
@@ -1522,7 +1535,9 @@ export default function CallPage() {
     if (!callerMatchingStake) return;
     setChallengeApproving(true);
     try {
+      await ensureActiveChain();
       const hash = await writeContractAsync({
+        chainId: ACTIVE_CHAIN_ID,
         address: USDC_ADDR,
         abi: USDC_ALLOWANCE_ABI,
         functionName: 'approve',
@@ -1540,7 +1555,9 @@ export default function CallPage() {
     if (!pendingChallenge) return;
     setChallengeAccepting(true);
     try {
+      await ensureActiveChain();
       const hash = await writeContractAsync({
+        chainId: ACTIVE_CHAIN_ID,
         address: CE_ADDR,
         abi: CE_ABI,
         functionName: 'acceptChallenge',
@@ -1558,7 +1575,9 @@ export default function CallPage() {
     if (!pendingChallenge) return;
     setChallengeRejecting(true);
     try {
+      await ensureActiveChain();
       const hash = await writeContractAsync({
+        chainId: ACTIVE_CHAIN_ID,
         address: CE_ADDR,
         abi: CE_ABI,
         functionName: 'rejectChallenge',

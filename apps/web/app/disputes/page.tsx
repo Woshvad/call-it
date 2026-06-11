@@ -26,6 +26,8 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { ACTIVE_CHAIN_ID } from '@/lib/chain';
+import { ensureActiveChain } from '@/lib/ensure-chain';
 import { usePrivy } from '@privy-io/react-auth';
 import { useAccount, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
 import Link from 'next/link';
@@ -245,7 +247,9 @@ export default function DisputesPage() {
     const state = resolveState[disputeId];
     if (!state) return;
     try {
+      await ensureActiveChain();
       const hash = await writeContractAsync({
+        chainId: ACTIVE_CHAIN_ID,
         address: SM_ADDR,
         abi: SM_ABI,
         functionName: 'resolveDispute',

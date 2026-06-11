@@ -27,6 +27,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
 import { ACTIVE_CHAIN_ID, CHALLENGE_ESCROW_ADDRESS, USDC_ADDRESS } from '@/lib/chain';
+import { ensureActiveChain } from '@/lib/ensure-chain';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -254,7 +255,9 @@ export function ChallengeFormModal({
     if (!stakeValue) return;
     setApproving(true);
     try {
+      await ensureActiveChain();
       const hash = await writeContractAsync({
+        chainId: ACTIVE_CHAIN_ID,
         address: USDC_ADDR,
         abi: USDC_ABI,
         functionName: 'approve',
@@ -274,7 +277,9 @@ export function ChallengeFormModal({
     // (The caller address is not available here; the contract will revert with SelfChallenge)
     setChallenging(true);
     try {
+      await ensureActiveChain();
       const hash = await writeContractAsync({
+        chainId: ACTIVE_CHAIN_ID,
         address: CE_ADDR,
         abi: CE_ABI,
         functionName: 'proposeChallenge',

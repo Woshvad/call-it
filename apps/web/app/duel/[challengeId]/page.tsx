@@ -34,6 +34,7 @@ import { usePrivy } from '@privy-io/react-auth';
 import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
 import Link from 'next/link';
 import { ACTIVE_CHAIN_ID, CHALLENGE_ESCROW_ADDRESS, USDC_ADDRESS } from '@/lib/chain';
+import { ensureActiveChain } from '@/lib/ensure-chain';
 import { avatarInitial } from '@call-it/ui';
 import { ChallengeFormModal } from '@/app/components/ChallengeFormModal';
 import { DesktopOnlyBanner } from '@/app/components/DesktopOnlyBanner';
@@ -480,7 +481,9 @@ export default function DuelPage() {
     if (!callerMatchingStake) return;
     setApproving(true);
     try {
+      await ensureActiveChain();
       const hash = await writeContractAsync({
+        chainId: ACTIVE_CHAIN_ID,
         address: USDC_ADDR,
         abi: USDC_ABI,
         functionName: 'approve',
@@ -498,7 +501,9 @@ export default function DuelPage() {
   const handleAccept = useCallback(async () => {
     setAccepting(true);
     try {
+      await ensureActiveChain();
       const hash = await writeContractAsync({
+        chainId: ACTIVE_CHAIN_ID,
         address: CE_ADDR,
         abi: CE_ABI,
         functionName: 'acceptChallenge',
@@ -516,7 +521,9 @@ export default function DuelPage() {
   const handleReject = useCallback(async () => {
     setRejecting(true);
     try {
+      await ensureActiveChain();
       const hash = await writeContractAsync({
+        chainId: ACTIVE_CHAIN_ID,
         address: CE_ADDR,
         abi: CE_ABI,
         functionName: 'rejectChallenge',

@@ -25,6 +25,7 @@ import {
   USDC_ADDRESS,
   CALL_REGISTRY_ADDRESS,
 } from '@/lib/chain';
+import { ensureActiveChain } from '@/lib/ensure-chain';
 import { useToast } from '@call-it/ui';
 import { RelayerError, postPreflight } from '@/lib/relayer-client';
 import { buildPreflightBody } from '../lib/preflight-body';
@@ -165,7 +166,14 @@ export function usePublishCall(
         // Apply suggested conviction (auto-cap from Gate 6.3)
         const effectiveConviction = preflight.suggestedConviction;
 
-        // ─── Step 2: Gas guard — BEFORE any transaction ────────────────────
+        // ─── Step 2a: Wallet-chain alignment — BEFORE any write ────────────
+        // Privy embedded wallet sessions persist their last chain; a session
+        // parked on Ethereum mainnet (id 1) makes every chain-pinned write
+        // throw ChainMismatchError. Embedded wallets switch silently for
+        // chains in privy-config supportedChains.
+        await ensureActiveChain();
+
+        // ─── Step 2b: Gas guard — BEFORE any transaction ───────────────────
         // No Privy gas sponsorship is configured; a direct EOA write needs
         // native ETH for gas. A 0-ETH wallet would otherwise stall on an
         // opaque gas-estimation error — direct it to a faucet instead.

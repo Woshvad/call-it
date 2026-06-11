@@ -39,13 +39,21 @@ import {
   SETTLEMENT_MANAGER_ARBITRUM_SEPOLIA,
 } from '@call-it/shared';
 
+/** The only two chain ids that can ever be active (D-36). */
+export type ActiveChainId =
+  | typeof ARBITRUM_MAINNET_CHAIN_ID
+  | typeof ARBITRUM_SEPOLIA_CHAIN_ID;
+
 /**
  * The active chain ID. Driven by NEXT_PUBLIC_CHAIN_ID (numeric, e.g. "421614"
  * or "42161"); defaults to Arbitrum Sepolia (421614) — the current deploy
- * target until the Phase 7.5 mainnet cutover.
+ * target until the Phase 7.5 mainnet cutover. Typed as the two-chain union so
+ * wagmi write/read hooks accept it without per-callsite casts.
  */
-export const ACTIVE_CHAIN_ID: number =
-  Number(process.env['NEXT_PUBLIC_CHAIN_ID']) || ARBITRUM_SEPOLIA_CHAIN_ID;
+export const ACTIVE_CHAIN_ID: ActiveChainId =
+  Number(process.env['NEXT_PUBLIC_CHAIN_ID']) === ARBITRUM_MAINNET_CHAIN_ID
+    ? (ARBITRUM_MAINNET_CHAIN_ID as ActiveChainId)
+    : (ARBITRUM_SEPOLIA_CHAIN_ID as ActiveChainId);
 
 /** The active viem chain object (D-36: only arbitrum or arbitrumSepolia). */
 export const ACTIVE_CHAIN =

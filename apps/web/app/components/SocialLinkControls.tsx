@@ -35,6 +35,8 @@
 'use client';
 
 import { useCallback, useEffect, useState, type CSSProperties } from 'react';
+import { ACTIVE_CHAIN_ID } from '@/lib/chain';
+import { ensureActiveChain } from '@/lib/ensure-chain';
 import { usePrivy, useLinkAccount } from '@privy-io/react-auth';
 import { useAccount, useWriteContract } from 'wagmi';
 import { useSignIn, QRCode } from '@farcaster/auth-kit';
@@ -326,7 +328,9 @@ export function SocialLinkControls({ mode }: SocialLinkControlsProps) {
     setTwStatus('pending');
     setTwError(null);
     try {
+      await ensureActiveChain();
       await writeContractAsync({
+        chainId: ACTIVE_CHAIN_ID,
         abi: profileRegistryAbi,
         address: PROFILE_REGISTRY_ADDR,
         functionName: 'unlinkTwitter',
@@ -343,7 +347,9 @@ export function SocialLinkControls({ mode }: SocialLinkControlsProps) {
     setFcStatus('pending');
     setFcError(null);
     try {
+      await ensureActiveChain();
       await writeContractAsync({
+        chainId: ACTIVE_CHAIN_ID,
         abi: profileRegistryAbi,
         address: PROFILE_REGISTRY_ADDR,
         functionName: 'unlinkFarcaster',
