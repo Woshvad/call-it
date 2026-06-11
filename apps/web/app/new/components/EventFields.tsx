@@ -56,9 +56,10 @@ export function EventFields({ control, setValue, errors }: EventFieldsProps) {
 
   return (
     <div className="flex flex-col gap-5">
-      {/* Asset — webCreateCallSchema still ACCEPTS hex-address/numeric event
-          assets, but the UI now constrains entry to the 24 allowlisted symbols
-          (quick-260611-bf2 client gate; no free-text path remains). */}
+      {/* Asset — entry AND schema are both ticker-only: AssetSelect constrains
+          entry to the 24 allowlisted symbols, and webCreateCallSchema rejects
+          every non-ticker string (hex-address/numeric event assets were a dead
+          input class — flipped to rejection in quick-260611-if0). */}
       <div className="flex flex-col gap-2">
         <label htmlFor="event-asset" className="label-overline">Asset / Protocol</label>
         <AssetSelect
