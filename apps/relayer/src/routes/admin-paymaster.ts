@@ -48,7 +48,18 @@ export async function paymasterAdminRoute(
       }
 
       const redis = getRedis();
-      await redis.set('paymaster:cap', newCapUsdc6);
+      // quick-260611-h36: a silently-unsaved cap would be an invisible
+      // safety-limit failure — surface a 503 to the operator instead of a 500
+      // stack trace (and never pretend success).
+      try {
+        await redis.set('paymaster:cap', newCapUsdc6);
+      } catch (err) {
+        getLogger().error(
+          { event: 'paymaster_cap_write_failed', err: err instanceof Error ? err.message : String(err) },
+          'paymaster:cap Redis write failed — cap NOT updated',
+        );
+        return reply.status(503).send({ error: 'cache_unavailable' });
+      }
 
       getLogger().info(
         { event: 'paymaster_cap_updated', newCapUsdc6 },

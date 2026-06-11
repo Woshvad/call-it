@@ -71,6 +71,7 @@ vi.mock('../src/lib/logger.js', () => ({
 // ── Import SUT (after mocks) ──────────────────────────────────────────────────
 
 import { profileRoute } from '../src/routes/profile.js';
+import { memoryCache } from '../src/lib/memory-cache.js';
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
@@ -83,6 +84,9 @@ describe('GET /api/profile/:address', () => {
 
   beforeEach(async () => {
     vi.clearAllMocks();
+    // quick-260611-h36: clear the in-process L1 (lib/cache.ts is L1-first) so a
+    // prior test's cached profile can't short-circuit this test.
+    memoryCache._clearAllForTesting();
     mockRedisGet.mockResolvedValue(null); // No cache by default
     mockRedisSet.mockResolvedValue('OK');
 

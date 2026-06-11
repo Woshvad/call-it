@@ -131,8 +131,33 @@ export async function paymasterPolicyRoute(
       const { privyUserId } = context;
       const sender = userOp.sender;
 
-      // Read current count — NEVER increment here (D-02)
-      const currentCount = await getPaymasterCount(privyUserId);
+      // Read current count — NEVER increment here (D-02).
+      // quick-260611-h36 (T-h36-02): FAIL CLOSED on a Redis outage. The lifetime
+      // 5-tx cap cannot be verified without the counter, so sponsoring would be
+      // an unbounded spend — deny with the EXACT same JSON-RPC deny shape the
+      // bundler already handles (contract unchanged).
+      let currentCount: number;
+      try {
+        currentCount = await getPaymasterCount(privyUserId);
+      } catch (err) {
+        getLogger().warn(
+          {
+            event: 'paymaster_policy_redis_down',
+            decision: 'deny',
+            privyUserId,
+            err: err instanceof Error ? err.message : String(err),
+          },
+          'paymaster counter unreadable (Redis down) — failing closed (deny)',
+        );
+        return reply.status(200).send({
+          jsonrpc: '2.0',
+          id,
+          error: {
+            code: -32000,
+            message: 'sponsorship-cap-exceeded',
+          },
+        });
+      }
 
       const decision = currentCount < 5 ? 'sponsor' : 'deny';
 
@@ -162,7 +187,29 @@ export async function paymasterPolicyRoute(
       // Register sender → privyUserId mapping for the confirmer worker
       // This is a side effect — the confirmer needs this to look up privyUserId
       // from the UserOperationEvent's `sender` field.
-      await registerSenderMapping(sender, privyUserId);
+      // quick-260611-h36: same fail-closed rationale — without the mapping the
+      // confirmer can never count the inclusion, so the cap would leak.
+      try {
+        await registerSenderMapping(sender, privyUserId);
+      } catch (err) {
+        getLogger().warn(
+          {
+            event: 'paymaster_policy_redis_down',
+            decision: 'deny',
+            privyUserId,
+            err: err instanceof Error ? err.message : String(err),
+          },
+          'sender-mapping write failed (Redis down) — failing closed (deny)',
+        );
+        return reply.status(200).send({
+          jsonrpc: '2.0',
+          id,
+          error: {
+            code: -32000,
+            message: 'sponsorship-cap-exceeded',
+          },
+        });
+      }
 
       // Build and return the paymaster stub/data
       const paymasterResult = buildPaymasterStubData();
@@ -188,7 +235,29 @@ export async function paymasterPolicyRoute(
     { preHandler: privySessionPreHandler },
     async (request, reply) => {
       const privyUserId = request.privyUserId!;
-      const count = await getPaymasterCount(privyUserId);
+
+      // quick-260611-h36: a Redis outage previously hard-500'd this read.
+      // Degrade to a 200 with explicit nulls + degraded marker instead.
+      let count: number;
+      try {
+        count = await getPaymasterCount(privyUserId);
+      } catch (err) {
+        getLogger().warn(
+          {
+            event: 'paymaster_count_redis_down',
+            privyUserId,
+            err: err instanceof Error ? err.message : String(err),
+          },
+          'paymaster counter unreadable (Redis down) — returning degraded count',
+        );
+        return reply.status(200).send({
+          count: null,
+          capacity: 5,
+          remaining: null,
+          degraded: true,
+        });
+      }
+
       const remaining = Math.max(0, 5 - count);
 
       return reply.status(200).send({

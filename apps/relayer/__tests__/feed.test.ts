@@ -62,6 +62,7 @@ const SUBGRAPH_ITEMS = [
 // ── Import SUT (after mocks) ──────────────────────────────────────────────────
 
 import { feedRoute } from '../src/routes/feed.js';
+import { memoryCache } from '../src/lib/memory-cache.js';
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
@@ -70,6 +71,9 @@ describe('GET /api/feed', () => {
 
   beforeEach(async () => {
     vi.clearAllMocks();
+    // quick-260611-h36: clear the in-process L1 (lib/cache.ts is L1-first) so a
+    // prior test's cached first page can't short-circuit this test.
+    memoryCache._clearAllForTesting();
     mockRedisGet.mockResolvedValue(null); // No cache by default
     mockRedisSet.mockResolvedValue('OK');
     app = Fastify({ logger: false });

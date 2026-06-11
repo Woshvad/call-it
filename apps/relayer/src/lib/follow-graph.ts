@@ -25,7 +25,7 @@
 import { and, eq } from 'drizzle-orm';
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { getDb } from '../db/client.js';
-import { getRedis } from './redis.js';
+import { getCached, setCached } from './cache.js';
 import { getLogger } from './logger.js';
 import { followGraph } from '../db/schema.js';
 import type * as schema from '../db/schema.js';
@@ -102,25 +102,18 @@ export async function getFollowGraph(
   deps: FollowGraphDeps = {},
 ): Promise<FollowGraphResult> {
   const logger = getLogger();
-  const redis = getRedis();
   const cacheKey = followCacheKey(platform, privyUserId);
 
-  // 1. Cache hit (<1h).
-  try {
-    const cached = await redis.get(cacheKey);
+  // 1. Cache hit (<1h) — L1-first (quick-260611-h36); getCached never throws.
+  {
+    const cached = await getCached<FollowGraphEntry[]>(cacheKey, FOLLOW_GRAPH_CACHE_TTL_SECONDS);
     if (cached) {
-      const entries = JSON.parse(cached) as FollowGraphEntry[];
       logger.info(
-        { event: 'follow_graph_cache_hit', platform, count: entries.length },
+        { event: 'follow_graph_cache_hit', platform, count: cached.length },
         'Follow graph served from cache',
       );
-      return { entries, source: 'cache' };
+      return { entries: cached, source: 'cache' };
     }
-  } catch (err) {
-    logger.warn(
-      { event: 'follow_graph_cache_read_failed', platform, err: String(err) },
-      'Follow-graph cache read failed — proceeding to fetch',
-    );
   }
 
   // 2. Miss/expired → fetch from the external API (graceful-empty on any error).
@@ -189,14 +182,8 @@ export async function getFollowGraph(
     );
   }
 
-  try {
-    await redis.set(cacheKey, JSON.stringify(entries), 'EX', FOLLOW_GRAPH_CACHE_TTL_SECONDS);
-  } catch (err) {
-    logger.warn(
-      { event: 'follow_graph_cache_write_failed', platform, err: String(err) },
-      'Follow-graph cache write failed — not cached',
-    );
-  }
+  // L1 + best-effort Redis (quick-260611-h36) — setCached never throws.
+  await setCached(cacheKey, entries, FOLLOW_GRAPH_CACHE_TTL_SECONDS);
 
   logger.info(
     { event: 'follow_graph_fetched', platform, count: entries.length },

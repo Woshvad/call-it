@@ -26,7 +26,7 @@ import { z } from 'zod';
 import { fallback, createPublicClient, http } from 'viem';
 import { arbitrum } from 'viem/chains';
 import { privySessionPreHandler } from '../lib/privy-auth.js';
-import { getRedis } from '../lib/redis.js';
+import { getCached, setCached } from '../lib/cache.js';
 import { getLogger } from '../lib/logger.js';
 import {
   computeDuplicateHash,
@@ -146,13 +146,15 @@ export async function callsDupCheckRoute(
         deadlineDay,
       });
 
-      // ─── 3. Redis cache check (TTL 60s — D-22) ───────────────────────
-      const redis = getRedis();
+      // ─── 3. Cache check (TTL 60s — D-22; L1-first, quick-260611-h36) ──
+      // Previously an UNGUARDED redis.get — a dead Redis hard-500'd the
+      // route. getCached never throws: a Redis outage skips the cache and
+      // proceeds straight to the on-chain activeDuplicateHashes read below
+      // (which already fail-opens; the contract is the enforcement backstop).
       const cacheKey = `dup-check:${hash}`;
 
-      const cached = await redis.get(cacheKey);
-      if (cached !== null) {
-        const cachedResult = JSON.parse(cached) as DupCheckResponse;
+      const cachedResult = await getCached<DupCheckResponse>(cacheKey, 60);
+      if (cachedResult !== null) {
         logger.info(
           {
             event: 'dup_check_cache_hit',
@@ -216,12 +218,8 @@ export async function callsDupCheckRoute(
         }
       }
 
-      // ─── 5. Cache result (60s TTL) ────────────────────────────────────
-      await redis
-        .set(cacheKey, JSON.stringify(response), 'EX', 60)
-        .catch((err: unknown) => {
-          logger.warn({ event: 'dup_check_cache_write_failed', err: String(err) });
-        });
+      // ─── 5. Cache result (60s TTL — L1 + best-effort Redis) ──────────
+      await setCached(cacheKey, response, 60);
 
       logger.info(
         {

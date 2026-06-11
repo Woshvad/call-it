@@ -24,6 +24,7 @@ vi.mock('../src/lib/redis.js', () => {
 });
 
 import { getRedis } from '../src/lib/redis.js';
+import { memoryCache } from '../src/lib/memory-cache.js';
 import {
   getFollowGraph,
   crossReference,
@@ -49,6 +50,9 @@ function makeFakeDb() {
 beforeEach(async () => {
   // ioredis-mock supports flushall — reset cache state between tests.
   await (getRedis() as unknown as { flushall: () => Promise<void> }).flushall();
+  // quick-260611-h36: clear the in-process L1 (lib/cache.ts is L1-first) so a
+  // prior test's cached value can't short-circuit this test's fetch path.
+  memoryCache._clearAllForTesting();
 });
 
 describe('getFollowGraph — cache hit', () => {

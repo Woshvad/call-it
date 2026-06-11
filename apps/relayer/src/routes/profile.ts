@@ -28,6 +28,7 @@ import type { FastifyInstance, FastifyPluginOptions } from 'fastify';
 import { fallback, createPublicClient, http, isAddress } from 'viem';
 import { arbitrumSepolia } from 'viem/chains';
 import { getRedis } from '../lib/redis.js';
+import { getCached, setCached } from '../lib/cache.js';
 import { getLogger } from '../lib/logger.js';
 import { resolveEns } from '../lib/ens-resolver.js';
 import {
@@ -207,21 +208,18 @@ export async function profileRoute(
       const normalizedAddress = address as `0x${string}`;
       const cacheKey = `profile:${normalizedAddress}`;
 
-      // ── 60s Redis cache ────────────────────────────────────────────────────
-      // quick-260610-sr0: the initial cache read runs BEFORE the route deadline
-      // starts, so it gets its own 2s bound (a stalled Redis must not push the
-      // worst case past ~deadline + 2s). A timeout rejects into the catch below
-      // and is treated as a cache miss.
-      try {
-        const cached = await withTimeout(redis.get(cacheKey), 2_000, 'profile-cache-read');
+      // ── 60s cache (L1-first — quick-260611-h36) ────────────────────────────
+      // quick-260610-sr0: the cache read runs BEFORE the route deadline starts;
+      // the helper's internal 2s bound replaces the route-level withTimeout
+      // wrapper (a stalled Redis must not push the worst case past ~deadline +
+      // 2s). getCached never throws — errors/timeouts degrade to a miss.
+      {
+        const cached = await getCached<ProfileResponseBody>(cacheKey, 60);
         if (cached) {
           logger.info({ event: 'profile_cache_hit', address: normalizedAddress }, 'Profile served from cache');
-          const parsed = JSON.parse(cached) as ProfileResponseBody;
           reply.header('x-source', 'cache');
-          return reply.send(parsed);
+          return reply.send(cached);
         }
-      } catch (cacheErr) {
-        logger.warn({ event: 'profile_cache_read_failed', err: String(cacheErr) }, 'Cache read failed');
       }
 
       // quick-260610-sr0: env-tunable timeouts, read PER REQUEST so tests can
@@ -427,11 +425,8 @@ export async function profileRoute(
             'Leg timeout — not caching degraded/partial profile body',
           );
         } else {
-          try {
-            await redis.set(cacheKey, JSON.stringify(responseBody), 'EX', 60);
-          } catch (cacheErr) {
-            logger.warn({ event: 'profile_cache_write_failed', err: String(cacheErr) }, 'Cache write failed');
-          }
+          // L1 + best-effort Redis (quick-260611-h36) — setCached never throws.
+          await setCached(cacheKey, responseBody, 60);
         }
 
         logger.info(

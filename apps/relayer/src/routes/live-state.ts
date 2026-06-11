@@ -39,6 +39,7 @@ import type { FastifyInstance, FastifyPluginOptions } from 'fastify';
 import { fallback, createPublicClient, http } from 'viem';
 import { arbitrumSepolia } from 'viem/chains';
 import { getRedis } from '../lib/redis.js';
+import { getCached, setCached } from '../lib/cache.js';
 import { getLogger } from '../lib/logger.js';
 import { resolveCallStatement } from '../db/criteria-store.js';
 import { querySettledFields } from '../lib/subgraph-client.js';
@@ -248,20 +249,14 @@ export async function liveStateRoute(
 
       const key = cacheKey(callId);
 
-      // ── Cache check ───────────────────────────────────────────────────────
-      try {
-        const cached = await redis.get(key);
+      // ── Cache check (L1-first — quick-260611-h36; never throws) ────────────
+      {
+        const cached = await getCached<LiveStateResponse>(key, CACHE_TTL_SECONDS);
         if (cached) {
           logger.info({ event: 'live_state_cache_hit', callId: callId.toString() }, 'live-state served from cache');
-          const parsed = JSON.parse(cached) as LiveStateResponse;
           reply.header('x-source', 'cache');
-          return reply.send(parsed);
+          return reply.send(cached);
         }
-      } catch (err) {
-        logger.warn(
-          { event: 'live_state_cache_read_failed', error: String(err), callId: callId.toString() },
-          'Redis cache read failed — proceeding to RPC',
-        );
       }
 
       // ── RPC fetch via viem readContracts ──────────────────────────────────
@@ -506,15 +501,8 @@ export async function liveStateRoute(
           statusVersion,
         };
 
-        // ── Cache result ────────────────────────────────────────────────────
-        try {
-          await redis.set(key, JSON.stringify(responseData), 'EX', CACHE_TTL_SECONDS);
-        } catch (cacheErr) {
-          logger.warn(
-            { event: 'live_state_cache_write_failed', error: String(cacheErr), callId: callId.toString() },
-            'Redis cache write failed — response not cached',
-          );
-        }
+        // ── Cache result (L1 + best-effort Redis) ───────────────────────────
+        await setCached(key, responseData, CACHE_TTL_SECONDS);
 
         reply.header('x-source', 'rpc');
         return reply.send(responseData);

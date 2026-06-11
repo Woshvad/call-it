@@ -32,7 +32,7 @@
  */
 
 import type { FastifyInstance, FastifyPluginOptions } from 'fastify';
-import { getRedis } from '../lib/redis.js';
+import { getCached, setCached } from '../lib/cache.js';
 import { getLogger } from '../lib/logger.js';
 import { getDb } from '../db/client.js';
 import { trendingDuels, duelKings } from '../db/schema.js';
@@ -202,7 +202,6 @@ export async function duelsRoute(
     },
     async (request, reply) => {
       const logger = getLogger();
-      const redis = getRedis();
       const db = getDb();
 
       const { status, sort, limit: limitStr } = request.query;
@@ -210,17 +209,14 @@ export async function duelsRoute(
 
       const key = cacheKey({ status, sort, limit: limitStr });
 
-      // ── Cache check ───────────────────────────────────────────────────────
-      try {
-        const cached = await redis.get(key);
+      // ── Cache check (L1-first — quick-260611-h36; never throws) ────────────
+      {
+        const cached = await getCached<{ duels: DuelEntry[]; count: number; duelKing: DuelKingEntry | null }>(key, CACHE_TTL_SECONDS);
         if (cached) {
           logger.info({ event: 'duels_route_hit' }, 'duels served from cache');
-          const parsed = JSON.parse(cached) as { duels: DuelEntry[]; count: number; duelKing: DuelKingEntry | null };
           reply.header('x-source', 'cache');
-          return reply.send(parsed);
+          return reply.send(cached);
         }
-      } catch (err) {
-        logger.warn({ event: 'duels_route_cache_read_failed', error: String(err) }, 'Redis cache read failed — fetching live');
       }
 
       logger.info({ event: 'duels_route_fetch' }, 'duels cache miss — fetching from subgraph + Postgres');
@@ -309,12 +305,8 @@ export async function duelsRoute(
           duelKing,
         };
 
-        // ── Cache result ──────────────────────────────────────────────────────
-        try {
-          await redis.set(key, JSON.stringify(responseData), 'EX', CACHE_TTL_SECONDS);
-        } catch (cacheErr) {
-          logger.warn({ event: 'duels_route_cache_write_failed', error: String(cacheErr) }, 'Redis cache write failed');
-        }
+        // ── Cache result (L1 + best-effort Redis) ─────────────────────────────
+        await setCached(key, responseData, CACHE_TTL_SECONDS);
 
         reply.header('x-source', 'live');
         return reply.send(responseData);

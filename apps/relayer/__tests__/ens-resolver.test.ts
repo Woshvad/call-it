@@ -38,28 +38,43 @@ vi.mock('../src/lib/logger.js', () => ({
 }));
 
 // ── Redis mock ────────────────────────────────────────────────────────────────
+// quick-260611-h36: resolveEns now caches through the L1-first lib/cache.ts
+// helper (which calls getRedis() itself) — so the redis MODULE is mocked and
+// the legacy injected-client parameter is ignored. Values stored via the
+// helper are JSON-serialized (e.g. '"alice.eth"', '"::null::"').
 
-const mockRedisGet = vi.fn();
-const mockRedisSet = vi.fn();
+const { mockRedisGet, mockRedisSet } = vi.hoisted(() => ({
+  mockRedisGet: vi.fn(),
+  mockRedisSet: vi.fn(),
+}));
 const mockRedis = {
   get: mockRedisGet,
   set: mockRedisSet,
 };
 
+vi.mock('../src/lib/redis.js', () => ({
+  getRedis: vi.fn(() => mockRedis),
+}));
+
 // ── Import SUT (after mocks) ──────────────────────────────────────────────────
 
 import { resolveEns } from '../src/lib/ens-resolver.js';
+import { memoryCache } from '../src/lib/memory-cache.js';
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
 describe('resolveEns', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // quick-260611-h36: clear the in-process L1 so a prior test's cached name
+    // can't short-circuit this test's Redis/RPC path.
+    memoryCache._clearAllForTesting();
     mockRedisSet.mockResolvedValue('OK');
   });
 
   it('Test 1: Cache hit — returns cached ENS name without calling viem', async () => {
-    mockRedisGet.mockResolvedValueOnce('veda.eth');
+    // Helper-stored values are JSON-serialized (quick-260611-h36).
+    mockRedisGet.mockResolvedValueOnce(JSON.stringify('veda.eth'));
 
     const result = await resolveEns(
       '0x1234567890abcdef1234567890abcdef12345678',
@@ -85,7 +100,7 @@ describe('resolveEns', () => {
     expect(result).toBe('alice.eth');
     expect(mockRedisSet).toHaveBeenCalledWith(
       'ens:0xabcdefabcdefabcdefabcdefabcdefabcdefabcd',
-      'alice.eth',
+      JSON.stringify('alice.eth'),
       'EX',
       86400,
     );
@@ -105,7 +120,7 @@ describe('resolveEns', () => {
   });
 
   it('Test 4: Negative cache sentinel — returns null for "::null::"', async () => {
-    mockRedisGet.mockResolvedValueOnce('::null::');
+    mockRedisGet.mockResolvedValueOnce(JSON.stringify('::null::'));
 
     const result = await resolveEns(
       '0x1111111111111111111111111111111111111111',
@@ -129,7 +144,7 @@ describe('resolveEns', () => {
     expect(result).toBeNull();
     expect(mockRedisSet).toHaveBeenCalledWith(
       'ens:0x2222222222222222222222222222222222222222',
-      '::null::',
+      JSON.stringify('::null::'),
       'EX',
       86400,
     );

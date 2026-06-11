@@ -36,7 +36,7 @@
 import type { FastifyInstance, FastifyPluginOptions } from 'fastify';
 import { fallback, createPublicClient, http } from 'viem';
 import { arbitrumSepolia } from 'viem/chains';
-import { getRedis } from '../lib/redis.js';
+import { getCached, setCached } from '../lib/cache.js';
 import { getLogger } from '../lib/logger.js';
 import {
   CHALLENGE_ESCROW_ARBITRUM_SEPOLIA,
@@ -191,7 +191,6 @@ export async function duelLiveStateRoute(
     },
     async (request, reply) => {
       const logger = getLogger();
-      const redis = getRedis();
 
       // T-03-05-01: parse challengeId to BigInt before any string interpolation
       let challengeId: bigint;
@@ -203,20 +202,14 @@ export async function duelLiveStateRoute(
 
       const key = cacheKey(challengeId);
 
-      // ── Cache check ───────────────────────────────────────────────────────
-      try {
-        const cached = await redis.get(key);
+      // ── Cache check (L1-first — quick-260611-h36; never throws) ────────────
+      {
+        const cached = await getCached<DuelLiveStateResponse>(key, CACHE_TTL_SECONDS);
         if (cached) {
           logger.info({ event: 'duel_live_state_cache_hit', challengeId: challengeId.toString() }, 'duel-live-state served from cache');
-          const parsed = JSON.parse(cached) as DuelLiveStateResponse;
           reply.header('x-source', 'cache');
-          return reply.send(parsed);
+          return reply.send(cached);
         }
-      } catch (err) {
-        logger.warn(
-          { event: 'duel_live_state_cache_read_failed', error: String(err), challengeId: challengeId.toString() },
-          'Redis cache read failed — proceeding to RPC',
-        );
       }
 
       // ── Cache miss: fetch from RPC ─────────────────────────────────────────
@@ -262,11 +255,7 @@ export async function duelLiveStateRoute(
             deferred: true,
           };
 
-          try {
-            await redis.set(key, JSON.stringify(deferredResponse), 'EX', CACHE_TTL_SECONDS);
-          } catch (cacheErr) {
-            logger.warn({ event: 'duel_live_state_cache_write_failed', error: String(cacheErr) }, 'Redis cache write failed');
-          }
+          await setCached(key, deferredResponse, CACHE_TTL_SECONDS);
 
           reply.header('x-source', 'deferred');
           return reply.send(deferredResponse);
@@ -380,15 +369,8 @@ export async function duelLiveStateRoute(
           deferred: false,
         };
 
-        // ── Cache result ──────────────────────────────────────────────────────
-        try {
-          await redis.set(key, JSON.stringify(responseData), 'EX', CACHE_TTL_SECONDS);
-        } catch (cacheErr) {
-          logger.warn(
-            { event: 'duel_live_state_cache_write_failed', error: String(cacheErr), challengeId: challengeId.toString() },
-            'Redis cache write failed — response not cached',
-          );
-        }
+        // ── Cache result (L1 + best-effort Redis) ─────────────────────────────
+        await setCached(key, responseData, CACHE_TTL_SECONDS);
 
         reply.header('x-source', 'rpc');
         return reply.send(responseData);

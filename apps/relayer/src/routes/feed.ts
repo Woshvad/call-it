@@ -20,7 +20,7 @@
  */
 
 import type { FastifyInstance, FastifyPluginOptions } from 'fastify';
-import { getRedis } from '../lib/redis.js';
+import { getCached, setCached } from '../lib/cache.js';
 import { getLogger } from '../lib/logger.js';
 import { queryFeed } from '../lib/subgraph-client.js';
 import { enrichFeedItems } from '../lib/call-enrichment.js';
@@ -76,24 +76,16 @@ export async function feedRoute(
       const limit = parseInt(request.query.limit ?? '20', 10);
       const isFirstPage = !cursor;
       const cacheKey = 'feed:firstpage';
-      const redis = getRedis();
       const logger = getLogger();
 
-      // ── D-26: First-page Redis cache check ──────────────────────────────────
+      // ── D-26: First-page cache check (L1-first — quick-260611-h36) ──────────
+      // getCached never throws: a dead Redis degrades to the in-process L1.
       if (isFirstPage) {
-        try {
-          const cached = await redis.get(cacheKey);
-          if (cached) {
-            logger.info({ event: 'feed_cache_hit' }, 'Feed first page served from cache');
-            const parsed = JSON.parse(cached) as Record<string, unknown>;
-            reply.header('x-source', 'cache');
-            return reply.send(parsed);
-          }
-        } catch (err) {
-          logger.warn(
-            { event: 'feed_cache_read_failed', err: String(err) },
-            'Redis cache read failed — proceeding to fetch',
-          );
+        const cached = await getCached<Record<string, unknown>>(cacheKey, 10);
+        if (cached) {
+          logger.info({ event: 'feed_cache_hit' }, 'Feed first page served from cache');
+          reply.header('x-source', 'cache');
+          return reply.send(cached);
         }
       }
 
@@ -197,16 +189,9 @@ export async function feedRoute(
         _source: racedResult.source,
       };
 
-      // ── D-26: Cache first page with 10s TTL ───────────────────────────────────
+      // ── D-26: Cache first page with 10s TTL (L1 + best-effort Redis) ─────────
       if (isFirstPage) {
-        try {
-          await redis.set(cacheKey, JSON.stringify(responseData), 'EX', 10);
-        } catch (cacheErr) {
-          logger.warn(
-            { event: 'feed_cache_write_failed', err: String(cacheErr) },
-            'Redis cache write failed — not cached',
-          );
-        }
+        await setCached(cacheKey, responseData, 10);
       }
 
       reply.header('x-source', racedResult.source);

@@ -1,15 +1,21 @@
 /**
- * ENS Reverse-Record Resolver with 24h Redis cache (D-13).
+ * ENS Reverse-Record Resolver with 24h cache (D-13).
  *
  * Resolution is server-side only — never happens in the browser.
  * Uses a dedicated Mainnet RPC (ENS_MAINNET_RPC_URL) separate from the
  * Arbitrum RPC. This is a hard requirement since ENS lives on Ethereum mainnet.
  *
- * Cache strategy:
+ * Cache strategy (quick-260611-h36: L1-first via lib/cache.ts — survives a
+ * dead Redis on the single-Fly-machine relayer):
  *   - Positive hit: stores the ENS name with 24h TTL
  *   - Negative hit: stores '::null::' sentinel with 24h TTL
  *     (avoids hammering the RPC for addresses with no ENS name)
  *   - RPC failure: returns null WITHOUT caching (retry on next request)
+ *
+ * NOTE: values now persist through the JSON cache helper, so the Redis-side
+ * representation is the JSON string (e.g. `"::null::"`). This is safe: the
+ * cache is ephemeral, and legacy non-JSON entries fail JSON.parse inside
+ * getCached and simply read as misses (one extra RPC resolve, then re-cached).
  *
  * RESEARCH Pattern 12 — lines 1097-1122.
  *
@@ -20,6 +26,7 @@
 import { fallback, createPublicClient, http } from 'viem';
 import { mainnet } from 'viem/chains';
 import type { Redis } from 'ioredis';
+import { getCached, setCached } from './cache.js';
 import { getLogger } from './logger.js';
 
 // ── Mainnet client (ENS is on Ethereum mainnet, NOT Arbitrum) ────────────────
@@ -34,37 +41,30 @@ const mainnetClient = createPublicClient({
   ]),
 });
 
+/** 24h cache TTL (seconds). */
+const ENS_CACHE_TTL_SECONDS = 86400;
+
 /**
  * Resolve the ENS reverse-record for an address.
  *
- * Priority: Redis cache → viem getEnsName on Mainnet.
+ * Priority: L1 memory cache → Redis (guarded) → viem getEnsName on Mainnet.
  * Negative-cache sentinel '::null::' prevents repeat RPC calls for non-ENS addresses.
  *
  * @param address - Ethereum address (checksummed or lowercased, both accepted)
- * @param redis - ioredis client for cache reads/writes
+ * @param _redis - DEPRECATED (quick-260611-h36): kept for call-site signature
+ *   compatibility; caching now flows through the L1-first lib/cache.ts helper.
  * @returns ENS name string or null (no name / RPC error)
  */
 export async function resolveEns(
   address: `0x${string}`,
-  redis: Redis,
+  _redis?: Redis,
 ): Promise<string | null> {
   const cacheKey = `ens:${address.toLowerCase()}`;
 
-  // Check cache first — guarded (quick-260610-sr0): a Redis quota rejection
-  // (Upstash free tier exhausted) degrades to a cache miss, never a failure.
-  let cached: string | null = null;
-  try {
-    cached = await redis.get(cacheKey);
-  } catch (cacheErr) {
-    getLogger().warn(
-      {
-        event: 'ens_cache_read_failed',
-        address: address.toLowerCase(),
-        err: cacheErr instanceof Error ? cacheErr.message : String(cacheErr),
-      },
-      'ENS cache read failed — treating as cache miss',
-    );
-  }
+  // Check cache first — getCached never throws (quick-260611-h36): a Redis
+  // quota rejection (Upstash free tier exhausted) degrades to the in-process
+  // L1, then to a cache miss — never a failure.
+  const cached = await getCached<string>(cacheKey, ENS_CACHE_TTL_SECONDS);
 
   if (cached !== null) {
     // Negative-cache hit: sentinel means "we tried and there was no ENS name"
@@ -78,22 +78,10 @@ export async function resolveEns(
   try {
     const name = await mainnetClient.getEnsName({ address });
 
-    // Cache the result (positive or negative) for 24h — guarded separately
-    // (quick-260610-sr0): a cache-write rejection must NOT discard a
-    // successfully resolved name (previously it fell into the outer catch
-    // and returned null even on RPC success).
-    try {
-      await redis.set(cacheKey, name ?? '::null::', 'EX', 86400);
-    } catch (cacheErr) {
-      getLogger().warn(
-        {
-          event: 'ens_cache_write_failed',
-          address: address.toLowerCase(),
-          err: cacheErr instanceof Error ? cacheErr.message : String(cacheErr),
-        },
-        'ENS cache write failed — returning resolved name without caching',
-      );
-    }
+    // Cache the result (positive or negative) for 24h — setCached never
+    // throws (quick-260610-sr0 invariant preserved): a cache-write rejection
+    // must NOT discard a successfully resolved name.
+    await setCached(cacheKey, name ?? '::null::', ENS_CACHE_TTL_SECONDS);
 
     getLogger().info(
       { event: 'ens_resolved', address: address.toLowerCase(), name: name ?? null },

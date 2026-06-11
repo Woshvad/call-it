@@ -307,9 +307,17 @@ export async function socialLinkRoute(
         .delete(followGraph)
         .where(and(eq(followGraph.privyUserId, privyUserId), eq(followGraph.platform, platform)));
 
-      // 2. Delete the Redis follow-graph cache key.
+      // 2. Delete the Redis follow-graph cache key — BEST-EFFORT (quick-260611-h36).
+      // The Postgres delete above is the durable store and already succeeded, so a
+      // dead Redis must not 500 the unlink. The SocialUnlinked watcher backstop
+      // (AUTH-17) re-purges Redis when it recovers.
       const redis = getRedis();
-      await redis.del(followCacheKey(platform, privyUserId));
+      await redis.del(followCacheKey(platform, privyUserId)).catch((err: unknown) => {
+        logger.warn(
+          { event: 'unlink_redis_purge_failed', platform, err: err instanceof Error ? err.message : String(err) },
+          'Redis follow-graph purge failed — Postgres purge succeeded; watcher backstop covers Redis',
+        );
+      });
 
       // 3. Mark the social_link_index row unlinked for this user (best-effort by
       //    wallet address resolution; if no wallet, the watcher backstop covers it).

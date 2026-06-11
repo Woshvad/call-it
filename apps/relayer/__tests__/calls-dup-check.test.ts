@@ -83,6 +83,7 @@ vi.mock('viem', async (importOriginal) => {
 
 import Fastify from 'fastify';
 import { callsDupCheckRoute } from '../src/routes/calls-dup-check.js';
+import { memoryCache } from '../src/lib/memory-cache.js';
 
 process.env.PRIVY_APP_ID = 'test-app-id';
 process.env.PRIVY_APP_SECRET = 'test-app-secret';
@@ -111,6 +112,9 @@ describe('POST /api/calls/dup-check', () => {
 
   beforeEach(async () => {
     await redisMock.flushall();
+    // quick-260611-h36: clear the in-process L1 (lib/cache.ts is L1-first) so a
+    // prior test's cached dup-check result can't short-circuit this test.
+    memoryCache._clearAllForTesting();
     mockReadContract.mockReset();
     app = await buildTestApp();
   });

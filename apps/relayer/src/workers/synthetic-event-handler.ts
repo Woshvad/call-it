@@ -15,6 +15,20 @@ import type { FastifyRequest, FastifyReply } from 'fastify';
 import { sendAlert, type AlertEvent } from './alerts.js';
 import { getRedis } from '../lib/redis.js';
 import { getLogger } from '../lib/logger.js';
+import { MemoryCache } from '../lib/memory-cache.js';
+
+// ── In-memory nonce fallback (quick-260611-h36, T-h36-03) ────────────────────
+// Used ONLY when the Redis SETNX claim ERRORS (outage), never on a normal
+// replay-reject. WHY this is sound: the relayer is a SINGLE Fly machine
+// (fly.toml, auto_stop_machines=false) — there is no second process a replay
+// could race against. The memory fallback preserves the replay guard during
+// Redis outages instead of 500ing the synthetic-alert CI probe.
+const nonceFallbackCache = new MemoryCache(1000);
+
+/** @internal Test isolation helper — clears the in-memory nonce fallback. */
+export function _clearNonceCacheForTesting(): void {
+  nonceFallbackCache._clearAllForTesting();
+}
 
 interface SyntheticAlertBody {
   event: AlertEvent;
@@ -89,9 +103,31 @@ export async function syntheticEventHandler(
   }
 
   // 4. Nonce uniqueness (SET NX prevents replay attacks)
+  // quick-260611-h36: the SETNX claim is guarded — a Redis ERROR (outage)
+  // falls back to the in-memory nonce check above (single-machine sound,
+  // T-h36-03). A normal `acquired !== 'OK'` stays a 400 replay-reject.
   const redis = getRedis();
   const nonceKey = `paymaster:internal-nonce:${body.nonce}`;
-  const acquired = await redis.set(nonceKey, '1', 'EX', NONCE_TTL_SECONDS, 'NX');
+  let acquired: string | null;
+  try {
+    acquired = await redis.set(nonceKey, '1', 'EX', NONCE_TTL_SECONDS, 'NX');
+  } catch (err) {
+    getLogger().warn(
+      {
+        event: 'synthetic_alert_nonce_redis_down',
+        nonce: body.nonce,
+        err: err instanceof Error ? err.message : String(err),
+      },
+      'Redis SETNX failed — falling back to in-memory nonce replay guard',
+    );
+    if (nonceFallbackCache.get<string>(nonceKey) !== undefined) {
+      getLogger().warn({ event: 'synthetic_alert_nonce_replay', nonce: body.nonce }, 'Nonce already used');
+      await reply.status(400).send({ error: 'Bad Request', message: 'Nonce already used' });
+      return;
+    }
+    nonceFallbackCache.set(nonceKey, '1', NONCE_TTL_SECONDS * 1000);
+    acquired = 'OK';
+  }
   if (acquired !== 'OK') {
     getLogger().warn({ event: 'synthetic_alert_nonce_replay', nonce: body.nonce }, 'Nonce already used');
     await reply.status(400).send({ error: 'Bad Request', message: 'Nonce already used' });
