@@ -2458,6 +2458,40 @@ export default function CallPage() {
     );
   }
 
+  // ─── LIVE SHARE INTENTS (quick-260611-obx — SHARE-15 / SHARE-18, D-09 live
+  // extension) ───────────────────────────────────────────────────────────────
+  // Live UAT 2026-06-11: a just-published call lands here (usePublishCall
+  // redirect) with zero share affordance — share intents were settled-only.
+  // Wired via the same @call-it/shared pure builders (T-obx-01: both
+  // encodeURIComponent every arg). Local to the live scope on purpose — the
+  // settled derivation above stays byte-identical.
+  const ogBaseLive = process.env.NEXT_PUBLIC_OG_BASE_URL?.replace(/\/$/, '');
+  // D-08 no-dead-controls: null URL → the share anchors are OMITTED entirely,
+  // never rendered dead. Gate is ONLY the OG base URL — the builder
+  // self-handles fake handles, and there is no outcome to gate on live.
+  const liveCallShareUrl = ogBaseLive ? `${ogBaseLive}/call/${callIdNum}` : null;
+  // HONESTY RULE (D-08 / 08-05 GAP 1): the head word is total over every state
+  // that reaches this render path — genuinely live, expired-awaiting-settlement,
+  // AND callerExited-without-outcome (the settled branch above gates on a real
+  // outcome). No win word is reachable here: an unsettled call shares as live
+  // or on-record, never as a result. 'ON RECORD' is honest for both non-live
+  // states — the call is on record and still settles at expiry.
+  const liveShareHead =
+    callData?.status === 'live' && !isCallExpired ? 'LIVE CALL' : 'ON RECORD';
+  // displayHandle passed RAW — buildShareText's internal isRealHandle omits
+  // the @segment for '#N' / 0x / numeric pseudo-handles (WR-06 / T-obx-02).
+  const liveShareText = buildShareText({
+    outcomeWord: liveShareHead,
+    handle: displayHandle,
+    statement: displayMarketLine,
+  });
+  const liveShareOnXUrl = liveCallShareUrl
+    ? twitterIntentUrl(liveCallShareUrl, liveShareText)
+    : null;
+  const liveShareCastUrl = liveCallShareUrl
+    ? warpcastComposeUrl(liveCallShareUrl, liveShareText)
+    : null;
+
   // ─── LIVE RECEIPT RENDER (09.2-09 — prototype ReceiptLiveScreen skin) ──────
   // Markup donor: `call it frontend/screens/receipt.jsx` ReceiptLiveScreen over
   // the UNTOUCHED data/handler block above. CTAs open the EXISTING amount-based
@@ -2520,9 +2554,12 @@ export default function CallPage() {
         {/* Header identity row — handle only (AUTH-44). Caller accuracy/streak
             header stats have NO source on this page → HIDDEN (D-07; no extra
             profile fetch added). The prototype's eye-icon header button has no
-            backing feature → CUT (D-08); its unwired Share twin (no live-call
-            share wiring exists) is cut with it — settled receipts carry the
-            real share intents (D-09). */}
+            backing feature → CUT (D-08). Live share is now WIRED
+            (quick-260611-obx) via the same shared pure builders as the settled
+            row (D-09); the head word is honest — 'LIVE CALL' while genuinely
+            live, 'ON RECORD' once expired/exited-unsettled, win words
+            unreachable (D-08 / 08-05 GAP 1); controls are omitted entirely
+            when NEXT_PUBLIC_OG_BASE_URL is unset (no dead controls, D-08). */}
         <div className="spread" style={{ marginBottom: 24, alignItems: 'flex-start', flexWrap: 'wrap', gap: 14 }}>
           <div className="row" style={{ gap: 14 }}>
             <span className={`avatar lg ${avatarGradClass(displayHandle)}`} aria-hidden="true">
@@ -2566,6 +2603,60 @@ export default function CallPage() {
                 <span className="pill win">VERIFIED CRITERIA</span>
               )}
           </div>
+
+          {/* SHARE controls — live extension of the settled action row
+              (quick-260611-obx, D-09): primary cream X web intent on top; the
+              Farcaster compose intent is DEMOTED to a small mono text link
+              below it. Renders in BOTH the genuinely-live and
+              awaiting-settlement states (and the callerExited fall-through) —
+              gating is only on the URL; OMITTED entirely (never dead) when
+              NEXT_PUBLIC_OG_BASE_URL is unset (D-08). */}
+          {(liveShareOnXUrl || liveShareCastUrl) && (
+            <div
+              data-live-share-row
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 12,
+                width: isMobile ? '100%' : undefined,
+                alignItems: isMobile ? 'stretch' : 'flex-end',
+              }}
+            >
+              {liveShareOnXUrl && (
+                <a
+                  href={liveShareOnXUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn cream"
+                  style={{ width: isMobile ? '100%' : undefined, textDecoration: 'none' }}
+                >
+                  SHARE THIS CALL →
+                </a>
+              )}
+              {liveShareCastUrl && (
+                /* rel kept — reverse-tabnabbing guard (T-obx-03, same as
+                   T-h44-01). minHeight 44 + mobile full width keep the
+                   touch-target + action-row specs green. */
+                <a
+                  href={liveShareCastUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mono receipt-frame-link"
+                  style={{
+                    fontSize: 11.5,
+                    color: 'var(--text-secondary)',
+                    textDecoration: 'none',
+                    minHeight: 44,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    width: isMobile ? '100%' : undefined,
+                  }}
+                >
+                  or share as a Farcaster frame ↗
+                </a>
+              )}
+            </div>
+          )}
         </div>
 
         {/* THE CALL overline + market statement (.h-statement Archivo voice;
