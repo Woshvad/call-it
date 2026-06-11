@@ -53,11 +53,11 @@ const RELAYER_URL = process.env['NEXT_PUBLIC_RELAYER_URL'] ?? '';
 
 /**
  * Duel identity colors (prototype duel.jsx / UI-SPEC Color table):
- * caller = chartreuse, challenger = duel purple. #A855F7 is confined to
- * challenge UI only (D-14 / AUTH-44 invariant set).
+ * caller = chartreuse, challenger = duel purple. The duel accent is confined
+ * to challenge UI only (D-14 / AUTH-44 invariant set).
  */
-const CALLER_ACCENT = '#E8F542';
-const DUEL_ACCENT = '#A855F7';
+const CALLER_ACCENT = 'var(--accent-win)';
+const DUEL_ACCENT = 'var(--accent-duel)';
 
 /** ChallengeStatus enum ordinals — matches IChallengeEscrow.sol */
 const ChallengeStatus = {
@@ -1056,7 +1056,7 @@ export default function DuelPage() {
                   </span>
                 </div>
               </div>
-              {/* Duel split-bar variant: caller var(--accent-win) vs challenger #A855F7, 2px black gap */}
+              {/* Duel split-bar variant: caller var(--accent-win) vs challenger var(--accent-duel), 2px black gap */}
               <div className="brutal-bar split" role="img" aria-label={`${callerPct}% favor caller`}>
                 <div className="caller" style={{ flexBasis: `${callerPct}%` }} />
                 <div className="gap" />

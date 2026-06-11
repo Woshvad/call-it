@@ -78,8 +78,9 @@ function derivePreset(expiryBigint: bigint): string {
  * When the user picks "11:32 PM PST", the label shows the next UTC day's bucket —
  * surfacing the boundary surprise before it becomes a contract revert.
  *
- * The "Hash bucket:" label is the D-12 compliance point: this is what the contract
- * uses to deduplicate calls (not the user's local day).
+ * The "Settlement window:" label (the UTC hash bucket) is the D-12 compliance
+ * point: this is what the contract uses to deduplicate calls (not the user's
+ * local day).
  *
  * Uses dayBucketUtc from @call-it/shared (D-29 parity with DuplicateHashLib.sol).
  */
@@ -143,15 +144,23 @@ export function DeadlinePicker({ control, error }: DeadlinePickerProps) {
                 />
               )}
 
-              {/* PITFALL-12 / CALL-46: UTC day bucket label — updates live as user picks */}
+              {/* PITFALL-12 / CALL-46: UTC settlement-window label — updates live as user picks */}
               {bucketLabel && (
-                <div
-                  className="mono"
-                  style={{ fontSize: 11, color: 'var(--text-tertiary)', letterSpacing: '0.02em' }}
-                  aria-label="UTC hash bucket"
-                >
-                  ↳ Hash bucket: {bucketLabel}
-                </div>
+                <>
+                  <div
+                    className="mono"
+                    style={{ fontSize: 11, color: 'var(--text-tertiary)', letterSpacing: '0.02em' }}
+                    aria-label="UTC settlement window"
+                  >
+                    ↳ Settlement window: {bucketLabel}
+                  </div>
+                  <div
+                    className="mono"
+                    style={{ fontSize: 11, color: 'var(--text-tertiary)', letterSpacing: '0.02em' }}
+                  >
+                    Your call settles at the start of this UTC day — local times may differ.
+                  </div>
+                </>
               )}
 
               {error && (

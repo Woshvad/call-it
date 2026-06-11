@@ -18,6 +18,7 @@ import type { ReactNode, SVGProps } from 'react';
 
 export type IconName =
   | 'feed'
+  | 'menu'
   | 'create'
   | 'receipt'
   | 'profile'
@@ -54,6 +55,9 @@ function paths(name: IconName, color: string): ReactNode {
   switch (name) {
     case 'feed':
       return <path d="M3 5h18M3 12h18M3 19h12" />;
+    case 'menu':
+      // Hamburger — three EQUAL lines (distinct from 'feed' whose third line is short)
+      return <path d="M3 6h18M3 12h18M3 18h18" />;
     case 'create':
     case 'plus':
       return <path d="M12 5v14M5 12h14" />;

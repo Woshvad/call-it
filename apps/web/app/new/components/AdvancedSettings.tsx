@@ -72,8 +72,9 @@ export function AdvancedSettings({ control }: AdvancedSettingsProps) {
                 </button>
               )}
             />
+            {/* CALL-64: open-to-challenges toggle */}
             <div className="mono" style={{ fontSize: 10.5, color: 'var(--text-tertiary)' }}>
-              Allow 1v1 challenges (CALL-64)
+              Allow 1v1 challenges
             </div>
           </div>
           <div className="flex flex-col gap-2">

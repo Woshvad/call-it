@@ -115,7 +115,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               onClick={() => setDrawerOpen(true)}
               style={{ minWidth: 44, minHeight: 44 }}
             >
-              <Icon name="feed" size={16} />
+              <Icon name="menu" size={16} />
             </button>
           )}
           <Link

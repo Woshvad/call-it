@@ -48,13 +48,13 @@ export function ProfileTabs({ address, initialTab = 'overview' }: ProfileTabsPro
           style={{
             padding: isMobile ? '0 16px' : '6px 16px',
             minHeight: isMobile ? '44px' : undefined,
-            fontFamily: 'monospace',
+            fontFamily: 'var(--font-mono)',
             fontSize: '0.875rem',
             fontWeight: activeTab === 'overview' ? 700 : 400,
-            color: activeTab === 'overview' ? '#E8F542' : 'var(--text-secondary)',
+            color: activeTab === 'overview' ? 'var(--accent-win)' : 'var(--text-secondary)',
             background: 'none',
             border: 'none',
-            borderBottom: activeTab === 'overview' ? '2px solid #E8F542' : '2px solid transparent',
+            borderBottom: activeTab === 'overview' ? '2px solid var(--accent-win)' : '2px solid transparent',
             cursor: 'pointer',
             marginBottom: '-10px', // overlap the tab bar border
           }}
@@ -69,7 +69,7 @@ export function ProfileTabs({ address, initialTab = 'overview' }: ProfileTabsPro
             alignItems: isMobile ? 'center' : undefined,
             padding: isMobile ? '0 16px' : '6px 16px',
             minHeight: isMobile ? '44px' : undefined,
-            fontFamily: 'monospace',
+            fontFamily: 'var(--font-mono)',
             fontSize: '0.875rem',
             fontWeight: 400,
             color: 'var(--text-secondary)',
@@ -87,7 +87,7 @@ export function ProfileTabs({ address, initialTab = 'overview' }: ProfileTabsPro
               Phase 1: stub — shows "recent calls" placeholder. */}
           <p
             style={{
-              fontFamily: 'monospace',
+              fontFamily: 'var(--font-mono)',
               fontSize: '0.875rem',
               color: 'var(--text-tertiary)',
               margin: 0,

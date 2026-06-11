@@ -90,8 +90,8 @@ test.describe('Tier 1: /new page source assertions (D-29 + Pitfall 15)', () => {
     const source = readFileSync(DEADLINE_PICKER, 'utf-8');
     expect(source).toMatch(/dayBucketUtc/);
     expect(source).toMatch(/@call-it\/shared/);
-    // Must show "Hash bucket:" label inline
-    expect(source).toContain('Hash bucket:');
+    // Must show "Settlement window:" label inline
+    expect(source).toContain('Settlement window:');
   });
 
   test('DuplicateWarning has CALL-49 verbatim copy', () => {

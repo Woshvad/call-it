@@ -11,11 +11,11 @@
  *   → The duplicate-hash check would be for tomorrow's bucket, not today's
  *   → Users would be confused why their "re-call" doesn't revert as duplicate
  *
- * The DeadlinePicker shows "Hash bucket: {UTC day} 00:00:00 UTC" inline.
+ * The DeadlinePicker shows "Settlement window: {UTC day} 00:00:00 UTC" inline.
  * This test asserts the label shows the correct UTC day, not the user's local day.
  *
  * ## Tier 1: Static source assertions (always run in CI)
- * - DeadlinePicker renders the "Hash bucket:" label
+ * - DeadlinePicker renders the "Settlement window:" label
  * - dayBucketUtc is imported from @call-it/shared
  * - The UTC bucket rounds DOWN to midnight (not up)
  *
@@ -38,9 +38,9 @@ const DEADLINE_PICKER = path.join(WEB_ROOT, 'app', 'new', 'components', 'Deadlin
 
 test.describe('Tier 1: UTC-day boundary static assertions (PITFALL-12)', () => {
 
-  test('DeadlinePicker renders "Hash bucket:" label inline (CALL-46)', () => {
+  test('DeadlinePicker renders "Settlement window:" label inline (CALL-46)', () => {
     const source = readFileSync(DEADLINE_PICKER, 'utf-8');
-    expect(source).toContain('Hash bucket:');
+    expect(source).toContain('Settlement window:');
   });
 
   test('DeadlinePicker imports dayBucketUtc from @call-it/shared (D-29 parity)', () => {
@@ -102,7 +102,7 @@ test.describe('Tier 2: UTC-day boundary browser test (requires Privy + TZ overri
     if (!hasPrivy) testInfo.skip(true, 'Tier 2 tests require a real Privy app ID.');
   });
 
-  test('Tier2 PST user picking 11:32 PM sees next UTC day in Hash bucket label', async ({ page }) => {
+  test('Tier2 PST user picking 11:32 PM sees next UTC day in Settlement window label', async ({ page }) => {
     // When run with TZ=America/Los_Angeles in webServer env,
     // new Date('2026-05-22T23:32') will be PST (UTC-7 in May = PDT)
     // = 2026-05-23 06:32:00 UTC → bucket = 2026-05-23 00:00:00 UTC
@@ -114,8 +114,8 @@ test.describe('Tier 2: UTC-day boundary browser test (requires Privy + TZ overri
     await deadlineInput.fill('2026-05-22T23:32');
 
     // Wait for the label to update (should show 2026-05-23)
-    await expect(page.getByText(/Hash bucket:/)).toBeVisible();
+    await expect(page.getByText(/Settlement window:/)).toBeVisible();
     // The UTC day should be 2026-05-23 (next day from PST perspective)
-    await expect(page.getByText(/Hash bucket:.*2026-05-23/)).toBeVisible();
+    await expect(page.getByText(/Settlement window:.*2026-05-23/)).toBeVisible();
   });
 });

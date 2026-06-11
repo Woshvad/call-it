@@ -76,7 +76,8 @@ export function Sidebar() {
     { label: 'Leaderboard', href: '/leaderboard', icon: 'leaderboard' },
     // C7 (quick-260611-5mh): duels index — /duel/:id pages were unreachable
     // by navigation before this entry existed.
-    { label: 'Duels', href: '/duels' as Route, icon: 'book' },
+    // F-E19: crossed-swords 'duel' glyph — distinct from Disputes' 'book'.
+    { label: 'Duels', href: '/duels' as Route, icon: 'duel' },
   ];
 
   const youNav: NavEntry[] = [
