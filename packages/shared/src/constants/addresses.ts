@@ -307,7 +307,7 @@ export const AAVE_V3_POOL_ARBITRUM_ONE =
  *   PR.authorizedRepWriters(sm)    -> true                               ✓
  */
 export const SUBGRAPH_URL_SEPOLIA =
-  'https://api.studio.thegraph.com/query/1754389/call-it-sepolia/v0.9.1' as const; // Phase 7: same build (QmYrrSgVxrpgg3Bgc7P1e2ZjdGNSjW3fhExcsieVPgcimJ) as v0.9.0 — re-published 2026-06-08 under v0.9.1 because the Studio dev query node dropped the v0.9.0 version label ("deployment does not exist") while the subgraph still showed "deployed". v0.9.0 added Call.statement templated mirror (Plan 07-02, D-03/D-05). Cluster PR 0xF66C0AFE / CR 0xc79bB19d / FFM 0x188Db297 / CE 0xC738dBcD / SM 0x2E26eEb3. DN publish (durable endpoint) stays Phase 10 (D-01).
+  'https://api.studio.thegraph.com/query/1754389/call-it-sepolia/v0.9.2' as const; // v0.9.2 (2026-06-11, quick-260611-sof): mirrors Profile.globalRep from ProfileRegistry.RepDeltaApplied newRep (POST-apply, floor+clamp baked in) — fixes the stale pre-settlement currentRep mirror (leaderboard showed losers at 100). Supersedes v0.9.1 (2026-06-08 re-publish of the v0.9.0 build QmYrrSgVxrpgg3Bgc7P1e2ZjdGNSjW3fhExcsieVPgcimJ after the Studio dev query node dropped the v0.9.0 label; v0.9.0 added Call.statement templated mirror, Plan 07-02, D-03/D-05). Cluster PR 0xF66C0AFE / CR 0xc79bB19d / FFM 0x188Db297 / CE 0xC738dBcD / SM 0x2E26eEb3. DN publish (durable endpoint) stays Phase 10 (D-01).
 
 /**
  * Subgraph Decentralized Network URL (Arbitrum One mainnet).

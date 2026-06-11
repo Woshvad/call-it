@@ -18,6 +18,7 @@ import {
   RelayerSet,
   SocialLinked,
   SocialUnlinked,
+  RepDeltaApplied,
 } from '../generated/ProfileRegistry/ProfileRegistry';
 
 import { Profile } from '../generated/schema';
@@ -108,6 +109,35 @@ export function handleSocialLinked(event: SocialLinked): void {
     profile.farcasterHandle = event.params.handle;
   }
   profile.lastActiveAt = event.block.timestamp;
+  profile.save();
+}
+
+// ── RepDeltaApplied ───────────────────────────────────────────────────────────
+// event RepDeltaApplied(address indexed user, int256 delta, uint128 newRep)
+// THE single source of truth for Profile.globalRep (quick-260611-sof; 09.2 UAT
+// finding 1: leaderboard showed losers unpunished at 100).
+//
+// newRep carries the POST-apply globalRep — the REP-02 floor-at-0 and the WR-08
+// uint128 clamp are already applied on-chain inside ProfileRegistry.applyRepDelta
+// (ProfileRegistry.sol:239-252), the ONLY globalRep mutator. The event is emitted
+// by EVERY applyRepDelta path:
+//   - settlement (SettlementManager.sol:308)
+//   - caller exit (FollowFadeMarket.sol:428)
+//   - duel winner/loser deltas (SettlementManager.sol:336-337)
+//   - dispute reversal (SettlementManager.sol:506)
+// so mirroring newRep here reproduces on-chain rep exactly with zero subgraph-side
+// arithmetic — including the exited-caller skip (SM:307: no applyRepDelta → no
+// event → rep stays at the exit-time value, exact mirror by construction).
+//
+// Deliberately does NOT touch lastActiveAt: on-chain applyRepDelta does not record
+// activity, and lazy-init delta=0 emissions (e.g. FFM initializePool) would
+// otherwise skew activity timestamps.
+
+export function handleRepDeltaApplied(event: RepDeltaApplied): void {
+  let id = event.params.user.toHexString();
+  let profile = ensureProfile(id);
+  // newRep is uint128 (codegen BigInt) → toI32() is safe at rep scale (0..~200).
+  profile.globalRep = event.params.newRep.toI32();
   profile.save();
 }
 

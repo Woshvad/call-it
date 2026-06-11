@@ -275,8 +275,13 @@ export function handleRepCalculated(event: RepCalculated): void {
   } else {
     profile.losses = profile.losses + 1;
   }
-  // Update globalRep from currentRep (uint128 → toI32 — safe for rep scale)
-  profile.globalRep = event.params.currentRep.toI32();
+  // globalRep is NOT written here (quick-260611-sof): RepCalculated.currentRep is
+  // the PRE-update rep read at SettlementManager.sol:282 BEFORE applyRepDelta —
+  // persisting it was the v0.9.1 staleness bug (losers showed unpunished at 100).
+  // Profile.globalRep is mirrored exclusively from ProfileRegistry.RepDeltaApplied
+  // in profile-registry.ts, which fires EARLIER in the same settle tx (logIndex
+  // order: RepDeltaApplied → RepCalculated) — writing currentRep here would
+  // clobber the correct post-apply value.
   profile.lastActiveAt = event.block.timestamp;
   profile.save();
 }
@@ -292,6 +297,9 @@ export function handleRepCalculated(event: RepCalculated): void {
 // REP-27
 
 export function handleRepCalculatedFallback(event: RepCalculatedFallback): void {
+  // Rep application in the Stylus-fallback path is also covered by RepDeltaApplied + the
+  // subsequent unconditional RepCalculated (SM:293-311); this handler records the fallback
+  // artifact entities only — no globalRep logic here (quick-260611-sof).
   let callId = event.params.callId.toString();
   let callerHex = event.params.caller.toHexString();
 

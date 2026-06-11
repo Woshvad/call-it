@@ -99,6 +99,8 @@ dataSources:
           handler: handleSocialLinked
         - event: SocialUnlinked(indexed address,uint8)
           handler: handleSocialUnlinked
+        - event: RepDeltaApplied(indexed address,int256,uint128)
+          handler: handleRepDeltaApplied
   - kind: ethereum/contract
     name: FollowFadeMarket
     network: arbitrum-sepolia
