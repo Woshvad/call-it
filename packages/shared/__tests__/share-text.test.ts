@@ -33,6 +33,24 @@ describe('isRealHandle', () => {
     expect(isRealHandle('undefined')).toBe(false);
     expect(isRealHandle('null')).toBe(false);
   });
+
+  it('WR-06: rejects #-prefixed pseudo-handles (call-id fallbacks)', () => {
+    expect(isRealHandle('#14')).toBe(false);
+    expect(isRealHandle('@#14')).toBe(false);
+    expect(isRealHandle('#')).toBe(false);
+    expect(isRealHandle('##')).toBe(false);
+  });
+
+  it('WR-06: rejects purely-numeric fallbacks', () => {
+    expect(isRealHandle('14')).toBe(false);
+    expect(isRealHandle('@14')).toBe(false);
+  });
+
+  it('WR-06: still accepts real handles that merely CONTAIN digits or #', () => {
+    expect(isRealHandle('web3dev')).toBe(true);
+    expect(isRealHandle('caller14')).toBe(true);
+    expect(isRealHandle('#woshvad')).toBe(true); // stripped prefix, real name remains
+  });
 });
 
 describe('buildShareText handle guards', () => {
@@ -62,6 +80,17 @@ describe('buildShareText handle guards', () => {
     const text = buildShareText({ outcomeWord: 'CONTRARIAN HIT', handle: '' });
     expect(text).toBe('CONTRARIAN HIT');
     expect(text).not.toContain('@');
+  });
+
+  it('WR-06: "#14" call-id fallback handle → @segment omitted (never "@#14")', () => {
+    const text = buildShareText({
+      outcomeWord: 'LOUD AND WRONG',
+      handle: '#14',
+      statement: 'ETH ≥ $1,000,000',
+    });
+    expect(text).toBe('LOUD AND WRONG: ETH ≥ $1,000,000');
+    expect(text).not.toContain('@');
+    expect(text).not.toContain('#14');
   });
 
   it('still contains the outcome word and respects the 240-char cap with a long statement', () => {

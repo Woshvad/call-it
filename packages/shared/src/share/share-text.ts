@@ -55,14 +55,19 @@ const MAX_SHARE_TEXT = 240;
 
 /**
  * True only for a REAL social handle. Addresses (0x…), truncated addresses
- * (0x12…abcd), empty strings, and stringified absent values are NOT handles —
- * mentioning them would tag nothing (or a fake account) on X/Farcaster.
+ * (0x12…abcd), empty strings, stringified absent values, '#'-prefixed
+ * pseudo-handles ('#14' call-id fallbacks — WR-06), and purely-numeric
+ * fallbacks are NOT handles — mentioning them would tag nothing (or a fake
+ * account) on X/Farcaster.
  */
 export function isRealHandle(handle?: string | null): boolean {
   if (!handle) return false;
-  const h = handle.trim().replace(/^@/, '');
+  // WR-06: strip leading @/# prefixes (same cleaning as avatarInitial — IN-03)
+  // so a '#14' call-id fallback can never become "@#14" in a shared post.
+  const h = handle.trim().replace(/^[@#]+/, '');
   if (h.length === 0) return false;
   if (/^0x/i.test(h)) return false; // wallet address or truncated address alias
+  if (/^\d+$/.test(h)) return false; // WR-06: purely-numeric fallback (call id), not a handle
   if (h === 'undefined' || h === 'null') return false;
   return true;
 }

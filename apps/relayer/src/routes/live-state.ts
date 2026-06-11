@@ -196,7 +196,9 @@ interface LiveStateResponse {
   // on-chain feed id is unknown (D-07: degrade, never guess).
   assetSymbol?: string;
   // targetValue: raw on-chain target as a STRING at 1e8 scale — omitted for
-  // nonexistent calls.
+  // nonexistent calls AND for Event markets (marketType 2), whose targets are
+  // stored raw/unscaled on-chain (WR-04: a ÷1e8 consumer would render $0.01
+  // for a $1M milestone; events degrade to their stored statement, D-07).
   targetValue?: string;
   // ── Settled outcome fields (08-05 — GAP 1, Core Value: truthful receipts) ──
   // ONLY present when status is Settled/Disputed AND the on-chain outcome is
@@ -494,7 +496,8 @@ export async function liveStateRoute(
               : {}),
           // ── Enrichment additions (quick-260611-5mh — ADDITIVE) ──
           ...(enriched?.assetSymbol !== undefined ? { assetSymbol: enriched.assetSymbol } : {}),
-          ...(enriched !== null ? { targetValue: enriched.targetValue } : {}),
+          // WR-04: targetValue is absent for Event markets (raw/unscaled target).
+          ...(enriched?.targetValue !== undefined ? { targetValue: enriched.targetValue } : {}),
           // Settled outcome fields (08-05) — conditional spread keeps them absent for
           // Live/non-settled calls so the page never sees a phantom outcome (CRITICAL).
           ...(outcome !== undefined ? { outcome } : {}),

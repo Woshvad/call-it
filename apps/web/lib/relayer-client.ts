@@ -113,7 +113,11 @@ export interface FeedItem {
   statement?: string;
   /** Resolved Pyth ticker for assetA (PLAN-01 enrichment; optional). */
   assetSymbol?: string;
-  /** Raw on-chain target at 1e8 scale, as a string (PLAN-01 enrichment; optional). */
+  /**
+   * Raw on-chain target at 1e8 scale, as a string (PLAN-01 enrichment;
+   * optional). WR-04: the relayer omits this for Event markets — event
+   * milestone targets are raw/unscaled and must never be ÷1e8-rendered.
+   */
   targetValue?: string;
 }
 
@@ -129,12 +133,15 @@ export interface FeedResponse {
  */
 export async function getFeed(cursor?: string): Promise<FeedResponse> {
   const qs = cursor ? `?cursor=${encodeURIComponent(cursor)}` : '';
+  // WR-02: the relayer wire key is `nextCursor` (feed.ts returns
+  // { items, nextCursor, _source }) — reading `res.cursor` always yielded
+  // undefined and capped infinite scroll at page 1. Map wire → web shape here.
   const res = await relayerFetch<{
     items: Array<Omit<FeedItem, 'status'> & { status?: string }>;
-    cursor: string | null;
+    nextCursor: string | null;
   }>(`/api/feed${qs}`);
   return {
-    cursor: res.cursor,
+    cursor: res.nextCursor ?? null,
     items: (res.items ?? []).map((item) => ({
       ...item,
       status: normalizeCallStatus(item.status),

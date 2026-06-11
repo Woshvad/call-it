@@ -25,6 +25,7 @@ export const runtime = 'nodejs';
 
 import { type NextRequest } from 'next/server';
 import { renderFallback } from '@/lib/og-fallback-render';
+import { resolveOgFooterHost } from '@/lib/og-host';
 
 /**
  * GET /api/og/[callId]
@@ -62,8 +63,9 @@ export async function GET(
   void callId;
 
   // D-12: footer brand from env-var. C13 (quick-260611-5mh): fallback is the
-  // REAL request host (the literal '[BRAND]' placeholder rendered verbatim).
-  const requestHost = url.host || 'call-it-web-sepolia.vercel.app';
+  // request host — but WR-07: only trusted when allowlisted (no reflected
+  // Host-header spoofing); otherwise the fixed live-deploy literal.
+  const requestHost = resolveOgFooterHost(url.host);
   const footerBrand =
     process.env['NEXT_PUBLIC_BRAND_FOOTER'] ?? `${requestHost} · Be right in public.`;
 

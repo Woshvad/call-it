@@ -8,7 +8,8 @@
  * Key behaviors (from RESEARCH Pattern 5 + D-05):
  *   1. The permit deadline is `now + 300s` (short window to prevent replay)
  *   2. The nonce is fetched fresh from `USDC.nonces(userAddress)` per-call
- *   3. The EIP-712 domain name for Arbitrum native USDC is "USD Coin" (verified)
+ *   3. The EIP-712 domain (name/version) is selected PER CHAIN from constants
+ *      verified against each token's on-chain DOMAIN_SEPARATOR (WR-03, below)
  *   4. The spender is the Circle USDC Paymaster contract address
  *
  * Security (T-01-47, T-01-48):
@@ -30,11 +31,6 @@ import { USDC_ADDRESS } from './chain';
 
 /**
  * EIP-712 Permit typed data for USDC EIP-2612.
- *
- * Domain name for Arbitrum native USDC is "USD Coin"
- * (verified against Circle USDC on Arbitrum contract EIP-712 domain).
- *
- * Source: Arbitrum native USDC contract (0xaf88d...e5831), `name()` returns "USD Coin"
  */
 const USDC_PERMIT_TYPES = {
   Permit: [
@@ -58,8 +54,8 @@ export interface PermitParams {
 
 export interface PermitTypedData {
   domain: {
-    name: 'USD Coin';
-    version: '2';
+    name: string;
+    version: string;
     chainId: number;
     verifyingContract: `0x${string}`;
   };
@@ -75,9 +71,45 @@ export interface PermitTypedData {
 }
 
 /**
+ * Per-chain USDC EIP-712 domain constants (WR-03) — VERIFIED ON-CHAIN 2026-06-11
+ * by reading name()/version() via eth_call AND recomputing
+ * keccak256(abi.encode(EIP712Domain typehash, keccak(name), keccak(version),
+ * chainId, verifyingContract)) against the token's DOMAIN_SEPARATOR():
+ *
+ *   - Arbitrum One (42161) native USDC 0xaf88d065e77c8cC2239327C5EDb3A432268e5831:
+ *     name()="USD Coin", version()="2"; computed separator
+ *     0x08d11903f8419e68b1b8721bcbe2e9fc68569122a77ef18c216f10b3b5112c78
+ *     matches DOMAIN_SEPARATOR() byte-for-byte.
+ *
+ *   - Arbitrum Sepolia (421614) test USDC 0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d:
+ *     name()="USD Coin", version()="2"; computed separator
+ *     0x85944e1292d007732838d6eadfa67589b78ffcededbd4df60488d0af251308bb
+ *     matches DOMAIN_SEPARATOR() byte-for-byte.
+ *
+ * Both chains happen to share name/version today, but the lookup stays
+ * per-chain so a future chain (or a token upgrade bumping version) is an
+ * explicit, verified entry here — never a silent wrong-domain signature.
+ */
+const USDC_PERMIT_DOMAINS: Record<number, { name: string; version: string }> = {
+  42161: { name: 'USD Coin', version: '2' },
+  421614: { name: 'USD Coin', version: '2' },
+};
+
+/**
+ * Resolve the verified EIP-712 domain (name/version) for the given chain's
+ * USDC token (WR-03). Unknown chains fall back to the Circle-standard
+ * "USD Coin"/"2" pair — every chain this app actually targets MUST have a
+ * verified entry in USDC_PERMIT_DOMAINS above.
+ */
+export function getUsdcPermitDomain(chainId: number): { name: string; version: string } {
+  return USDC_PERMIT_DOMAINS[chainId] ?? { name: 'USD Coin', version: '2' };
+}
+
+/**
  * Build an EIP-2612 permit typed-data object for USDC.
  *
- * The domain.name MUST be "USD Coin" for Arbitrum native USDC.
+ * The domain name/version are chain-selected from on-chain-verified constants
+ * (WR-03) — a wrong domain produces a signature the token rejects on-chain.
  * Passing this to Privy's `signTypedData()` / wagmi's `useSignTypedData()`
  * produces a valid permit signature.
  *
@@ -85,10 +117,11 @@ export interface PermitTypedData {
  * @returns EIP-712 typed data ready for signing
  */
 export function buildEip2612PermitTypedData(params: PermitParams): PermitTypedData {
+  const { name, version } = getUsdcPermitDomain(params.chainId);
   return {
     domain: {
-      name: 'USD Coin',   // MUST match Arbitrum native USDC EIP-712 domain
-      version: '2',        // USDC uses version "2"
+      name,     // chain-verified (WR-03) — matches the token's DOMAIN_SEPARATOR
+      version,  // chain-verified (WR-03)
       chainId: params.chainId,
       verifyingContract: params.usdcAddress,
     },

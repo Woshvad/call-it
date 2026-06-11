@@ -97,9 +97,13 @@ describe('C13 — OG settled-loss money semantics', () => {
     expect(src()).toContain('missedByStr');
   });
 
-  it('footer brand derives from the request host (no callitapp.xyz fallback)', () => {
+  it('footer brand derives from the (allowlisted) request host — no callitapp.xyz fallback', () => {
     expect(src()).not.toContain("?? 'callitapp.xyz");
-    expect(src()).toContain('call-it-web-sepolia.vercel.app');
+    // WR-07 (quick-260611-5mh): the host now flows through the allowlist helper
+    // in lib/og-host.ts — which carries the live-deploy literal — instead of
+    // reflecting the raw Host header into the cacheable card.
+    expect(src()).toContain('resolveOgFooterHost(url.host)');
+    expect(read('lib', 'og-host.ts')).toContain('call-it-web-sepolia.vercel.app');
   });
 
   it('D-04 font freeze: og-fonts import untouched', () => {

@@ -1,5 +1,5 @@
 /**
- * Notifications GET filters — quick-260611-5mh Task 3 (A4).
+ * Notifications GET filters — quick-260611-5mh Task 3 (A4) + WR-01 hardening.
  *
  * Tests:
  *   1. Legacy guard unchanged: no user + no filters → 400 missing_param
@@ -7,6 +7,12 @@
  *   3. callId+type filter WITHOUT user → 200 (user optional in filter mode)
  *   4. Filter conditions include callId/eventType; user still ANDed when present
  *   5. Invalid callId → 400
+ *   6. WR-01: `?type=` (empty string, no user) → 400 missing_param — the
+ *      empty-string param no longer enters filter mode (the unfiltered-dump vector)
+ *   7. WR-01: callId alone (no type) → 400 — both params mandatory in filter mode
+ *   8. WR-01: type alone (no callId) → 400 — both params mandatory in filter mode
+ *   9. WR-01: anonymous filter with a NON-public type → 403 (user-scoped only)
+ *  10. WR-01: anonymous filter selects RESTRICTED columns (no userAddress/readAt)
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
@@ -14,18 +20,23 @@ import Fastify from 'fastify';
 
 // ── Hoisted mocks ─────────────────────────────────────────────────────────────
 
-const { mockRows, mockUnreadRows, mockWhereArgs } = vi.hoisted(() => ({
+const { mockRows, mockUnreadRows, mockWhereArgs, mockSelectArgs } = vi.hoisted(() => ({
   mockRows: { value: [] as unknown[] },
   mockUnreadRows: { value: [{ count: '0' }] as unknown[] },
   mockWhereArgs: { rowsWhere: [] as unknown[], unreadWhere: [] as unknown[] },
+  mockSelectArgs: { rowsSelect: [] as unknown[] },
 }));
 
-// Chainable drizzle stub: select() → rows query (where→orderBy→limit),
-// select({count}) → unread query (where → Promise).
+// Chainable drizzle stub. Discrimination (WR-01): the unread-count query is the
+// ONLY select carrying a `count` key — `db.select({count})` → where → Promise.
+// Everything else (full `select()` AND the WR-01 restricted-column
+// `select({id, callId, …})`) is a rows query: where → orderBy → limit.
 vi.mock('../src/db/client.js', () => ({
   getDb: vi.fn(() => ({
     select: vi.fn((arg?: unknown) => {
-      if (arg !== undefined) {
+      const isUnreadCount =
+        arg !== null && typeof arg === 'object' && 'count' in (arg as Record<string, unknown>);
+      if (isUnreadCount) {
         // unread-count query: db.select({ count }) ... awaited after .where()
         return {
           from: vi.fn(() => ({
@@ -36,6 +47,8 @@ vi.mock('../src/db/client.js', () => ({
           })),
         };
       }
+      // rows query — capture the column selection (undefined = full row)
+      mockSelectArgs.rowsSelect.push(arg);
       return {
         from: vi.fn(() => ({
           where: vi.fn((cond: unknown) => {
@@ -90,6 +103,7 @@ describe('GET /api/notifications — callId/type filters (quick-260611-5mh A4)',
     mockUnreadRows.value = [{ count: '1' }];
     mockWhereArgs.rowsWhere = [];
     mockWhereArgs.unreadWhere = [];
+    mockSelectArgs.rowsSelect = [];
 
     app = Fastify({ logger: false });
     await app.register(notificationsRoute);
@@ -157,5 +171,70 @@ describe('GET /api/notifications — callId/type filters (quick-260611-5mh A4)',
     });
     expect(response.statusCode).toBe(400);
     expect(response.json<{ error: string }>().error).toBe('invalid_param');
+  });
+
+  // ── WR-01 hardening (quick-260611-5mh code-review fixes) ────────────────────
+
+  it('Test 6 (WR-01): empty-string ?type= with no user → 400 missing_param, no query runs', async () => {
+    // The original bug: `?type=` set filterMode=true, the empty-string guard
+    // skipped the type condition, and `.where(and())` dumped arbitrary rows.
+    const response = await app.inject({ method: 'GET', url: '/api/notifications?type=' });
+    expect(response.statusCode).toBe(400);
+    expect(response.json<{ error: string }>().error).toBe('missing_param');
+    expect(mockWhereArgs.rowsWhere).toHaveLength(0);
+    expect(mockWhereArgs.unreadWhere).toHaveLength(0);
+  });
+
+  it('Test 7 (WR-01): callId alone (no type) → 400, no query runs', async () => {
+    const response = await app.inject({ method: 'GET', url: '/api/notifications?callId=14' });
+    expect(response.statusCode).toBe(400);
+    expect(response.json<{ error: string }>().error).toBe('invalid_param');
+    expect(mockWhereArgs.rowsWhere).toHaveLength(0);
+  });
+
+  it('Test 8 (WR-01): type alone (no callId) → 400, no query runs', async () => {
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/notifications?type=challenge_proposed',
+    });
+    expect(response.statusCode).toBe(400);
+    expect(response.json<{ error: string }>().error).toBe('invalid_param');
+    expect(mockWhereArgs.rowsWhere).toHaveLength(0);
+  });
+
+  it('Test 9 (WR-01): anonymous filter with a NON-public type → 403, no query runs', async () => {
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/notifications?callId=14&type=call_settled',
+    });
+    expect(response.statusCode).toBe(403);
+    expect(response.json<{ error: string }>().error).toBe('forbidden');
+    expect(mockWhereArgs.rowsWhere).toHaveLength(0);
+  });
+
+  it('Test 10 (WR-01): anonymous filter selects RESTRICTED columns (no userAddress/readAt)', async () => {
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/notifications?callId=14&type=challenge_proposed',
+    });
+    expect(response.statusCode).toBe(200);
+    expect(mockSelectArgs.rowsSelect).toHaveLength(1);
+    const selectArg = mockSelectArgs.rowsSelect[0] as Record<string, unknown> | undefined;
+    // Anonymous reads pass an explicit column map — never a full-row select()
+    expect(selectArg).toBeDefined();
+    const keys = Object.keys(selectArg ?? {}).sort();
+    expect(keys).toEqual(['callId', 'createdAt', 'eventType', 'id', 'payload']);
+    expect(keys).not.toContain('userAddress');
+    expect(keys).not.toContain('readAt');
+  });
+
+  it('Test 11 (WR-01): user-scoped filter still selects FULL rows (legacy parity)', async () => {
+    const response = await app.inject({
+      method: 'GET',
+      url: `/api/notifications?callId=14&type=call_settled&user=${USER}`,
+    });
+    expect(response.statusCode).toBe(200);
+    // user-scoped rows query: select() with NO column restriction
+    expect(mockSelectArgs.rowsSelect).toEqual([undefined]);
   });
 });

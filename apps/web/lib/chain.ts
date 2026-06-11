@@ -82,3 +82,13 @@ export const PROFILE_REGISTRY_ADDRESS = (
 export const SETTLEMENT_MANAGER_ADDRESS = (
   isMainnet ? SETTLEMENT_MANAGER_ARBITRUM_ONE : SETTLEMENT_MANAGER_ARBITRUM_SEPOLIA
 ) as `0x${string}`;
+
+/**
+ * Chain-correct block-explorer base URL (WR-05, no trailing slash):
+ * Arbitrum One → arbiscan.io, Arbitrum Sepolia → sepolia.arbiscan.io.
+ * Use for every tx/address link so a Sepolia deploy never links to a
+ * mainnet explorer page that 404s.
+ */
+export const EXPLORER_BASE_URL = isMainnet
+  ? 'https://arbiscan.io'
+  : 'https://sepolia.arbiscan.io';

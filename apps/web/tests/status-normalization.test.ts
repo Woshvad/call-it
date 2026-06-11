@@ -63,4 +63,12 @@ describe('grep gate: no TitleCase status comparisons in relayer-client consumers
     expect(src).toContain('export function normalizeCallStatus');
     expect(src).toContain('normalizeCallStatus(item.status)');
   });
+
+  it('WR-02: getFeed maps the relayer wire key nextCursor → cursor', () => {
+    const src = read('lib', 'relayer-client.ts');
+    // The relayer feed route returns { items, nextCursor, _source }; reading
+    // `res.cursor` (always undefined) capped infinite scroll at page 1.
+    expect(src).toContain('cursor: res.nextCursor');
+    expect(src).not.toContain('cursor: res.cursor');
+  });
 });

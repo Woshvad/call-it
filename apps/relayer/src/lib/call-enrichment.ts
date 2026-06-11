@@ -81,8 +81,15 @@ const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000';
 export interface EnrichedCallFields {
   /** Resolved ticker symbol for assetA (e.g. "ETH") — undefined when the feed id is unknown (D-07: degrade, never guess). */
   assetSymbol?: string;
-  /** Raw on-chain targetValue as a STRING at 1e8 scale (e.g. "100000000000000" = $1,000,000). */
-  targetValue: string;
+  /**
+   * Raw on-chain targetValue as a STRING at 1e8 scale (e.g. "100000000000000"
+   * = $1,000,000). WR-04: OMITTED for Event markets (marketType 2) — event
+   * milestone targets are stored RAW/unscaled on-chain (target-scale.ts), so
+   * emitting them under this 1e8-documented key made ÷1e8 consumers render
+   * "$0.01" for a $1M milestone. Event calls degrade to their stored
+   * statement (D-07) with no fabricated dollar target.
+   */
+  targetValue?: string;
   /** Server-built human-readable market line (e.g. "ETH ≥ $1,000,000") — undefined when not derivable. */
   marketLine?: string;
   /** Unix-seconds expiry as a string. */
@@ -233,7 +240,9 @@ export function buildEnrichmentFromStruct(
   const assetSymbolB = feedIdToSymbol(struct.assetB);
   const fields: EnrichedCallFields = {
     ...(assetSymbol !== undefined ? { assetSymbol } : {}),
-    targetValue: struct.targetValue.toString(),
+    // WR-04: targetValue is 1e8-scale ONLY for Price/RelativePerformance markets;
+    // Event (marketType 2) targets are raw/unscaled — omit them entirely.
+    ...(struct.marketType !== 2 ? { targetValue: struct.targetValue.toString() } : {}),
     ...((): { marketLine?: string } => {
       const line = buildMarketLine(struct.marketType, assetSymbol, assetSymbolB, struct.targetValue);
       return line !== undefined ? { marketLine: line } : {};
@@ -324,7 +333,8 @@ export async function enrichCallIds(
  *   - `expiry` / `conviction` values replaced with the real on-chain facts
  *     (the subgraph mapping writes 0 / 50 placeholders — RC2)
  *   - `asset` populated with the resolved symbol ONLY when currently empty
- *   - NEW keys: `assetSymbol`, `targetValue` (1e8-scale string), `marketLine`
+ *   - NEW keys: `assetSymbol`, `targetValue` (1e8-scale string — omitted for
+ *     Event markets whose targets are raw/unscaled, WR-04), `marketLine`
  *
  * NEVER throws — any failure returns the input items unchanged.
  */
@@ -343,7 +353,7 @@ export async function enrichFeedItems(items: unknown[]): Promise<unknown[]> {
     if (enrichedMap.size === 0) return items;
 
     return items.map((item) => {
-      if (item === null || typeof item === 'object' === false) return item;
+      if (item === null || typeof item !== 'object') return item;
       const rec = item as Record<string, unknown>;
       const e = enrichedMap.get(String(rec['id']));
       if (!e) return item;
@@ -355,7 +365,8 @@ export async function enrichFeedItems(items: unknown[]): Promise<unknown[]> {
         // Fill the placeholder '' asset; never clobber a real existing value.
         asset: existingAsset.length > 0 ? existingAsset : (e.assetSymbol ?? existingAsset),
         ...(e.assetSymbol !== undefined ? { assetSymbol: e.assetSymbol } : {}),
-        targetValue: e.targetValue,
+        // WR-04: omitted for Event markets (raw/unscaled target — no 1e8 lie).
+        ...(e.targetValue !== undefined ? { targetValue: e.targetValue } : {}),
         ...(e.marketLine !== undefined ? { marketLine: e.marketLine } : {}),
       };
     });

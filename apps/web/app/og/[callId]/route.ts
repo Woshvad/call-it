@@ -31,6 +31,7 @@ import { ImageResponse } from '@vercel/og';
 import { createPublicClient, http } from 'viem';
 import { arbitrumSepolia } from 'viem/chains';
 import { renderFallback } from '@/lib/og-fallback-render';
+import { resolveOgFooterHost } from '@/lib/og-host';
 import { syneBold, spaceGrotesk, jetBrainsMono } from '@/lib/og-fonts';
 import {
   FOLLOW_FADE_MARKET_ARBITRUM_SEPOLIA,
@@ -760,9 +761,10 @@ export async function GET(
   const isViewerFader = url.searchParams.get('as') === 'fader';
 
   // D-12: footer brand from env-var. C13 (quick-260611-5mh): the fallback is
-  // the REAL host serving this card (derived from the request URL), never the
-  // unowned 'callitapp.xyz' — literal fallback is the live Vercel deploy.
-  const requestHost = url.host || 'call-it-web-sepolia.vercel.app';
+  // the host serving this card — but WR-07: the request Host header is only
+  // trusted when it matches the known-host allowlist (no reflected/CDN-cacheable
+  // header spoofing); otherwise the fixed live-deploy literal is used.
+  const requestHost = resolveOgFooterHost(url.host);
   const footerBrand =
     process.env['NEXT_PUBLIC_BRAND_FOOTER'] ?? `${requestHost} · Be right in public.`;
 

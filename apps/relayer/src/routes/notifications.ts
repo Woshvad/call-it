@@ -64,9 +64,16 @@ async function resolveSessionWalletAddress(privyUserId: string): Promise<string 
 interface NotificationsQuerystring {
   user?: string;
   cursor?: string;
-  /** quick-260611-5mh A4: optional callId filter (pending-challenge banner). */
+  /**
+   * quick-260611-5mh A4: callId filter (pending-challenge banner). WR-01:
+   * filter mode requires BOTH callId AND type non-empty — never one alone.
+   */
   callId?: string;
-  /** quick-260611-5mh A4: optional event_type filter (e.g. challenge_proposed). */
+  /**
+   * quick-260611-5mh A4: event_type filter (e.g. challenge_proposed). WR-01:
+   * anonymous (no user) filter reads are limited to PUBLIC types
+   * (challenge_proposed) and omit recipient-scoped columns.
+   */
   type?: string;
 }
 
@@ -102,45 +109,90 @@ export async function notificationsRoute(
 
       const userAddress = request.query.user;
 
-      // ── quick-260611-5mh A4: callId/type filter mode ────────────────────────
-      // When callId and/or type is present, `user` becomes OPTIONAL — the web's
-      // pending-challenge banner queries GET /api/notifications?callId=N&type=
-      // challenge_proposed without a user. The legacy user+cursor mode below is
-      // BYTE-IDENTICAL when neither filter param is supplied.
-      const callIdParam = request.query.callId;
-      const typeParam = request.query.type;
+      // ── quick-260611-5mh A4 (hardened — WR-01): callId+type filter mode ─────
+      // Filter mode requires BOTH callId AND type to be present and non-empty —
+      // the WHERE clause is always at least [callId, eventType], so `and()` with
+      // zero conditions (an unauthenticated table dump) is impossible. Empty-
+      // string params are treated as ABSENT before computing filterMode (the
+      // `?type=` dump vector). Anonymous (no `user`) filter queries are limited
+      // to PUBLIC notification types (challenge_proposed — the pending-challenge
+      // banner: who challenged a call is public on-chain info) and their rows
+      // omit the recipient-scoped columns (userAddress, readAt). Everything else
+      // stays user-scoped. The legacy user+cursor mode below is BYTE-IDENTICAL
+      // when neither filter param is supplied.
+      const callIdParam =
+        request.query.callId && request.query.callId.length > 0 ? request.query.callId : undefined;
+      const typeParam =
+        request.query.type && request.query.type.length > 0 ? request.query.type : undefined;
       const filterMode = callIdParam !== undefined || typeParam !== undefined;
 
+      // WR-01: anonymous filter reads allowed ONLY for these event types.
+      const PUBLIC_FILTER_TYPES = new Set(['challenge_proposed']);
+
       if (filterMode) {
+        // callId numeric validation first (clear error for a malformed id).
+        let callIdNum: number | null = null;
+        if (callIdParam !== undefined) {
+          callIdNum = parseInt(callIdParam, 10);
+          if (Number.isNaN(callIdNum)) {
+            return reply.status(400).send({ error: 'invalid_param', message: 'callId must be a numeric string' });
+          }
+        }
+        // WR-01: BOTH params are mandatory in filter mode — a single filter
+        // param can never widen the query beyond the legacy user-scoped mode.
+        if (callIdNum === null || typeParam === undefined) {
+          return reply.status(400).send({
+            error: 'invalid_param',
+            message: 'filter mode requires both callId and type',
+          });
+        }
+
         const cursorDate = request.query.cursor ? new Date(request.query.cursor) : null;
         const PAGE_SIZE = 20;
         const normalizedUser = userAddress ? userAddress.toLowerCase() : null;
 
-        const conds = [];
-        if (callIdParam !== undefined) {
-          const callIdNum = parseInt(callIdParam, 10);
-          if (Number.isNaN(callIdNum)) {
-            return reply.status(400).send({ error: 'invalid_param', message: 'callId must be a numeric string' });
-          }
-          conds.push(eq(notifications.callId, callIdNum));
+        // WR-01: without a user, only public notification types are readable.
+        if (!normalizedUser && !PUBLIC_FILTER_TYPES.has(typeParam)) {
+          return reply.status(403).send({
+            error: 'forbidden',
+            message: 'user is required for this notification type',
+          });
         }
-        if (typeParam !== undefined && typeParam.length > 0) {
-          conds.push(eq(notifications.eventType, typeParam));
-        }
+
+        const conds = [
+          eq(notifications.callId, callIdNum),
+          eq(notifications.eventType, typeParam),
+        ];
         if (normalizedUser) {
           conds.push(eq(notifications.userAddress, normalizedUser));
         }
         if (cursorDate) {
           conds.push(lt(notifications.createdAt, cursorDate));
         }
+        const whereCond = and(...conds);
 
         try {
-          const rows = await db
-            .select()
-            .from(notifications)
-            .where(conds.length === 1 ? conds[0] : and(...conds))
-            .orderBy(sql`${notifications.createdAt} DESC`)
-            .limit(PAGE_SIZE);
+          // WR-01: anonymous reads return only the banner's needs — the
+          // recipient-scoped columns (userAddress, readAt) are omitted.
+          const rows = normalizedUser
+            ? await db
+                .select()
+                .from(notifications)
+                .where(whereCond)
+                .orderBy(sql`${notifications.createdAt} DESC`)
+                .limit(PAGE_SIZE)
+            : await db
+                .select({
+                  id: notifications.id,
+                  callId: notifications.callId,
+                  eventType: notifications.eventType,
+                  payload: notifications.payload,
+                  createdAt: notifications.createdAt,
+                })
+                .from(notifications)
+                .where(whereCond)
+                .orderBy(sql`${notifications.createdAt} DESC`)
+                .limit(PAGE_SIZE);
 
           // unreadCount is per-user — only meaningful when a user is supplied
           // (anonymous callId/type queries get 0, never another user's count).

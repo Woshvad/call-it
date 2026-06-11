@@ -26,10 +26,11 @@
  * Phase 4 (Plan 04-08) additions:
  *   - DisputeModal: amber neobrutalist modal, IPFS evidence upload via Pinata,
  *     $5 USDC bond preflight (inline approve), raiseDispute writeContract (D-06)
- *   - ProvenanceModal: accent neobrutalist modal, oracle URL + Arbiscan tx hash,
- *     path-aware raw oracle data per oracle.type (Pyth=price+conf+publishTime,
- *     attestation paths=payload JSON, CEX=announcement), EIP-712 sig truncated
- *     with chainId 42161 label, copy-to-clipboard (D-10, SETTLE-52)
+ *   - ProvenanceModal: accent neobrutalist modal, oracle URL + chain-correct
+ *     explorer tx link (EXPLORER_BASE_URL — WR-05), path-aware raw oracle data
+ *     per oracle.type (Pyth=price+conf+publishTime, attestation paths=payload
+ *     JSON, CEX=announcement), EIP-712 sig truncated with the ACTIVE chainId
+ *     label, copy-to-clipboard (D-10, SETTLE-52)
  *   - Dispute CTA: "Dispute this settlement" shown when status==Settled + within 24h window
  *   - Dispute window / MAX_COUNTER_CLAIMS enforcement
  *
@@ -70,6 +71,7 @@ import {
 import { normalizeCallStatus, type CallStatus } from '@/lib/relayer-client';
 import {
   ACTIVE_CHAIN_ID,
+  EXPLORER_BASE_URL,
   FOLLOW_FADE_MARKET_ADDRESS,
   CHALLENGE_ESCROW_ADDRESS,
   SETTLEMENT_MANAGER_ADDRESS,
@@ -186,9 +188,10 @@ type ProvenanceData = {
   txHash: string;
   settledAt: number | null;
   rawOracleData: RawOracleData;
-  /** EIP-712 relayer signature (chainId 42161-bound — Pitfall 7) */
+  /** EIP-712 relayer signature (bound to the ACTIVE chain — Pitfall 7) */
   relayerSignature: string;
-  chainId: 42161;
+  /** WR-05: the active deploy chain (ACTIVE_CHAIN_ID), never hardcoded 42161. */
+  chainId: number;
 };
 
 // ─── Dispute constants (SETTLE-26/27/28) ─────────────────────────────────────
@@ -494,7 +497,9 @@ async function fetchProvenanceData(callId: string): Promise<ProvenanceFetchResul
         settledAt: raw['settledAt'] ? Number(raw['settledAt']) : null,
         rawOracleData: (raw['rawOracleData'] as RawOracleData) ?? null,
         relayerSignature: String(raw['relayerSignature'] ?? ''),
-        chainId: 42161,
+        // WR-05: the provenance is bound to the ACTIVE deploy chain — the old
+        // hardcoded 42161 mislabeled every Sepolia settlement.
+        chainId: ACTIVE_CHAIN_ID,
       },
     };
   } catch (err) {
@@ -1036,7 +1041,8 @@ function ProvenanceModal({ open, onClose, provenance, isLoading, error, onRetry 
               </span>
               {txHash ? (
                 <a
-                  href={`https://arbiscan.io/tx/${txHash}`}
+                  // WR-05: chain-correct explorer (sepolia.arbiscan.io on 421614)
+                  href={`${EXPLORER_BASE_URL}/tx/${txHash}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   style={{ fontFamily: 'var(--font-mono)', fontSize: '12px', fontWeight: 700, color: '#000', textDecoration: 'underline' }}
@@ -1070,14 +1076,14 @@ function ProvenanceModal({ open, onClose, provenance, isLoading, error, onRetry 
               </div>
             </div>
 
-            {/* RELAYER SIGNATURE (EIP-712, chainId 42161-bound — Pitfall 7) */}
+            {/* RELAYER SIGNATURE (EIP-712, bound to the ACTIVE chain — Pitfall 7 / WR-05) */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
               <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: '8px' }}>
                 <span style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', fontWeight: 700, color: 'rgba(0,0,0,0.55)', textTransform: 'uppercase', letterSpacing: '0.12em' }}>
                   RELAYER SIGNATURE (EIP-712)
                 </span>
                 <span style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', color: '#000', border: '1px solid #000', padding: '1px 5px' }}>
-                  chainId 42161
+                  chainId {ACTIVE_CHAIN_ID}
                 </span>
               </div>
               {sig ? (

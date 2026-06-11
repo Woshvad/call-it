@@ -39,6 +39,7 @@ import { ImageResponse } from '@vercel/og';
 import { createPublicClient, http } from 'viem';
 import { arbitrumSepolia } from 'viem/chains';
 import { renderFallback } from '@/lib/og-fallback-render';
+import { resolveOgFooterHost } from '@/lib/og-host';
 import { syneBold, spaceGrotesk, jetBrainsMono } from '@/lib/og-fonts';
 import {
   CHALLENGE_ESCROW_ARBITRUM_SEPOLIA,
@@ -481,9 +482,10 @@ export async function GET(
   // ?v= is the CDN cache-bust version — consumed by CDN, not used server-side
   void url.searchParams.get('v');
 
-  // C13 (quick-260611-5mh): footer fallback = the REAL request host, never
-  // the unowned 'callitapp.xyz'; literal fallback is the live Vercel deploy.
-  const requestHost = url.host || 'call-it-web-sepolia.vercel.app';
+  // C13 (quick-260611-5mh): footer fallback = the request host — but WR-07:
+  // only trusted when allowlisted (no reflected Host-header spoofing on a
+  // CDN-cacheable card); otherwise the fixed live-deploy literal.
+  const requestHost = resolveOgFooterHost(url.host);
   const footerBrand = process.env['NEXT_PUBLIC_BRAND_FOOTER'] ?? requestHost;
 
   let challengeId: bigint;

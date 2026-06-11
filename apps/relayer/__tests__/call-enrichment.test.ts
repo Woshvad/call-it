@@ -197,6 +197,27 @@ describe('call-enrichment', () => {
       });
       expect(fields).toBeNull();
     });
+
+    it('WR-04: Event markets (marketType 2) omit targetValue AND marketLine (raw/unscaled target)', () => {
+      // A $1M TVL milestone is stored RAW (1000000), not at 1e8 — emitting it
+      // under the 1e8-documented targetValue key made consumers render "$0.01".
+      const fields = buildEnrichmentFromStruct('16', {
+        createdAt: 1780000000n,
+        expiry: 1780931059n,
+        conviction: 70,
+        marketType: 2,
+        assetA: 0n,
+        assetB: 0n,
+        targetValue: 1000000n, // raw $1,000,000 milestone — NOT 1e8 scale
+      });
+      expect(fields).not.toBeNull();
+      expect(fields?.targetValue).toBeUndefined();
+      expect(fields?.marketLine).toBeUndefined();
+      // The real on-chain facts still enrich (expiry/conviction/marketType)
+      expect(fields?.expiry).toBe('1780931059');
+      expect(fields?.conviction).toBe(70);
+      expect(fields?.marketType).toBe(2);
+    });
   });
 
   describe('enrichFeedItems (graceful degradation contract)', () => {
@@ -240,6 +261,25 @@ describe('call-enrichment', () => {
       expect(item?.['stake']).toBe('5000000');
       expect(item?.['outcome']).toBe('CallerLost');
       expect(item?.['caller']).toBe('0xda8c5726f596e8dae99e6ddeba8aea1c8be9a4a5');
+    });
+
+    it('WR-04: Event-market feed items carry NO targetValue / marketLine keys', async () => {
+      const eventStruct = {
+        ...call14Struct(),
+        marketType: 2,
+        assetA: 0n,
+        targetValue: 1000000n, // raw milestone — not 1e8
+      };
+      mockMulticall.mockResolvedValueOnce([{ status: 'success', result: eventStruct }]);
+
+      const result = (await enrichFeedItems([{ id: '17', asset: '', status: 'Live' }])) as Array<
+        Record<string, unknown>
+      >;
+      expect(result[0]).toBeDefined();
+      expect('targetValue' in (result[0] ?? {})).toBe(false);
+      expect('marketLine' in (result[0] ?? {})).toBe(false);
+      // Real facts still merge additively
+      expect(result[0]?.['expiry']).toBe('1780931059');
     });
 
     it('relative-performance line requires both assets to resolve', async () => {
