@@ -50,3 +50,12 @@ export function assetMatchesChip(assetSymbol: string | undefined, chip: string):
   if (!members) return false;
   return members.has(assetSymbol.toUpperCase());
 }
+
+/**
+ * Ordered class list for a symbol's pill row (quick-260611-u1l) — order is
+ * ASSET_CLASS_CHIPS order with 'All' excluded. Membership, not a partition:
+ * ARB → ['L2s', 'Arbitrum Eco']. Unmapped or missing symbol → [].
+ */
+export function assetClassesFor(assetSymbol: string | undefined): string[] {
+  return ASSET_CLASS_CHIPS.slice(1).filter((chip) => assetMatchesChip(assetSymbol, chip));
+}

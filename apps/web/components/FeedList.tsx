@@ -1,5 +1,12 @@
 /**
- * FeedList — renders an array of CallCards with stagger animation (UI-53).
+ * FeedList — renders the call feed with stagger animation (UI-53).
+ *
+ * quick-260611-u1l: LIVE (non-settled/non-disputed) items render the NEW
+ * prototype-layout LiveCallCard (apps/web component) with REAL on-chain
+ * follow/fade reserves + ProfileRegistry handle fallback from
+ * hooks/useFeedMarketData. Settled/disputed items stay on the existing
+ * CallCard path (which internally routes to the SettledCallCard treatment —
+ * owned by quick-260611-tbc).
  *
  * Each card gets className="card-enter" + --index CSS variable for stagger delay.
  * Loading renders rethemed hard-edge skeletons in card slots.
@@ -20,6 +27,8 @@ import React from 'react';
 import { CallCard, SkeletonFeedCard, settledOutcomeWord } from '@call-it/ui';
 import { twitterIntentUrl, buildShareText } from '@call-it/shared';
 import type { FeedItem } from '@/lib/relayer-client';
+import { LiveCallCard } from '@/components/LiveCallCard';
+import { useFeedReserves, useFeedHandles } from '@/hooks/useFeedMarketData';
 
 interface FeedListProps {
   items: FeedItem[];
@@ -114,6 +123,14 @@ function truncateAddress(address: string): string {
  * FeedList — renders the call feed (or skeleton slots while loading).
  */
 export function FeedList({ items, isLoading, onItemClick }: FeedListProps) {
+  // quick-260611-u1l: batched on-chain reads for the LIVE cards. Hooks are
+  // called UNCONDITIONALLY before the early returns (rules of hooks) — empty
+  // input arrays pass through and the hooks' `enabled` flags gate the fetch.
+  // Lowercase status comparisons only (D-15 canonical boundary).
+  const liveItems = items.filter((i) => i.status !== 'settled' && i.status !== 'disputed');
+  const reservesMap = useFeedReserves(liveItems.map((i) => i.id));
+  const handlesMap = useFeedHandles(liveItems.map((i) => i.caller));
+
   // Loading skeleton
   if (isLoading) {
     return (
@@ -143,11 +160,20 @@ export function FeedList({ items, isLoading, onItemClick }: FeedListProps) {
             } as React.CSSProperties
           }
         >
-          <CallCard
-            call={feedItemToCallCardData(item)}
-            onClick={onItemClick ? () => onItemClick(item) : undefined}
-            shareHref={shareHrefFor(item)}
-          />
+          {item.status === 'settled' || item.status === 'disputed' ? (
+            <CallCard
+              call={feedItemToCallCardData(item)}
+              onClick={onItemClick ? () => onItemClick(item) : undefined}
+              shareHref={shareHrefFor(item)}
+            />
+          ) : (
+            <LiveCallCard
+              item={item}
+              reserves={reservesMap.get(item.id)}
+              onchainHandle={handlesMap.get(item.caller.toLowerCase())}
+              onClick={onItemClick ? () => onItemClick(item) : undefined}
+            />
+          )}
         </div>
       ))}
     </div>
