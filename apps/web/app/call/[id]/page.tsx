@@ -60,6 +60,10 @@ import { createPortal } from 'react-dom';
 import { useParams } from 'next/navigation';
 import { usePrivy } from '@privy-io/react-auth';
 import { useAccount, useReadContracts, useReadContract, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
+// quick-260611-fo1: wagmi/actions (NOT hooks) — callable inside useCallback for the
+// follow/fade USDC allowance preflight, mirroring usePublishCall.ts.
+import { readContract, waitForTransactionReceipt } from 'wagmi/actions';
+import { wagmiConfig } from '@/lib/wagmi';
 import Link from 'next/link';
 import {
   FollowFadeModal,
@@ -222,6 +226,13 @@ const SM_ABI = [
 ] as const;
 
 // ─── Constants ────────────────────────────────────────────────────────────────
+
+/**
+ * wagmi/actions take the typed wagmiConfig as their first argument, so the
+ * `chainId` param is narrowed to the config's chain-id union. ACTIVE_CHAIN_ID
+ * is declared `number` in @/lib/chain — narrow it here (mirrors usePublishCall.ts).
+ */
+type ActiveChainId = (typeof wagmiConfig)['chains'][number]['id'];
 
 /** FFM contract address — chain-selected via @/lib/chain, never inlined */
 const FFM_ADDR = FOLLOW_FADE_MARKET_ADDRESS;
@@ -1459,8 +1470,35 @@ export default function CallPage() {
     }
   }, [provenanceData, isProvenanceLoading, loadProvenance]);
 
+  // quick-260611-fo1: approve-then-deposit. FollowFadeMarket._deposit pulls USDC
+  // via safeTransferFrom, and allowance(user -> FFM) was zero — live "tx failed"
+  // 2026-06-11. Exact-amount approve (never infinite), mirroring usePublishCall.ts.
   const handleFollow = useCallback(async (amountIn: bigint, minSharesOut: bigint) => {
     await ensureActiveChain();
+    if (!userAddress) throw new Error('Connect your wallet first.');
+    const allowance = (await readContract(wagmiConfig, {
+      address: USDC_ADDR,
+      chainId: ACTIVE_CHAIN_ID as ActiveChainId,
+      abi: USDC_ALLOWANCE_ABI,
+      functionName: 'allowance',
+      args: [userAddress, FFM_ADDR],
+    })) as bigint;
+    if (allowance < amountIn) {
+      const approveHash = await writeContractAsync({
+        chainId: ACTIVE_CHAIN_ID,
+        address: USDC_ADDR,
+        abi: USDC_ALLOWANCE_ABI,
+        functionName: 'approve',
+        args: [FFM_ADDR, amountIn],
+      });
+      const receipt = await waitForTransactionReceipt(wagmiConfig, {
+        hash: approveHash,
+        chainId: ACTIVE_CHAIN_ID as ActiveChainId,
+      });
+      if (receipt.status !== 'success') {
+        throw new Error('USDC approval failed — try again.');
+      }
+    }
     await writeContractAsync({
         chainId: ACTIVE_CHAIN_ID,
       address: FFM_ADDR,
@@ -1468,10 +1506,36 @@ export default function CallPage() {
       functionName: 'follow',
       args: [callId, amountIn, minSharesOut],
     });
-  }, [callId, writeContractAsync]);
+  }, [callId, userAddress, writeContractAsync]);
 
+  // quick-260611-fo1: same approve-then-deposit guard as handleFollow — fade()
+  // also pulls USDC via _deposit's safeTransferFrom (zero-allowance "tx failed").
   const handleFade = useCallback(async (amountIn: bigint, minSharesOut: bigint) => {
     await ensureActiveChain();
+    if (!userAddress) throw new Error('Connect your wallet first.');
+    const allowance = (await readContract(wagmiConfig, {
+      address: USDC_ADDR,
+      chainId: ACTIVE_CHAIN_ID as ActiveChainId,
+      abi: USDC_ALLOWANCE_ABI,
+      functionName: 'allowance',
+      args: [userAddress, FFM_ADDR],
+    })) as bigint;
+    if (allowance < amountIn) {
+      const approveHash = await writeContractAsync({
+        chainId: ACTIVE_CHAIN_ID,
+        address: USDC_ADDR,
+        abi: USDC_ALLOWANCE_ABI,
+        functionName: 'approve',
+        args: [FFM_ADDR, amountIn],
+      });
+      const receipt = await waitForTransactionReceipt(wagmiConfig, {
+        hash: approveHash,
+        chainId: ACTIVE_CHAIN_ID as ActiveChainId,
+      });
+      if (receipt.status !== 'success') {
+        throw new Error('USDC approval failed — try again.');
+      }
+    }
     await writeContractAsync({
         chainId: ACTIVE_CHAIN_ID,
       address: FFM_ADDR,
@@ -1479,7 +1543,7 @@ export default function CallPage() {
       functionName: 'fade',
       args: [callId, amountIn, minSharesOut],
     });
-  }, [callId, writeContractAsync]);
+  }, [callId, userAddress, writeContractAsync]);
 
   const handleCallerExit = useCallback(async () => {
     await ensureActiveChain();
