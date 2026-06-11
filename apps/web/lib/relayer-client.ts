@@ -67,6 +67,31 @@ async function relayerFetch<T>(
   return res.json() as Promise<T>;
 }
 
+// ─── Status normalization (quick-260611-5mh C1) ────────────────────────────────
+
+/**
+ * Canonical lowercase call statuses used by ALL web comparisons.
+ * The relayer wire format is TitleCase ('Live'/'Settled'/'Disputed'/
+ * 'CallerExited') and is NOT changed — normalization happens ONCE here at the
+ * response-parse boundary. Comparing against the TitleCase wire values in
+ * components was the settled-call-in-LIVE-tab bug (page.tsx tab filters
+ * compared `item.status === 'settled'` against 'Settled' — never matched).
+ */
+export type CallStatus = 'live' | 'settled' | 'disputed' | 'callerExited';
+
+const STATUS_MAP: Record<string, CallStatus> = {
+  live: 'live',
+  settled: 'settled',
+  disputed: 'disputed',
+  callerexited: 'callerExited',
+};
+
+/** Map a relayer TitleCase status string → canonical lowercase. Unknown → 'live'. */
+export function normalizeCallStatus(raw: unknown): CallStatus {
+  if (typeof raw !== 'string') return 'live';
+  return STATUS_MAP[raw.trim().toLowerCase()] ?? 'live';
+}
+
 // ─── Feed ──────────────────────────────────────────────────────────────────────
 
 export interface FeedItem {
@@ -78,9 +103,18 @@ export interface FeedItem {
   conviction: number;
   expiry: number | string;
   createdAt: number | string;
-  status: string;
+  /** Canonical lowercase status (normalized from the TitleCase wire at the boundary). */
+  status: CallStatus;
   displayHandle?: string;
   handle?: string; // resolved handle from profile (may be set by relayer)
+  /** Server-built human line, e.g. "ETH ≥ $1,000,000" (PLAN-01 enrichment; optional). */
+  marketLine?: string;
+  /** Stored call statement (when the relayer carries one; optional). */
+  statement?: string;
+  /** Resolved Pyth ticker for assetA (PLAN-01 enrichment; optional). */
+  assetSymbol?: string;
+  /** Raw on-chain target at 1e8 scale, as a string (PLAN-01 enrichment; optional). */
+  targetValue?: string;
 }
 
 export interface FeedResponse {
@@ -91,10 +125,21 @@ export interface FeedResponse {
 /**
  * GET /api/feed — paginated recency-desc call feed.
  * Subgraph-primary with 800ms fallback to polled-events worker (D-24).
+ * Statuses are normalized to canonical lowercase HERE (wire stays TitleCase).
  */
 export async function getFeed(cursor?: string): Promise<FeedResponse> {
   const qs = cursor ? `?cursor=${encodeURIComponent(cursor)}` : '';
-  return relayerFetch<FeedResponse>(`/api/feed${qs}`);
+  const res = await relayerFetch<{
+    items: Array<Omit<FeedItem, 'status'> & { status?: string }>;
+    cursor: string | null;
+  }>(`/api/feed${qs}`);
+  return {
+    cursor: res.cursor,
+    items: (res.items ?? []).map((item) => ({
+      ...item,
+      status: normalizeCallStatus(item.status),
+    })),
+  };
 }
 
 // ─── Live state / market line (OG real-data wiring, D-05) ───────────────────────
@@ -369,6 +414,22 @@ export async function getDuelSettledFields(
 
 // ─── Profile ───────────────────────────────────────────────────────────────────
 
+/**
+ * One entry in the profile's call-history array (PLAN-01 A3 enrichment).
+ * `status`/`outcome` carry the relayer wire strings ('Live'/'Settled'… and
+ * 'CallerWon'/'CallerLost'); consumers normalize for display.
+ */
+export interface ProfileCallEntry {
+  id: string;
+  status: string;
+  outcome?: string | null;
+  stake: string;
+  createdAt: string | number;
+  statement?: string | null;
+  marketLine?: string;
+  assetSymbol?: string;
+}
+
 export interface ProfileResponse {
   address: string;
   handle: string;
@@ -385,6 +446,8 @@ export interface ProfileResponse {
   farcasterHandle: string | null;
   verifiedX: boolean;
   verifiedFc: boolean;
+  /** Call history (PLAN-01 A3 — additive; absent on older relayer deploys). */
+  calls?: ProfileCallEntry[];
 }
 
 /**

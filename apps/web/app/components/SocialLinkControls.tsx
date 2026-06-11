@@ -34,9 +34,9 @@
 
 'use client';
 
-import { useCallback, useState, type CSSProperties } from 'react';
+import { useCallback, useEffect, useState, type CSSProperties } from 'react';
 import { usePrivy, useLinkAccount } from '@privy-io/react-auth';
-import { useWriteContract } from 'wagmi';
+import { useAccount, useWriteContract } from 'wagmi';
 import { useSignIn, QRCode } from '@farcaster/auth-kit';
 import { Button } from '@call-it/ui';
 import { profileRegistryAbi } from '@/lib/abis/ProfileRegistry';
@@ -94,6 +94,7 @@ function StatusLine({
 export function SocialLinkControls({ mode }: SocialLinkControlsProps) {
   const { user, getAccessToken } = usePrivy();
   const { writeContractAsync } = useWriteContract();
+  const { address: connectedAddress } = useAccount();
   const isMobile = useIsMobile(); // D-03: >=44px touch targets at mobile only
   // Mobile touch-target floor applied to every link/unlink Button (the link CTAs use
   // `flex: 1`, so we merge rather than overwrite their style).
@@ -101,6 +102,57 @@ export function SocialLinkControls({ mode }: SocialLinkControlsProps) {
 
   const isTwitterLinked = user?.linkedAccounts.some((a) => a.type === 'twitter_oauth') ?? false;
   const isFarcasterLinked = user?.linkedAccounts.some((a) => a.type === 'farcaster') ?? false;
+
+  // ── C12 (quick-260611-5mh): per-WALLET linked state ─────────────────────
+  // Privy linkedAccounts say the Privy USER linked a social — but the on-chain
+  // ProfileRegistry link is per-WALLET. When the current wallet's profile has
+  // no twitterHandle/farcasterHandle while Privy says "linked", the truth is
+  // "linked to a DIFFERENT wallet" and a relink affordance is offered.
+  const currentWallet =
+    connectedAddress ?? (user?.wallet?.address as `0x${string}` | undefined);
+  const [walletProfile, setWalletProfile] = useState<{
+    twitterHandle: string | null;
+    farcasterHandle: string | null;
+  } | null>(null);
+  const [walletProfileVersion, setWalletProfileVersion] = useState(0);
+  const refetchWalletProfile = useCallback(
+    () => setWalletProfileVersion((v) => v + 1),
+    [],
+  );
+
+  useEffect(() => {
+    if (!RELAYER_BASE || !currentWallet) {
+      setWalletProfile(null);
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      try {
+        const res = await fetch(`${RELAYER_BASE}/api/profile/${currentWallet}`, {
+          signal: AbortSignal.timeout(8_000),
+        });
+        if (!res.ok || cancelled) return;
+        const raw = await res.json() as Record<string, unknown>;
+        if (cancelled) return;
+        setWalletProfile({
+          twitterHandle: typeof raw['twitterHandle'] === 'string' ? raw['twitterHandle'] : null,
+          farcasterHandle: typeof raw['farcasterHandle'] === 'string' ? raw['farcasterHandle'] : null,
+        });
+      } catch {
+        // Best-effort (Pitfall 5/16): unknown profile state degrades to the
+        // Privy-derived indicator — never claim a mismatch without data.
+        if (!cancelled) setWalletProfile(null);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [currentWallet, walletProfileVersion]);
+
+  // Mismatch = Privy says linked, but THIS wallet's on-chain profile has no
+  // handle. Only asserted when the profile fetch actually returned data.
+  const twitterLinkedElsewhere =
+    isTwitterLinked && walletProfile !== null && !walletProfile.twitterHandle;
+  const farcasterLinkedElsewhere =
+    isFarcasterLinked && walletProfile !== null && !walletProfile.farcasterHandle;
 
   // ── Twitter state ──────────────────────────────────────────────────────
   const [twStatus, setTwStatus] = useState<Status>('idle');
@@ -140,12 +192,15 @@ export function SocialLinkControls({ mode }: SocialLinkControlsProps) {
         return;
       }
       setTwStatus('ok');
+      // C12: re-read the current wallet's on-chain profile so the linked
+      // indicator reflects the wallet-accurate state.
+      refetchWalletProfile();
     } catch {
       // Pitfall 5/16: never throw into the page — show retry only.
       setTwError('Could not reach the linking service — try again.');
       setTwStatus('error');
     }
-  }, [getAccessToken]);
+  }, [getAccessToken, refetchWalletProfile]);
 
   // Privy v3 link hook — on successful Twitter link, push the proof to the relayer.
   const { linkTwitter } = useLinkAccount({
@@ -202,12 +257,14 @@ export function SocialLinkControls({ mode }: SocialLinkControlsProps) {
           return;
         }
         setFcStatus('ok');
+        // C12: wallet-accurate indicator refresh
+        refetchWalletProfile();
       } catch {
         setFcError('Could not reach the linking service — try again.');
         setFcStatus('error');
       }
     },
-    [getAccessToken],
+    [getAccessToken, refetchWalletProfile],
   );
 
   const { signIn, connect, url, isPolling } = useSignIn({
@@ -335,8 +392,37 @@ export function SocialLinkControls({ mode }: SocialLinkControlsProps) {
     >
       {/* ── Twitter / X ─────────────────────────────────────────────────── */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-        <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: '0.5rem' }}>
-          {isTwitterLinked ? (
+        <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+          {twitterLinkedElsewhere ? (
+            /* C12: Privy says linked, but THIS wallet's profile has no
+               twitterHandle — honest state + relink via the EXISTING flow. */
+            <>
+              <div
+                data-testid="twitter-linked-elsewhere"
+                style={{
+                  ...linkedIndicatorStyle,
+                  background: 'transparent',
+                  color: 'var(--accent-warning)',
+                  border: '2px solid var(--accent-warning)',
+                  boxShadow: 'none',
+                }}
+              >
+                {twitterUsername ? `@${twitterUsername}` : 'X'} — linked to a different wallet
+              </div>
+              <Button
+                intent="primary"
+                size="sm"
+                onClick={() => {
+                  void postTwitterLink();
+                }}
+                disabled={twStatus === 'pending'}
+                data-testid="relink-twitter-button"
+                style={touchTarget}
+              >
+                {twStatus === 'pending' ? 'Linking...' : 'Link to this wallet'}
+              </Button>
+            </>
+          ) : isTwitterLinked ? (
             <>
               <div data-testid="twitter-linked-tag" style={linkedIndicatorStyle}>
                 {twitterLinkedLabel}
@@ -380,8 +466,37 @@ export function SocialLinkControls({ mode }: SocialLinkControlsProps) {
 
       {/* ── Farcaster ───────────────────────────────────────────────────── */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-        <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: '0.5rem' }}>
-          {isFarcasterLinked ? (
+        <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+          {farcasterLinkedElsewhere && !(fcStatus === 'pending' && url) ? (
+            /* C12: Privy says linked but THIS wallet's profile carries no
+               farcasterHandle — relink runs the EXISTING SIWF flow. */
+            <>
+              <div
+                data-testid="farcaster-linked-elsewhere"
+                style={{
+                  ...linkedIndicatorStyle,
+                  background: 'transparent',
+                  color: 'var(--accent-warning)',
+                  border: '2px solid var(--accent-warning)',
+                  boxShadow: 'none',
+                }}
+              >
+                Farcaster — linked to a different wallet
+              </div>
+              <Button
+                intent="primary"
+                size="sm"
+                onClick={() => {
+                  void handleLinkFarcaster();
+                }}
+                disabled={fcStatus === 'pending'}
+                data-testid="relink-farcaster-button"
+                style={touchTarget}
+              >
+                {fcStatus === 'pending' ? 'Connecting...' : 'Link to this wallet'}
+              </Button>
+            </>
+          ) : isFarcasterLinked && !(fcStatus === 'pending' && url) ? (
             <>
               <div data-testid="farcaster-linked-tag" style={linkedIndicatorStyle}>
                 ✓ Farcaster linked
@@ -401,9 +516,12 @@ export function SocialLinkControls({ mode }: SocialLinkControlsProps) {
                 </Button>
               )}
             </>
-          ) : fcStatus === 'pending' && url && !isFarcasterLinked ? (
+          ) : fcStatus === 'pending' && url ? (
             // Channel is open and the relay `url` is ready → surface the real
-            // Warpcast flow (QR on desktop, redirect on mobile) instead of hanging.
+            // Warpcast flow (QR on desktop, redirect on mobile) instead of
+            // hanging. Also reached from the C12 "Link to this wallet" relink
+            // path (Privy already linked → the old !isFarcasterLinked guard
+            // would have suppressed the QR panel and dead-ended the flow).
             <div
               data-testid={isMobile ? 'farcaster-open-warpcast' : 'farcaster-qr-panel'}
               style={{

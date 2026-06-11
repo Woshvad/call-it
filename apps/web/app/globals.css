@@ -223,6 +223,8 @@ textarea::placeholder {
   font-weight: 900;
   letter-spacing: -0.03em;
   text-transform: uppercase;
+  /* C14 (quick-260611-5mh): "CALL IT" must never wrap next to the hamburger at 375px */
+  white-space: nowrap;
 }
 .brand .slash { color: var(--text-tertiary); font-weight: 400; font-size: 18px; }
 .brand .tagline {

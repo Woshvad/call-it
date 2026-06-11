@@ -37,9 +37,11 @@
 
 'use client';
 
+import Link from 'next/link';
 import { ProfileHeader, Card } from '@call-it/ui';
 import { useIsMobile } from '@/app/hooks/useIsMobile';
-import type { ProfileResponse } from '@/lib/relayer-client';
+import { normalizeCallStatus } from '@/lib/relayer-client';
+import type { ProfileCallEntry, ProfileResponse } from '@/lib/relayer-client';
 
 interface ProfileClientProps {
   /** URL lookup key consumed by the RSC fetch — NEVER rendered (AUTH-44). */
@@ -55,6 +57,41 @@ interface ProfileClientProps {
 function accuracyPct(profile: ProfileResponse): number | null {
   if (profile.settledCalls <= 0) return null;
   return Math.round((profile.wins / profile.settledCalls) * 100);
+}
+
+/** "$5.00" from micro-USDC string; '—' on garbage (never crashes the page). */
+function formatStake(raw: string): string {
+  try {
+    const n = Number(BigInt(raw)) / 1_000_000;
+    if (!Number.isFinite(n)) return '—';
+    return `$${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  } catch {
+    return '—';
+  }
+}
+
+function formatDate(createdAt: string | number): string | null {
+  const sec = Number(createdAt);
+  if (!Number.isFinite(sec) || sec <= 0) return null;
+  return new Date(sec * 1000).toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
+}
+
+/**
+ * Honest status/outcome tag for a history row (C12): a real outcome wins
+ * (WON/LOST); otherwise the call's lifecycle status renders.
+ */
+function callTag(entry: ProfileCallEntry): { label: string; pill: string } {
+  if (entry.outcome === 'CallerWon') return { label: 'WON', pill: 'win' };
+  if (entry.outcome === 'CallerLost') return { label: 'LOST', pill: 'loss' };
+  const status = normalizeCallStatus(entry.status);
+  if (status === 'settled') return { label: 'SETTLED', pill: 'neutral' };
+  if (status === 'disputed') return { label: 'DISPUTED', pill: 'neutral' };
+  if (status === 'callerExited') return { label: 'EXITED', pill: 'neutral' };
+  return { label: 'LIVE', pill: 'win' };
 }
 
 export function ProfileClient({ profile, fetchError }: ProfileClientProps) {
@@ -180,13 +217,82 @@ export function ProfileClient({ profile, fetchError }: ProfileClientProps) {
             </div>
           </div>
 
-          {/* RECENT CALLS — the relayer response carries no call list yet, so the
-              prototype table is replaced by an honest empty state (D-07). */}
+          {/* RECENT CALLS — C12 (quick-260611-5mh): real call history from the
+              enriched profile payload (PLAN-01 A3 `calls` array). Empty/absent
+              → the honest empty state stays (D-07, no fake rows). */}
           <div className="section-divider">
             <span className="title">RECENT CALLS</span>
             <span className="line"></span>
           </div>
-          <div className="label-overline">No calls on record yet.</div>
+          {profile.calls && profile.calls.length > 0 ? (
+            <div className="col" style={{ gap: 10 }}>
+              {profile.calls.map((entry) => {
+                const tag = callTag(entry);
+                const line =
+                  (entry.marketLine && entry.marketLine.trim()) ||
+                  (entry.statement && entry.statement.trim()) ||
+                  `Call #${entry.id}`;
+                const date = formatDate(entry.createdAt);
+                return (
+                  <Link
+                    key={entry.id}
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    href={`/call/${entry.id}` as any}
+                    className="brutal-card"
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 8,
+                      padding: '16px 18px',
+                      textDecoration: 'none',
+                      color: 'inherit',
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: 'flex',
+                        flexDirection: 'row',
+                        flexWrap: 'wrap',
+                        alignItems: 'center',
+                        gap: 8,
+                        justifyContent: 'space-between',
+                      }}
+                    >
+                      <span
+                        style={{
+                          fontFamily: 'var(--font-display)',
+                          fontWeight: 800,
+                          fontSize: 15,
+                          letterSpacing: '-0.01em',
+                        }}
+                      >
+                        {line}
+                      </span>
+                      <span className={`pill ${tag.pill}`}>{tag.label}</span>
+                    </div>
+                    <div
+                      className="mono"
+                      style={{
+                        fontSize: 11,
+                        color: 'var(--text-tertiary)',
+                        letterSpacing: '0.04em',
+                        display: 'flex',
+                        flexDirection: 'row',
+                        flexWrap: 'wrap',
+                        gap: 6,
+                      }}
+                    >
+                      <span>stake {formatStake(entry.stake)}</span>
+                      {date && <span>· {date}</span>}
+                      <span>· view receipt ↗</span>
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="label-overline">No calls on record yet.</div>
+          )}
         </>
       )}
     </main>

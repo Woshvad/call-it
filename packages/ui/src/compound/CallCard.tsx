@@ -20,6 +20,7 @@
  */
 import { useEffect, useState } from 'react';
 import { cn } from '../lib/cn';
+import { avatarInitial } from '../lib/avatar-initial';
 import { Tag } from '../primitives/Tag';
 import { VerifiedBadge } from '../primitives/VerifiedBadge';
 
@@ -104,7 +105,21 @@ function Countdown({ deadline }: { deadline: Date }) {
 
 export function CallCard({ call, className, onClick }: CallCardProps) {
   const grad = gradFor(call.handle);
-  const isLive = call.status === 'live' || call.status === undefined;
+
+  // C2 (quick-260611-5mh): a live call whose deadline has PASSED is not live —
+  // it is awaiting settlement. Ticking check (1s, live-status cards only) so a
+  // mounted card flips to AWAITING SETTLEMENT the moment the deadline passes
+  // instead of pulsing LIVE next to "Closes in EXPIRED".
+  const isLiveStatus = call.status === 'live' || call.status === undefined;
+  const [nowMs, setNowMs] = useState(() => Date.now());
+  useEffect(() => {
+    if (!isLiveStatus) return;
+    const t = setInterval(() => setNowMs(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, [isLiveStatus]);
+  const isExpired = call.deadline.getTime() <= nowMs;
+  const isLive = isLiveStatus && !isExpired;
+  const isAwaitingSettlement = isLiveStatus && isExpired;
 
   return (
     <div
@@ -129,7 +144,7 @@ export function CallCard({ call, className, onClick }: CallCardProps) {
             style={{ background: grad.bg, color: grad.fg }}
             aria-hidden="true"
           >
-            {(call.handle[0] ?? '?').toUpperCase()}
+            {avatarInitial(call.handle)}
           </span>
           <span className="flex flex-col gap-1 min-w-0">
             <span className="flex flex-row items-center gap-2 min-w-0">
@@ -149,6 +164,14 @@ export function CallCard({ call, className, onClick }: CallCardProps) {
               </span>
               <Countdown deadline={call.deadline} />
             </>
+          ) : isAwaitingSettlement ? (
+            /* C2: expired + unsettled — amber state, never LIVE + "Closes in EXPIRED" */
+            <Tag
+              intent="warning"
+              className="border-[var(--accent-warning)] text-[var(--accent-warning)]"
+            >
+              AWAITING SETTLEMENT
+            </Tag>
           ) : call.status === 'settled' ? (
             <Tag intent="muted">SETTLED</Tag>
           ) : (

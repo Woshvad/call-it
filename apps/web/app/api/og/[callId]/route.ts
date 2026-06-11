@@ -61,8 +61,11 @@ export async function GET(
   // Suppress unused variable warning for Phase 0
   void callId;
 
-  // D-12: footer brand from env-var
-  const footerBrand = process.env['NEXT_PUBLIC_BRAND_FOOTER'] ?? '[BRAND] · Be right in public.';
+  // D-12: footer brand from env-var. C13 (quick-260611-5mh): fallback is the
+  // REAL request host (the literal '[BRAND]' placeholder rendered verbatim).
+  const requestHost = url.host || 'call-it-web-sepolia.vercel.app';
+  const footerBrand =
+    process.env['NEXT_PUBLIC_BRAND_FOOTER'] ?? `${requestHost} · Be right in public.`;
 
   const imageResponse = renderFallback({ handle, footerBrand });
 

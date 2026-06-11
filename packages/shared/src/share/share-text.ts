@@ -39,8 +39,13 @@ export function warpcastComposeUrl(receiptUrl: string, text: string): string {
 export interface ShareTextInput {
   /** Settled outcome word, e.g. "CALLED IT" / "LOUD AND WRONG" (D-08). */
   outcomeWord: string;
-  /** Caller handle (with or without leading @). */
-  handle: string;
+  /**
+   * Caller handle (with or without leading @). OPTIONAL — when absent, empty,
+   * or not a REAL handle (a 0x wallet address / truncated address is NOT a
+   * handle), the @segment is OMITTED entirely (quick-260611-5mh C3: share text
+   * must never emit "@undefined" / "@0x1234…" / "@call #14" style fakes).
+   */
+  handle?: string;
   /** Human-readable market statement (the D-03 subgraph Call.statement). */
   statement?: string;
 }
@@ -49,14 +54,30 @@ export interface ShareTextInput {
 const MAX_SHARE_TEXT = 240;
 
 /**
+ * True only for a REAL social handle. Addresses (0x…), truncated addresses
+ * (0x12…abcd), empty strings, and stringified absent values are NOT handles —
+ * mentioning them would tag nothing (or a fake account) on X/Farcaster.
+ */
+export function isRealHandle(handle?: string | null): boolean {
+  if (!handle) return false;
+  const h = handle.trim().replace(/^@/, '');
+  if (h.length === 0) return false;
+  if (/^0x/i.test(h)) return false; // wallet address or truncated address alias
+  if (h === 'undefined' || h === 'null') return false;
+  return true;
+}
+
+/**
  * Build the public post text for a settled receipt (D-02). Returns a non-empty
  * string ≤ 240 chars that always contains the outcome word. The statement is
  * truncated (with an ellipsis) before the limit is reached so the outcome word
- * and handle are never dropped.
+ * and handle are never dropped. When no REAL handle exists the @segment is
+ * omitted (never "@undefined" / "@0x1234…").
  */
 export function buildShareText({ outcomeWord, handle, statement }: ShareTextInput): string {
-  const at = handle.startsWith('@') ? handle : `@${handle}`;
-  const head = `${outcomeWord} — ${at}`;
+  const head = isRealHandle(handle)
+    ? `${outcomeWord} — ${handle!.trim().startsWith('@') ? handle!.trim() : `@${handle!.trim()}`}`
+    : outcomeWord;
 
   if (!statement || statement.trim().length === 0) {
     return head.slice(0, MAX_SHARE_TEXT);

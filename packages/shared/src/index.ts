@@ -139,7 +139,7 @@ export type { DuplicateHashInput } from './hashing/duplicate-hash.js';
 // ── Share — pure share-intent builders (SHARE-15/18, D-02) ────────────────────
 // Single source for the web Share button (07-05) and the relayer auto-post
 // worker (07-04). PURE: no env, no fetch, no secrets (T-07-01-02).
-export { twitterIntentUrl, warpcastComposeUrl, buildShareText } from './share/share-text.js';
+export { twitterIntentUrl, warpcastComposeUrl, buildShareText, isRealHandle } from './share/share-text.js';
 export type { ShareTextInput } from './share/share-text.js';
 
 // ── Validation — follow-fade-gates (D-29 parity stubs) ────────────────────────

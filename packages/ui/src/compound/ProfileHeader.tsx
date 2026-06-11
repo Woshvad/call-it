@@ -13,6 +13,7 @@
 
 import { VerifiedBadge } from '../primitives/VerifiedBadge';
 import { Tag } from '../primitives/Tag';
+import { avatarInitial } from '../lib/avatar-initial';
 
 export type ProfileHeaderUser = {
   /** Public handle — shown as @handle */
@@ -45,12 +46,20 @@ export type ProfileHeaderProps = {
   className?: string;
 };
 
+/**
+ * Display initials: two letters for multi-word display names, otherwise the
+ * shared avatarInitial (C11 — skips the '0x' prefix of address aliases so a
+ * truncated address never renders a "0" initial).
+ */
 function getInitials(name: string): string {
-  return name
-    .split(/\s+/)
-    .map((w) => w[0]?.toUpperCase() ?? '')
-    .slice(0, 2)
-    .join('');
+  const words = name.trim().split(/\s+/).filter((w) => w.length > 0);
+  if (words.length >= 2) {
+    return words
+      .slice(0, 2)
+      .map((w) => avatarInitial(w))
+      .join('');
+  }
+  return avatarInitial(name);
 }
 
 /**
@@ -80,6 +89,11 @@ export function ProfileHeader({ user, className }: ProfileHeaderProps) {
   const initials = getInitials(displayName);
   const grad = gradFor(user.handle);
   const verifiedX = user.verifiedX ?? user.verified;
+
+  // C11: a truncated 0x address rendered through `text-transform: uppercase`
+  // reads as "0X7304…" (looks like "OX"). Addresses keep their natural casing.
+  const headlineText = user.displayName ?? `@${user.handle}`;
+  const headlineIsAddress = /^@?0x/i.test(headlineText.trim());
 
   // JBM metadata line — interpunct-separated, REAL stats only (D-07).
   const metaParts: string[] = [];
@@ -139,12 +153,16 @@ export function ProfileHeader({ user, className }: ProfileHeaderProps) {
             fontSize: 'clamp(28px, 7vw, 44px)',
             letterSpacing: '-0.04em',
             lineHeight: 0.95,
-            textTransform: 'uppercase',
+            // C11: never uppercase an address ("0X…" reads as "OX"); real
+            // handles keep the prototype uppercase display voice.
+            textTransform: headlineIsAddress ? 'none' : 'uppercase',
             color: 'var(--text-primary)',
-            overflowWrap: 'anywhere',
+            // C11: 'anywhere' wrapped handles mid-word — break only when a
+            // line would otherwise overflow.
+            overflowWrap: 'break-word',
           }}
         >
-          {user.displayName ?? `@${user.handle}`}
+          {headlineText}
         </span>
 
         {/* Pill badges (prototype .pill recipe via Tag/VerifiedBadge) */}

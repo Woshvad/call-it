@@ -481,7 +481,10 @@ export async function GET(
   // ?v= is the CDN cache-bust version — consumed by CDN, not used server-side
   void url.searchParams.get('v');
 
-  const footerBrand = process.env['NEXT_PUBLIC_BRAND_FOOTER'] ?? 'callitapp.xyz';
+  // C13 (quick-260611-5mh): footer fallback = the REAL request host, never
+  // the unowned 'callitapp.xyz'; literal fallback is the live Vercel deploy.
+  const requestHost = url.host || 'call-it-web-sepolia.vercel.app';
+  const footerBrand = process.env['NEXT_PUBLIC_BRAND_FOOTER'] ?? requestHost;
 
   let challengeId: bigint;
   try {

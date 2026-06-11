@@ -55,6 +55,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useParams } from 'next/navigation';
 import { usePrivy } from '@privy-io/react-auth';
 import { useAccount, useReadContracts, useReadContract, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
@@ -64,7 +65,9 @@ import {
   CallerExitModal,
   PositionExitModal,
   Stamp,
+  avatarInitial,
 } from '@call-it/ui';
+import { normalizeCallStatus, type CallStatus } from '@/lib/relayer-client';
 import {
   ACTIVE_CHAIN_ID,
   FOLLOW_FADE_MARKET_ADDRESS,
@@ -110,7 +113,8 @@ type CallData = {
   reasoning: string;
   criteriaText?: string;
   criteriaHash?: string;
-  status: 'Live' | 'CallerExited' | 'Settled' | 'Disputed';
+  /** Canonical lowercase status — normalized ONCE in fetchCallData (C1). */
+  status: CallStatus;
   repScore: number;
   callerExitedAt?: bigint;
   callerExitedPenalty?: bigint;
@@ -131,7 +135,12 @@ type CallData = {
 type FinalPosition = {
   handle: string;       // display handle — NEVER wallet address (AUTH-44)
   side: 'follow' | 'fade';
-  pnl: bigint;          // P&L in USDC (6 decimal) — can be negative
+  /**
+   * P&L in USDC (6 decimal) — can be negative. `null` when the relayer omits
+   * pnl (PLAN-01 D-07: unknown pnl is OMITTED, never a fake zero) — such
+   * entries render in a neutral FINAL POSITIONS list, not WINNERS/LOSERS.
+   */
+  pnl: bigint | null;
   stake: bigint;        // position size in USDC
 };
 
@@ -273,6 +282,37 @@ function formatUsdc(amount: bigint): string {
   return `$${(Number(amount) / 1_000_000).toFixed(2)}`;
 }
 
+/** Truncated 0x display alias (AUTH-44-safe fallback when no handle exists). */
+function truncateAddress(address: string): string {
+  if (!address || address.length < 10) return address;
+  return `${address.slice(0, 6)}…${address.slice(-4)}`;
+}
+
+/**
+ * C4: oracle/target values are 1e8-scale on-chain (SettlementManager canonical
+ * scale; consistent with the PLAN-02 composer fix — NOT 1e6). Renders
+ * "$1,000,000.00" from "100000000000000". Non-numeric input passes through
+ * unchanged (older relayer deploys may send pre-formatted display strings).
+ */
+function formatTarget1e8(raw: string): string {
+  if (!/^-?\d+$/.test(raw.trim())) return raw;
+  try {
+    const n = Number(BigInt(raw.trim())) / 1e8;
+    if (!Number.isFinite(n)) return raw;
+    return `$${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  } catch {
+    return raw;
+  }
+}
+
+/**
+ * C4: criteriaHash sentinel — calls created without real resolution criteria
+ * carry this placeholder hash on-chain (call #14's criteriaHash is literally
+ * this value). It must NEVER light up the VERIFIED CRITERIA badge.
+ */
+const CRITERIA_HASH_SENTINEL =
+  '0x0000000000000000000000000000000000000000000000000000000000000001';
+
 function formatTimeLeft(expiry: bigint): string {
   const nowSec = BigInt(Math.floor(Date.now() / 1000));
   if (nowSec >= expiry) return 'Expired';
@@ -302,11 +342,22 @@ async function fetchCallData(callId: string): Promise<CallData | null> {
     const res = await fetch(`${RELAYER_URL}/api/calls/${callId}/live-state`);
     if (!res.ok) return null;
     const raw = await res.json() as Record<string, unknown>;
+    const caller = String(raw['caller'] ?? '');
+    // C3: handle fallback is a truncated address alias (AUTH-44-safe), never
+    // a "call #14" pseudo-handle that reads like an @mention downstream.
+    const handle = raw['handle']
+      ? String(raw['handle'])
+      : caller
+        ? truncateAddress(caller)
+        : `#${callId}`;
+    // C3: marketLine → stored statement → '' (display layer falls back to
+    // 'Open Call' — never bare "Call").
+    const marketLine = String(raw['marketLine'] ?? raw['statement'] ?? '').trim();
     return {
       id: BigInt(raw['id'] as string ?? callId),
-      caller: String(raw['caller'] ?? ''),
-      handle: String(raw['handle'] ?? `call #${callId}`),
-      marketLine: String(raw['marketLine'] ?? 'Call'),
+      caller,
+      handle,
+      marketLine,
       category: String(raw['category'] ?? 'Majors'),
       stake: BigInt(String(raw['stake'] ?? '0')),
       conviction: Number(raw['conviction'] ?? 50),
@@ -315,7 +366,8 @@ async function fetchCallData(callId: string): Promise<CallData | null> {
       reasoning: String(raw['reasoning'] ?? ''),
       criteriaText: raw['criteriaText'] ? String(raw['criteriaText']) : undefined,
       criteriaHash: raw['criteriaHash'] ? String(raw['criteriaHash']) : undefined,
-      status: (raw['status'] as CallData['status']) ?? 'Live',
+      // C1: normalize the TitleCase wire status ONCE at this parse boundary.
+      status: normalizeCallStatus(raw['status']),
       repScore: Number(raw['repScore'] ?? 0),
       callerExitedAt: raw['callerExitedAt'] ? BigInt(String(raw['callerExitedAt'])) : undefined,
       callerExitedPenalty: raw['callerExitedPenalty'] ? BigInt(String(raw['callerExitedPenalty'])) : undefined,
@@ -336,17 +388,23 @@ async function fetchCallData(callId: string): Promise<CallData | null> {
   }
 }
 
-/** Fetch FINAL POSITIONS from relayer (subgraph-sourced, sorted P&L desc). */
+/**
+ * Fetch FINAL POSITIONS from GET /api/calls/:id/positions (PLAN-01 A5).
+ * The body is a BARE JSON ARRAY sorted stake desc; `pnl` is OMITTED when
+ * unknown (D-07) → kept as null here so the UI never fakes a $0.00 P&L.
+ * Empty / failure → [] → the section degrades to hidden (D-07).
+ */
 async function fetchFinalPositions(callId: string): Promise<FinalPosition[]> {
   if (!RELAYER_URL) return [];
   try {
     const res = await fetch(`${RELAYER_URL}/api/calls/${callId}/positions`);
     if (!res.ok) return [];
     const raw = await res.json() as unknown[];
+    if (!Array.isArray(raw)) return [];
     return (raw as Record<string, unknown>[]).map((e) => ({
       handle: String(e['handle'] ?? ''),
       side: (e['side'] as FinalPosition['side']) ?? 'follow',
-      pnl: BigInt(String(e['pnl'] ?? '0')),
+      pnl: e['pnl'] !== undefined && e['pnl'] !== null ? BigInt(String(e['pnl'])) : null,
       stake: BigInt(String(e['stake'] ?? '0')),
     }));
   } catch {
@@ -399,28 +457,54 @@ async function fetchQuoteCalls(callId: string): Promise<QuoteEntry[]> {
   }
 }
 
-/** Fetch settlement provenance from relayer (D-10, SETTLE-52). */
-async function fetchProvenanceData(callId: string): Promise<ProvenanceData | null> {
-  if (!RELAYER_URL) return null;
+/**
+ * Result of the provenance fetch — C4: a failed fetch must NEVER be a silent
+ * no-op. The error string is surfaced inline in the ProvenanceModal with a
+ * retry affordance instead of leaving silent em-dashes.
+ */
+type ProvenanceFetchResult =
+  | { ok: true; data: ProvenanceData }
+  | { ok: false; error: string };
+
+/** Fetch settlement provenance from relayer (D-10, SETTLE-52). Bounded at 8s. */
+async function fetchProvenanceData(callId: string): Promise<ProvenanceFetchResult> {
+  if (!RELAYER_URL) {
+    return { ok: false, error: 'Relayer not configured — oracle proof unavailable.' };
+  }
   try {
-    const res = await fetch(`${RELAYER_URL}/api/settle/${callId}`);
-    if (!res.ok) return null;
+    // C4: bounded fetch — a stalled relayer previously hung this request
+    // forever with zero feedback (the live "dead button" failure mode).
+    const res = await fetch(`${RELAYER_URL}/api/settle/${callId}`, {
+      signal: AbortSignal.timeout(8_000),
+    });
+    if (!res.ok) {
+      return { ok: false, error: `Couldn't load the oracle proof (HTTP ${res.status}). Retry.` };
+    }
     const raw = await res.json() as Record<string, unknown>;
     return {
-      oracle: {
-        type: ((raw['oracle'] as Record<string, unknown>)?.['type'] ?? 'pyth') as OracleType,
-        url: String((raw['oracle'] as Record<string, unknown>)?.['url'] ?? ''),
-        host: String((raw['oracle'] as Record<string, unknown>)?.['host'] ?? ''),
-        feedId: (raw['oracle'] as Record<string, unknown>)?.['feedId'] as string | undefined,
+      ok: true,
+      data: {
+        oracle: {
+          type: ((raw['oracle'] as Record<string, unknown>)?.['type'] ?? 'pyth') as OracleType,
+          url: String((raw['oracle'] as Record<string, unknown>)?.['url'] ?? ''),
+          host: String((raw['oracle'] as Record<string, unknown>)?.['host'] ?? ''),
+          feedId: (raw['oracle'] as Record<string, unknown>)?.['feedId'] as string | undefined,
+        },
+        txHash: String(raw['txHash'] ?? ''),
+        settledAt: raw['settledAt'] ? Number(raw['settledAt']) : null,
+        rawOracleData: (raw['rawOracleData'] as RawOracleData) ?? null,
+        relayerSignature: String(raw['relayerSignature'] ?? ''),
+        chainId: 42161,
       },
-      txHash: String(raw['txHash'] ?? ''),
-      settledAt: raw['settledAt'] ? Number(raw['settledAt']) : null,
-      rawOracleData: (raw['rawOracleData'] as RawOracleData) ?? null,
-      relayerSignature: String(raw['relayerSignature'] ?? ''),
-      chainId: 42161,
     };
-  } catch {
-    return null;
+  } catch (err) {
+    const timedOut = err instanceof Error && err.name === 'TimeoutError';
+    return {
+      ok: false,
+      error: timedOut
+        ? "The oracle-proof request timed out. The relayer may be busy — retry."
+        : "Couldn't reach the relayer for the oracle proof. Retry.",
+    };
   }
 }
 
@@ -796,6 +880,10 @@ type ProvenanceModalProps = {
   onClose: () => void;
   provenance: ProvenanceData | null;
   isLoading: boolean;
+  /** C4: non-null when the provenance fetch failed — rendered inline, never silent. */
+  error?: string | null;
+  /** C4: retry affordance for a failed provenance fetch. */
+  onRetry?: () => void;
 };
 
 /** Truncate a hex string: first 10 chars + '…' + last 8 chars */
@@ -826,7 +914,7 @@ function renderRawOracleData(oracleType: OracleType, rawData: RawOracleData): st
   }
 }
 
-function ProvenanceModal({ open, onClose, provenance, isLoading }: ProvenanceModalProps) {
+function ProvenanceModal({ open, onClose, provenance, isLoading, error, onRetry }: ProvenanceModalProps) {
   const isMobile = useIsMobile(); // Phase 9 (09-03): 560px panel OVERFLOWS 375px → clamp (D-04)
   const [sigCopied, setSigCopied] = useState(false);
 
@@ -898,6 +986,31 @@ function ProvenanceModal({ open, onClose, provenance, isLoading }: ProvenanceMod
         {isLoading ? (
           <div style={{ fontFamily: 'var(--font-mono)', fontSize: '14px', color: 'rgba(0,0,0,0.6)', padding: '24px 0', textAlign: 'center' }}>
             Loading provenance data…
+          </div>
+        ) : error ? (
+          /* C4: visible error state — a failed provenance fetch is never a
+             silent no-op / silent em-dash wall. */
+          <div
+            role="alert"
+            style={{ display: 'flex', flexDirection: 'column', gap: '12px', padding: '12px 0', alignItems: 'flex-start' }}
+          >
+            <span style={{ fontFamily: 'var(--font-mono)', fontSize: '13px', fontWeight: 700, color: '#B91C1C' }}>
+              {error}
+            </span>
+            {onRetry && (
+              <button
+                onClick={onRetry}
+                style={{
+                  fontFamily: 'var(--font-display)', fontSize: '13px', fontWeight: 800,
+                  textTransform: 'uppercase', letterSpacing: '0.04em',
+                  color: '#000', background: 'var(--accent-warning)',
+                  border: '2px solid #000', boxShadow: 'var(--shadow-brutal-sm)',
+                  padding: '10px 18px', cursor: 'pointer',
+                }}
+              >
+                Retry
+              </button>
+            )}
           </div>
         ) : (
           <>
@@ -1121,6 +1234,14 @@ export default function CallPage() {
   const [isProvenanceModalOpen, setIsProvenanceModalOpen] = useState(false);
   const [provenanceData, setProvenanceData] = useState<ProvenanceData | null>(null);
   const [isProvenanceLoading, setIsProvenanceLoading] = useState(false);
+  // C4: visible error state for the provenance fetch (never a silent no-op)
+  const [provenanceError, setProvenanceError] = useState<string | null>(null);
+  // C3: caller profile (handle + rep) for the receipt header — real data from
+  // /api/profile/:caller (PLAN-01 A3); degrade-to-hidden when absent (D-07).
+  const [callerProfile, setCallerProfile] = useState<{ handle: string; globalRep: number } | null>(null);
+  // SSR-safe portal gate for the receipt modals (mounted into document.body)
+  const [portalReady, setPortalReady] = useState(false);
+  useEffect(() => { setPortalReady(true); }, []);
 
   // ── Phase 3: Pending challenge state ──────────────────────────────────────
   const [pendingChallenge, setPendingChallenge] = useState<PendingChallenge | null>(null);
@@ -1184,13 +1305,16 @@ export default function CallPage() {
 
   // B6 (quick-260611-5mh): FOLLOW/FADE/CHALLENGE are gated on call liveness.
   // callData.expiry is unix SECONDS (nowSec is too — no ms/s mismatch).
+  // C1: all comparisons use the canonical lowercase status from fetchCallData.
   const isCallExpired = callData ? nowSec >= callData.expiry : false;
-  const isCallActionable = callData?.status === 'Live' && !isCallExpired;
+  const isCallActionable = callData?.status === 'live' && !isCallExpired;
 
-  const isCallerExited = callData?.status === 'CallerExited';
+  const isCallerExited = callData?.status === 'callerExited';
   // Phase 4: settled/disputed branch
-  const isSettled = callData?.status === 'Settled' || callData?.status === 'Disputed';
-  const isDisputed = callData?.status === 'Disputed';
+  const isSettled = callData?.status === 'settled' || callData?.status === 'disputed';
+  const isDisputed = callData?.status === 'disputed';
+  // C2: expired-but-unsettled — the amber AWAITING SETTLEMENT state
+  const isAwaitingSettlement = callData?.status === 'live' && isCallExpired;
 
   // D-09 CRITICAL: viewerIsWinningFader MUST be explicitly false when wallet is disconnected.
   // A connected wallet viewing a settled call where they had a winning fade position
@@ -1262,16 +1386,27 @@ export default function CallPage() {
   // ─── useWriteContract ─────────────────────────────────────────────────────
   const { writeContractAsync } = useWriteContract();
 
-  // Phase 4 D-10: open ProvenanceModal and fetch provenance data
+  // Phase 4 D-10 / C4: open ProvenanceModal and fetch provenance data with
+  // visible loading + error states (a failed fetch is never a silent no-op).
+  const loadProvenance = useCallback(async () => {
+    setIsProvenanceLoading(true);
+    setProvenanceError(null);
+    const result = await fetchProvenanceData(callIdNum);
+    if (result.ok) {
+      setProvenanceData(result.data);
+    } else {
+      setProvenanceData(null);
+      setProvenanceError(result.error);
+    }
+    setIsProvenanceLoading(false);
+  }, [callIdNum]);
+
   const handleOpenProvenance = useCallback(async () => {
     setIsProvenanceModalOpen(true);
-    if (!provenanceData) {
-      setIsProvenanceLoading(true);
-      const data = await fetchProvenanceData(callIdNum);
-      setProvenanceData(data);
-      setIsProvenanceLoading(false);
+    if (!provenanceData && !isProvenanceLoading) {
+      await loadProvenance();
     }
-  }, [callIdNum, provenanceData]);
+  }, [provenanceData, isProvenanceLoading, loadProvenance]);
 
   const handleFollow = useCallback(async (amountIn: bigint, minSharesOut: bigint) => {
     await writeContractAsync({
@@ -1423,8 +1558,8 @@ export default function CallPage() {
     ]);
     if (call) {
       setCallData(call);
-      // Fetch final positions when settled
-      if (call.status === 'Settled' || call.status === 'Disputed') {
+      // Fetch final positions when settled (C5 — GET /api/calls/:id/positions)
+      if (call.status === 'settled' || call.status === 'disputed') {
         void fetchFinalPositions(callIdNum).then(setFinalPositions);
       }
     }
@@ -1465,6 +1600,39 @@ export default function CallPage() {
     void fetchPendingChallenge(callIdNum, userAddress).then(setPendingChallenge);
   }, [callIdNum, userAddress]);
 
+  // C3: caller handle + rep for the receipt header from /api/profile/:caller
+  // (real subgraph stats after PLAN-01 A3). Best-effort; absent → hidden (D-07).
+  const callerAddress = callData?.caller ?? '';
+  useEffect(() => {
+    if (!RELAYER_URL || !callerAddress) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const res = await fetch(`${RELAYER_URL}/api/profile/${callerAddress}`, {
+          signal: AbortSignal.timeout(8_000),
+        });
+        if (!res.ok) return;
+        const raw = await res.json() as Record<string, unknown>;
+        if (cancelled) return;
+        const handle = typeof raw['handle'] === 'string' ? raw['handle'] : null;
+        const globalRep = typeof raw['globalRep'] === 'number' ? raw['globalRep'] : null;
+        if (handle !== null && globalRep !== null) {
+          setCallerProfile({ handle, globalRep });
+        }
+      } catch {
+        // degrade-to-hidden (D-07) — header falls back to live-state fields
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [callerAddress]);
+
+  // C3: document title carries the real market line (never "Call" / bare id).
+  useEffect(() => {
+    if (callData?.marketLine) {
+      document.title = `${callData.marketLine} — Call It`;
+    }
+  }, [callData?.marketLine]);
+
   useEffect(() => {
     void fetchAll();
     // Activity feed + quote-calls polled at 5s (D-08, reusing D-24 pattern)
@@ -1491,15 +1659,17 @@ export default function CallPage() {
     );
   }
 
-  // Fall back to minimal placeholder if relayer not available
-  const displayHandle = callData?.handle ?? `#${callIdNum}`;
-  const displayMarketLine = callData?.marketLine ?? `Call #${callIdNum}`;
+  // Fall back to minimal placeholder if relayer not available.
+  // C3: prefer the profile-resolved handle (real @handle) over the live-state
+  // field (which may be a truncated address alias).
+  const displayHandle = callerProfile?.handle ?? callData?.handle ?? `#${callIdNum}`;
+  // C3: marketLine → 'Open Call' (never bare "Call" / "Call #14")
+  const displayMarketLine = callData?.marketLine || 'Open Call';
   const displayCategory = callData?.category ?? 'Majors';
   const displayStake = callData?.stake ?? 0n;
   const displayConviction = callData?.conviction ?? 50;
   const displayExpiry = callData?.expiry ?? BigInt(Math.floor(Date.now() / 1000) + 86400);
   const displayReasoning = callData?.reasoning ?? '';
-  const displayRepScore = callData?.repScore ?? 0;
 
   // Follow%/Fade% for the 4-stat row
   const total = followReserve + fadeReserve;
@@ -1521,9 +1691,10 @@ export default function CallPage() {
   // resolveSettledWord (lib/outcome-word.ts — D-09 fader guard + neutral
   // fail-safe); COLORS/tints/subs come from SETTLED_OUTCOME_STYLES above.
   if (isSettled || (isCallerExited && callData?.outcome)) {
-    const handle = callData?.handle ?? `#${callIdNum}`;
-    const repScore = callData?.repScore ?? 0;
-    const marketLine = callData?.marketLine ?? `Call #${callIdNum}`;
+    // C3: profile-resolved handle preferred; rep renders ONLY from the real
+    // profile fetch (live-state repScore is a hardcoded 0 — D-07 hides it).
+    const handle = callerProfile?.handle ?? callData?.handle ?? `#${callIdNum}`;
+    const marketLine = callData?.marketLine || 'Open Call';
     const conviction = callData?.conviction ?? 50;
     const settledAt = callData?.settledAt;
     const createdAt = callData?.createdAt;
@@ -1579,15 +1750,20 @@ export default function CallPage() {
         : null;
 
     // WINNERS / LOSERS from the existing positions data — handles + amounts
-    // only (AUTH-44), sorted by P&L, capped 20/side.
+    // only (AUTH-44), sorted by P&L, capped 20/side. C5/D-07: entries with
+    // UNKNOWN pnl (omitted by the relayer) are split into a neutral FINAL
+    // POSITIONS list — they are never faked as +$0.00 winners.
     const winners = finalPositions
-      .filter((p) => p.pnl >= 0n)
+      .filter((p): p is FinalPosition & { pnl: bigint } => p.pnl !== null && p.pnl >= 0n)
       .sort((a, b) => Number(b.pnl - a.pnl))
       .slice(0, 20);
     const losers = finalPositions
-      .filter((p) => p.pnl < 0n)
+      .filter((p): p is FinalPosition & { pnl: bigint } => p.pnl !== null && p.pnl < 0n)
       .sort((a, b) => Number(a.pnl - b.pnl))
       .slice(0, 20);
+    const neutralPositions = finalPositions
+      .filter((p) => p.pnl === null)
+      .slice(0, 40);
 
     // 2-node timeline (D-07): created → settled with REAL timestamps. Middle
     // milestones (follower counts, pool thresholds) have NO event source and
@@ -1668,16 +1844,20 @@ export default function CallPage() {
           <div className="spread" style={{ marginBottom: 28, alignItems: 'flex-start', flexWrap: 'wrap', gap: 14 }}>
             <div className="row" style={{ gap: 14 }}>
               <span className={`avatar lg ${avatarGradClass(handle)}`} aria-hidden="true">
-                {(handle.replace(/^[@#]/, '')[0] ?? '?').toUpperCase()}
+                {avatarInitial(handle)}
               </span>
               <div className="col" style={{ gap: 6 }}>
                 {/* handle only — AUTH-44: NEVER wallet address */}
                 <span style={{ fontFamily: 'var(--font-display)', fontSize: 20, fontWeight: 900, letterSpacing: '-0.02em' }}>
                   {handle}
                 </span>
-                <span className="mono" style={{ fontSize: 11, color: 'var(--accent-win)' }}>
-                  {repScore} rep
-                </span>
+                {/* C3/D-07: rep only from the REAL profile fetch — never the
+                    hardcoded live-state 0 */}
+                {callerProfile && (
+                  <span className="mono" style={{ fontSize: 11, color: 'var(--accent-win)' }}>
+                    {callerProfile.globalRep} rep
+                  </span>
+                )}
               </div>
             </div>
 
@@ -1786,17 +1966,18 @@ export default function CallPage() {
                 </div>
               </div>
             )}
+            {/* C4: oracle/target values are 1e8-scale on-chain — ÷1e8 display */}
             {finalValue && (
               <div className="stat-block" style={{ flex: isMobile ? '1 1 45%' : 1 }}>
                 <div className="stat-label">Final</div>
-                <div className="stat-value">{finalValue}</div>
-                {targetValue && <div className="stat-sub">target {targetValue}</div>}
+                <div className="stat-value">{formatTarget1e8(finalValue)}</div>
+                {targetValue && <div className="stat-sub">target {formatTarget1e8(targetValue)}</div>}
               </div>
             )}
             {!finalValue && targetValue && (
               <div className="stat-block" style={{ flex: isMobile ? '1 1 45%' : 1 }}>
                 <div className="stat-label">Target</div>
-                <div className="stat-value">{targetValue}</div>
+                <div className="stat-value">{formatTarget1e8(targetValue)}</div>
               </div>
             )}
             <div className="stat-block" style={{ flex: isMobile ? '1 1 45%' : 1 }}>
@@ -1854,15 +2035,31 @@ export default function CallPage() {
             <button
               onClick={() => void handleOpenProvenance()}
               className="mono"
-              style={{ fontSize: 10.5, letterSpacing: '0.08em', color: 'var(--accent-win)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+              aria-busy={isProvenanceLoading}
+              style={{
+                fontSize: 10.5,
+                letterSpacing: '0.08em',
+                color: 'var(--accent-win)',
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                padding: 0,
+                // C4: real touch target — the 10px text line was nearly unclickable
+                minHeight: 44,
+                display: 'inline-flex',
+                alignItems: 'center',
+              }}
             >
-              · view oracle proof ↗
+              {/* C4: visible click feedback — never a silent no-op */}
+              {isProvenanceLoading && !isProvenanceModalOpen
+                ? '· loading proof…'
+                : '· view oracle proof ↗'}
             </button>
           </div>
         </div>
 
         {/* ── DISPUTE THIS SETTLEMENT CTA (D-06, SETTLE-25) — wiring unchanged ── */}
-        {callData?.status === 'Settled' && (() => {
+        {callData?.status === 'settled' && (() => {
           const nowUnix = BigInt(Math.floor(Date.now() / 1000));
           const windowOpen = callData.settledAt
             ? (nowUnix - callData.settledAt) < DISPUTE_WINDOW_SECONDS
@@ -1923,7 +2120,7 @@ export default function CallPage() {
                           <td>
                             <div className="row" style={{ gap: 10 }}>
                               <span className={`avatar sm ${avatarGradClass(p.handle)}`} aria-hidden="true">
-                                {(p.handle.replace(/^[@#]/, '')[0] ?? '?').toUpperCase()}
+                                {avatarInitial(p.handle)}
                               </span>
                               {/* handle only — AUTH-44 */}
                               <span style={{ fontWeight: 600, fontSize: 13 }}>{p.handle}</span>
@@ -1958,7 +2155,7 @@ export default function CallPage() {
                           <td>
                             <div className="row" style={{ gap: 10 }}>
                               <span className={`avatar sm ${avatarGradClass(p.handle)}`} aria-hidden="true">
-                                {(p.handle.replace(/^[@#]/, '')[0] ?? '?').toUpperCase()}
+                                {avatarInitial(p.handle)}
                               </span>
                               {/* handle only — AUTH-44 */}
                               <span style={{ fontWeight: 600, fontSize: 13 }}>{p.handle}</span>
@@ -1977,8 +2174,52 @@ export default function CallPage() {
           </div>
         )}
 
-        {/* ── DisputeModal (D-06) — open-state wiring unchanged ── */}
-        {isDisputeModalOpen && (
+        {/* ── FINAL POSITIONS (C5/D-07) — entries whose pnl the relayer omits:
+            real handle/side/stake render WITHOUT a faked $0.00 P&L. Hidden
+            entirely when empty. ── */}
+        {neutralPositions.length > 0 && (
+          <div style={{ marginTop: 32 }}>
+            <div className="section-divider" style={{ marginTop: 0 }}>
+              <span className="title">FINAL POSITIONS · {neutralPositions.length}</span>
+              <span className="line"></span>
+            </div>
+            <div className="brutal-card" style={{ padding: 0 }}>
+              <table className="brutal-table">
+                <tbody>
+                  {neutralPositions.map((p, i) => (
+                    <tr key={i} style={{ cursor: 'default' }}>
+                      <td style={{ width: 40 }}>
+                        <span className="mono" style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>
+                          {String(i + 1).padStart(2, '0')}
+                        </span>
+                      </td>
+                      <td>
+                        <div className="row" style={{ gap: 10 }}>
+                          <span className={`avatar sm ${avatarGradClass(p.handle)}`} aria-hidden="true">
+                            {avatarInitial(p.handle)}
+                          </span>
+                          {/* handle only — AUTH-44 */}
+                          <span style={{ fontWeight: 600, fontSize: 13 }}>{p.handle}</span>
+                          <span className={`pill ${p.side === 'follow' ? 'win' : 'loss'}`}>
+                            {p.side === 'follow' ? 'FOLLOWED' : 'FADED'}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="mono" style={{ textAlign: 'right', color: 'var(--text-secondary)', fontWeight: 700, fontSize: 14 }}>
+                        {formatUsdc(p.stake)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* ── DisputeModal (D-06) — C4: portaled to document.body so no page
+            ancestor (transform/filter/stacking context) can ever trap or hide
+            the fixed overlay. Open-state wiring unchanged. ── */}
+        {portalReady && isDisputeModalOpen && createPortal(
           <DisputeModal
             open={isDisputeModalOpen}
             onClose={() => setIsDisputeModalOpen(false)}
@@ -1987,17 +2228,21 @@ export default function CallPage() {
             smAddr={SM_ADDR}
             usdcAddr={USDC_ADDR}
             relayerUrl={RELAYER_URL}
-          />
+          />,
+          document.body,
         )}
 
-        {/* ── ProvenanceModal (D-10) — open-state wiring unchanged ── */}
-        {isProvenanceModalOpen && (
+        {/* ── ProvenanceModal (D-10) — portaled (C4) with loading + error states ── */}
+        {portalReady && isProvenanceModalOpen && createPortal(
           <ProvenanceModal
             open={isProvenanceModalOpen}
             onClose={() => setIsProvenanceModalOpen(false)}
             provenance={provenanceData}
             isLoading={isProvenanceLoading}
-          />
+            error={provenanceError}
+            onRetry={() => void loadProvenance()}
+          />,
+          document.body,
         )}
       </div>
     );
@@ -2071,25 +2316,45 @@ export default function CallPage() {
         <div className="spread" style={{ marginBottom: 24, alignItems: 'flex-start', flexWrap: 'wrap', gap: 14 }}>
           <div className="row" style={{ gap: 14 }}>
             <span className={`avatar lg ${avatarGradClass(displayHandle)}`} aria-hidden="true">
-              {(displayHandle.replace(/^[@#]/, '')[0] ?? '?').toUpperCase()}
+              {avatarInitial(displayHandle)}
             </span>
             <div className="col" style={{ gap: 6 }}>
               <span style={{ fontFamily: 'var(--font-display)', fontSize: 24, fontWeight: 900, letterSpacing: '-0.02em' }}>
                 {displayHandle}
               </span>
-              <span className="mono" style={{ fontSize: 11, color: 'var(--accent-win)' }}>
-                {displayRepScore} rep
-              </span>
+              {/* C3/D-07: rep only from the REAL profile fetch — the live-state
+                  repScore is a hardcoded 0 and is hidden, never faked */}
+              {callerProfile && (
+                <span className="mono" style={{ fontSize: 11, color: 'var(--accent-win)' }}>
+                  {callerProfile.globalRep} rep
+                </span>
+              )}
             </div>
           </div>
           <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
-            {callData?.status === 'Live' && (
+            {/* C2: pulsing LIVE only while genuinely live; expired+unsettled is
+                the amber AWAITING SETTLEMENT state — never both, never neither */}
+            {callData?.status === 'live' && !isCallExpired && (
               <span className="pill win">
                 <span className="live-dot" />
                 LIVE
               </span>
             )}
-            {callData?.criteriaHash && <span className="pill win">VERIFIED CRITERIA</span>}
+            {isAwaitingSettlement && (
+              <span
+                className="pill"
+                style={{ color: 'var(--accent-warning)', borderColor: 'var(--accent-warning)' }}
+              >
+                AWAITING SETTLEMENT
+              </span>
+            )}
+            {/* C4: VERIFIED CRITERIA only for REAL criteria — hidden when the
+                criteria text is absent or the hash is the 0x…01 sentinel */}
+            {callData?.criteriaText &&
+              callData?.criteriaHash &&
+              callData.criteriaHash !== CRITERIA_HASH_SENTINEL && (
+                <span className="pill win">VERIFIED CRITERIA</span>
+              )}
           </div>
         </div>
 
@@ -2572,7 +2837,7 @@ export default function CallPage() {
                 return (
                   <div key={entry.id} className="activity-row">
                     <span className={`avatar sm ${avatarGradClass(entry.handle)}`} aria-hidden="true">
-                      {(entry.handle.replace(/^[@#]/, '')[0] ?? '?').toUpperCase()}
+                      {avatarInitial(entry.handle)}
                     </span>
                     <div className="row" style={{ gap: 10, flexWrap: 'wrap' }}>
                       {/* handle only — AUTH-44 */}
@@ -2608,7 +2873,7 @@ export default function CallPage() {
                   <div className="spread" style={{ marginBottom: 10, flexWrap: 'wrap', gap: 8 }}>
                     <div className="row" style={{ gap: 8 }}>
                       <span className={`avatar sm ${avatarGradClass(entry.handle)}`} aria-hidden="true">
-                        {(entry.handle.replace(/^[@#]/, '')[0] ?? '?').toUpperCase()}
+                        {avatarInitial(entry.handle)}
                       </span>
                       {/* handle only — AUTH-44 */}
                       <span style={{ fontSize: 13, fontWeight: 700 }}>{entry.handle}</span>

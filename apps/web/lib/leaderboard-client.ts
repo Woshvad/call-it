@@ -139,15 +139,26 @@ export async function getLeaderboard(
 
   const profiles = json.data.profiles ?? [];
 
-  const rows: LeaderboardRow[] = profiles.map((p, i) => ({
-    address: p.id,
-    handle: resolveHandle(p),
-    globalRep: typeof p.globalRep === 'number' ? p.globalRep : 0,
-    totalCalls: typeof p.totalCalls === 'number' ? p.totalCalls : 0,
-    settledCalls: typeof p.settledCalls === 'number' ? p.settledCalls : 0,
-    wins: typeof p.wins === 'number' ? p.wins : 0,
-    rank: i + 1,
-  }));
+  // C9 (quick-260611-5mh): The Graph `orderBy` is SINGLE-field — multi-key
+  // ordering happens here in JS after the fetch: globalRep desc, then
+  // settledCalls desc, then wins desc. Rank is assigned AFTER the full sort.
+  const rows: LeaderboardRow[] = profiles
+    .map((p) => ({
+      address: p.id,
+      handle: resolveHandle(p),
+      globalRep: typeof p.globalRep === 'number' ? p.globalRep : 0,
+      totalCalls: typeof p.totalCalls === 'number' ? p.totalCalls : 0,
+      settledCalls: typeof p.settledCalls === 'number' ? p.settledCalls : 0,
+      wins: typeof p.wins === 'number' ? p.wins : 0,
+      rank: 0,
+    }))
+    .sort(
+      (a, b) =>
+        b.globalRep - a.globalRep ||
+        b.settledCalls - a.settledCalls ||
+        b.wins - a.wins,
+    )
+    .map((row, i) => ({ ...row, rank: i + 1 }));
 
   return { rows, windowedDataAvailable: false };
 }

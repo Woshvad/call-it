@@ -32,7 +32,7 @@
 'use client';
 
 import { useAccount } from 'wagmi';
-import { Card } from '@call-it/ui';
+import { Card, avatarInitial } from '@call-it/ui';
 import { useIsMobile } from '@/app/hooks/useIsMobile';
 import type { LeaderboardData, LeaderboardRow } from '@/lib/leaderboard-client';
 
@@ -53,15 +53,25 @@ function gradFor(handle: string): string {
   return AVATAR_GRADS[sum % AVATAR_GRADS.length] ?? 'a';
 }
 
-function initialFor(handle: string): string {
-  const ch = handle.replace(/^@/, '').charAt(0);
-  return ch ? ch.toUpperCase() : '?';
-}
+// C11: avatar initials come from the shared @call-it/ui avatarInitial helper
+// (skips the '0x' prefix of truncated-address aliases).
+const initialFor = avatarInitial;
 
 /** Accuracy % from real fields (wins ÷ settledCalls); null when nothing settled (D-07). */
 function accuracyPct(row: LeaderboardRow): number | null {
   if (row.settledCalls <= 0) return null;
   return Math.round((row.wins / row.settledCalls) * 100);
+}
+
+/**
+ * C9 (quick-260611-5mh): honest call count. The subgraph `totalCalls`
+ * currently DECREMENTS on settle (mapping quirk — display-side fix ONLY, the
+ * mappings are untouched), so a caller with 2 settled calls can report
+ * totalCalls 0. A caller has made AT LEAST as many calls as they have settled:
+ * max(totalCalls, settledCalls).
+ */
+function honestCallCount(row: LeaderboardRow): number {
+  return Math.max(row.totalCalls, row.settledCalls);
 }
 
 export function LeaderboardClient({ data, fetchError }: LeaderboardClientProps) {
@@ -251,8 +261,10 @@ export function LeaderboardClient({ data, fetchError }: LeaderboardClientProps) 
               </div>
             )}
             <div className="stat-block" style={{ flex: 1 }}>
-              <div className="stat-label">Calls</div>
-              <div className="stat-value">{hero.totalCalls}</div>
+              <div className="stat-label">Calls made</div>
+              {/* C9: max(totalCalls, settledCalls) — subgraph totalCalls
+                  decrements on settle; never show fewer calls than settled */}
+              <div className="stat-value">{honestCallCount(hero)}</div>
             </div>
           </div>
         </Card>
@@ -264,7 +276,10 @@ export function LeaderboardClient({ data, fetchError }: LeaderboardClientProps) 
           className="brutal-card"
           style={{ padding: 0, overflowX: isMobile ? 'auto' : undefined }}
         >
-          <table className="brutal-table" style={{ minWidth: isMobile ? '480px' : undefined }}>
+          {/* C9 mobile: NO forced 480px min-width — REP + ACC must stay
+              visible at 375px. Columns compress (handle truncates) instead of
+              pushing the rep/acc columns off-screen. */}
+          <table className="brutal-table" style={{ width: '100%' }}>
             <thead>
               <tr>
                 <th style={{ width: '60px' }}>#</th>
@@ -322,13 +337,22 @@ function LeaderboardTableRow({ row, isViewer }: { row: LeaderboardRow; isViewer:
           {String(row.rank).padStart(2, '0')}
         </span>
       </td>
-      <td>
-        <div className="row" style={{ gap: '12px' }}>
+      <td style={{ maxWidth: isMobile ? 150 : undefined, overflow: 'hidden' }}>
+        <div className="row" style={{ gap: isMobile ? '8px' : '12px' }}>
           <span className={`avatar sm avatar-grad-${gradFor(row.handle)}`}>
             {initialFor(row.handle)}
           </span>
-          <div className="col" style={{ gap: '2px' }}>
-            <span style={{ fontWeight: 700, fontSize: '13.5px' }}>
+          <div className="col" style={{ gap: '2px', minWidth: 0 }}>
+            <span
+              style={{
+                fontWeight: 700,
+                fontSize: '13.5px',
+                // C9 mobile: truncate the handle, never the REP/ACC columns
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+              }}
+            >
               {row.handle}
               {isViewer && (
                 <span
@@ -346,7 +370,8 @@ function LeaderboardTableRow({ row, isViewer }: { row: LeaderboardRow; isViewer:
               )}
             </span>
             <span className="mono" style={{ fontSize: '10.5px', color: 'var(--text-tertiary)' }}>
-              {row.totalCalls} call{row.totalCalls === 1 ? '' : 's'}
+              {/* C9: honest count — max(totalCalls, settledCalls) */}
+              {honestCallCount(row)} call{honestCallCount(row) === 1 ? '' : 's'}
             </span>
           </div>
         </div>

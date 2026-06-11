@@ -45,6 +45,7 @@ export { PositionExitModal, type PositionExitModalProps } from './compound/Posit
 
 // Utilities
 export { cn } from './lib/cn';
+export { avatarInitial } from './lib/avatar-initial';
 
 // Tokens
 export * from './tokens/colors';

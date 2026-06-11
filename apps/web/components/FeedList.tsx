@@ -32,10 +32,12 @@ function feedItemToCallCardData(item: FeedItem) {
   const expirySeconds = typeof item.expiry === 'number' ? item.expiry : parseInt(String(item.expiry), 10);
   const deadline = new Date(expirySeconds * 1000);
 
-  // Derive a market line from asset + status
-  const marketLine = item.asset
-    ? `${item.asset} · ${item.marketType === 0 ? 'Price Target' : 'Call'}`
-    : 'Open Call';
+  // C3 (quick-260611-5mh): real market line — the PLAN-01 enriched
+  // `marketLine` (e.g. "ETH ≥ $1,000,000") → stored statement → 'Open Call'.
+  const marketLine =
+    (item.marketLine && item.marketLine.trim()) ||
+    (item.statement && item.statement.trim()) ||
+    'Open Call';
 
   const handle = item.displayHandle ?? item.handle ?? truncateAddress(item.caller ?? '');
 
@@ -45,7 +47,12 @@ function feedItemToCallCardData(item: FeedItem) {
     conviction: item.conviction ?? 50,
     deadline,
     stake: BigInt(item.stake ?? '0'),
-    status: (item.status === 'settled' ? 'settled' : 'live') as 'live' | 'settled' | 'preview',
+    // status is canonical lowercase from the relayer-client boundary (C1);
+    // settled + disputed render the SETTLED tag, everything else is live —
+    // CallCard itself downgrades expired live cards to AWAITING SETTLEMENT (C2).
+    status: (item.status === 'settled' || item.status === 'disputed'
+      ? 'settled'
+      : 'live') as 'live' | 'settled' | 'preview',
   };
 }
 

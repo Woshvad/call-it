@@ -74,6 +74,9 @@ export function Sidebar() {
   const tapeNav: NavEntry[] = [
     { label: 'The Tape', href: '/', icon: 'feed', exact: true },
     { label: 'Leaderboard', href: '/leaderboard', icon: 'leaderboard' },
+    // C7 (quick-260611-5mh): duels index — /duel/:id pages were unreachable
+    // by navigation before this entry existed.
+    { label: 'Duels', href: '/duels' as Route, icon: 'book' },
   ];
 
   const youNav: NavEntry[] = [

@@ -129,9 +129,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </Link>
         </div>
 
-        {/* Center: search — visual placeholder only, ⌘K hint (allowed, D-10) */}
+        {/* Center: search — visibly INERT placeholder (C10, quick-260611-5mh):
+            dimmed, cursor-not-allowed, SOON tag. A crisp ⌘K search field that
+            ignores clicks read as broken — the de-emphasis makes the
+            not-yet-shipped state legible. readOnly + aria-label KEPT. */}
         {!isMobile ? (
-          <div className="brutal-search">
+          <div className="brutal-search" style={{ opacity: 0.4 }} aria-disabled="true">
             <span className="icon">
               <Icon name="search" size={14} />
             </span>
@@ -139,8 +142,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               placeholder="Search callers, calls, assets — ARB, ETH, @veda"
               aria-label="Search (coming soon)"
               readOnly
+              tabIndex={-1}
+              style={{ cursor: 'not-allowed' }}
             />
-            <kbd>⌘K</kbd>
+            <kbd>SOON</kbd>
           </div>
         ) : (
           <div />

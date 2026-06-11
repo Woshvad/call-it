@@ -34,6 +34,7 @@ import { usePrivy } from '@privy-io/react-auth';
 import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
 import Link from 'next/link';
 import { ACTIVE_CHAIN_ID, CHALLENGE_ESCROW_ADDRESS, USDC_ADDRESS } from '@/lib/chain';
+import { avatarInitial } from '@call-it/ui';
 import { ChallengeFormModal } from '@/app/components/ChallengeFormModal';
 import { DesktopOnlyBanner } from '@/app/components/DesktopOnlyBanner';
 import { useIsMobile } from '@/app/hooks/useIsMobile';
@@ -237,18 +238,29 @@ function DuelCountdown({ expiry }: { expiry: bigint }) {
 
 // ─── Data fetch helpers ───────────────────────────────────────────────────────
 
+/** Truncated 0x display alias — AUTH-44-safe fallback when no handle exists (C6). */
+function truncateAddress(address: string): string {
+  if (!address || address.length < 10) return address;
+  return `${address.slice(0, 6)}…${address.slice(-4)}`;
+}
+
 async function fetchDuelLiveState(challengeId: string): Promise<DuelLiveState | null> {
   if (!RELAYER_URL) return null;
   try {
+    // Canonical duel-live-state path (PLAN-01 A6 / SUMMARY-01): the relayer
+    // registers exactly GET /api/duels/:id/live-state — no alias exists.
     const res = await fetch(`${RELAYER_URL}/api/duels/${challengeId}/live-state`);
     if (!res.ok) return null;
     const raw = await res.json() as Record<string, unknown>;
+    const caller = String(raw['caller'] ?? '');
+    const challenger = String(raw['challenger'] ?? '');
     return {
       challengeId: BigInt(String(raw['challengeId'] ?? challengeId)),
       callId: BigInt(String(raw['callId'] ?? '0')),
       status: Number(raw['status'] ?? ChallengeStatus.Proposed),
-      caller: String(raw['caller'] ?? ''),
-      callerHandle: String(raw['callerHandle'] ?? `caller`),
+      caller,
+      // C6: fallback is a truncated address alias, never the literal 'caller'
+      callerHandle: String(raw['callerHandle'] ?? (caller ? truncateAddress(caller) : 'caller')),
       callerStake: BigInt(String(raw['callerStake'] ?? '0')),
       callerRep: Number(raw['callerRep'] ?? 0),
       callerAccuracy: Number(raw['callerAccuracy'] ?? 0),
@@ -256,8 +268,11 @@ async function fetchDuelLiveState(challengeId: string): Promise<DuelLiveState | 
       callerStreak: Number(raw['callerStreak'] ?? 0),
       callerAvatarUrl: String(raw['callerAvatarUrl'] ?? ''),
       callerPosition: String(raw['callerPosition'] ?? ''),
-      challenger: String(raw['challenger'] ?? ''),
-      challengerHandle: String(raw['challengerHandle'] ?? `challenger`),
+      challenger,
+      // C6: fallback is a truncated address alias, never the literal 'challenger'
+      challengerHandle: String(
+        raw['challengerHandle'] ?? (challenger ? truncateAddress(challenger) : 'challenger'),
+      ),
       challengerStake: BigInt(String(raw['challengerStake'] ?? '0')),
       challengerRep: Number(raw['challengerRep'] ?? 0),
       challengerAccuracy: Number(raw['challengerAccuracy'] ?? 0),
@@ -319,10 +334,10 @@ function DuelAvatar({ url, handle, size }: { url: string; handle: string; size: 
       </span>
     );
   }
-  const initial = handle.replace('@', '').charAt(0).toUpperCase();
+  // C11: shared initial derivation — skips the '0x' prefix of address aliases
   return (
     <span className={`avatar ${size} ${avatarGradClass(handle)}`} aria-hidden="true">
-      {initial}
+      {avatarInitial(handle)}
     </span>
   );
 }
@@ -659,7 +674,8 @@ export default function DuelPage() {
           ← Back to the tape
         </Link>
         <span className="mono" style={{ fontSize: 11, color: 'var(--text-tertiary)', letterSpacing: '0.04em' }}>
-          duel #d/{challengeId} · arbitrum ·{' '}
+          {/* C6: plain duel id (the old prefix doubled the hash) + honest ARBITRUM SEPOLIA badge */}
+          duel #{challengeId} · ARBITRUM SEPOLIA ·{' '}
           <span style={{ color: statusMeta.color, fontWeight: 700 }}>{statusMeta.word}</span>
           {displayExpiry > 0n ? <> · {formatTimeLeft(displayExpiry)}</> : null}
         </span>
@@ -851,27 +867,36 @@ export default function DuelPage() {
                 </div>
               </div>
             )}
-            {/* Stats — existing DuelLiveState fields only (D-07) */}
-            <div className="row" style={{ gap: 16, marginTop: 22, flexWrap: 'wrap' }}>
-              <div>
-                <div className="label-overline">Rep</div>
-                <div className="mono" style={{ fontSize: 22, fontWeight: 700, marginTop: 4 }}>
-                  {liveState.callerRep.toLocaleString()}
-                </div>
+            {/* Stats — C6/D-07: zero/absent stats are HIDDEN, never rendered
+                as fake "0 rep · 0% accuracy" credentials */}
+            {(liveState.callerRep > 0 || liveState.callerAccuracy > 0 || liveState.callerCategoryAccuracy > 0) && (
+              <div className="row" style={{ gap: 16, marginTop: 22, flexWrap: 'wrap' }}>
+                {liveState.callerRep > 0 && (
+                  <div>
+                    <div className="label-overline">Rep</div>
+                    <div className="mono" style={{ fontSize: 22, fontWeight: 700, marginTop: 4 }}>
+                      {liveState.callerRep.toLocaleString()}
+                    </div>
+                  </div>
+                )}
+                {liveState.callerAccuracy > 0 && (
+                  <div>
+                    <div className="label-overline">Accuracy</div>
+                    <div className="mono" style={{ fontSize: 22, fontWeight: 700, marginTop: 4, color: 'var(--accent-win)' }}>
+                      {liveState.callerAccuracy}%
+                    </div>
+                  </div>
+                )}
+                {liveState.callerCategoryAccuracy > 0 && (
+                  <div>
+                    <div className="label-overline">In category</div>
+                    <div className="mono" style={{ fontSize: 22, fontWeight: 700, marginTop: 4 }}>
+                      {liveState.callerCategoryAccuracy}%
+                    </div>
+                  </div>
+                )}
               </div>
-              <div>
-                <div className="label-overline">Accuracy</div>
-                <div className="mono" style={{ fontSize: 22, fontWeight: 700, marginTop: 4, color: 'var(--accent-win)' }}>
-                  {liveState.callerAccuracy}%
-                </div>
-              </div>
-              <div>
-                <div className="label-overline">In category</div>
-                <div className="mono" style={{ fontSize: 22, fontWeight: 700, marginTop: 4 }}>
-                  {liveState.callerCategoryAccuracy}%
-                </div>
-              </div>
-            </div>
+            )}
             {liveState.callerStreak >= 3 && (
               <div className="mono" style={{ marginTop: 14, fontSize: 11, color: 'var(--accent-warning)', fontWeight: 700, letterSpacing: '0.04em' }}>
                 🔥 {liveState.callerStreak}-call win streak
@@ -947,27 +972,36 @@ export default function DuelPage() {
                 </div>
               </div>
             )}
-            {/* Stats — existing DuelLiveState fields only (D-07) */}
-            <div className="row" style={{ gap: 16, marginTop: 22, flexWrap: 'wrap', justifyContent: isMobile ? 'flex-start' : 'flex-end' }}>
-              <div style={{ textAlign: isMobile ? 'left' : 'right' }}>
-                <div className="label-overline">Rep</div>
-                <div className="mono" style={{ fontSize: 22, fontWeight: 700, marginTop: 4 }}>
-                  {liveState.challengerRep.toLocaleString()}
-                </div>
+            {/* Stats — C6/D-07: zero/absent stats are HIDDEN, never rendered
+                as fake "0 rep · 0% accuracy" credentials */}
+            {(liveState.challengerRep > 0 || liveState.challengerAccuracy > 0 || liveState.challengerCategoryAccuracy > 0) && (
+              <div className="row" style={{ gap: 16, marginTop: 22, flexWrap: 'wrap', justifyContent: isMobile ? 'flex-start' : 'flex-end' }}>
+                {liveState.challengerRep > 0 && (
+                  <div style={{ textAlign: isMobile ? 'left' : 'right' }}>
+                    <div className="label-overline">Rep</div>
+                    <div className="mono" style={{ fontSize: 22, fontWeight: 700, marginTop: 4 }}>
+                      {liveState.challengerRep.toLocaleString()}
+                    </div>
+                  </div>
+                )}
+                {liveState.challengerAccuracy > 0 && (
+                  <div style={{ textAlign: isMobile ? 'left' : 'right' }}>
+                    <div className="label-overline">Accuracy</div>
+                    <div className="mono" style={{ fontSize: 22, fontWeight: 700, marginTop: 4, color: 'var(--accent-win)' }}>
+                      {liveState.challengerAccuracy}%
+                    </div>
+                  </div>
+                )}
+                {liveState.challengerCategoryAccuracy > 0 && (
+                  <div style={{ textAlign: isMobile ? 'left' : 'right' }}>
+                    <div className="label-overline">In category</div>
+                    <div className="mono" style={{ fontSize: 22, fontWeight: 700, marginTop: 4 }}>
+                      {liveState.challengerCategoryAccuracy}%
+                    </div>
+                  </div>
+                )}
               </div>
-              <div style={{ textAlign: isMobile ? 'left' : 'right' }}>
-                <div className="label-overline">Accuracy</div>
-                <div className="mono" style={{ fontSize: 22, fontWeight: 700, marginTop: 4, color: 'var(--accent-win)' }}>
-                  {liveState.challengerAccuracy}%
-                </div>
-              </div>
-              <div style={{ textAlign: isMobile ? 'left' : 'right' }}>
-                <div className="label-overline">In category</div>
-                <div className="mono" style={{ fontSize: 22, fontWeight: 700, marginTop: 4 }}>
-                  {liveState.challengerCategoryAccuracy}%
-                </div>
-              </div>
-            </div>
+            )}
             {liveState.challengerStreak >= 3 && (
               <div className="mono" style={{ marginTop: 14, fontSize: 11, color: 'var(--accent-warning)', fontWeight: 700, letterSpacing: '0.04em', textAlign: isMobile ? 'left' : 'right' }}>
                 🔥 {liveState.challengerStreak}-call win streak

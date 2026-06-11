@@ -116,9 +116,16 @@ export default function HomePage() {
 
   const [activeTab, setActiveTab] = useState<FeedTab>('Live');
 
-  // Real wiring per tab: Live = not-yet-settled, Settled = settled.
-  const liveItems = allItems.filter((item) => item.status !== 'settled');
-  const settledItems = allItems.filter((item) => item.status === 'settled');
+  // Real wiring per tab: Live = not-yet-settled, Settled = settled (or under
+  // dispute review — the settlement happened). `item.status` is the canonical
+  // lowercase status normalized ONCE at the relayer-client boundary (C1 —
+  // comparing the TitleCase wire values here was the settled-in-LIVE-tab bug).
+  const settledItems = allItems.filter(
+    (item) => item.status === 'settled' || item.status === 'disputed',
+  );
+  const liveItems = allItems.filter(
+    (item) => item.status !== 'settled' && item.status !== 'disputed',
+  );
   const visibleItems = activeTab === 'Live' ? liveItems : settledItems;
 
   function handleNewCallClick() {

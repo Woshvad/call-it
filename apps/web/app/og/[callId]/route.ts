@@ -140,6 +140,28 @@ function formatPriceDeltaPnl(raw: string | null): string {
   }
 }
 
+/**
+ * C13 (quick-260611-5mh): stake-based P&L for a LOST call. The caller's real
+ * loss is their stake (e.g. −$5.00) — NOT the oracle price-delta (which
+ * rendered a fake −$998,306.55 "loss" on a $5 stake).
+ */
+function formatStakeLossPnl(stakeRaw: bigint): string {
+  const n = Number(stakeRaw) / 1_000_000;
+  return `-$${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
+/** C13: secondary "MISSED BY" magnitude from the 1e8-scale price delta. */
+function formatMissedBy(raw: string | null): string | null {
+  if (raw === null) return null;
+  try {
+    const n = Math.abs(Number(BigInt(raw)) / PRICE_SCALE);
+    if (!Number.isFinite(n) || n === 0) return null;
+    return `$${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  } catch {
+    return null;
+  }
+}
+
 /** Format a signed rep delta integer as "+N REP" / "-N REP". */
 function formatRepDelta(delta: number | null): string {
   if (delta === null) return EM_DASH;
@@ -388,10 +410,12 @@ interface SettledCardProps {
   outcomeWord: string;
   outcomeColor: string; // §14.1 locked hex
   outcomeLozenge: string | null;
-  pnlStr: string;       // P&L formatted string e.g. "+$12.50"
+  pnlStr: string;       // P&L formatted string e.g. "+$12.50" (stake-based for losses, C13)
   repDeltaStr: string;  // rep delta formatted e.g. "+8 REP"
   finalValue: string;   // oracle price at settlement
   targetValue: string;  // call target value
+  /** C13: secondary price-delta magnitude for losses ("MISSED BY $X"); null hides the cell. */
+  missedByStr: string | null;
   isViewerFader: boolean; // D-09
   footerBrand: string;
 }
@@ -401,7 +425,7 @@ function buildSettledCard(props: SettledCardProps): ReactElement {
     callStatement, handle, conviction, repRaw,
     outcomeWord, outcomeColor, outcomeLozenge,
     pnlStr, repDeltaStr, finalValue, targetValue,
-    isViewerFader, footerBrand,
+    missedByStr, isViewerFader, footerBrand,
   } = props;
 
   // D-09: ?as=fader variant shows FADED CORRECTLY with accent colors
@@ -513,6 +537,8 @@ function buildSettledCard(props: SettledCardProps): ReactElement {
       ...[
         { label: 'P&L', value: pnlStr, color: pnlStr.startsWith('+') ? '#4ADE80' : '#F87171' },
         { label: 'REP CHANGE', value: repDeltaStr, color: repDeltaStr.startsWith('+') ? '#4ADE80' : '#F87171' },
+        // C13: price delta demoted to a secondary "MISSED BY" magnitude
+        ...(missedByStr ? [{ label: 'MISSED BY', value: missedByStr, color: '#94A3B8' }] : []),
         { label: 'FINAL', value: finalValue, color: '#E8E8E8' },
         { label: 'TARGET', value: targetValue, color: '#E8F542' },
       ].map((cell, i, arr) => h('div', {
@@ -733,8 +759,12 @@ export async function GET(
   // ?as=fader: viewer is a winning fader — show FADED CORRECTLY variant (D-09 / T-04-07-05)
   const isViewerFader = url.searchParams.get('as') === 'fader';
 
-  // D-12: footer brand from env-var
-  const footerBrand = process.env['NEXT_PUBLIC_BRAND_FOOTER'] ?? 'callitapp.xyz · Be right in public.';
+  // D-12: footer brand from env-var. C13 (quick-260611-5mh): the fallback is
+  // the REAL host serving this card (derived from the request URL), never the
+  // unowned 'callitapp.xyz' — literal fallback is the live Vercel deploy.
+  const requestHost = url.host || 'call-it-web-sepolia.vercel.app';
+  const footerBrand =
+    process.env['NEXT_PUBLIC_BRAND_FOOTER'] ?? `${requestHost} · Be right in public.`;
 
   let callId: bigint;
   try {
@@ -879,10 +909,17 @@ export async function GET(
         outcomeWord: outcomeResult.word,
         outcomeColor: outcomeResult.color,
         outcomeLozenge: outcomeResult.lozenge,
-        pnlStr: formatPriceDeltaPnl(settledFields.priceDelta),  // D-03: Settlement.priceDelta
+        // C13: a LOST call's P&L is the stake (−$5.00), never the oracle
+        // price-delta (−$998,306.55 on a $5 stake was a money-semantics lie).
+        // Wins keep the existing priceDelta-derived display (additive change).
+        pnlStr: callerWon
+          ? formatPriceDeltaPnl(settledFields.priceDelta)
+          : formatStakeLossPnl(stakeRaw),
         repDeltaStr: formatRepDelta(settledFields.repDelta),    // D-03: RepEvent.delta
         finalValue: formatOraclePrice(settledFields.finalPrice), // D-03: Settlement.finalPrice
         targetValue: targetStr,                                  // D-03: on-chain call target
+        // C13: price delta survives as the secondary "MISSED BY" magnitude
+        missedByStr: callerWon ? null : formatMissedBy(settledFields.priceDelta),
         isViewerFader: isViewerFader && !callerWon,
         footerBrand,
       });
