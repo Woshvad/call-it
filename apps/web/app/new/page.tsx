@@ -6,7 +6,8 @@ import { useSearchParams } from 'next/navigation';
 import { useState, useCallback, type CSSProperties } from 'react';
 import { usePrivy } from '@privy-io/react-auth';
 import type { CreateCallInput, MarketType } from '@call-it/shared';
-import { createCallSchema, MIN_STAKE, CREATION_FEE } from '@call-it/shared';
+import { MIN_STAKE, CREATION_FEE } from '@call-it/shared';
+import { webCreateCallSchema } from './lib/web-call-schema';
 import { formatTargetForDisplay } from './lib/target-scale';
 import { ACTIVE_CHAIN } from '@/lib/chain';
 import { Receipt, Button } from '@call-it/ui';
@@ -129,7 +130,10 @@ export default function NewCallPage() {
 
   // Initialize form with zodResolver (D-29 parity — same schema as relayer preflight)
   const form = useForm<CreateCallInput>({
-    resolver: zodResolver(createCallSchema),
+    // quick-260611-bf2: web-local extension of createCallSchema (D-29 parity
+    // preserved) — adds the assetA/assetB Pyth-resolvability gate so unknown
+    // assets error inline BEFORE the confirm modal.
+    resolver: zodResolver(webCreateCallSchema),
     mode: 'onChange',
     defaultValues: {
       marketType: 'priceTarget' as MarketType,

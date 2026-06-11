@@ -11,6 +11,7 @@
  */
 
 import { SUBGRAPH_URL_SEPOLIA } from '@call-it/shared';
+import type { MarketType, EventSubtype, Category } from '@call-it/shared';
 
 const RELAYER_BASE = (process.env['NEXT_PUBLIC_RELAYER_BASE_URL'] ?? '').replace(/\/$/, '');
 
@@ -53,10 +54,40 @@ async function relayerFetch<T>(
         code?: string;
         message?: string;
         fieldErrors?: Record<string, string[]>;
+        /** Relayer 422 shape: { ok:false, errors:[{field,code,message}] } (D-31). */
+        errors?: Array<{ field?: string; code?: string; message?: string }>;
       };
       code = body.code ?? code;
       message = body.message ?? message;
       fieldErrors = body.fieldErrors;
+
+      // quick-260611-bf2 BUG 3: the preflight route NEVER sends `fieldErrors` —
+      // its 422 body is { ok:false, errors:[{field,code,message}] }. Fold that
+      // array into the fieldErrors record so RelayerError.fieldErrors actually
+      // carries the per-field messages (the D-31 inline mapping never fired).
+      // Defensive guards: other endpoints' error bodies must never throw here.
+      if (fieldErrors === undefined && Array.isArray(body.errors) && body.errors.length > 0) {
+        const folded: Record<string, string[]> = {};
+        for (const entry of body.errors) {
+          if (entry === null || typeof entry !== 'object') continue;
+          const field = typeof entry.field === 'string' && entry.field ? entry.field : 'root';
+          const msg =
+            (typeof entry.message === 'string' && entry.message) ||
+            (typeof entry.code === 'string' && entry.code) ||
+            'Validation error';
+          (folded[field] ??= []).push(msg);
+        }
+        if (Object.keys(folded).length > 0) {
+          fieldErrors = folded;
+        }
+        // Give RelayerError.message something meaningful when the body had none.
+        if (body.message === undefined) {
+          const first = body.errors[0];
+          if (first && typeof first.message === 'string' && first.message) {
+            message = first.message;
+          }
+        }
+      }
     } catch {
       // non-JSON response body — keep defaults
     }
@@ -472,9 +503,15 @@ export async function getProfile(address: `0x${string}`): Promise<ProfileRespons
 // ─── Calls ─────────────────────────────────────────────────────────────────────
 
 export interface PreflightInput {
-  marketType: number;
-  eventSubtype: number;
-  category: number;
+  /**
+   * quick-260611-bf2 BUG 1: the relayer preflight schema expects STRING enums
+   * ('priceTarget'/'none'/'majors') — the old `number` typing let the client
+   * send *_TO_UINT integers, which 422'd "Expected string, received number".
+   * (DupCheckInput.marketType stays `number` — different route, own contract.)
+   */
+  marketType: MarketType;
+  eventSubtype: EventSubtype;
+  category: Category;
   assetA: string;
   assetB?: string;
   targetValue: string;

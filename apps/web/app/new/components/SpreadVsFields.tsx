@@ -62,9 +62,15 @@ export function SpreadVsFields({ control, errors }: SpreadVsFieldsProps) {
               type="text"
               placeholder="Second asset (e.g. ETH)"
               className="brutal-input mono"
+              style={errors.assetB ? { borderColor: 'var(--accent-loss)' } : undefined}
             />
           )}
         />
+        {errors.assetB && (
+          <div className="mono" style={{ fontSize: 11, color: 'var(--accent-loss)' }}>
+            {errors.assetB.message}
+          </div>
+        )}
       </div>
 
       {/* Spread metric */}

@@ -17,7 +17,24 @@ import { createAaClient } from '@/lib/aa-config';
 import { useCirclePaymaster } from '@/hooks/useCirclePaymaster';
 import { useToast } from '@call-it/ui';
 import { RelayerError, postPreflight } from '@/lib/relayer-client';
+import { buildPreflightBody } from '../lib/preflight-body';
 import { keccak256, toBytes } from 'viem';
+
+/**
+ * RHF fields with NO visible form input / error slot on /new. A 422 whose
+ * errors ALL land here would render nothing "below" — so the toast must carry
+ * the actual message instead of the bare generic line (quick-260611-bf2).
+ */
+const HIDDEN_ERROR_FIELDS = new Set([
+  'marketType',
+  'eventSubtype',
+  'category',
+  'expiry',
+  'parentCallId',
+  'callerAddress',
+  'callerSettledCalls',
+  'root',
+]);
 
 export interface PublishState {
   isPublishing: boolean;
@@ -74,27 +91,27 @@ export function usePublishCall(
       setState({ isPublishing: true, step: 'preflight', error: null, txHash: null });
 
       try {
+        // ─── Step 0: Build the preflight body + calldata asset uints ────────
+        // quick-260611-bf2: buildPreflightBody is the SINGLE source of the
+        // string-enum wire body (BUG 1) AND the resolved assetA/assetB uints
+        // (BUG 2 — dup-hash consistency invariant). Unresolvable assets abort
+        // HERE, before getAccessToken() — i.e. before ANY network call.
+        const built = buildPreflightBody(input, address);
+        if (!built.ok) {
+          setError(built.field, { type: 'resolve', message: built.message });
+          showToast({ status: 'error', message: built.message, duration: 5000 });
+          setState({
+            isPublishing: false,
+            step: 'error',
+            error: built.message,
+            txHash: null,
+          });
+          return { status: 'error' };
+        }
+
         // ─── Step 1: Server-side preflight (D-28) ──────────────────────────
         const token = await getAccessToken();
-        const preflight = await postPreflight(
-          {
-            marketType: MARKET_TYPE_TO_UINT[input.marketType],
-            eventSubtype: EVENT_SUBTYPE_TO_UINT[input.eventSubtype ?? 'none'],
-            category: CATEGORY_TO_UINT[input.category],
-            assetA: input.assetA,
-            assetB: input.assetB,
-            targetValue: String(input.targetValue),
-            expiry: Number(input.expiry),
-            stake: String(input.stake),
-            conviction: Number(input.conviction),
-            criteriaText: input.criteriaText,
-            openToChallenges: input.openToChallenges,
-            parentCallId: input.parentCallId ? String(input.parentCallId) : undefined,
-            callerAddress: address,
-            callerSettledCalls: input.callerSettledCalls,
-          },
-          token ?? undefined,
-        );
+        const preflight = await postPreflight(built.body, token ?? undefined);
 
         // Apply suggested conviction (auto-cap from Gate 6.3)
         const effectiveConviction = preflight.suggestedConviction;
@@ -113,8 +130,8 @@ export function usePublishCall(
             MARKET_TYPE_TO_UINT[input.marketType],                       // marketType uint8
             EVENT_SUBTYPE_TO_UINT[input.eventSubtype ?? 'none'],          // eventSubtype uint8
             CATEGORY_TO_UINT[input.category],                             // category uint8
-            BigInt(input.assetA.startsWith('0x') ? input.assetA : '0x0'),// assetA uint256
-            0n,                                                           // assetB uint256
+            built.assetAUint,  // assetA uint256 — from buildPreflightBody (dup-hash invariant)
+            built.assetBUint,  // assetB uint256 — from buildPreflightBody (was hardcoded 0n)
             input.targetValue,                                            // targetValue uint256
             input.expiry,                                                 // expiry uint64
             input.stake,                                                  // stake uint96
@@ -205,11 +222,31 @@ export function usePublishCall(
           txHash: null,
         });
 
+        // quick-260611-bf2: a 422 whose field errors ALL land on hidden fields
+        // (no visible input) must surface the actual message in the toast —
+        // "Please fix the form errors below" with nothing visible below was
+        // the exact dead-end users hit.
+        let toastMessage = message;
+        if (isPreflightError) {
+          const fieldErrors = (err as RelayerError).fieldErrors;
+          const fields = fieldErrors ? Object.keys(fieldErrors) : [];
+          if (fields.length > 0 && fields.every((f) => HIDDEN_ERROR_FIELDS.has(f))) {
+            const firstHidden = fieldErrors![fields[0]!];
+            const firstMsg = Array.isArray(firstHidden) ? firstHidden[0] : undefined;
+            toastMessage = `Preflight rejected: ${firstMsg ?? message}`;
+          } else if (fields.length === 0) {
+            // 422 with no parseable field errors — err.message, never the
+            // bare generic line when there is nothing visible to fix.
+            toastMessage = message;
+          } else {
+            // At least one error landed on a visible field — it renders inline.
+            toastMessage = 'Please fix the form errors below';
+          }
+        }
+
         showToast({
           status: 'error',
-          message: isPreflightError
-            ? 'Please fix the form errors below'
-            : message,
+          message: toastMessage,
           duration: 5000,
         });
 
