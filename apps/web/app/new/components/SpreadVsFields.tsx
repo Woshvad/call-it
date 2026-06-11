@@ -1,9 +1,28 @@
 'use client';
 
-import { Controller, type Control, type FieldErrors } from 'react-hook-form';
+import { Controller, useWatch, type Control, type FieldErrors } from 'react-hook-form';
 import type { CreateCallInput } from '@call-it/shared';
 import { usdToTargetValue, targetValueToUsd } from '../lib/target-scale';
+import { formatUsdPrice } from '../lib/hermes-price';
+import { usePythPrice } from '../hooks/usePythPrice';
 import { AssetSelect } from './AssetSelect';
+
+/** Live Hermes price row (D-07: error/idle renders nothing — no fake numbers). */
+function LivePriceRow({ price, status }: { price: number | null; status: string }) {
+  if (status === 'loading' && price === null) {
+    return (
+      <div className="mono" style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>
+        fetching price…
+      </div>
+    );
+  }
+  if (price === null) return null;
+  return (
+    <div className="mono" style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>
+      Current price · ${formatUsdPrice(price)}
+    </div>
+  );
+}
 
 interface SpreadVsFieldsProps {
   control: Control<CreateCallInput>;
@@ -26,6 +45,11 @@ const SPREAD_METRICS = [
  * Requirement: CALL-02, CALL-37
  */
 export function SpreadVsFields({ control, errors }: SpreadVsFieldsProps) {
+  const assetA = useWatch({ control, name: 'assetA' });
+  const assetB = useWatch({ control, name: 'assetB' });
+  const priceA = usePythPrice(assetA);
+  const priceB = usePythPrice(assetB);
+
   return (
     <div className="flex flex-col gap-5">
       {/* Asset A */}
@@ -44,6 +68,7 @@ export function SpreadVsFields({ control, errors }: SpreadVsFieldsProps) {
             />
           )}
         />
+        <LivePriceRow price={priceA.price} status={priceA.status} />
         {errors.assetA && (
           <div className="mono" style={{ fontSize: 11, color: 'var(--accent-loss)' }}>
             {errors.assetA.message}
@@ -67,6 +92,7 @@ export function SpreadVsFields({ control, errors }: SpreadVsFieldsProps) {
             />
           )}
         />
+        <LivePriceRow price={priceB.price} status={priceB.status} />
         {errors.assetB && (
           <div className="mono" style={{ fontSize: 11, color: 'var(--accent-loss)' }}>
             {errors.assetB.message}
