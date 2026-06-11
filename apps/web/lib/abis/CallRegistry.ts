@@ -116,6 +116,40 @@ export const callRegistryAbi = [
     stateMutability: 'nonpayable',
   },
   // ─── View functions ───────────────────────────────────────────────────
+  // getCall added for the duel-page on-chain asset/marketType read — tuple mirrors apps/relayer/src/lib/call-enrichment.ts:40-74 (quick-260611-vob).
+  {
+    type: 'function',
+    name: 'getCall',
+    stateMutability: 'view',
+    inputs: [{ name: 'callId', type: 'uint256' }],
+    outputs: [
+      {
+        name: '',
+        type: 'tuple',
+        components: [
+          { name: 'caller', type: 'address' },
+          { name: 'stake', type: 'uint96' },
+          { name: 'virtualFadeSeed', type: 'uint96' },
+          { name: 'createdAt', type: 'uint64' },
+          { name: 'expiry', type: 'uint64' },
+          { name: 'marketType', type: 'uint8' },
+          { name: 'eventSubtype', type: 'uint8' },
+          { name: 'category', type: 'uint8' },
+          { name: 'status', type: 'uint8' },
+          { name: 'conviction', type: 'uint8' },
+          { name: 'openToChallenges', type: 'bool' },
+          { name: 'callerExitedAt', type: 'uint64' },
+          { name: 'outcome', type: 'uint8' },
+          { name: 'duplicateHash', type: 'bytes32' },
+          { name: 'criteriaHash', type: 'bytes32' },
+          { name: 'assetA', type: 'uint256' },
+          { name: 'assetB', type: 'uint256' },
+          { name: 'targetValue', type: 'uint256' },
+          { name: 'parentCallId', type: 'uint256' },
+        ],
+      },
+    ],
+  },
   {
     type: 'function',
     name: 'getCallsByUser',

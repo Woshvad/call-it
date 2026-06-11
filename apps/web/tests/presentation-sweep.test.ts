@@ -85,9 +85,14 @@ describe('C6 — duel page polish', () => {
     expect(src()).toContain('truncateAddress(challenger)');
   });
 
-  it('zero stats are hidden (D-07): rep stat gated on > 0', () => {
-    expect(src()).toContain('liveState.callerRep > 0');
-    expect(src()).toContain('liveState.challengerRep > 0');
+  it('zero stats are hidden (D-07): rep stat gated on real profile data', () => {
+    // quick-260611-vob: same D-07 contract (zero/absent stats hidden, never
+    // fake credentials), migrated pin — the old `liveState.callerRep > 0`
+    // wire-default gates were replaced by profile-backed gates: REP renders
+    // only when Number.isFinite(globalRep), ACCURACY only when settledCalls > 0.
+    expect(src()).toContain('Number.isFinite(callerProfile.globalRep)');
+    expect(src()).toContain('Number.isFinite(challengerProfile.globalRep)');
+    expect(src()).toMatch(/settledCalls\s*>\s*0/);
   });
 });
 

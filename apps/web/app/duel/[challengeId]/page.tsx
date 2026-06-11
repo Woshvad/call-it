@@ -15,6 +15,14 @@
  * D-07: data with no source is HIDDEN, never faked — the prototype's price
  *       live-spread hero stat and its "±N rep" payload sub have no source and
  *       are not rendered.
+ * quick-260611-vob: data slots wired to REAL sources — duelist profiles ×2
+ *       (useProfile: handles AS STORED / rep chips / settledCalls-gated
+ *       accuracy / VERIFIED pills), call live-state marketLine + assetSymbol
+ *       reused from the SAME riders fetch (zero new requests), and on-chain
+ *       CallRegistry.getCall (chainId-pinned) for the asset-pair hero +
+ *       oracle sub (PYTH ORACLE / ATTESTED EVENT). Win-streak and in-category
+ *       surfaces REMOVED per user constraint 2026-06-11; live-spread stays
+ *       D-07-hidden.
  * D-08: the prototype's bottom side-with CTA pair is CUT (see comment at the
  *       old render slot) — the FollowFadeModal stubs behind them were no-ops.
  *
@@ -33,8 +41,11 @@ import { useParams } from 'next/navigation';
 import { usePrivy } from '@privy-io/react-auth';
 import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
 import Link from 'next/link';
-import { ACTIVE_CHAIN_ID, CHALLENGE_ESCROW_ADDRESS, USDC_ADDRESS } from '@/lib/chain';
+import { ACTIVE_CHAIN_ID, CALL_REGISTRY_ADDRESS, CHALLENGE_ESCROW_ADDRESS, USDC_ADDRESS } from '@/lib/chain';
 import { ensureActiveChain } from '@/lib/ensure-chain';
+import { callRegistryAbi } from '@/lib/abis/CallRegistry';
+import { feedIdToSymbol } from '@/lib/feed-symbols';
+import { useProfile } from '@/hooks/useProfile';
 import { avatarInitial } from '@call-it/ui';
 import { ChallengeFormModal } from '@/app/components/ChallengeFormModal';
 import { DesktopOnlyBanner } from '@/app/components/DesktopOnlyBanner';
@@ -114,6 +125,13 @@ const USDC_ABI = [
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
+// quick-260611-vob: the duel wire carries ONLY on-chain escrow facts
+// (apps/relayer/src/routes/duel-live-state.ts). The old rep/accuracy/
+// category/streak/position/asset/marketLine fields were defensive defaults
+// that never arrived — they rendered fake data ('—/—' hero, 0-stats) and are
+// REMOVED. Identity/stats now come from useProfile ×2; market facts from the
+// call live-state reuse + on-chain getCall. Win-streak is OUT per user
+// constraint 2026-06-11.
 type DuelLiveState = {
   challengeId: bigint;
   callId: bigint;
@@ -121,28 +139,23 @@ type DuelLiveState = {
   caller: string; // address — INTERNAL ONLY, AUTH-44
   callerHandle: string;
   callerStake: bigint;
-  callerRep: number;
-  callerAccuracy: number;
-  callerCategoryAccuracy: number;
-  callerStreak: number;
   callerAvatarUrl: string;
-  callerPosition: string;
   challenger: string; // address — INTERNAL ONLY, AUTH-44
   challengerHandle: string;
   challengerStake: bigint;
-  challengerRep: number;
-  challengerAccuracy: number;
-  challengerCategoryAccuracy: number;
-  challengerStreak: number;
   challengerAvatarUrl: string;
-  challengerPosition: string;
-  assetA: string;
-  assetB: string;
-  marketLine: string;
   expiry: bigint;
   proposedAt: bigint;
   openToChallenges: boolean;
   deferred: boolean;
+};
+
+/** marketLine + assetSymbol captured from the SAME call live-state fetch the
+ *  riders lists use (apps/relayer/src/routes/live-state.ts) — zero new
+ *  requests (quick-260611-vob). */
+type CallLineState = {
+  marketLine?: string;
+  assetSymbol?: string;
 };
 
 type RidingEntry = {
@@ -263,27 +276,14 @@ async function fetchDuelLiveState(challengeId: string): Promise<DuelLiveState | 
       // C6: fallback is a truncated address alias, never the literal 'caller'
       callerHandle: String(raw['callerHandle'] ?? (caller ? truncateAddress(caller) : 'caller')),
       callerStake: BigInt(String(raw['callerStake'] ?? '0')),
-      callerRep: Number(raw['callerRep'] ?? 0),
-      callerAccuracy: Number(raw['callerAccuracy'] ?? 0),
-      callerCategoryAccuracy: Number(raw['callerCategoryAccuracy'] ?? 0),
-      callerStreak: Number(raw['callerStreak'] ?? 0),
       callerAvatarUrl: String(raw['callerAvatarUrl'] ?? ''),
-      callerPosition: String(raw['callerPosition'] ?? ''),
       challenger,
       // C6: fallback is a truncated address alias, never the literal 'challenger'
       challengerHandle: String(
         raw['challengerHandle'] ?? (challenger ? truncateAddress(challenger) : 'challenger'),
       ),
       challengerStake: BigInt(String(raw['challengerStake'] ?? '0')),
-      challengerRep: Number(raw['challengerRep'] ?? 0),
-      challengerAccuracy: Number(raw['challengerAccuracy'] ?? 0),
-      challengerCategoryAccuracy: Number(raw['challengerCategoryAccuracy'] ?? 0),
-      challengerStreak: Number(raw['challengerStreak'] ?? 0),
       challengerAvatarUrl: String(raw['challengerAvatarUrl'] ?? ''),
-      challengerPosition: String(raw['challengerPosition'] ?? ''),
-      assetA: String(raw['assetA'] ?? '—'),
-      assetB: String(raw['assetB'] ?? '—'),
-      marketLine: String(raw['marketLine'] ?? ''),
       expiry: BigInt(String(raw['expiry'] ?? '0')),
       proposedAt: BigInt(String(raw['proposedAt'] ?? '0')),
       openToChallenges: Boolean(raw['openToChallenges'] ?? false),
@@ -294,11 +294,11 @@ async function fetchDuelLiveState(challengeId: string): Promise<DuelLiveState | 
   }
 }
 
-async function fetchRidingLists(callId: string): Promise<{ followers: RidingEntry[]; faders: RidingEntry[] }> {
-  if (!RELAYER_URL) return { followers: [], faders: [] };
+async function fetchRidingLists(callId: string): Promise<{ followers: RidingEntry[]; faders: RidingEntry[]; callLine: CallLineState }> {
+  if (!RELAYER_URL) return { followers: [], faders: [], callLine: {} };
   try {
     const res = await fetch(`${RELAYER_URL}/api/calls/${callId}/live-state`);
-    if (!res.ok) return { followers: [], faders: [] };
+    if (!res.ok) return { followers: [], faders: [], callLine: {} };
     const raw = await res.json() as Record<string, unknown>;
     const followers = ((raw['followers'] as unknown[]) ?? []).map((e) => {
       const entry = e as Record<string, unknown>;
@@ -316,9 +316,17 @@ async function fetchRidingLists(callId: string): Promise<{ followers: RidingEntr
         avatarUrl: String(entry['avatarUrl'] ?? ''),
       };
     });
-    return { followers, faders };
+    // quick-260611-vob: the SAME response also carries marketLine (authoritative
+    // stored statement, else server-built enrichment line) and assetSymbol
+    // (resolved Pyth ticker for assetA; omitted when unknown) — reuse them,
+    // zero new requests. Absent → undefined, hidden downstream (D-07).
+    const callLine: CallLineState = {
+      ...(typeof raw['marketLine'] === 'string' && raw['marketLine'] ? { marketLine: raw['marketLine'] } : {}),
+      ...(typeof raw['assetSymbol'] === 'string' && raw['assetSymbol'] ? { assetSymbol: raw['assetSymbol'] } : {}),
+    };
+    return { followers, faders, callLine };
   } catch {
-    return { followers: [], faders: [] };
+    return { followers: [], faders: [], callLine: {} };
   }
 }
 
@@ -339,6 +347,34 @@ function DuelAvatar({ url, handle, size }: { url: string; handle: string; size: 
   return (
     <span className={`avatar ${size} ${avatarGradClass(handle)}`} aria-hidden="true">
       {avatarInitial(handle)}
+    </span>
+  );
+}
+
+/**
+ * Rep chip — prototype RepBadge recipe (`call it frontend/components.jsx:84-103`):
+ * 1px var(--border-active) border, 5px accent-win square, mono 11.5px.
+ * WITHOUT the trend arrow — no data source (D-07). quick-260611-vob.
+ */
+function RepChip({ value }: { value: number }) {
+  return (
+    <span
+      className="mono"
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 6,
+        fontSize: 11.5,
+        color: 'var(--text-secondary)',
+        padding: '3px 8px',
+        background: 'transparent',
+        border: '1px solid var(--border-active)',
+        fontWeight: 600,
+        letterSpacing: '0.02em',
+      }}
+    >
+      <span style={{ width: 5, height: 5, background: 'var(--accent-win)' }} />
+      {value.toLocaleString()}
     </span>
   );
 }
@@ -392,6 +428,8 @@ export default function DuelPage() {
   const [liveState, setLiveState] = useState<DuelLiveState | null>(null);
   const [ridingFollowers, setRidingFollowers] = useState<RidingEntry[]>([]);
   const [ridingFaders, setRidingFaders] = useState<RidingEntry[]>([]);
+  // quick-260611-vob: marketLine/assetSymbol from the call live-state reuse
+  const [callLineState, setCallLineState] = useState<CallLineState>({});
   const [loading, setLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState<number>(0);
 
@@ -544,9 +582,10 @@ export default function DuelPage() {
       setLiveState(state);
       setLastUpdated(Date.now());
       if (state.callId > 0n) {
-        const { followers, faders } = await fetchRidingLists(String(state.callId));
+        const { followers, faders, callLine } = await fetchRidingLists(String(state.callId));
         setRidingFollowers(followers);
         setRidingFaders(faders);
+        setCallLineState(callLine);
       }
     }
     setLoading(false);
@@ -567,6 +606,33 @@ export default function DuelPage() {
   // followReserve/fadeReserve from FFM for parent call
   // Inline read via useReadContract
   const callId = liveState?.callId ?? 0n;
+
+  // ─── On-chain call facts — asset pair + marketType (quick-260611-vob) ───────
+  // CallRegistry.getCall is IMMUTABLE post-creation: one pinned read, no polling.
+  // Unconditional hook (above the early returns), gated via query.enabled.
+  const { data: onChainCall } = useReadContract({
+    address: CALL_REGISTRY_ADDRESS,
+    chainId: ACTIVE_CHAIN_ID, // RC1: pin the read to the active chain
+    abi: callRegistryAbi,
+    functionName: 'getCall',
+    args: [callId],
+    query: { enabled: callId > 0n, staleTime: 60_000 },
+  });
+
+  // marketType: 0=PriceTarget, 1=RelativePerformance, 2=Event — undefined until loaded
+  const marketType = onChainCall ? Number(onChainCall.marketType) : undefined;
+  // Feed-id → ticker via the shared PYTH_FEED_IDS inversion; unknown → undefined,
+  // degrade — NEVER a fabricated pair (D-07). The call live-state's assetSymbol
+  // corroborates symA (same canon); the on-chain-derived value is preferred.
+  const symA = onChainCall ? feedIdToSymbol(onChainCall.assetA) : undefined;
+  const symB = onChainCall ? feedIdToSymbol(onChainCall.assetB) : undefined;
+
+  // ─── Duelist profiles ×2 (quick-260611-vob) — handles/rep/accuracy/verified ──
+  // Unconditional hooks above the early returns; useProfile self-gates on !!address.
+  const callerAddrForProfile = (liveState?.caller || undefined) as `0x${string}` | undefined;
+  const challengerAddrForProfile = (liveState?.challenger || undefined) as `0x${string}` | undefined;
+  const { data: callerProfile } = useProfile(callerAddrForProfile);
+  const { data: challengerProfile } = useProfile(challengerAddrForProfile);
 
   // We rely on the relayer live-state (included in the deferred response or live data)
   // D-07 honest-degradation contract: when reserves are missing or zero, the consensus
@@ -631,8 +697,26 @@ export default function DuelPage() {
     );
   }
 
-  const displayChallengerHandle = liveState?.challengerHandle ?? 'challenger';
-  const displayCallerHandle = liveState?.callerHandle ?? 'caller';
+  // quick-260611-vob: profile-backed handles rendered AS STORED (no uppercase
+  // transform — D-14/AUTH-44: a real handle wherever one exists). The wire's
+  // truncated-address alias is the fallback only when the profile source is
+  // itself 'truncated' or the profile fetch failed.
+  const displayChallengerHandle =
+    challengerProfile && challengerProfile.source !== 'truncated'
+      ? challengerProfile.handle
+      : (liveState?.challengerHandle ?? 'challenger');
+  const displayCallerHandle =
+    callerProfile && callerProfile.source !== 'truncated'
+      ? callerProfile.handle
+      : (liveState?.callerHandle ?? 'caller');
+  // The call's real claim (stored statement else server-built line) — feeds the
+  // subtitle/headline + caller POSITION box; absent → hidden (D-07).
+  const callMarketLine = callLineState.marketLine;
+  // Hero shape: real asset pair (RelativePerformance), single asset (PriceTarget),
+  // else the marketLine itself as the headline — never '—/—' (D-07).
+  const heroIsPair = marketType === 1 && Boolean(symA) && Boolean(symB);
+  const heroIsSingle = !heroIsPair && marketType === 0 && Boolean(symA);
+  const heroIsMarketLine = !heroIsPair && !heroIsSingle && Boolean(callMarketLine);
   const displayCallerStake = liveState?.callerStake ?? 0n;
   const displayChallengerStake = liveState?.challengerStake ?? 0n;
   const displayExpiry = liveState?.expiry ?? 0n;
@@ -696,7 +780,7 @@ export default function DuelPage() {
           <div className="row" style={{ gap: 10, flexWrap: 'wrap' }}>
             <span className="pill duel">⚔ 1V1 DUEL · PENDING</span>
             <span className="mono" style={{ fontSize: 12, color: 'var(--text-secondary)', letterSpacing: '0.02em' }}>
-              {liveState.challengerHandle} challenged this call · you have {acceptHoursLeft}h to accept or reject
+              {displayChallengerHandle} challenged this call · you have {acceptHoursLeft}h to accept or reject
             </span>
           </div>
 
@@ -744,7 +828,7 @@ export default function DuelPage() {
               </button>
             ) : (
               <div className="mono" style={{ display: 'flex', flexDirection: 'row', gap: 8, alignItems: 'center', flexWrap: 'wrap', fontSize: 12, color: 'var(--text-tertiary)' }}>
-                <span>This will immediately refund {liveState.challengerHandle}&apos;s stake. Are you sure?</span>
+                <span>This will immediately refund {displayChallengerHandle}&apos;s stake. Are you sure?</span>
                 <button
                   onClick={() => setRejectConfirmOpen(false)}
                   className="btn ghost"
@@ -777,25 +861,65 @@ export default function DuelPage() {
           }
         >
           <div>
-            <h1
-              style={{
-                fontFamily: 'var(--font-display)',
-                fontSize: 'clamp(44px, 9vw, 110px)',
-                fontWeight: 900,
-                letterSpacing: '-0.055em',
-                lineHeight: 0.82,
-                margin: 0,
-                textTransform: 'uppercase',
-                overflowWrap: 'anywhere',
-              }}
-            >
-              {liveState.assetA}
-              <span style={{ color: 'var(--accent-loss)', margin: '0 12px' }}>/</span>
-              {liveState.assetB}
-            </h1>
-            {liveState.marketLine && (
+            {/* quick-260611-vob hero (D-07 — real or hidden, never '—/—'):
+                RelativePerformance with both symbols resolved → giant pair;
+                PriceTarget with symA → giant single; else the marketLine
+                itself is the headline. Symbols come from on-chain getCall feed
+                ids inverted through @call-it/shared PYTH_FEED_IDS. */}
+            {heroIsPair && (
+              <h1
+                style={{
+                  fontFamily: 'var(--font-display)',
+                  fontSize: 'clamp(44px, 9vw, 110px)',
+                  fontWeight: 900,
+                  letterSpacing: '-0.055em',
+                  lineHeight: 0.82,
+                  margin: 0,
+                  textTransform: 'uppercase',
+                  overflowWrap: 'anywhere',
+                }}
+              >
+                {symA}
+                <span style={{ color: 'var(--accent-loss)', margin: '0 12px' }}>/</span>
+                {symB}
+              </h1>
+            )}
+            {heroIsSingle && (
+              <h1
+                style={{
+                  fontFamily: 'var(--font-display)',
+                  fontSize: 'clamp(44px, 9vw, 110px)',
+                  fontWeight: 900,
+                  letterSpacing: '-0.055em',
+                  lineHeight: 0.82,
+                  margin: 0,
+                  textTransform: 'uppercase',
+                  overflowWrap: 'anywhere',
+                }}
+              >
+                {symA}
+              </h1>
+            )}
+            {heroIsMarketLine && (
+              <h1
+                style={{
+                  fontFamily: 'var(--font-display)',
+                  fontSize: 'clamp(28px, 6vw, 64px)',
+                  fontWeight: 900,
+                  letterSpacing: '-0.055em',
+                  lineHeight: 0.92,
+                  margin: 0,
+                  textTransform: 'uppercase',
+                  overflowWrap: 'anywhere',
+                }}
+              >
+                {callMarketLine}
+              </h1>
+            )}
+            {/* Subtitle: the real claim — only when not already the headline */}
+            {callMarketLine && !heroIsMarketLine && (
               <div className="h-3" style={{ margin: '20px 0 0', maxWidth: '44ch', color: 'var(--text-secondary)', fontWeight: 500 }}>
-                {liveState.marketLine}
+                {callMarketLine}
               </div>
             )}
           </div>
@@ -816,6 +940,15 @@ export default function DuelPage() {
                 <div className="stat-block bracketed">
                   <div className="stat-label">Settles in</div>
                   <div className="stat-value"><DuelCountdown expiry={displayExpiry} /></div>
+                  {/* quick-260611-vob honest oracle sub (D-07): Pyth markets
+                      (PriceTarget/RelativePerformance) vs attested Event;
+                      marketType not loaded → no sub. */}
+                  {(marketType === 0 || marketType === 1) && (
+                    <div className="stat-sub">PYTH ORACLE</div>
+                  )}
+                  {marketType === 2 && (
+                    <div className="stat-sub">ATTESTED EVENT</div>
+                  )}
                   <span className="br-bl"></span>
                   <span className="br-br"></span>
                 </div>
@@ -861,54 +994,55 @@ export default function DuelPage() {
                 >
                   {displayCallerHandle}
                 </span>
+                {/* quick-260611-vob identity row: rep chip (RepBadge recipe) +
+                    VERIFIED pills, all profile-gated — absent → hidden (D-07) */}
+                {callerProfile && (Number.isFinite(callerProfile.globalRep) || callerProfile.verifiedX || callerProfile.verifiedFc) && (
+                  <div className="row" style={{ gap: 6, flexWrap: 'wrap' }}>
+                    {Number.isFinite(callerProfile.globalRep) && <RepChip value={callerProfile.globalRep} />}
+                    {callerProfile.verifiedX && <span className="pill muted">VERIFIED · X</span>}
+                    {callerProfile.verifiedFc && <span className="pill muted">VERIFIED · FC</span>}
+                  </div>
+                )}
                 <span className="mono" style={{ fontSize: 12, color: 'var(--text-secondary)', letterSpacing: '0.02em' }}>
                   staked {formatUsdc(displayCallerStake)}
                 </span>
               </div>
             </div>
-            {liveState.callerPosition && (
+            {/* quick-260611-vob: the caller POSITION is the call's REAL claim —
+                marketLine from the call live-state reuse; absent → hidden (D-07) */}
+            {callMarketLine && (
               <div style={{ padding: 16, background: 'rgba(232,245,66,0.05)', border: `1.5px solid ${CALLER_ACCENT}` }}>
                 <div className="mono" style={{ fontSize: 10, color: CALLER_ACCENT, letterSpacing: '0.1em', fontWeight: 700, marginBottom: 6 }}>
                   POSITION
                 </div>
                 <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 17, lineHeight: 1.25 }}>
-                  {liveState.callerPosition}
+                  {callMarketLine}
                 </div>
               </div>
             )}
-            {/* Stats — C6/D-07: zero/absent stats are HIDDEN, never rendered
-                as fake "0 rep · 0% accuracy" credentials */}
-            {(liveState.callerRep > 0 || liveState.callerAccuracy > 0 || liveState.callerCategoryAccuracy > 0) && (
+            {/* Stats — quick-260611-vob, D-07 (honest-or-absent, migrated from the
+                old wire defaults): REP only when Number.isFinite(globalRep);
+                ACCURACY only when settledCalls > 0 — never 0% from no data;
+                in-category column removed (no source); a failed profile fetch renders
+                NO stats row at all. */}
+            {callerProfile && (Number.isFinite(callerProfile.globalRep) || callerProfile.settledCalls > 0) && (
               <div className="row" style={{ gap: 16, marginTop: 22, flexWrap: 'wrap' }}>
-                {liveState.callerRep > 0 && (
+                {Number.isFinite(callerProfile.globalRep) && (
                   <div>
                     <div className="label-overline">Rep</div>
                     <div className="mono" style={{ fontSize: 22, fontWeight: 700, marginTop: 4 }}>
-                      {liveState.callerRep.toLocaleString()}
+                      {callerProfile.globalRep.toLocaleString()}
                     </div>
                   </div>
                 )}
-                {liveState.callerAccuracy > 0 && (
+                {callerProfile.settledCalls > 0 && (
                   <div>
                     <div className="label-overline">Accuracy</div>
                     <div className="mono" style={{ fontSize: 22, fontWeight: 700, marginTop: 4, color: 'var(--accent-win)' }}>
-                      {liveState.callerAccuracy}%
+                      {Math.round((callerProfile.wins / callerProfile.settledCalls) * 100)}%
                     </div>
                   </div>
                 )}
-                {liveState.callerCategoryAccuracy > 0 && (
-                  <div>
-                    <div className="label-overline">In category</div>
-                    <div className="mono" style={{ fontSize: 22, fontWeight: 700, marginTop: 4 }}>
-                      {liveState.callerCategoryAccuracy}%
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-            {liveState.callerStreak >= 3 && (
-              <div className="mono" style={{ marginTop: 14, fontSize: 11, color: 'var(--accent-warning)', fontWeight: 700, letterSpacing: '0.04em' }}>
-                🔥 {liveState.callerStreak}-call win streak
               </div>
             )}
           </div>
@@ -963,6 +1097,15 @@ export default function DuelPage() {
                 >
                   {displayChallengerHandle}
                 </span>
+                {/* quick-260611-vob identity row: rep chip (RepBadge recipe) +
+                    VERIFIED pills, all profile-gated — absent → hidden (D-07) */}
+                {challengerProfile && (Number.isFinite(challengerProfile.globalRep) || challengerProfile.verifiedX || challengerProfile.verifiedFc) && (
+                  <div className="row" style={{ gap: 6, flexWrap: 'wrap', justifyContent: isMobile ? 'flex-start' : 'flex-end' }}>
+                    {Number.isFinite(challengerProfile.globalRep) && <RepChip value={challengerProfile.globalRep} />}
+                    {challengerProfile.verifiedX && <span className="pill muted">VERIFIED · X</span>}
+                    {challengerProfile.verifiedFc && <span className="pill muted">VERIFIED · FC</span>}
+                  </div>
+                )}
                 <span className="mono" style={{ fontSize: 12, color: 'var(--text-secondary)', letterSpacing: '0.02em' }}>
                   staked {formatUsdc(displayChallengerStake)}
                 </span>
@@ -971,49 +1114,43 @@ export default function DuelPage() {
                 <DuelAvatar url={liveState.challengerAvatarUrl} handle={displayChallengerHandle} size="xl" />
               )}
             </div>
-            {liveState.challengerPosition && (
-              <div style={{ padding: 16, background: 'rgba(168,85,247,0.06)', border: `1.5px solid ${DUEL_ACCENT}` }}>
-                <div className="mono" style={{ fontSize: 10, color: DUEL_ACCENT, letterSpacing: '0.1em', fontWeight: 700, marginBottom: 6, textAlign: isMobile ? 'left' : 'right' }}>
-                  POSITION
-                </div>
-                <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 17, lineHeight: 1.25, textAlign: isMobile ? 'left' : 'right' }}>
-                  {liveState.challengerPosition}
-                </div>
+            {/* quick-260611-vob: the challenger POSITION is the duel's literal
+                contract semantic — the challenger wins iff the caller loses
+                (ChallengeEscrow settles winner-take-all on the parent call's
+                outcome). ChallengeFormModal captures NO challenger statement
+                (verified 2026-06-11: stake input only, nothing posted to the
+                relayer), so this generic line IS the stored truth. */}
+            <div style={{ padding: 16, background: 'rgba(168,85,247,0.06)', border: `1.5px solid ${DUEL_ACCENT}` }}>
+              <div className="mono" style={{ fontSize: 10, color: DUEL_ACCENT, letterSpacing: '0.1em', fontWeight: 700, marginBottom: 6, textAlign: isMobile ? 'left' : 'right' }}>
+                POSITION
               </div>
-            )}
-            {/* Stats — C6/D-07: zero/absent stats are HIDDEN, never rendered
-                as fake "0 rep · 0% accuracy" credentials */}
-            {(liveState.challengerRep > 0 || liveState.challengerAccuracy > 0 || liveState.challengerCategoryAccuracy > 0) && (
+              <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 17, lineHeight: 1.25, textAlign: isMobile ? 'left' : 'right' }}>
+                TAKES THE OTHER SIDE.
+              </div>
+            </div>
+            {/* Stats — quick-260611-vob, D-07 (honest-or-absent, migrated from the
+                old wire defaults): REP only when Number.isFinite(globalRep);
+                ACCURACY only when settledCalls > 0 — never 0% from no data;
+                in-category column removed (no source); a failed profile fetch renders
+                NO stats row at all. */}
+            {challengerProfile && (Number.isFinite(challengerProfile.globalRep) || challengerProfile.settledCalls > 0) && (
               <div className="row" style={{ gap: 16, marginTop: 22, flexWrap: 'wrap', justifyContent: isMobile ? 'flex-start' : 'flex-end' }}>
-                {liveState.challengerRep > 0 && (
+                {Number.isFinite(challengerProfile.globalRep) && (
                   <div style={{ textAlign: isMobile ? 'left' : 'right' }}>
                     <div className="label-overline">Rep</div>
                     <div className="mono" style={{ fontSize: 22, fontWeight: 700, marginTop: 4 }}>
-                      {liveState.challengerRep.toLocaleString()}
+                      {challengerProfile.globalRep.toLocaleString()}
                     </div>
                   </div>
                 )}
-                {liveState.challengerAccuracy > 0 && (
+                {challengerProfile.settledCalls > 0 && (
                   <div style={{ textAlign: isMobile ? 'left' : 'right' }}>
                     <div className="label-overline">Accuracy</div>
                     <div className="mono" style={{ fontSize: 22, fontWeight: 700, marginTop: 4, color: 'var(--accent-win)' }}>
-                      {liveState.challengerAccuracy}%
+                      {Math.round((challengerProfile.wins / challengerProfile.settledCalls) * 100)}%
                     </div>
                   </div>
                 )}
-                {liveState.challengerCategoryAccuracy > 0 && (
-                  <div style={{ textAlign: isMobile ? 'left' : 'right' }}>
-                    <div className="label-overline">In category</div>
-                    <div className="mono" style={{ fontSize: 22, fontWeight: 700, marginTop: 4 }}>
-                      {liveState.challengerCategoryAccuracy}%
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-            {liveState.challengerStreak >= 3 && (
-              <div className="mono" style={{ marginTop: 14, fontSize: 11, color: 'var(--accent-warning)', fontWeight: 700, letterSpacing: '0.04em', textAlign: isMobile ? 'left' : 'right' }}>
-                🔥 {liveState.challengerStreak}-call win streak
               </div>
             )}
           </div>
@@ -1137,7 +1274,7 @@ export default function DuelPage() {
         callId={callId}
         callerHandle={displayCallerHandle}
         callerStake={displayCallerStake}
-        marketLine={liveState?.marketLine ?? ''}
+        marketLine={callMarketLine ?? ''}
         onSuccess={() => { void fetchAll(); }}
       />
     </div>
