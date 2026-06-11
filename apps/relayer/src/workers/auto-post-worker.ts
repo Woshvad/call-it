@@ -26,11 +26,13 @@
  *   5. Records posted_receipts(callId) with onConflictDoNothing — idempotent
  *      "posted-once" dedup so a re-processed/replayed CallSettled never double-posts.
  *
- * Never-throw discipline: every per-call step is wrapped; the interval survives any
+ * Never-throw discipline: every per-call step is wrapped; the scan loop survives any
  * single failure (mirrors notification-fanout.ts). The X write token is read ONLY by
  * postTweet (x-write-client) and never reaches the pure builders.
  *
- * Triggers watched:
+ * Triggers watched (via TWO subscriptions on the shared chain-scanner —
+ * quick-260611-o5b: one merged getLogs per 30s tick replaces this worker's former
+ * private scan loop, which issued 2 getLogs per window):
  *   - CallSettled(uint256 indexed callId, uint8 outcome, int256 priceDelta)  [SettlementManager]
  *   - CallerExited(uint256 indexed callId, address indexed caller, ...)      [FollowFadeMarket]
  *
@@ -46,6 +48,7 @@ import { logger } from '../lib/logger.js';
 import { postedReceipts } from '../db/schema.js';
 import { postTweet } from '../lib/x-write-client.js';
 import { buildShareText, warpcastComposeUrl } from '@call-it/shared';
+import { createChainScanner, type ChainScannerHandle } from './chain-scanner.js';
 import type * as schema from '../db/schema.js';
 
 type DrizzleDb = NodePgDatabase<typeof schema>;
@@ -86,6 +89,13 @@ export interface AutoPostWorkerConfig {
   ogBaseUrl: string;
   /** Polling interval in ms. Default 30000. */
   intervalMs?: number;
+  /**
+   * Shared chain-scanner (quick-260611-o5b). When provided, this worker
+   * registers its TWO subscriptions (SettlementManager/CallSettled +
+   * FFM/CallerExited) on it and creates NO interval of its own. When absent
+   * (unit tests / back-compat), a private scanner is created and owned here.
+   */
+  scanner?: ChainScannerHandle;
   /**
    * Post-settle delay before posting (Pitfall-18 mitigation). Fires AFTER
    * cache-warm succeeds. Default reads AUTO_POST_DELAY_MS env (0 if unset).
@@ -347,159 +357,104 @@ export function startAutoPostWorker(config: AutoPostWorkerConfig): AutoPostWorke
   const { publicClient, settlementManagerAddress, ffmAddress, intervalMs = 30_000 } = config;
   const processCall = makeProcessCall(config);
 
-  // Free-tier-safe chunking (mirrors notification-fanout: 9-block windows).
-  const blockSpan: bigint = (() => {
-    const raw = process.env['AUTO_POST_BLOCK_SPAN'] ?? process.env['NOTIFICATION_FANOUT_BLOCK_SPAN'];
-    if (!raw) return 9n;
-    const n = Number(raw);
-    if (!Number.isFinite(n) || n <= 0) return 9n;
-    return BigInt(Math.floor(n));
-  })();
-  const maxWindowsPerTick = 50;
-
-  let lastBlockSeen: bigint = 0n;
-  let initialized = false;
+  // NOTE (quick-260611-o5b): the chunking tunables and scan loop moved to the
+  // shared chain-scanner — see chain-scanner.ts for the env fallback ladder.
+  // The legacy AUTO_POST_BLOCK_SPAN env is retired with the private loop.
   let totalPosted = 0;
+  // Worker-level errors count THIS worker's per-event processing failures only;
+  // scan-level errors (get_head/get_logs/init) now live in scanner.getStats().
   let errors = 0;
-  let intervalId: ReturnType<typeof setInterval> | null = null;
-  let stopped = false;
 
-  const initPromise = (async () => {
-    try {
-      lastBlockSeen = await publicClient.getBlockNumber();
-      initialized = true;
-      logger.info(
-        { event: 'auto_post_worker_started', lastBlockSeen: lastBlockSeen.toString(), settlementManagerAddress, ffmAddress },
-        'Auto-post worker started',
-      );
-    } catch (err) {
-      logger.error({ event: 'auto_post_error', error: err instanceof Error ? err.message : String(err), phase: 'init' });
-      errors++;
-    }
-  })();
+  // Shared scanner when injected (production); private fallback otherwise
+  // (unit tests / back-compat) — the private scanner is owned + started here.
+  const ownsScanner = !config.scanner;
+  const scanner =
+    config.scanner ?? createChainScanner({ publicClient, intervalMs });
 
-  async function processLogs(
-    logs: Log[],
-    kind: 'settled' | 'caller-exited',
-  ): Promise<void> {
-    for (const log of logs) {
-      if (stopped) break;
+  // ORDERING NOTE: settled/exited logs now arrive in chain order (block, logIndex)
+  // interleaved across addresses — the old loop processed settledLogs then
+  // exitedLogs per window. Per-call processing is independent and idempotent
+  // (posted_receipts dedup), so ordering is immaterial.
+
+  // Subscription 1: (SettlementManager, CallSettled) — the kind='settled' branch
+  // of the old processLogs, per-event try/catch unchanged.
+  const unregisterSettled = scanner.register({
+    name: 'auto-post:settled',
+    address: settlementManagerAddress,
+    event: CALL_SETTLED_EVENT,
+    onLog: async (log: Log) => {
       try {
-        const typed = log as unknown as { args?: { callId?: bigint; outcome?: number; caller?: string } };
+        const typed = log as unknown as { args?: { callId?: bigint; outcome?: number } };
         const args = typed.args;
-        if (!args || args.callId === undefined) continue;
+        if (!args || args.callId === undefined) return;
         const callId = args.callId.toString();
 
-        if (kind === 'settled') {
-          const outcome = Number(args.outcome ?? 0);
-          // Only settled wins/losses post; a Pending (0) CallSettled should not occur
-          // but is skipped defensively.
-          if (outcome !== 1 && outcome !== 2) continue;
-          const res = await processCall({
-            callId,
-            expectedVariant: 'settled',
-            outcomeWord: settledOutcomeWord(outcome),
-            caller: '', // resolved via resolveHandle if configured; empty → address-less head
-          });
-          if (res.posted) totalPosted++;
-        } else {
-          const res = await processCall({
-            callId,
-            expectedVariant: 'caller-exited',
-            outcomeWord: 'CALLER EXITED',
-            caller: (args.caller ?? '').toLowerCase(),
-          });
-          if (res.posted) totalPosted++;
-        }
-
-        if (log.blockNumber != null && log.blockNumber > lastBlockSeen) {
-          lastBlockSeen = log.blockNumber;
-        }
+        const outcome = Number(args.outcome ?? 0);
+        // Only settled wins/losses post; a Pending (0) CallSettled should not occur
+        // but is skipped defensively.
+        if (outcome !== 1 && outcome !== 2) return;
+        const res = await processCall({
+          callId,
+          expectedVariant: 'settled',
+          outcomeWord: settledOutcomeWord(outcome),
+          caller: '', // resolved via resolveHandle if configured; empty → address-less head
+        });
+        if (res.posted) totalPosted++;
       } catch (err) {
         errors++;
         logger.error(
-          { event: 'auto_post_error', error: err instanceof Error ? err.message : String(err), phase: 'event_processing', kind },
-          'Error processing trigger event — skipping (interval keeps running)',
+          { event: 'auto_post_error', error: err instanceof Error ? err.message : String(err), phase: 'event_processing', kind: 'settled' },
+          'Error processing trigger event — skipping (scan keeps running)',
         );
       }
-    }
-  }
+    },
+  });
 
-  async function tick(): Promise<void> {
-    if (stopped) return;
-    await initPromise;
-
-    if (!initialized) {
+  // Subscription 2: (FFM, CallerExited) — the kind='caller-exited' branch,
+  // per-event try/catch unchanged.
+  const unregisterExited = scanner.register({
+    name: 'auto-post:caller-exited',
+    address: ffmAddress,
+    event: CALLER_EXITED_EVENT,
+    onLog: async (log: Log) => {
       try {
-        lastBlockSeen = await publicClient.getBlockNumber();
-        initialized = true;
-      } catch (err) {
-        errors++;
-        logger.warn(
-          { event: 'auto_post_error', error: err instanceof Error ? err.message : String(err), phase: 'init_retry' },
-          'getBlockNumber still failing — skipping tick',
-        );
-      }
-      return;
-    }
+        const typed = log as unknown as { args?: { callId?: bigint; caller?: string } };
+        const args = typed.args;
+        if (!args || args.callId === undefined) return;
+        const callId = args.callId.toString();
 
-    let head: bigint;
-    try {
-      head = await publicClient.getBlockNumber();
-    } catch (err) {
-      errors++;
-      logger.error(
-        { event: 'auto_post_error', error: err instanceof Error ? err.message : String(err), phase: 'get_head' },
-        'getBlockNumber failed — skipping tick',
-      );
-      return;
-    }
-
-    let windows = 0;
-    let cursor = lastBlockSeen;
-    while (cursor < head && windows < maxWindowsPerTick && !stopped) {
-      const from = cursor + 1n;
-      const to = from + blockSpan - 1n > head ? head : from + blockSpan - 1n;
-
-      try {
-        const [settledLogs, exitedLogs] = await Promise.all([
-          publicClient.getLogs({ address: settlementManagerAddress, event: CALL_SETTLED_EVENT, fromBlock: from, toBlock: to }),
-          publicClient.getLogs({ address: ffmAddress, event: CALLER_EXITED_EVENT, fromBlock: from, toBlock: to }),
-        ]);
-        await processLogs(settledLogs as Log[], 'settled');
-        await processLogs(exitedLogs as Log[], 'caller-exited');
+        const res = await processCall({
+          callId,
+          expectedVariant: 'caller-exited',
+          outcomeWord: 'CALLER EXITED',
+          caller: (args.caller ?? '').toLowerCase(),
+        });
+        if (res.posted) totalPosted++;
       } catch (err) {
         errors++;
         logger.error(
-          { event: 'auto_post_error', error: err instanceof Error ? err.message : String(err), phase: 'get_logs', from: from.toString(), to: to.toString() },
-          'getLogs failed — will retry same window next tick',
+          { event: 'auto_post_error', error: err instanceof Error ? err.message : String(err), phase: 'event_processing', kind: 'caller-exited' },
+          'Error processing trigger event — skipping (scan keeps running)',
         );
-        break; // do NOT advance — retry this window next tick
       }
+    },
+  });
 
-      cursor = to;
-      lastBlockSeen = to;
-      windows++;
-    }
-  }
+  if (ownsScanner) scanner.start();
 
-  intervalId = setInterval(() => {
-    tick().catch((err) => {
-      errors++;
-      logger.error({ event: 'auto_post_error', error: err instanceof Error ? err.message : String(err), phase: 'interval-catch' });
-    });
-  }, intervalMs);
+  logger.info(
+    { event: 'auto_post_worker_started', settlementManagerAddress, ffmAddress, sharedScanner: !ownsScanner },
+    'Auto-post worker started',
+  );
 
   return {
     stop(): void {
-      stopped = true;
-      if (intervalId !== null) {
-        clearInterval(intervalId);
-        intervalId = null;
-      }
+      unregisterSettled();
+      unregisterExited();
+      if (ownsScanner) scanner.stop();
     },
     getStats() {
-      return { lastBlockSeen, totalPosted, errors };
+      return { lastBlockSeen: scanner.getStats().lastBlockSeen, totalPosted, errors };
     },
     processCall,
   };

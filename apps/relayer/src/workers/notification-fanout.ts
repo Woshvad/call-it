@@ -1,8 +1,9 @@
 /**
  * Notification fan-out worker.
  *
- * Watches CallerExited events from the FollowFadeMarket contract via viem getLogs
- * (polling every 30s). For each CallerExited event:
+ * Watches CallerExited events from the FollowFadeMarket contract by subscribing to
+ * the shared chain-scanner (quick-260611-o5b — one merged getLogs per 30s tick
+ * replaces this worker's former private scan loop). For each CallerExited event:
  *   1. Queries subgraph for current position holders (followers/faders) of the callId
  *   2. Batch-inserts one notification row per holder into Fly Postgres
  *   3. Bumps statusVersion Redis key for that callId (OG cache-bust — D-09)
@@ -45,6 +46,7 @@ import { logger } from '../lib/logger.js';
 import { notifications } from '../db/schema.js';
 import { sendAlertSafe } from './alerts.js';
 import { PROFILE_REGISTRY_ARBITRUM_SEPOLIA } from '@call-it/shared';
+import { createChainScanner, type ChainScannerHandle } from './chain-scanner.js';
 import type * as schema from '../db/schema.js';
 
 const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000';
@@ -100,6 +102,13 @@ export interface NotificationFanoutConfig {
   subgraphUrl: string;
   /** Polling interval in milliseconds. Default: 30000 (30s) per D-13/A4 */
   intervalMs?: number;
+  /**
+   * Shared chain-scanner (quick-260611-o5b). When provided, this worker
+   * registers its (FFM, CallerExited) subscription + challenge onTick pass on it
+   * and creates NO interval of its own. When absent (unit tests / back-compat),
+   * a private scanner is created and owned by this worker.
+   */
+  scanner?: ChainScannerHandle;
 }
 
 export interface NotificationFanoutHandle {
@@ -478,226 +487,79 @@ async function processChallengeNotifications(config: NotificationFanoutConfig): 
 export function startNotificationFanout(config: NotificationFanoutConfig): NotificationFanoutHandle {
   const { publicClient, ffmAddress, intervalMs = 30_000 } = config;
 
-  // Free-tier-safe chunking tunables (WR-05 — Alchemy free tier caps eth_getLogs
-  // at 10 blocks per request on Arbitrum; 9n gives an unambiguous safety margin).
-  // Raise NOTIFICATION_FANOUT_BLOCK_SPAN and NOTIFICATION_FANOUT_MAX_WINDOWS_PER_TICK
-  // when the relayer is upgraded to a paid Alchemy plan.
-  const blockSpan: bigint = (() => {
-    const raw = process.env['NOTIFICATION_FANOUT_BLOCK_SPAN'];
-    if (!raw) return 9n;
-    const n = Number(raw);
-    if (!Number.isFinite(n) || n <= 0) return 9n;
-    return BigInt(Math.floor(n));
-  })();
-  const maxWindowsPerTick: number = (() => {
-    const raw = process.env['NOTIFICATION_FANOUT_MAX_WINDOWS_PER_TICK'];
-    if (!raw) return 50;
-    const n = Number(raw);
-    if (!Number.isFinite(n) || n <= 0) return 50;
-    return Math.floor(n);
-  })();
-
-  let lastBlockSeen: bigint = 0n;
-  // WR-05: tracks whether lastBlockSeen has been seeded from a real head. If init
-  // fails we must NOT default to scanning from block 1 (a multi-million-block
-  // getLogs range that RPC providers reject and that would replay/duplicate every
-  // historical event). Instead the tick re-attempts seeding before scanning.
-  let initialized = false;
+  // NOTE (quick-260611-o5b): the chunking tunables (blockSpan/maxWindowsPerTick)
+  // moved to the shared chain-scanner together with the scan loop — see
+  // chain-scanner.ts for the env fallback ladder and the corrected Alchemy
+  // free-tier rationale (10K-block RANGE for filtered queries, not 10 blocks
+  // per request).
   let totalEventsProcessed = 0;
+  // Worker-level errors count THIS worker's per-event processing failures only;
+  // scan-level errors (get_head/get_logs/init) now live in scanner.getStats().
   let errors = 0;
-  let intervalId: ReturnType<typeof setInterval> | null = null;
-  let stopped = false;
 
-  // Initialize lastBlockSeen to current head at startup
-  const initPromise = (async () => {
-    try {
-      lastBlockSeen = await publicClient.getBlockNumber();
-      initialized = true;
-      logger.info(
-        { event: 'notification_fanout_started', lastBlockSeen: lastBlockSeen.toString(), ffmAddress },
-        'Notification fan-out worker started',
-      );
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      logger.error({ event: 'notification_fanout_error', error: message, phase: 'init' });
-      errors++;
-      // Leave initialized=false so the tick re-seeds rather than scanning from 1.
-    }
-  })();
+  // Shared scanner when injected (production); private fallback otherwise
+  // (unit tests / back-compat) — the private scanner is owned + started here.
+  const ownsScanner = !config.scanner;
+  const scanner =
+    config.scanner ?? createChainScanner({ publicClient, intervalMs });
 
-  /**
-   * One polling tick: fetch CallerExited logs since lastBlockSeen and fan out.
-   */
-  async function tick(): Promise<void> {
-    if (stopped) return;
-
-    // Wait for initialization to complete
-    await initPromise;
-
-    // WR-05: if init failed, retry seeding the head before scanning. Until we
-    // have a real head we cannot safely choose a fromBlock, so skip this tick.
-    if (!initialized) {
+  // ONE (FFM, CallerExited) subscription — the existing per-event try/catch body
+  // moved into the handler unchanged (never-throw discipline preserved).
+  const unregisterLog = scanner.register({
+    name: 'notification-fanout',
+    address: ffmAddress,
+    event: CALLER_EXITED_EVENT,
+    onLog: async (log: Log) => {
       try {
-        lastBlockSeen = await publicClient.getBlockNumber();
-        initialized = true;
-        logger.info(
-          { event: 'notification_fanout_init_recovered', lastBlockSeen: lastBlockSeen.toString() },
-          'Re-seeded lastBlockSeen after failed init — skipping this tick to avoid full-chain scan',
-        );
-      } catch (err) {
-        const message = err instanceof Error ? err.message : String(err);
-        logger.warn(
-          { event: 'notification_fanout_error', error: message, phase: 'init_retry' },
-          'getBlockNumber still failing — skipping tick (will retry next interval)',
-        );
-        errors++;
-      }
-      return;
-    }
-
-    logger.info(
-      { event: 'notification_fanout_tick', lastBlockSeen: lastBlockSeen.toString() },
-      'Notification fan-out tick',
-    );
-
-    // WR-05: read current head once per tick. On failure, skip the tick entirely
-    // (same semantics as today's catch-of-get_logs — do not advance lastBlockSeen).
-    let head: bigint;
-    try {
-      head = await publicClient.getBlockNumber();
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      logger.error(
-        { event: 'notification_fanout_error', error: message, phase: 'get_head' },
-        'getBlockNumber failed — skipping tick',
-      );
-      errors++;
-      // Skip to challenge notifications — they are subgraph/time-windowed and
-      // independent of block range.
-      if (config.subgraphUrl) {
-        try {
-          await processChallengeNotifications(config);
-        } catch (err2) {
-          const msg2 = err2 instanceof Error ? err2.message : String(err2);
-          logger.warn(
-            { event: 'notification_fanout_error', error: msg2, phase: 'challenge_notifications' },
-            'Challenge notification processing failed — will retry next tick',
-          );
-        }
-      }
-      return;
-    }
-
-    // Chunk getLogs into <=blockSpan windows so no single call exceeds the
-    // Alchemy free-tier 10-block limit. maxWindowsPerTick bounds per-tick work
-    // and rate-limit exposure; a backlog drains across successive ticks.
-    let windows = 0;
-    while (lastBlockSeen < head && windows < maxWindowsPerTick && !stopped) {
-      const from = lastBlockSeen + 1n;
-      const to = from + blockSpan - 1n > head ? head : from + blockSpan - 1n;
-
-      let logs: Awaited<ReturnType<typeof publicClient.getLogs>>;
-      try {
-        logs = await publicClient.getLogs({
-          address: ffmAddress,
-          event: CALLER_EXITED_EVENT,
-          fromBlock: from,
-          toBlock: to,
-        });
+        await processCallerExitedEvent(log, config);
+        totalEventsProcessed++;
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
         logger.error(
-          {
-            event: 'notification_fanout_error',
-            error: message,
-            lastBlockSeen: lastBlockSeen.toString(),
-            phase: 'get_logs',
-          },
-          'getLogs failed — will retry next tick',
+          { event: 'notification_fanout_error', error: message, phase: 'event_processing' },
+          'Error processing CallerExited event — skipping',
         );
         errors++;
-        break; // Do NOT advance lastBlockSeen — retry same window next tick
+        // Do NOT throw — the scanner isolates handlers anyway, but the existing
+        // error taxonomy/counters stay worker-local.
       }
+    },
+  });
 
-      // Process each CallerExited event in this window
-      for (const log of logs) {
-        if (stopped) break;
-        try {
-          await processCallerExitedEvent(log, config);
-          totalEventsProcessed++;
-
-          // Track highest block seen within the window
-          if (log.blockNumber !== null && log.blockNumber !== undefined) {
-            if (log.blockNumber > lastBlockSeen) {
-              lastBlockSeen = log.blockNumber;
-            }
-          }
-        } catch (err) {
-          const message = err instanceof Error ? err.message : String(err);
-          logger.error(
-            { event: 'notification_fanout_error', error: message, phase: 'event_processing' },
-            'Error processing CallerExited event — skipping',
-          );
-          errors++;
-          // Do NOT throw — interval must keep running
-        }
-      }
-
-      lastBlockSeen = to;
-      windows++;
-    }
-
-    // If the loop stopped because the window cap was hit while there is still
-    // a gap, log an info event so backlog drain is visible but not alarming.
-    if (lastBlockSeen < head && windows >= maxWindowsPerTick) {
-      logger.info(
-        {
-          event: 'notification_fanout_catching_up',
-          remaining: (head - lastBlockSeen).toString(),
-          windowsThisTick: windows,
-        },
-        'Window cap reached — backlog will drain across future ticks',
-      );
-    }
-
-    // ── Phase 3: Challenge event notifications ────────────────────────────
-    // Query subgraph for new challenges proposed/accepted/rejected since last tick.
-    // Skipped if subgraphUrl is empty (dev without subgraph); errors are non-fatal.
-    if (config.subgraphUrl) {
-      try {
-        await processChallengeNotifications(config);
-      } catch (err) {
-        const message = err instanceof Error ? err.message : String(err);
-        logger.warn(
-          { event: 'notification_fanout_error', error: message, phase: 'challenge_notifications' },
-          'Challenge notification processing failed — will retry next tick',
-        );
-        // Non-fatal — do NOT increment errors that block the worker
-      }
-    }
-  }
-
-  // Start polling interval
-  intervalId = setInterval(() => {
-    tick().catch((err) => {
-      // tick() catches all errors internally; this is a final safety net
+  // ── Phase 3: Challenge event notifications ────────────────────────────
+  // Runs at the end of EVERY initialized scanner tick — including the
+  // get_head-failure path (subgraph/time-windowed, independent of block range).
+  // Skipped if subgraphUrl is empty (dev without subgraph); errors are non-fatal.
+  const unregisterTick = scanner.onTick('notification-fanout-challenges', async () => {
+    if (!config.subgraphUrl) return;
+    try {
+      await processChallengeNotifications(config);
+    } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
-      logger.error({ event: 'notification_fanout_error', error: message, phase: 'interval-catch' });
-      errors++;
-    });
-  }, intervalMs);
+      logger.warn(
+        { event: 'notification_fanout_error', error: message, phase: 'challenge_notifications' },
+        'Challenge notification processing failed — will retry next tick',
+      );
+      // Non-fatal — do NOT increment errors that block the worker
+    }
+  });
+
+  if (ownsScanner) scanner.start();
+
+  logger.info(
+    { event: 'notification_fanout_started', ffmAddress, sharedScanner: !ownsScanner },
+    'Notification fan-out worker started',
+  );
 
   return {
     stop(): void {
-      stopped = true;
-      if (intervalId !== null) {
-        clearInterval(intervalId);
-        intervalId = null;
-      }
+      unregisterLog();
+      unregisterTick();
+      if (ownsScanner) scanner.stop();
     },
 
     getStats(): { lastBlockSeen: bigint; totalEventsProcessed: number; errors: number } {
-      return { lastBlockSeen, totalEventsProcessed, errors };
+      return { lastBlockSeen: scanner.getStats().lastBlockSeen, totalEventsProcessed, errors };
     },
   };
 }

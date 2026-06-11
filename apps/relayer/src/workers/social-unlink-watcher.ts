@@ -1,9 +1,10 @@
 /**
  * SocialUnlinked backstop watcher (D-13, AUTH-17).
  *
- * Polls ProfileRegistry `SocialUnlinked(address indexed user, uint8 kind)` events
- * via chunked viem getLogs (≤9-block windows — Alchemy free-tier eth_getLogs cap;
- * mirrors notification-fanout.ts WR-05 chunking). For each event it purges, as the
+ * Watches ProfileRegistry `SocialUnlinked(address indexed user, uint8 kind)` events
+ * by subscribing to the shared chain-scanner (quick-260611-o5b — one merged getLogs
+ * per 30s tick replaces this worker's former private scan loop). For each event it
+ * purges, as the
  * DURABLE backstop for unlinks done OUTSIDE the app UI (the in-app Settings flow
  * already purges immediately via /api/social/unlink-purge):
  *   - follow_graph rows for (privyUserId, platform) — resolved best-effort from
@@ -31,6 +32,7 @@ import { getRedis } from '../lib/redis.js';
 import { getLogger } from '../lib/logger.js';
 import { followGraph, socialLinkIndex } from '../db/schema.js';
 import { markUnlinked, type SocialIndexPlatform } from '../lib/social-link-index.js';
+import { createChainScanner, type ChainScannerHandle } from './chain-scanner.js';
 import type * as schema from '../db/schema.js';
 
 type DrizzleDb = NodePgDatabase<typeof schema>;
@@ -50,6 +52,13 @@ export interface SocialUnlinkWatcherConfig {
   db: DrizzleDb;
   /** Polling interval in ms. Default 30000. */
   intervalMs?: number;
+  /**
+   * Shared chain-scanner (quick-260611-o5b). When provided, this worker
+   * registers its (ProfileRegistry, SocialUnlinked) subscription on it and
+   * creates NO interval of its own. When absent (unit tests / back-compat),
+   * a private scanner is created and owned by this worker.
+   */
+  scanner?: ChainScannerHandle;
 }
 
 export interface SocialUnlinkWatcherHandle {
@@ -160,143 +169,73 @@ export function startSocialUnlinkWatcher(
   const { publicClient, profileRegistryAddress, intervalMs = 30_000 } = config;
   const logger = getLogger();
 
-  // Free-tier-safe chunking (mirrors notification-fanout WR-05: ≤9-block windows).
-  const blockSpan: bigint = (() => {
-    const raw = process.env['SOCIAL_UNLINK_BLOCK_SPAN'];
-    if (!raw) return 9n;
-    const n = Number(raw);
-    if (!Number.isFinite(n) || n <= 0) return 9n;
-    return BigInt(Math.floor(n));
-  })();
-  const maxWindowsPerTick = 50;
+  // NOTE (quick-260611-o5b): the chunking tunables and scan loop moved to the
+  // shared chain-scanner — see chain-scanner.ts for the env fallback ladder.
+  // The legacy SOCIAL_UNLINK_BLOCK_SPAN env is retired with the private loop.
 
-  // Zero-address guard: ProfileRegistry not yet wired → do nothing but report.
+  // Zero-address guard: ProfileRegistry not yet wired → register NOTHING on the
+  // scanner (zero RPC), report inactive, return a no-op handle (current behavior).
   const inactive = (profileRegistryAddress as string).toLowerCase() === ZERO_ADDRESS;
+  if (inactive) {
+    logger.warn(
+      { event: 'social_unlink_watcher_inactive' },
+      'ProfileRegistry is zero-address — SocialUnlinked watcher idle until configured',
+    );
+    return {
+      stop(): void {
+        // no-op — nothing was registered
+      },
+      getStats() {
+        return { lastBlockSeen: 0n, totalEventsProcessed: 0, errors: 0 };
+      },
+    };
+  }
 
-  let lastBlockSeen = 0n;
-  let initialized = false;
   let totalEventsProcessed = 0;
+  // Worker-level errors count THIS worker's per-event processing failures only;
+  // scan-level errors (get_head/get_logs/init) now live in scanner.getStats().
   let errors = 0;
-  let intervalId: ReturnType<typeof setInterval> | null = null;
-  let stopped = false;
 
-  const initPromise = (async () => {
-    if (inactive) {
-      logger.warn(
-        { event: 'social_unlink_watcher_inactive' },
-        'ProfileRegistry is zero-address — SocialUnlinked watcher idle until configured',
-      );
-      return;
-    }
-    try {
-      lastBlockSeen = await publicClient.getBlockNumber();
-      initialized = true;
-      logger.info(
-        { event: 'social_unlink_watcher_started', lastBlockSeen: lastBlockSeen.toString(), profileRegistryAddress },
-        'SocialUnlinked backstop watcher started',
-      );
-    } catch (err) {
-      logger.error(
-        { event: 'social_unlink_watcher_error', phase: 'init', err: String(err) },
-        'getBlockNumber failed at init — will re-seed on next tick',
-      );
-      errors++;
-    }
-  })();
+  // Shared scanner when injected (production); private fallback otherwise
+  // (unit tests / back-compat) — the private scanner is owned + started here.
+  const ownsScanner = !config.scanner;
+  const scanner =
+    config.scanner ?? createChainScanner({ publicClient, intervalMs });
 
-  async function tick(): Promise<void> {
-    if (stopped || inactive) return;
-    await initPromise;
-
-    if (!initialized) {
+  // ONE (ProfileRegistry, SocialUnlinked) subscription — the existing per-event
+  // try/catch body moved into the handler unchanged (never-throw discipline).
+  const unregister = scanner.register({
+    name: 'social-unlink-watcher',
+    address: profileRegistryAddress,
+    event: SOCIAL_UNLINKED_EVENT,
+    onLog: async (log: Log) => {
       try {
-        lastBlockSeen = await publicClient.getBlockNumber();
-        initialized = true;
-      } catch (err) {
-        logger.warn(
-          { event: 'social_unlink_watcher_error', phase: 'init_retry', err: String(err) },
-          'getBlockNumber still failing — skipping tick',
-        );
-        errors++;
-      }
-      return;
-    }
-
-    let head: bigint;
-    try {
-      head = await publicClient.getBlockNumber();
-    } catch (err) {
-      logger.error(
-        { event: 'social_unlink_watcher_error', phase: 'get_head', err: String(err) },
-        'getBlockNumber failed — skipping tick',
-      );
-      errors++;
-      return;
-    }
-
-    let windows = 0;
-    while (lastBlockSeen < head && windows < maxWindowsPerTick && !stopped) {
-      const from = lastBlockSeen + 1n;
-      const to = from + blockSpan - 1n > head ? head : from + blockSpan - 1n;
-
-      let logs: Awaited<ReturnType<typeof publicClient.getLogs>>;
-      try {
-        logs = await publicClient.getLogs({
-          address: profileRegistryAddress,
-          event: SOCIAL_UNLINKED_EVENT,
-          fromBlock: from,
-          toBlock: to,
-        });
+        await processSocialUnlinked(log, config);
+        totalEventsProcessed++;
       } catch (err) {
         logger.error(
-          { event: 'social_unlink_watcher_error', phase: 'get_logs', lastBlockSeen: lastBlockSeen.toString(), err: String(err) },
-          'getLogs failed — will retry next tick',
+          { event: 'social_unlink_watcher_error', phase: 'event_processing', err: String(err) },
+          'Error processing SocialUnlinked event — skipping',
         );
         errors++;
-        break; // do NOT advance lastBlockSeen — retry same window
       }
+    },
+  });
 
-      for (const log of logs) {
-        if (stopped) break;
-        try {
-          await processSocialUnlinked(log, config);
-          totalEventsProcessed++;
-        } catch (err) {
-          logger.error(
-            { event: 'social_unlink_watcher_error', phase: 'event_processing', err: String(err) },
-            'Error processing SocialUnlinked event — skipping',
-          );
-          errors++;
-        }
-      }
+  if (ownsScanner) scanner.start();
 
-      lastBlockSeen = to;
-      windows++;
-    }
-  }
-
-  if (!inactive) {
-    intervalId = setInterval(() => {
-      tick().catch((err) => {
-        logger.error(
-          { event: 'social_unlink_watcher_error', phase: 'interval-catch', err: String(err) },
-          'SocialUnlinked watcher tick threw',
-        );
-        errors++;
-      });
-    }, intervalMs);
-  }
+  logger.info(
+    { event: 'social_unlink_watcher_started', profileRegistryAddress, sharedScanner: !ownsScanner },
+    'SocialUnlinked backstop watcher started',
+  );
 
   return {
     stop(): void {
-      stopped = true;
-      if (intervalId !== null) {
-        clearInterval(intervalId);
-        intervalId = null;
-      }
+      unregister();
+      if (ownsScanner) scanner.stop();
     },
     getStats() {
-      return { lastBlockSeen, totalEventsProcessed, errors };
+      return { lastBlockSeen: scanner.getStats().lastBlockSeen, totalEventsProcessed, errors };
     },
   };
 }

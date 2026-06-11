@@ -73,6 +73,8 @@ import { settleRoute } from './routes/settle.js';
 import { disputesRoute } from './routes/disputes.js';
 // Phase 7 — Plan 07-04: auto-post share-loop worker (D-02, SHARE-16/17/18)
 import { startAutoPostWorker } from './workers/auto-post-worker.js';
+// quick-260611-o5b: shared single-cursor chain scanner (Alchemy CU burn fix)
+import { createChainScanner } from './workers/chain-scanner.js';
 
 /**
  * Build and configure the Fastify application.
@@ -226,6 +228,15 @@ export async function buildApp(): Promise<FastifyInstance> {
     process.env.NEXT_PUBLIC_SUBGRAPH_URL ??
     '';
 
+  // quick-260611-o5b — single merged getLogs scan loop replacing 3 independent
+  // worker loops (~56 getLogs + 3 getBlockNumber per 30s tick → 1 + 1; Alchemy
+  // CU burn fix). All three event workers register their (address, event)
+  // subscriptions on this ONE scanner; started in onReady, stopped in onClose.
+  const chainScanner = createChainScanner({
+    publicClient: notificationFanoutClient,
+    intervalMs: 30_000,
+  });
+
   // Settlement watcher dependencies (Phase 4 — Plan 04-04)
   // walletClient uses the relayer's GCP KMS-backed key (no local private key — D-05)
   // In production, the walletClient must be created with a proper account (KMS-backed).
@@ -293,6 +304,7 @@ export async function buildApp(): Promise<FastifyInstance> {
         db: notificationFanoutDb,
         subgraphUrl: notificationSubgraphUrl,
         intervalMs: 30_000,
+        scanner: chainScanner, // quick-260611-o5b: shared scan loop
       });
     } catch (err) {
       app.log.error(
@@ -339,6 +351,7 @@ export async function buildApp(): Promise<FastifyInstance> {
         profileRegistryAddress: PROFILE_REGISTRY_ARBITRUM_SEPOLIA as `0x${string}`,
         db: notificationFanoutDb,
         intervalMs: 30_000,
+        scanner: chainScanner, // quick-260611-o5b: shared scan loop
       });
     } catch (err) {
       app.log.error(
@@ -419,6 +432,7 @@ export async function buildApp(): Promise<FastifyInstance> {
           db: notificationFanoutDb,
           ogBaseUrl,
           intervalMs: 30_000,
+          scanner: chainScanner, // quick-260611-o5b: shared scan loop
         });
         app.log.info({ event: 'auto_post_worker_started' }, 'Auto-post worker started (default-ON, SHARE-16)');
       } catch (err) {
@@ -429,6 +443,20 @@ export async function buildApp(): Promise<FastifyInstance> {
       }
     } else {
       app.log.info({ event: 'auto_post_worker_disabled' }, 'Auto-post worker disabled via AUTO_POST_ENABLED=false');
+    }
+    // quick-260611-o5b: start the ONE shared scan loop after all three event
+    // workers have registered their subscriptions (start() is idempotent).
+    try {
+      chainScanner.start();
+      app.log.info(
+        { event: 'chain_scanner_started' },
+        'Shared chain scanner started (1 merged getLogs per 30s tick)',
+      );
+    } catch (err) {
+      app.log.error(
+        { event: 'chain_scanner_start_failed', err: String(err) },
+        'Failed to start shared chain scanner',
+      );
     }
     try {
       const result = await pingWithBullMQCompat();
@@ -464,6 +492,15 @@ export async function buildApp(): Promise<FastifyInstance> {
     // quick-260611-h36: stop the Redis-free settlement poller too.
     if (settlementPollerHandle) {
       settlementPollerHandle.stop();
+    }
+    // quick-260611-o5b: tear down the shared chain scanner's interval.
+    try {
+      chainScanner.stop();
+    } catch (err) {
+      app.log.error(
+        { event: 'chain_scanner_stop_failed', err: String(err) },
+        'Failed to stop shared chain scanner on close',
+      );
     }
   });
 
