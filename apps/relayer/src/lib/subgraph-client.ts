@@ -16,7 +16,9 @@
  * Security: T-01-59 (Subgraph key leak to frontend bundle — mitigated by server-only proxy)
  */
 
+import { createHash } from 'node:crypto';
 import { getLogger } from './logger.js';
+import { MemoryCache } from './memory-cache.js';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -41,6 +43,13 @@ export interface SubgraphFeedResponse {
       number: number;
     };
   };
+  /**
+   * quick-260611-h36: true when this response was served from the circuit
+   * breaker's last-known-good snapshot (<=1h old) instead of a live query.
+   * The feed route maps this to `_source: 'stale'` + `x-source: stale` and
+   * strips the flag from the wire body.
+   */
+  _stale?: boolean;
 }
 
 export interface SubgraphProfileCall {
@@ -267,8 +276,11 @@ const SUBGRAPH_FETCH_TIMEOUT_MS = 10_000;
 /**
  * Execute a raw GraphQL query against the Subgraph Studio endpoint.
  * Adds Authorization header with the API key (D-27).
+ *
+ * quick-260611-h36: renamed from executeQuery (body unchanged) — all calls
+ * now route through the circuit breaker in executeQueryWithMeta below.
  */
-async function executeQuery<T>(
+async function executeQueryUpstream<T>(
   query: string,
   variables: Record<string, unknown>,
 ): Promise<T> {
@@ -305,6 +317,123 @@ async function executeQuery<T>(
   }
 
   return json.data;
+}
+
+// ── Circuit breaker + last-known-good snapshots (quick-260611-h36) ────────────
+//
+// LIVE OUTAGE context (2026-06-11): with Redis caching dead (Upstash quota),
+// every request hammered the rate-limited Studio endpoint, which 429-stormed —
+// feed/profile/positions rendered EMPTY. The breaker caps the blast radius:
+// after ANY failure (network, 429, GraphQL errors, timeout) queries
+// short-circuit for a cooldown window, serving last-known-good snapshots
+// (<=1h old) where available. Half-open is implicit: once the cooldown
+// elapses, the next call IS the probe.
+//
+// The subgraph stays UNTRUSTED INPUT — the contract remains the authority
+// (T-h36-04: stale data is marked `_stale`, and receipts' outcome truth stays
+// on-chain via querySettledFields' fail-safe-neutral contract).
+
+/** Default breaker cooldown (ms). Override: SUBGRAPH_BREAKER_COOLDOWN_MS env. */
+const SUBGRAPH_BREAKER_COOLDOWN_MS = 120_000;
+
+/** Epoch ms until which the circuit is OPEN (0 = closed). */
+let breakerOpenUntil = 0;
+
+/**
+ * Last-known-good snapshots keyed by hash(query + variables). DEDICATED
+ * instance (never the shared memoryCache) so feed-route keys can't evict
+ * snapshots. The 30s "fresh" TTL is irrelevant — getStale's 1h horizon
+ * governs servability.
+ */
+const lastGood = new MemoryCache(200);
+
+/** Stale-serve hard horizon: snapshots older than 1h are never served. */
+const LAST_GOOD_STALE_HORIZON_MS = 3_600_000;
+
+/** @internal Test isolation: closes the breaker + clears all snapshots. */
+export function _resetBreakerForTesting(): void {
+  breakerOpenUntil = 0;
+  lastGood._clearAllForTesting();
+}
+
+function breakerCooldownMs(): number {
+  // Read per-call so tests can vary it without re-importing the module.
+  const raw = Number(process.env.SUBGRAPH_BREAKER_COOLDOWN_MS);
+  return Number.isFinite(raw) && raw > 0 ? raw : SUBGRAPH_BREAKER_COOLDOWN_MS;
+}
+
+function snapshotKey(query: string, variables: Record<string, unknown>): string {
+  return createHash('sha1').update(query + JSON.stringify(variables)).digest('hex');
+}
+
+/**
+ * Breaker-wrapped query with staleness metadata.
+ *
+ * - Circuit OPEN: serve the last-good snapshot (<=1h) as `{ stale: true }`,
+ *   else throw 'subgraph circuit open' so every caller's existing
+ *   catch/degrade path fires exactly as today.
+ * - Circuit CLOSED (or half-open probe): attempt upstream. Success stores the
+ *   snapshot + closes the breaker. Failure opens the breaker for the cooldown
+ *   and falls back to the stale path (rethrowing the ORIGINAL error when no
+ *   servable snapshot exists).
+ */
+async function executeQueryWithMeta<T>(
+  query: string,
+  variables: Record<string, unknown>,
+): Promise<{ data: T; stale: boolean }> {
+  const logger = getLogger();
+  const key = snapshotKey(query, variables);
+
+  const serveStale = (): { data: T; stale: boolean } | null => {
+    const snapshot = lastGood.getStale<T>(key, LAST_GOOD_STALE_HORIZON_MS);
+    if (!snapshot) return null;
+    logger.warn(
+      { event: 'subgraph_breaker_stale_served', key, ageMs: snapshot.ageMs },
+      'Subgraph circuit open — serving last-known-good snapshot',
+    );
+    return { data: snapshot.value, stale: true };
+  };
+
+  // ── Circuit OPEN: short-circuit to the snapshot (or throw) ─────────────────
+  if (Date.now() < breakerOpenUntil) {
+    const stale = serveStale();
+    if (stale) return stale;
+    throw new Error('subgraph circuit open — no last-good snapshot');
+  }
+
+  // ── Closed / half-open probe ────────────────────────────────────────────────
+  try {
+    const data = await executeQueryUpstream<T>(query, variables);
+    lastGood.set(key, data, 30_000);
+    breakerOpenUntil = 0;
+    return { data, stale: false };
+  } catch (err) {
+    const cooldownMs = breakerCooldownMs();
+    breakerOpenUntil = Date.now() + cooldownMs;
+    logger.warn(
+      {
+        event: 'subgraph_breaker_opened',
+        cooldownMs,
+        err: err instanceof Error ? err.message : String(err),
+      },
+      'Subgraph query failed — circuit breaker opened',
+    );
+    const stale = serveStale();
+    if (stale) return stale;
+    throw err;
+  }
+}
+
+/**
+ * Execute a GraphQL query through the circuit breaker (data only).
+ * Zero churn for the existing callers — staleness is dropped here; queryFeed
+ * uses executeQueryWithMeta directly to surface `_stale`.
+ */
+async function executeQuery<T>(
+  query: string,
+  variables: Record<string, unknown>,
+): Promise<T> {
+  return (await executeQueryWithMeta<T>(query, variables)).data;
 }
 
 // ── Public API ────────────────────────────────────────────────────────────────
@@ -349,7 +478,9 @@ export async function queryFeed({
     _meta: { block: { number: number } };
   };
 
-  const data = await executeQuery<FeedData>(FEED_QUERY, variables);
+  // quick-260611-h36: with-meta variant so a breaker-served snapshot is
+  // surfaced to the feed route as `_stale: true` (→ `_source: 'stale'`).
+  const { data, stale } = await executeQueryWithMeta<FeedData>(FEED_QUERY, variables);
 
   const items = data.calls ?? [];
 
@@ -367,6 +498,7 @@ export async function queryFeed({
     items,
     nextCursor,
     _meta: data._meta ?? { block: { number: 0 } },
+    ...(stale ? { _stale: true } : {}),
   };
 }
 
@@ -543,6 +675,38 @@ export async function queryActiveCallsByCallers(
   });
 
   return data.calls ?? [];
+}
+
+// ── Accepted challenge ids (quick-260611-h36 — settlement-poller path) ────────
+
+const ACCEPTED_CHALLENGES_QUERY = `
+query AcceptedChallenges($callId: String!) {
+  challenges(where: { callId: $callId, status: "Accepted" }) {
+    challengeId
+  }
+}
+`;
+
+/**
+ * Query accepted challenge IDs for a call THROUGH the circuit breaker
+ * (Studio endpoint + Bearer key + last-good snapshots).
+ *
+ * Same GraphQL as settlement-watcher's getAcceptedChallengeIds, but THROWS on
+ * failure — the settlement-poller wraps it with a []-fallback + warn (the
+ * subgraph stays untrusted input: SettlementManager validates each id
+ * on-chain via ce.getChallenge()). Settlement-watcher's own raw-fetch copy is
+ * untouched (gated BullMQ path).
+ *
+ * @param callId The on-chain call id.
+ */
+export async function queryAcceptedChallengeIds(callId: bigint): Promise<bigint[]> {
+  type AcceptedData = { challenges: { challengeId: string }[] };
+
+  const data = await executeQuery<AcceptedData>(ACCEPTED_CHALLENGES_QUERY, {
+    callId: callId.toString(),
+  });
+
+  return (data.challenges ?? []).map((c) => BigInt(c.challengeId));
 }
 
 // ── Settled-fields read (08-05 GAP 1 — Core Value: receipts must be truthful) ──

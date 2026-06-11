@@ -96,6 +96,9 @@ export async function feedRoute(
           items: unknown[];
           nextCursor: string | null;
           _meta?: { block: { number: number } };
+          // quick-260611-h36: set by queryFeed when the subgraph circuit
+          // breaker served a last-known-good snapshot instead of a live query.
+          _stale?: boolean;
         };
       };
 
@@ -183,10 +186,18 @@ export async function feedRoute(
       }
 
       // ── Build response ────────────────────────────────────────────────────────
+      // quick-260611-h36: a breaker-served snapshot is surfaced as the
+      // ADDITIVE `_source: 'stale'` value (shape unchanged — the existing
+      // `_source` field). `_stale` is stripped so the wire shape stays exactly
+      // { items, nextCursor, _source }.
+      const isStaleSnapshot =
+        racedResult.source === 'subgraph' && racedResult.data._stale === true;
+      const responseSource = isStaleSnapshot ? 'stale' : racedResult.source;
+
       const responseData = {
         items: enrichedItems,
         nextCursor: racedResult.data.nextCursor,
-        _source: racedResult.source,
+        _source: responseSource,
       };
 
       // ── D-26: Cache first page with 10s TTL (L1 + best-effort Redis) ─────────
@@ -194,7 +205,7 @@ export async function feedRoute(
         await setCached(cacheKey, responseData, 10);
       }
 
-      reply.header('x-source', racedResult.source);
+      reply.header('x-source', responseSource);
       return reply.send(responseData);
     },
   );
