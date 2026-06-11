@@ -33,6 +33,13 @@ export type CallCardData = {
   deadline: Date;
   stake: number | bigint;
   status?: 'live' | 'settled' | 'preview';
+  /**
+   * Settled outcome wire value ('CallerWon' | 'CallerLost'). When present, the
+   * settled tag renders the caller-centric §15.7 word (CALLED IT / LOUD AND
+   * WRONG) instead of the muted SETTLED tag. Absent/unknown → muted SETTLED
+   * (D-07 honest degradation — never guess an outcome).
+   */
+  outcome?: string;
   /** X (Twitter) link verified — renders VERIFIED · X next to the handle (AUTH-09) */
   verifiedX?: boolean;
   /** Farcaster link verified — renders VERIFIED · FC next to the handle (AUTH-09) */
@@ -175,7 +182,13 @@ export function CallCard({ call, className, onClick }: CallCardProps) {
               AWAITING SETTLEMENT
             </Tag>
           ) : call.status === 'settled' ? (
-            <Tag intent="muted">SETTLED</Tag>
+            call.outcome === 'CallerWon' ? (
+              <Tag intent="win">CALLED IT</Tag>
+            ) : call.outcome === 'CallerLost' ? (
+              <Tag intent="loss">LOUD AND WRONG</Tag>
+            ) : (
+              <Tag intent="muted">SETTLED</Tag>
+            )
           ) : (
             <Tag intent="neutral">PREVIEW</Tag>
           )}

@@ -54,6 +54,8 @@ function feedItemToCallCardData(item: FeedItem) {
     status: (item.status === 'settled' || item.status === 'disputed'
       ? 'settled'
       : 'live') as 'live' | 'settled' | 'preview',
+    // Settled tag upgrades to the §15.7 outcome word when the feed carries it.
+    outcome: item.outcome ?? undefined,
   };
 }
 

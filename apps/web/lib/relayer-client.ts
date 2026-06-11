@@ -141,6 +141,8 @@ export interface FeedItem {
   createdAt: number | string;
   /** Canonical lowercase status (normalized from the TitleCase wire at the boundary). */
   status: CallStatus;
+  /** Settled outcome wire value ('CallerWon' | 'CallerLost'); null/absent while live. */
+  outcome?: string | null;
   displayHandle?: string;
   handle?: string; // resolved handle from profile (may be set by relayer)
   /** Server-built human line, e.g. "ETH ≥ $1,000,000" (PLAN-01 enrichment; optional). */
