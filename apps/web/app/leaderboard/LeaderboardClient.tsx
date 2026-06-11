@@ -248,8 +248,9 @@ export function LeaderboardClient({ data, fetchError }: LeaderboardClientProps) 
                     fontWeight: 900,
                     letterSpacing: '-0.04em',
                     lineHeight: 0.95,
-                    // 0x addresses keep their casing — uppercasing renders "0X..." (reads as OX)
-                    textTransform: hero.handle.startsWith('0x') ? 'none' : 'uppercase',
+                    // Handles render AS STORED — lowercase stays lowercase (user
+                    // decision 2026-06-11; also keeps "0x…" addresses from reading as "0X").
+                    textTransform: 'none',
                     overflowWrap: 'break-word',
                   }}
                 >

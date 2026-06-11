@@ -90,10 +90,7 @@ export function ProfileHeader({ user, className }: ProfileHeaderProps) {
   const grad = gradFor(user.handle);
   const verifiedX = user.verifiedX ?? user.verified;
 
-  // C11: a truncated 0x address rendered through `text-transform: uppercase`
-  // reads as "0X7304…" (looks like "OX"). Addresses keep their natural casing.
   const headlineText = user.displayName ?? `@${user.handle}`;
-  const headlineIsAddress = /^@?0x/i.test(headlineText.trim());
 
   // JBM metadata line — interpunct-separated, REAL stats only (D-07).
   const metaParts: string[] = [];
@@ -153,9 +150,10 @@ export function ProfileHeader({ user, className }: ProfileHeaderProps) {
             fontSize: 'clamp(28px, 7vw, 44px)',
             letterSpacing: '-0.04em',
             lineHeight: 0.95,
-            // C11: never uppercase an address ("0X…" reads as "OX"); real
-            // handles keep the prototype uppercase display voice.
-            textTransform: headlineIsAddress ? 'none' : 'uppercase',
+            // Handles render AS STORED — lowercase stays lowercase (user
+            // decision 2026-06-11, supersedes the prototype's uppercase
+            // display voice here; C11's "0X…" address concern is moot).
+            textTransform: 'none',
             color: 'var(--text-primary)',
             // C11: 'anywhere' wrapped handles mid-word — break only when a
             // line would otherwise overflow.
