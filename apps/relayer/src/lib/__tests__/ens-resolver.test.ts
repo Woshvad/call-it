@@ -11,7 +11,10 @@
  * Guards:
  *   1. env UNSET → resolveEns returns null immediately, NO RPC attempted
  *      (honest D-07 degrade: ENS not configured = no ENS name).
- *   2. env SET → configured behavior unchanged: getEnsName drives the result.
+ *   2. env SET → the configured path still drives getEnsName — now via the
+ *      fire-and-forget background resolve (quick-260611-qbg cache-only
+ *      request path: the first call returns null; the RPC is kicked in the
+ *      background and warms the cache).
  *
  * Requirements: D-13, AUTH-11, D-07
  */
@@ -43,7 +46,7 @@ vi.mock('../logger.js', () => {
   return { getLogger: vi.fn(() => fake), logger: fake };
 });
 
-import { resolveEns } from '../ens-resolver.js';
+import { resolveEns, _clearInFlightForTesting } from '../ens-resolver.js';
 
 const ORIGINAL_ENS_RPC = process.env.ENS_MAINNET_RPC_URL;
 
@@ -51,6 +54,9 @@ describe('ens-resolver resolveEns (quick-260611-p9a)', () => {
   beforeEach(() => {
     delete process.env.ENS_MAINNET_RPC_URL;
     vi.clearAllMocks();
+    // quick-260611-qbg: clear the background-resolve dedup Map so a failed
+    // test cannot leak an in-flight entry into the next test.
+    _clearInFlightForTesting();
   });
 
   afterEach(() => {
@@ -66,14 +72,19 @@ describe('ens-resolver resolveEns (quick-260611-p9a)', () => {
     expect(getEnsNameSpy).not.toHaveBeenCalled();
   });
 
-  // ── (ii) env SET → configured behavior unchanged ──────────────────────────
-  it('resolves via getEnsName when ENS_MAINNET_RPC_URL is set (configured path unchanged)', async () => {
+  // ── (ii) env SET → configured path still drives getEnsName ────────────────
+  // MIGRATED per D-15 (quick-260611-qbg): the old assertion expected the
+  // first call to return 'vitalik.eth' — the OLD synchronous contract.
+  // resolveEns is now cache-only (this file's cache mock always misses and
+  // setCached is a noop, so no call can ever return a name here); the guard
+  // that matters is that a SET env still kicks the RPC in the background.
+  it('kicks getEnsName in the background when ENS_MAINNET_RPC_URL is set (configured path still drives the RPC)', async () => {
     process.env.ENS_MAINNET_RPC_URL = 'https://eth-mainnet.example/test';
     getEnsNameSpy.mockResolvedValueOnce('vitalik.eth');
 
     const result = await resolveEns('0x7304a289aa8d5a4db23eb78c143e9aa376415ced');
 
-    expect(result).toBe('vitalik.eth');
-    expect(getEnsNameSpy).toHaveBeenCalledTimes(1);
+    expect(result).toBeNull(); // cache-only request path — never awaits the RPC
+    await vi.waitFor(() => expect(getEnsNameSpy).toHaveBeenCalledTimes(1));
   });
 });
