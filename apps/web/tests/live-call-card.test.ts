@@ -147,3 +147,26 @@ describe('(ix) C2 parity — expired live card awaits settlement', () => {
     expect(card()).toContain('AWAITING SETTLEMENT');
   });
 });
+
+describe('(x) D-08 — no dead controls on awaiting-settlement cards (user 2026-06-11)', () => {
+  it('FOLLOW/FADE/CHALLENGE links sit inside the !isAwaitingSettlement gate', () => {
+    const src = card();
+    const gateIdx = src.indexOf('{!isAwaitingSettlement && (');
+    const followIdx = src.indexOf('btn cream');
+    const fadeIdx = src.indexOf('btn fade');
+    const duelIdx = src.indexOf('btn duel');
+    expect(gateIdx).not.toBe(-1);
+    expect(gateIdx).toBeLessThan(followIdx);
+    expect(followIdx).toBeLessThan(fadeIdx);
+    expect(fadeIdx).toBeLessThan(duelIdx);
+  });
+
+  it('the quote link stays OUTSIDE the gate (fragment closes between CHALLENGE and quote)', () => {
+    const src = card();
+    const duelIdx = src.indexOf('btn duel');
+    const quoteIdx = src.indexOf('/new?quote=${');
+    const fragmentClose = src.indexOf('</>', duelIdx);
+    expect(fragmentClose).not.toBe(-1);
+    expect(fragmentClose).toBeLessThan(quoteIdx);
+  });
+});

@@ -270,22 +270,31 @@ export function LiveCallCard({ item, reserves, onchainHandle, onClick }: LiveCal
       )}
 
       {/* ACTIONS — navigation affordances (D-06): the real modals live on the
-          call page. No counts after labels (no source — D-07). */}
+          call page. No counts after labels (no source — D-07).
+          FOLLOW/FADE/CHALLENGE hide once expired (user 2026-06-11): the
+          contracts reject new positions and challenge creation after expiry,
+          so on an AWAITING SETTLEMENT card they are dead controls (D-08).
+          Quote stays — quoting an expired call is still a valid new-call
+          affordance. */}
       <div style={{ display: 'flex', flexDirection: 'row', gap: 10 }}>
-        <Link
-          href={`/call/${item.id}` as any}
-          className="btn cream"
-          style={{ minWidth: 110 }}
-          onClick={stop}
-        >
-          FOLLOW
-        </Link>
-        <Link href={`/call/${item.id}` as any} className="btn fade" onClick={stop}>
-          FADE
-        </Link>
-        <Link href={`/call/${item.id}` as any} className="btn duel" onClick={stop}>
-          CHALLENGE
-        </Link>
+        {!isAwaitingSettlement && (
+          <>
+            <Link
+              href={`/call/${item.id}` as any}
+              className="btn cream"
+              style={{ minWidth: 110 }}
+              onClick={stop}
+            >
+              FOLLOW
+            </Link>
+            <Link href={`/call/${item.id}` as any} className="btn fade" onClick={stop}>
+              FADE
+            </Link>
+            <Link href={`/call/${item.id}` as any} className="btn duel" onClick={stop}>
+              CHALLENGE
+            </Link>
+          </>
+        )}
         <Link
           href={`/new?quote=${item.id}` as any}
           title="Quote"
