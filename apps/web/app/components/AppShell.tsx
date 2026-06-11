@@ -30,55 +30,13 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { usePrivy } from '@privy-io/react-auth';
-import { useAccount } from 'wagmi';
-import { useUsdcBalance } from '@/hooks/useUsdcBalance';
-import { useProfile } from '@/hooks/useProfile';
 import { useIsMobile } from '../hooks/useIsMobile';
 import { NotificationBell } from './NotificationBell';
 import { MobileDrawer } from './MobileDrawer';
 import { Sidebar } from './Sidebar';
 import { SystemTicker } from './SystemTicker';
 import { Icon } from './Icon';
-
-/**
- * Wallet pill — "2,840.21 USDC · handle" from the EXISTING useUsdcBalance
- * hook + viewer profile fetch. HANDLE only, never an address (AUTH-44): when
- * the relayer's handle source is 'truncated' (a shortened address), the pill
- * shows the balance alone.
- */
-function WalletPill() {
-  const { authenticated, ready, user } = usePrivy();
-  const { address } = useAccount();
-  const profileAddr =
-    address ?? (user?.wallet?.address as `0x${string}` | undefined);
-  const { formatted } = useUsdcBalance();
-  const { data: profile } = useProfile(
-    authenticated && ready ? profileAddr : undefined,
-  );
-
-  // Auth-dependent slot: nothing until Privy is ready + a balance exists.
-  if (!ready || !authenticated || formatted === undefined) return null;
-
-  const balance = Number(formatted).toLocaleString('en-US', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
-  // AUTH-44: a 'truncated' source means the handle IS a shortened wallet
-  // address — treat as "no handle" and render the balance only.
-  const handle =
-    profile && profile.source !== 'truncated' ? profile.handle : null;
-
-  return (
-    <div className="wallet-pill" data-testid="wallet-pill">
-      <span className="balance">
-        {balance}
-        <span className="ccy">USDC</span>
-      </span>
-      {handle && <span className="handle">{handle}</span>}
-    </div>
-  );
-}
+import { WalletPill } from './WalletPill';
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname() ?? '';

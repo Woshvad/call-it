@@ -310,6 +310,10 @@ textarea::placeholder {
 .wallet-pill .balance { color: var(--text-primary); }
 .wallet-pill .balance .ccy { color: var(--text-tertiary); margin-left: 4px; }
 .wallet-pill .handle { color: var(--text-secondary); font-size: 11px; padding-left: 10px; border-left: 1px solid var(--border-active); }
+/* Pill face is now a <button> (quick-260611-scj popover anchor): neutralize
+   UA button styling so the recipe above renders identically + hover. */
+button.wallet-pill { cursor: pointer; color: inherit; font: inherit; appearance: none; }
+button.wallet-pill:hover { border-color: var(--border-strong); }
 
 .icon-btn {
   width: 36px; height: 36px;
