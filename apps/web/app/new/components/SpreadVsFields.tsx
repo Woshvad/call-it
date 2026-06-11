@@ -3,6 +3,7 @@
 import { Controller, type Control, type FieldErrors } from 'react-hook-form';
 import type { CreateCallInput } from '@call-it/shared';
 import { usdToTargetValue, targetValueToUsd } from '../lib/target-scale';
+import { AssetSelect } from './AssetSelect';
 
 interface SpreadVsFieldsProps {
   control: Control<CreateCallInput>;
@@ -29,17 +30,17 @@ export function SpreadVsFields({ control, errors }: SpreadVsFieldsProps) {
     <div className="flex flex-col gap-5">
       {/* Asset A */}
       <div className="flex flex-col gap-2">
-        <label className="label-overline">Asset A</label>
+        <label htmlFor="sv-asset-a" className="label-overline">Asset A</label>
         <Controller
           name="assetA"
           control={control}
           render={({ field }) => (
-            <input
-              {...field}
-              type="text"
-              placeholder="First asset (e.g. BTC)"
-              className="brutal-input mono"
-              style={errors.assetA ? { borderColor: 'var(--accent-loss)' } : undefined}
+            <AssetSelect
+              id="sv-asset-a"
+              value={field.value}
+              onChange={field.onChange}
+              onBlur={field.onBlur}
+              hasError={!!errors.assetA}
             />
           )}
         />
@@ -52,17 +53,17 @@ export function SpreadVsFields({ control, errors }: SpreadVsFieldsProps) {
 
       {/* Asset B */}
       <div className="flex flex-col gap-2">
-        <label className="label-overline">Asset B</label>
+        <label htmlFor="sv-asset-b" className="label-overline">Asset B</label>
         <Controller
           name="assetB"
           control={control}
           render={({ field }) => (
-            <input
-              {...field}
-              type="text"
-              placeholder="Second asset (e.g. ETH)"
-              className="brutal-input mono"
-              style={errors.assetB ? { borderColor: 'var(--accent-loss)' } : undefined}
+            <AssetSelect
+              id="sv-asset-b"
+              value={field.value}
+              onChange={field.onChange}
+              onBlur={field.onBlur}
+              hasError={!!errors.assetB}
             />
           )}
         />

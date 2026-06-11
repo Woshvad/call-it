@@ -4,6 +4,7 @@ import { useWatch, type Control, type UseFormSetValue, type FieldErrors } from '
 import type { CreateCallInput, EventSubtype } from '@call-it/shared';
 import { EVENT_SUBTYPES, CRITERIA_REQUIRED_EVENT_SUBTYPES } from '@call-it/shared';
 import { CriteriaField } from './CriteriaField';
+import { AssetSelect } from './AssetSelect';
 
 interface EventFieldsProps {
   control: Control<CreateCallInput>;
@@ -48,21 +49,23 @@ const ONCHAIN_METRICS = [
  */
 export function EventFields({ control, setValue, errors }: EventFieldsProps) {
   const eventSubtype = useWatch({ control, name: 'eventSubtype' });
+  const assetA = useWatch({ control, name: 'assetA' });
   const requiresCriteria = eventSubtype
     ? CRITERIA_REQUIRED_EVENT_SUBTYPES.has(eventSubtype as EventSubtype)
     : false;
 
   return (
     <div className="flex flex-col gap-5">
-      {/* Asset */}
+      {/* Asset — webCreateCallSchema still ACCEPTS hex-address/numeric event
+          assets, but the UI now constrains entry to the 24 allowlisted symbols
+          (quick-260611-bf2 client gate; no free-text path remains). */}
       <div className="flex flex-col gap-2">
-        <label className="label-overline">Asset / Protocol</label>
-        <input
-          type="text"
-          placeholder="e.g. ETH, Uniswap, EigenLayer"
-          onChange={(e) => setValue('assetA', e.target.value)}
-          className="brutal-input mono"
-          style={errors.assetA ? { borderColor: 'var(--accent-loss)' } : undefined}
+        <label htmlFor="event-asset" className="label-overline">Asset / Protocol</label>
+        <AssetSelect
+          id="event-asset"
+          value={assetA}
+          onChange={(v) => setValue('assetA', v, { shouldValidate: true })}
+          hasError={!!errors.assetA}
         />
         {errors.assetA && (
           <div className="mono" style={{ fontSize: 11, color: 'var(--accent-loss)' }}>

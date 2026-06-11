@@ -1,9 +1,11 @@
 /**
  * resolve-asset.ts — typed asset input → Pyth feed id resolution (quick-260611-bf2, BUG 2).
  *
- * The /new composer placeholder promises "BTC, ETH, SOL... (Pyth feed or symbol)".
- * Before this helper existed, a typed symbol landed on-chain as assetA=0 —
- * UNSETTLEABLE (no Pyth feed at settlement).
+ * The /new composer historically accepted free-text asset entry; before this
+ * helper existed, a typed symbol landed on-chain as assetA=0 — UNSETTLEABLE
+ * (no Pyth feed at settlement). As of quick-260611-hog the composer constrains
+ * entry to the 24-symbol AssetSelect dropdown, but this resolver remains the
+ * canonical symbol→feed-id path (preflight, dup-check, usePythPrice).
  *
  * Resolution order:
  *   1. trim

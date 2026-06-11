@@ -3,6 +3,7 @@
 import { Controller, type Control, type FieldErrors } from 'react-hook-form';
 import type { CreateCallInput } from '@call-it/shared';
 import { usdToTargetValue, targetValueToUsd } from '../lib/target-scale';
+import { AssetSelect } from './AssetSelect';
 
 interface PriceTargetFieldsProps {
   control: Control<CreateCallInput>;
@@ -12,29 +13,28 @@ interface PriceTargetFieldsProps {
 /**
  * PriceTargetFields — sub-form for Price Target market type (ROOT `.brutal-input` skin).
  *
- * Shows: asset (symbol input — allowlist validated by relayer), targetValue, direction (≥ / ≤).
+ * Shows: asset (24-asset grouped AssetSelect dropdown — this IS the CALL-06
+ * CoinPicker; Pyth feed ID resolution happens at preflight via
+ * resolveAssetToFeedId, with live Hermes price display wired here), targetValue.
  *
- * Note: The full CoinPicker with Pyth feed ID resolution (CALL-06) and NftPicker (CALL-07)
- * would live here in Phase 2+. For Phase 1, we use a simple text input with placeholder.
- *
- * Requirement: CALL-01, CALL-02, CALL-37, UI-02
+ * Requirement: CALL-01, CALL-02, CALL-06, CALL-37, UI-02
  */
 export function PriceTargetFields({ control, errors }: PriceTargetFieldsProps) {
   return (
     <div className="flex flex-col gap-5">
       {/* Asset */}
       <div className="flex flex-col gap-2">
-        <label className="label-overline">Asset</label>
+        <label htmlFor="pt-asset" className="label-overline">Asset</label>
         <Controller
           name="assetA"
           control={control}
           render={({ field }) => (
-            <input
-              {...field}
-              type="text"
-              placeholder="BTC, ETH, SOL... (Pyth feed or symbol)"
-              className="brutal-input mono"
-              style={errors.assetA ? { borderColor: 'var(--accent-loss)' } : undefined}
+            <AssetSelect
+              id="pt-asset"
+              value={field.value}
+              onChange={field.onChange}
+              onBlur={field.onBlur}
+              hasError={!!errors.assetA}
             />
           )}
         />
