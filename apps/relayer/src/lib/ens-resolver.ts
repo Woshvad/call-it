@@ -5,6 +5,16 @@
  * Uses a dedicated Mainnet RPC (ENS_MAINNET_RPC_URL) separate from the
  * Arbitrum RPC. This is a hard requirement since ENS lives on Ethereum mainnet.
  *
+ * Unconfigured = honest null (quick-260611-p9a): when ENS_MAINNET_RPC_URL is
+ * unset, resolveEns returns null immediately — no cache read, no RPC attempt.
+ * Previously `http(undefined)` fell through to viem's default public mainnet
+ * RPC, which hangs/throttles from Fly, burning the full 5s leg timeout on
+ * every uncached profile request; combined with CR-01 (timed-out legs are
+ * never cached) the 60s profile cache could never fill, so every profile
+ * click paid ~6s. Honest D-07 degrade: ENS not configured = no ENS name.
+ * When the env IS set, behavior is unchanged (bounded transport + public
+ * failover below stays).
+ *
  * Cache strategy (quick-260611-h36: L1-first via lib/cache.ts — survives a
  * dead Redis on the single-Fly-machine relayer):
  *   - Positive hit: stores the ENS name with 24h TTL
@@ -59,6 +69,16 @@ export async function resolveEns(
   address: `0x${string}`,
   _redis?: Redis,
 ): Promise<string | null> {
+  // quick-260611-p9a: configured-check guard — read PER CALL (matches the
+  // repo's testable env pattern; a module-scope read would freeze the value
+  // at first import). Unconfigured ENS = immediate honest null: no cache
+  // read, no RPC attempt, no per-request logging (this is the common path on
+  // Fly today — log spam would be worse than silence).
+  const ensConfigured = Boolean(process.env.ENS_MAINNET_RPC_URL);
+  if (!ensConfigured) {
+    return null;
+  }
+
   const cacheKey = `ens:${address.toLowerCase()}`;
 
   // Check cache first — getCached never throws (quick-260611-h36): a Redis

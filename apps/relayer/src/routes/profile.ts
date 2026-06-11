@@ -40,6 +40,7 @@ import {
 } from '../lib/subgraph-client.js';
 import { withTimeout, TimeoutError } from '../lib/with-timeout.js';
 import { peekEnrichment } from '../lib/call-enrichment.js';
+import { PROFILE_REGISTRY_ARBITRUM_SEPOLIA } from '@call-it/shared';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -98,12 +99,15 @@ const arbitrumClient = createPublicClient({
   ]),
 });
 
-// ProfileRegistry address from env or constants
+// ProfileRegistry address — canonical shared const (quick-260611-p9a).
+// The old env-or-zero fallback (a NEXT_PUBLIC_* web-ism that was never set on
+// Fly) sent every displayHandle/settledCalls read to the zero address — the
+// inner catch degraded them to ''/0n, so a user's paid-for on-chain handle
+// silently fell through to `truncated`. Same landmine class the web fixed in
+// quick-260611-npv. The relayer is Sepolia-staging single-network today —
+// same assumption notification-fanout.ts makes (no network switch invented).
 function getProfileRegistryAddress(): `0x${string}` {
-  return (
-    (process.env.NEXT_PUBLIC_PROFILE_REGISTRY_ADDRESS as `0x${string}`) ??
-    '0x0000000000000000000000000000000000000000'
-  );
+  return PROFILE_REGISTRY_ARBITRUM_SEPOLIA as `0x${string}`;
 }
 
 // ── Minimal ProfileRegistry ABI for reads ────────────────────────────────────

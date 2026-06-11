@@ -10,7 +10,7 @@
  *   6. Cache key uses lowercased address
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 // ── Hoisted mocks (vi.mock is hoisted to top before imports) ─────────────────
 
@@ -63,6 +63,8 @@ import { memoryCache } from '../src/lib/memory-cache.js';
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
+const ORIGINAL_ENS_RPC = process.env.ENS_MAINNET_RPC_URL;
+
 describe('resolveEns', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -70,6 +72,16 @@ describe('resolveEns', () => {
     // can't short-circuit this test's Redis/RPC path.
     memoryCache._clearAllForTesting();
     mockRedisSet.mockResolvedValue('OK');
+    // quick-260611-p9a: resolveEns now early-returns null when
+    // ENS_MAINNET_RPC_URL is unset (honest D-07 degrade) — these tests
+    // exercise the CONFIGURED cache/RPC path, so set the env per test.
+    // The unconfigured path is covered in src/lib/__tests__/ens-resolver.test.ts.
+    process.env.ENS_MAINNET_RPC_URL = 'https://eth-mainnet.example/test';
+  });
+
+  afterEach(() => {
+    if (ORIGINAL_ENS_RPC === undefined) delete process.env.ENS_MAINNET_RPC_URL;
+    else process.env.ENS_MAINNET_RPC_URL = ORIGINAL_ENS_RPC;
   });
 
   it('Test 1: Cache hit — returns cached ENS name without calling viem', async () => {
