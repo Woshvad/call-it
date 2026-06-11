@@ -2,18 +2,17 @@
 /**
  * AppShell — the app chrome every routed screen lives inside (D-10, D-11).
  *
- * Composition (desktop): optional SystemTicker (flag-gated, default OFF) →
- * 64px sticky `.app-header` (brand + tagline, ⌘K search placeholder, wallet
- * USDC pill, NotificationBell) → `.layout` 240px/1fr grid (Sidebar + main,
- * max-width 1180, padding 0 32px 80px).
+ * Composition (desktop): 64px sticky `.app-header` (brand + tagline, ⌘K
+ * search placeholder, wallet USDC pill, NotificationBell) → `.layout`
+ * 240px/1fr grid (Sidebar + main, max-width 1180, padding 0 32px 80px).
  *
  * Mounted INSIDE <ClientProviders> in layout.tsx (needs Privy/wagmi context
  * for the wallet pill + bell) — but Providers.tsx itself is NEVER edited;
  * the provider-order AST test stays green (D-10, T-09.2-08).
  *
- * Sticky offsets are DERIVED (D-11): the ticker flag sets --shell-offset
- * (32px on / 0px off) consumed by .app-header/.layout/.sidebar in
- * globals.css — the prototype's hardcoded top offsets are never used.
+ * The SystemTicker was REMOVED (user decision 2026-06-11) — --shell-offset
+ * stays pinned at 0px because .app-header/.layout/.sidebar in globals.css
+ * still calc() their sticky tops from it (D-11 derived offsets).
  *
  * Pathname gating: /signin and /onboarding/* render full-bleed with no shell
  * (landing/onboarding own their chrome); everywhere else gets the full shell.
@@ -36,7 +35,6 @@ import { useIsMobile } from '../hooks/useIsMobile';
 import { NotificationBell } from './NotificationBell';
 import { MobileDrawer } from './MobileDrawer';
 import { Sidebar } from './Sidebar';
-import { SystemTicker } from './SystemTicker';
 import { Icon } from './Icon';
 import { WalletPill } from './WalletPill';
 
@@ -44,9 +42,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname() ?? '';
   const isMobile = useIsMobile();
   const [drawerOpen, setDrawerOpen] = useState(false);
-
-  // Ticker feature flag — default OFF; renders only when explicitly '1' (D-11).
-  const tickerEnabled = process.env.NEXT_PUBLIC_SYSTEM_TICKER === '1';
 
   // /signin + /onboarding/* own their chrome — full-bleed, no shell (D-10).
   const fullBleed = pathname === '/signin' || pathname.startsWith('/onboarding');
@@ -56,14 +51,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     <div
       style={
         {
-          // DERIVED offset (D-11): header top = ticker enabled ? 32 : 0;
-          // sidebar/layout offsets calc() from this var in globals.css.
-          '--shell-offset': tickerEnabled ? '32px' : '0px',
+          // Pinned 0px since the SystemTicker removal (2026-06-11) — the
+          // globals.css sticky consumers still calc() from this var (D-11).
+          '--shell-offset': '0px',
         } as React.CSSProperties
       }
     >
-      <SystemTicker enabled={tickerEnabled} />
-
       <header className="app-header">
         {/* Left: hamburger (mobile only) + brand */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>

@@ -66,7 +66,6 @@
   --bg-secondary: #111118;
   --bg-tertiary: #1A1A24;
   --bg-quaternary: #13131D;
-  --bg-ticker: #0F0F18;
   --bg-inverse: #F5F1E8;
 
   /* Borders */
@@ -150,38 +149,6 @@ textarea::placeholder {
 ::-webkit-scrollbar-thumb { background: var(--border-active); border-radius: 0; }
 ::-webkit-scrollbar-thumb:hover { background: #4a4a66; }
 
-/* ══════════════════════════════════════════════════════════════════════ */
-/*  SYSTEM TICKER (flag-gated, default OFF — D-11)                          */
-/* ══════════════════════════════════════════════════════════════════════ */
-
-.system-ticker {
-  position: sticky; top: 0; z-index: 60;
-  height: 32px;
-  background: var(--bg-ticker);
-  border-bottom: 1px solid var(--border-subtle);
-  overflow: hidden;
-  font-family: var(--font-mono);
-  font-size: 11px;
-  letter-spacing: 0.02em;
-  display: flex; align-items: center;
-}
-.system-ticker-track {
-  display: inline-flex;
-  align-items: center;
-  height: 100%;
-  gap: 28px;
-  padding-left: 28px;
-  white-space: nowrap;
-  animation: tickerScroll 80s linear infinite;
-  will-change: transform;
-}
-.system-ticker:hover .system-ticker-track { animation-play-state: paused; }
-.system-ticker-item { display: inline-flex; align-items: center; gap: 8px; }
-@keyframes tickerScroll {
-  from { transform: translateX(0); }
-  to   { transform: translateX(-50%); }
-}
-
 /* Live dot — 6px accent square, 1.4s opacity pulse */
 @keyframes liveDot {
   0%, 100% { opacity: 1; }
@@ -198,9 +165,9 @@ textarea::placeholder {
 /*  PAGE-LEVEL SHELL GRID (plan 09.2-03 — AppShell/Sidebar chrome)          */
 /*                                                                          */
 /*  Grid is allowed here: page-level code, never packages/ui (Satori ban).  */
-/*  Sticky offsets DERIVE from --shell-offset (0px ticker-off / 32px        */
-/*  ticker-on), set inline by AppShell — the prototype's hardcoded top      */
-/*  offsets are never used (D-11).                                          */
+/*  Sticky offsets DERIVE from --shell-offset (pinned 0px since the         */
+/*  SystemTicker removal 2026-06-11), set inline by AppShell — the          */
+/*  prototype's hardcoded top offsets are never used (D-11).                */
 /* ══════════════════════════════════════════════════════════════════════ */
 
 .app-header {
