@@ -9,6 +9,8 @@ import type { CreateCallInput, MarketType } from '@call-it/shared';
 import { MIN_STAKE, CREATION_FEE } from '@call-it/shared';
 import { webCreateCallSchema } from './lib/web-call-schema';
 import { formatTargetForDisplay } from './lib/target-scale';
+import { targetGuardViolation } from './lib/target-guard';
+import { usePythPrice } from './hooks/usePythPrice';
 import { ACTIVE_CHAIN } from '@/lib/chain';
 import { Receipt, Button } from '@call-it/ui';
 import { MarketTypeSwitcher } from './components/MarketTypeSwitcher';
@@ -158,6 +160,14 @@ export default function NewCallPage() {
   const formValues = watch();
   const marketType = watch('marketType');
 
+  // quick-260611-uf9: lifted live-price hook — ONE fetch loop serves both the
+  // PriceTargetFields display and the onPublish trivially-true gate below.
+  // Non-priceTarget types pass undefined so the hook stays idle (its
+  // feedId-null branch) — spreadVs/event add no fetch traffic.
+  const { price: livePrice, status: livePriceStatus } = usePythPrice(
+    marketType === 'priceTarget' ? formValues.assetA : undefined,
+  );
+
   // Debounced dup-check (D-22, CALL-49 — 400ms, only fires when required fields present)
   const { match: dupMatch } = useDebouncedDupCheck(formValues, token);
 
@@ -175,9 +185,25 @@ export default function NewCallPage() {
   } = usePublishCall(setError);
 
   const onPublish = useCallback(async () => {
+    // quick-260611-uf9: trivially-true guard — v1 settles >= ONLY
+    // (SettlementManager.sol:718), so a price target at/below the live
+    // current price is a guaranteed CALLED IT (rep farming). Block the
+    // confirm modal while the violation holds. No setError here: the derived
+    // inline error in PriceTargetFields is already visible for exactly the
+    // duration of the violation (reactive by construction — a one-shot
+    // setError would go stale when the 30s price refresh moves). When
+    // livePrice is null (D-07) the gate passes and the relayer preflight
+    // enforces fail-closed server-side.
+    const values = form.getValues();
+    if (
+      values.marketType === 'priceTarget' &&
+      targetGuardViolation(values.targetValue, livePrice)
+    ) {
+      return;
+    }
     await loadToken();
     setIsModalOpen(true);
-  }, [loadToken]);
+  }, [form, livePrice, loadToken]);
 
   const onConfirmPublish = useCallback(async () => {
     const values = form.getValues();
@@ -276,7 +302,12 @@ export default function NewCallPage() {
             </div>
 
             {marketType === 'priceTarget' && (
-              <PriceTargetFields control={control} errors={errors} />
+              <PriceTargetFields
+                control={control}
+                errors={errors}
+                price={livePrice}
+                status={livePriceStatus}
+              />
             )}
             {marketType === 'spreadVs' && <SpreadVsFields control={control} errors={errors} />}
             {marketType === 'event' && (
@@ -394,7 +425,12 @@ export default function NewCallPage() {
 
           {/* Mode-conditional sub-form (anti-drift D-29: all validation from @call-it/shared) */}
           {marketType === 'priceTarget' && (
-            <PriceTargetFields control={control} errors={errors} />
+            <PriceTargetFields
+              control={control}
+              errors={errors}
+              price={livePrice}
+              status={livePriceStatus}
+            />
           )}
           {marketType === 'spreadVs' && (
             <SpreadVsFields control={control} errors={errors} />

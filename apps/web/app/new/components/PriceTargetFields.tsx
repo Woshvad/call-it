@@ -4,12 +4,21 @@ import { Controller, useWatch, type Control, type FieldErrors } from 'react-hook
 import type { CreateCallInput } from '@call-it/shared';
 import { usdToTargetValue, targetValueToUsd } from '../lib/target-scale';
 import { formatUsdPrice, computeChipTarget } from '../lib/hermes-price';
-import { usePythPrice } from '../hooks/usePythPrice';
+import { targetGuardViolation, targetGuardMessage } from '../lib/target-guard';
 import { AssetSelect } from './AssetSelect';
 
 interface PriceTargetFieldsProps {
   control: Control<CreateCallInput>;
   errors: FieldErrors<CreateCallInput>;
+  /**
+   * Live Hermes price + status as PROPS (quick-260611-uf9): the price hook is
+   * LIFTED to page.tsx so one fetch loop serves both this display and the
+   * onPublish trivially-true gate. The status union mirrors PythPriceStatus
+   * from the hooks module (kept inline — this component must not depend on
+   * the hook module at all).
+   */
+  price: number | null;
+  status: 'idle' | 'loading' | 'ready' | 'error';
 }
 
 /**
@@ -30,11 +39,14 @@ const TARGET_CHIP_PCTS = [10, 20, 50, 100] as const;
  *
  * Requirement: CALL-01, CALL-02, CALL-06, CALL-37, UI-02
  */
-export function PriceTargetFields({ control, errors }: PriceTargetFieldsProps) {
-  const assetA = useWatch({ control, name: 'assetA' });
-  // Live Hermes price — D-07 honest degrade: error/idle renders NOTHING below
-  // the select (never a fake or stale-looking number).
-  const { price, status } = usePythPrice(assetA);
+export function PriceTargetFields({ control, errors, price, status }: PriceTargetFieldsProps) {
+  // quick-260611-uf9: derived trivially-true guard — reactive by construction.
+  // Target edits AND 30s price refreshes both re-derive, so the inline error
+  // clears the moment the user raises the target above the live price or the
+  // refresh moves the price below it (never a stale one-shot setError). When
+  // price is null (D-07) the guard is skipped — the relayer layer enforces.
+  const targetValue = useWatch({ control, name: 'targetValue' });
+  const guardViolated = targetGuardViolation(targetValue, price);
 
   return (
     <div className="flex flex-col gap-5">
@@ -117,7 +129,11 @@ export function PriceTargetFields({ control, errors }: PriceTargetFieldsProps) {
                 placeholder="e.g. 80000 (for $80k)"
                 step="any"
                 className="brutal-input mono"
-                style={errors.targetValue ? { borderColor: 'var(--accent-loss)' } : undefined}
+                style={
+                  errors.targetValue || guardViolated
+                    ? { borderColor: 'var(--accent-loss)' }
+                    : undefined
+                }
               />
             </>
           )}
@@ -128,6 +144,15 @@ export function PriceTargetFields({ control, errors }: PriceTargetFieldsProps) {
         {errors.targetValue && (
           <div className="mono" style={{ fontSize: 11, color: 'var(--accent-loss)' }}>
             {String(errors.targetValue.message)}
+          </div>
+        )}
+        {/* Derived strict-above guard error (quick-260611-uf9) — only when no
+            zod targetValue error is showing (never stack two red lines).
+            price is non-null whenever guardViolated is true, but narrow
+            explicitly for type safety. */}
+        {guardViolated && price !== null && !errors.targetValue && (
+          <div className="mono" style={{ fontSize: 11, color: 'var(--accent-loss)' }}>
+            {targetGuardMessage(price)}
           </div>
         )}
       </div>

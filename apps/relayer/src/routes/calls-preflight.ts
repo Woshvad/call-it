@@ -7,6 +7,9 @@
  *
  * Gate sequence (mirrors CallRegistry._executeCreate):
  *   Gate Zod:   Parse via createCallSchemaStrict (D-29 — same schema as RHF form)
+ *   Gate Spot:  priceTarget trivially-true guard (quick-260611-uf9) — targetValue
+ *               must be STRICTLY above the live Hermes spot price; fail-closed
+ *               'price_unverifiable' when Hermes is unreachable
  *   Gate 6.1:   Stake bounds — [MIN_STAKE, MAX_STAKE] in USDC base units
  *   Gate 6.2:   Duplicate hash — activeDuplicateHashes(hash) === 0 (CALL-25/26)
  *   Gate 6.3:   Conviction floor — if settledCalls < 10 AND conviction >= 85 → suggestedConviction = 84
@@ -31,6 +34,8 @@ import { fallback, createPublicClient, http, keccak256, toBytes } from 'viem';
 import { arbitrum } from 'viem/chains';
 import { privySessionPreHandler } from '../lib/privy-auth.js';
 import { getLogger } from '../lib/logger.js';
+import { getSpotPrice1e8, evaluateTargetGuard } from '../lib/hermes-spot.js';
+import { withTimeout } from '../lib/with-timeout.js';
 import {
   createCallSchemaStrict,
   computeDuplicateHash,
@@ -220,6 +225,49 @@ export async function callsPreflightRoute(
 
       // Use preProcessed data (which has the same fields as createCallSchemaStrict input)
       const input = callInput;
+
+      // ─── 1.5 Trivially-true price-target guard (quick-260611-uf9) ─────
+      // (a) Rationale: v1 settles >= ONLY (SettlementManager.sol:718 — no
+      //     direction field), so a priceTarget call with targetValue at/below
+      //     the live current price is a guaranteed CALLED IT = free rep
+      //     farming. Require targetValue STRICTLY above the live Hermes spot
+      //     price; equality rejects (already at-or-above).
+      // (b) FAIL-CLOSED: Hermes unreachable/malformed/timeout → reject with
+      //     'price_unverifiable'. Fail-open would let users farm guaranteed
+      //     wins whenever Hermes blips, defeating the integrity guard.
+      // (c) 4s withTimeout bound so preflight never hangs on Hermes.
+      // (d) Scope: on-chain enforcement is contracts-v2 — a direct on-chain
+      //     createCall bypasses this route entirely; accepted residual for v1
+      //     (both product paths, web + Mini App, go through preflight).
+      // Runs BEFORE the on-chain reads (a guaranteed-true call never costs an
+      // RPC round-trip) but pushes into errors[] (no early return) so it
+      // aggregates with the other D-31 field errors through the single 422.
+      // For priceTarget, input.assetA is GUARANTEED to be the 0x-prefixed
+      // Pyth feed id — buildPreflightBody aborts pre-network on unresolvable
+      // assets (apps/web/app/new/lib/preflight-body.ts).
+      if (input.marketType === 'priceTarget') {
+        let spot: bigint | null = null;
+        try {
+          spot = await withTimeout(
+            getSpotPrice1e8(input.assetA),
+            4_000,
+            'hermes spot price',
+          );
+        } catch {
+          // TimeoutError or any other rejection → unverifiable (fail-closed)
+          spot = null;
+        }
+        const guard = evaluateTargetGuard(BigInt(input.targetValue), spot);
+        if (!guard.ok) {
+          // field 'targetValue' is a VISIBLE composer field — the web's
+          // existing 422 → setError mapping renders it inline.
+          errors.push({
+            field: 'targetValue',
+            code: guard.code,
+            message: guard.message,
+          });
+        }
+      }
 
       // ─── 2. Compute duplicate hash (PITFALL-12: UTC day bucket) ───────
       const marketType = input.marketType as import('@call-it/shared').MarketType;

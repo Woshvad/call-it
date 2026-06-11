@@ -63,6 +63,22 @@ vi.mock('../src/workers/paymaster-confirmer.js', () => ({
   handleUserOperationEvent: vi.fn().mockResolvedValue(undefined),
 }));
 
+// ─── Mock hermes-spot (quick-260611-uf9) ──────────────────────────────────────
+// The trivially-true spot gate fetches a LIVE Hermes price via the module
+// singleton — mock the fetch so this suite is deterministic and offline.
+// Spot $500 (50_000_000_000n at 1e8) is below makeValidBody's $800 target
+// (80_000_000_000n), so the strict-above gate passes. evaluateTargetGuard
+// stays REAL (it's pure); its own coverage lives in
+// src/lib/__tests__/hermes-spot.test.ts.
+
+vi.mock('../src/lib/hermes-spot.js', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../src/lib/hermes-spot.js')>();
+  return {
+    ...actual,
+    getSpotPrice1e8: vi.fn().mockResolvedValue(50_000_000_000n),
+  };
+});
+
 // ─── Mock viem ────────────────────────────────────────────────────────────────
 // Create a stable shared mock that persists across all createPublicClient() calls.
 // The route calls createPublicClient() per request, so we need the same mock every time.
