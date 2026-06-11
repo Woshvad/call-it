@@ -630,6 +630,18 @@ function DisputeModal({ open, onClose, callId, outcomeWord, smAddr, usdcAddr, re
     }
   }, [open]);
 
+  // F-C12: a11y — Escape closes the dialog, inert while approve/dispute is in
+  // flight (mirrors the backdrop-click semantics — never dismiss progress UI).
+  const escInFlight = isApproving || approveConfirming || isSubmitting;
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !escInFlight) onClose();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [open, escInFlight, onClose]);
+
   const MAX_EVIDENCE_BYTES = 5 * 1024 * 1024; // WR-06: 5 MB cap
 
   const handleEvidenceUpload = async (file: File) => {
@@ -729,7 +741,7 @@ function DisputeModal({ open, onClose, callId, outcomeWord, smAddr, usdcAddr, re
       )}
       {/* .modal-panel template (D-13): cream var(--bg-inverse), BLACK text,
           3px black border, brutal shadow — every text token inside is inverse */}
-      <div style={{
+      <div role="dialog" aria-modal="true" aria-labelledby="dispute-modal-title" style={{
         background: 'var(--bg-inverse)',
         color: '#000',
         border: '3px solid #000',
@@ -746,7 +758,7 @@ function DisputeModal({ open, onClose, callId, outcomeWord, smAddr, usdcAddr, re
       }}>
         {/* Header — FINAL · CONFIRM mono voice + close */}
         <div style={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-          <h2 style={{ fontFamily: 'var(--font-mono)', fontSize: '13px', fontWeight: 700, color: '#000', letterSpacing: '0.14em', textTransform: 'uppercase', margin: 0 }}>
+          <h2 id="dispute-modal-title" style={{ fontFamily: 'var(--font-mono)', fontSize: '13px', fontWeight: 700, color: '#000', letterSpacing: '0.14em', textTransform: 'uppercase', margin: 0 }}>
             RAISE DISPUTE
           </h2>
           <button
@@ -945,6 +957,17 @@ function ProvenanceModal({ open, onClose, provenance, isLoading, error, onRetry 
   const isMobile = useIsMobile(); // Phase 9 (09-03): 560px panel OVERFLOWS 375px → clamp (D-04)
   const [sigCopied, setSigCopied] = useState(false);
 
+  // F-C12: a11y — Escape closes unconditionally (no transaction lives here).
+  // MUST stay above the early return (rules of hooks).
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [open, onClose]);
+
   if (!open) return null;
 
   const oracleType = provenance?.oracle?.type ?? 'pyth';
@@ -981,7 +1004,7 @@ function ProvenanceModal({ open, onClose, provenance, isLoading, error, onRetry 
     >
       {/* .modal-panel template (D-13): cream var(--bg-inverse), BLACK text,
           3px black border, brutal shadow — real provenance values only (D-07) */}
-      <div style={{
+      <div role="dialog" aria-modal="true" aria-labelledby="provenance-modal-title" style={{
         background: 'var(--bg-inverse)',
         color: '#000',
         border: '3px solid #000',
@@ -998,7 +1021,7 @@ function ProvenanceModal({ open, onClose, provenance, isLoading, error, onRetry 
       }}>
         {/* Header — mono voice + close */}
         <div style={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-          <h2 style={{ fontFamily: 'var(--font-mono)', fontSize: '13px', fontWeight: 700, color: '#000', letterSpacing: '0.14em', textTransform: 'uppercase', margin: 0 }}>
+          <h2 id="provenance-modal-title" style={{ fontFamily: 'var(--font-mono)', fontSize: '13px', fontWeight: 700, color: '#000', letterSpacing: '0.14em', textTransform: 'uppercase', margin: 0 }}>
             ORACLE PROOF
           </h2>
           <button

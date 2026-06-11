@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect } from 'react';
 import type { CreateCallInput } from '@call-it/shared';
 import { CREATION_FEE } from '@call-it/shared';
 import { formatTargetForDisplay } from '../lib/target-scale';
@@ -46,6 +47,18 @@ export function PublishConfirmModal({
   onConfirm,
   onCancel,
 }: PublishConfirmModalProps) {
+  // F-C11: a11y — Escape closes the dialog, inert while publishing (mirrors the
+  // backdrop + Cancel isPublishing guard). MUST live above the early return
+  // (rules of hooks).
+  useEffect(() => {
+    if (!isOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !isPublishing) onCancel();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [isOpen, isPublishing, onCancel]);
+
   if (!isOpen) return null;
 
   const isSigning = isPublishing && (publishStep === 'preflight' || publishStep === 'approving' || publishStep === 'signing' || publishStep === 'waiting');
@@ -62,7 +75,13 @@ export function PublishConfirmModal({
       />
 
       {/* Cream panel (.modal-panel template) */}
-      <div className="modal-panel" style={{ position: 'relative', zIndex: 201 }}>
+      <div
+        className="modal-panel"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="publish-confirm-title"
+        style={{ position: 'relative', zIndex: 201 }}
+      >
         {/* Header — FINAL · CONFIRM mono voice */}
         <div
           style={{
@@ -87,6 +106,7 @@ export function PublishConfirmModal({
             {isSigning ? 'SIGNING · BROADCAST' : 'FINAL · CONFIRM'}
           </span>
           <span
+            id="publish-confirm-title"
             style={{
               fontFamily: 'var(--font-display)',
               fontSize: 20,

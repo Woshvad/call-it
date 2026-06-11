@@ -227,8 +227,20 @@ export function ChallengeFormModal({
   const { isLoading: approveConfirming, isSuccess: approveConfirmed } =
     useWaitForTransactionReceipt({ hash: approveTxHash });
 
-  const { isSuccess: challengeConfirmed } =
+  const { isLoading: challengeConfirming, isSuccess: challengeConfirmed } =
     useWaitForTransactionReceipt({ hash: challengeTxHash });
+
+  // F-C10: a11y — Escape closes the dialog, inert while a transaction is in flight
+  // (mirrors the backdrop-click guard semantics: never dismiss progress UI mid-money-flow).
+  const escInFlight = approving || approveConfirming || challenging || challengeConfirming;
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !escInFlight) onClose();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [open, escInFlight, onClose]);
 
   // After approval confirmed — refetch allowance
   useEffect(() => {
@@ -346,6 +358,9 @@ export function ChallengeFormModal({
       {/* .modal-panel template (D-13): cream var(--bg-inverse), BLACK text,
           3px black border, brutal-lg shadow — every text token inside is inverse */}
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="challenge-modal-title"
         style={{
           position: 'relative',
           backgroundColor: 'var(--bg-inverse)',
@@ -386,7 +401,7 @@ export function ChallengeFormModal({
             >
               1V1 DUEL · PROPOSE
             </span>
-            <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(22px, 5vw, 30px)', fontWeight: 800, color: '#000', textTransform: 'uppercase', letterSpacing: '0.01em', margin: 0 }}>
+            <h2 id="challenge-modal-title" style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(22px, 5vw, 30px)', fontWeight: 800, color: '#000', textTransform: 'uppercase', letterSpacing: '0.01em', margin: 0 }}>
               CHALLENGE {callerHandle}
             </h2>
           </div>
