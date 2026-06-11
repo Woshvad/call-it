@@ -103,3 +103,43 @@ describe('Circle paymaster permit domain (latent signature bug)', () => {
     expect(source).not.toMatch(/from 'viem\/chains'/);
   });
 });
+
+describe('ProfileRegistry writes — canonical address, no env fallback (quick-260611-npv)', () => {
+  // Root cause (verified live 2026-06-11): both write surfaces used a local
+  // `PROFILE_REGISTRY_ADDR = env ?? 0x000…000` const. The env var was unset in
+  // Vercel, so every setDisplayHandle/unlink tx targeted the ZERO ADDRESS —
+  // which mines "successfully" (no code → no revert → receipt.status
+  // 'success'), so even the receipt-gated save flow reported "saved" while
+  // writing into the void.
+
+  const PR_WRITE_FILES = [
+    'app/profile/[address]/settings/page.tsx',
+    'app/components/SocialLinkControls.tsx',
+  ];
+
+  test('active-chain PROFILE_REGISTRY_ADDRESS is non-zero (Sepolia constant)', () => {
+    expect(PROFILE_REGISTRY_ADDRESS).not.toBe(
+      '0x0000000000000000000000000000000000000000',
+    );
+    expect(PROFILE_REGISTRY_ADDRESS).toBe(PROFILE_REGISTRY_ARBITRUM_SEPOLIA);
+    // NOTE: do NOT assert the mainnet constant non-zero —
+    // PROFILE_REGISTRY_ARBITRUM_ONE is a documented 0x0 placeholder until the
+    // Phase 7.5 cutover.
+  });
+
+  for (const file of PR_WRITE_FILES) {
+    test(`${file} uses canonical @/lib/chain address — env-fallback pattern is dead`, () => {
+      const source = read(file);
+      expect(source).not.toContain('NEXT_PUBLIC_PROFILE_REGISTRY_ADDRESS');
+      expect(source).not.toContain('PROFILE_REGISTRY_ADDR =');
+      expect(source).toContain('PROFILE_REGISTRY_ADDRESS');
+      expect(source).toContain('@/lib/chain');
+    });
+  }
+
+  test('settings save flow verifies on-chain state via displayHandle read-back, not just receipt status', () => {
+    const source = read('app/profile/[address]/settings/page.tsx');
+    expect(source).toContain("functionName: 'displayHandle'");
+    expect(source).toContain('readContract');
+  });
+});

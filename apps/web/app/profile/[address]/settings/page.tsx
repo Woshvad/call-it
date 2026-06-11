@@ -5,9 +5,12 @@
  *
  * Sections (per plan spec):
  *   1. Handle edit — ensureActiveChain → setDisplayHandle (chainId-pinned
- *      writeContractAsync) → waitForTransactionReceipt; success indicator is
- *      MINED-receipt-gated (AUTH-35, fixed quick-260611-m72 after live
- *      silent-failure 2026-06-11)
+ *      writeContractAsync) → waitForTransactionReceipt → displayHandle
+ *      read-back; success indicator is MINED-receipt-gated AND
+ *      read-back-verified against the canonical registry address from
+ *      @/lib/chain (AUTH-35; quick-260611-m72 added the receipt gate,
+ *      quick-260611-npv added the canonical address + read-back after a
+ *      second live silent-failure 2026-06-11)
  *   2. Custody Disclosure card — Plan 06 component (AUTH-22)
  *   3. Wallet Export button — usePrivy().exportWallet() (AUTH-23)
  *   4. Connect/Disconnect socials — Privy linkAccount stubs (Phase 1.5 wires onchain)
@@ -28,24 +31,19 @@
 
 import { useEffect, useState } from 'react';
 import { useAccount, useWriteContract } from 'wagmi';
-import { waitForTransactionReceipt } from 'wagmi/actions';
+import { waitForTransactionReceipt, readContract } from 'wagmi/actions';
 import { BaseError } from 'viem';
 import { usePrivy } from '@privy-io/react-auth';
 import { useRouter } from 'next/navigation';
 import { profileRegistryAbi } from '@/lib/abis/ProfileRegistry';
 import { ensureActiveChain } from '@/lib/ensure-chain';
-import { ACTIVE_CHAIN_ID } from '@/lib/chain';
+import { ACTIVE_CHAIN_ID, PROFILE_REGISTRY_ADDRESS } from '@/lib/chain';
 import { wagmiConfig } from '@/lib/wagmi';
 import { isUserRejection } from '@/app/new/lib/call-created-log';
 import { CustodyDisclosureCard } from '@/components/CustodyDisclosureCard';
 import { AddressBookManager } from '@/components/AddressBookManager';
 import { SocialLinkControls } from '@/app/components/SocialLinkControls';
 import { Card } from '@call-it/ui';
-
-// ProfileRegistry address from env
-const PROFILE_REGISTRY_ADDR = (
-  process.env.NEXT_PUBLIC_PROFILE_REGISTRY_ADDRESS as `0x${string}` | undefined
-) ?? '0x0000000000000000000000000000000000000000';
 
 // Actions-API chainId cast (mirrors call page) — wagmi actions want the
 // config's literal chain-id union, not the plain number.
@@ -134,6 +132,12 @@ export default function ProfileSettingsPage({ params }: SettingsPageProps) {
       setHandleError('Handle cannot exceed 50 characters (AUTH-42)');
       return;
     }
+    if (!connectedAddress) {
+      setHandleError('No connected wallet — reconnect and retry.');
+      return;
+    }
+    // Narrowed `0x${string}` for the post-receipt read-back below.
+    const caller = connectedAddress;
     setHandleError('');
     setHandleSaved(false);
     setIsSavingHandle(true);
@@ -143,10 +147,15 @@ export default function ProfileSettingsPage({ params }: SettingsPageProps) {
       // fail when the Privy session sits on another chain (live 2026-06-11).
       await ensureActiveChain();
 
-      // AUTH-35: direct user tx — not through relayer
+      // AUTH-35: direct user tx — not through relayer.
+      // Address comes from @/lib/chain (the repo's address authority, baked
+      // from @call-it/shared at build time, never zero on the active chain).
+      // A per-app env override that was unset in Vercel previously fell back
+      // to the zero address — and zero-address txs mine "successfully" (no
+      // code → no revert), producing a live silent-success failure 2026-06-11.
       const hash = await writeContractAsync({
         abi: profileRegistryAbi,
-        address: PROFILE_REGISTRY_ADDR,
+        address: PROFILE_REGISTRY_ADDRESS,
         functionName: 'setDisplayHandle',
         args: [handleInput],
         chainId: ACTIVE_CHAIN_ID,
@@ -159,7 +168,21 @@ export default function ProfileSettingsPage({ params }: SettingsPageProps) {
       if (receipt.status !== 'success') {
         setHandleError('Save failed on-chain — try again.');
       } else {
-        setHandleSaved(true);
+        // Read-back verification: never claim "saved" unless the chain
+        // actually reflects the submitted handle. A throw here falls through
+        // to the outer catch (honest error, handleSaved stays false).
+        const onChainHandle = await readContract(wagmiConfig, {
+          address: PROFILE_REGISTRY_ADDRESS,
+          chainId: ACTIVE_CHAIN_ID as ActiveChainId,
+          abi: profileRegistryAbi,
+          functionName: 'displayHandle',
+          args: [caller],
+        });
+        if (onChainHandle === handleInput) {
+          setHandleSaved(true);
+        } else {
+          setHandleError('Save confirmed but the handle did not update — contact support.');
+        }
       }
     } catch (err) {
       // Honest error taxonomy — every failure path lands in handleError.

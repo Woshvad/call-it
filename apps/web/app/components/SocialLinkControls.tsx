@@ -35,7 +35,12 @@
 'use client';
 
 import { useCallback, useEffect, useState, type CSSProperties } from 'react';
-import { ACTIVE_CHAIN_ID } from '@/lib/chain';
+// PROFILE_REGISTRY_ADDRESS comes from @/lib/chain (the repo's address
+// authority, baked from @call-it/shared at build time, never zero on the
+// active chain) — a per-app env override that was unset in Vercel previously
+// fell back to the zero address, and zero-address txs mine "successfully"
+// (no code → no revert): live silent-success failure 2026-06-11.
+import { ACTIVE_CHAIN_ID, PROFILE_REGISTRY_ADDRESS } from '@/lib/chain';
 import { ensureActiveChain } from '@/lib/ensure-chain';
 import { usePrivy, useLinkAccount } from '@privy-io/react-auth';
 import { useAccount, useWriteContract } from 'wagmi';
@@ -51,10 +56,6 @@ export interface SocialLinkControlsProps {
 }
 
 const RELAYER_BASE = (process.env['NEXT_PUBLIC_RELAYER_BASE_URL'] ?? '').replace(/\/$/, '');
-
-const PROFILE_REGISTRY_ADDR = (
-  process.env['NEXT_PUBLIC_PROFILE_REGISTRY_ADDRESS'] as `0x${string}` | undefined
-) ?? '0x0000000000000000000000000000000000000000';
 
 type Status = 'idle' | 'pending' | 'ok' | 'error';
 
@@ -332,7 +333,7 @@ export function SocialLinkControls({ mode }: SocialLinkControlsProps) {
       await writeContractAsync({
         chainId: ACTIVE_CHAIN_ID,
         abi: profileRegistryAbi,
-        address: PROFILE_REGISTRY_ADDR,
+        address: PROFILE_REGISTRY_ADDRESS,
         functionName: 'unlinkTwitter',
       });
       await purgeOffChain('twitter');
@@ -351,7 +352,7 @@ export function SocialLinkControls({ mode }: SocialLinkControlsProps) {
       await writeContractAsync({
         chainId: ACTIVE_CHAIN_ID,
         abi: profileRegistryAbi,
-        address: PROFILE_REGISTRY_ADDR,
+        address: PROFILE_REGISTRY_ADDRESS,
         functionName: 'unlinkFarcaster',
       });
       await purgeOffChain('farcaster');
