@@ -527,14 +527,31 @@ async function fetchPendingChallenge(
       `${RELAYER_URL}/api/notifications?callId=${callId}&type=challenge_proposed`,
     );
     if (!res.ok) return null;
-    const raw = await res.json() as unknown[];
-    if (!Array.isArray(raw) || raw.length === 0) return null;
-    const entry = raw[0] as Record<string, unknown>;
+    // Wire shape: { notifications: [{ payload: { challengeId }, createdAt, ... }] }
+    const raw = await res.json() as Record<string, unknown>;
+    const list = Array.isArray(raw['notifications'])
+      ? (raw['notifications'] as Record<string, unknown>[])
+      : [];
+    if (list.length === 0) return null;
+    const payload = (list[0]?.['payload'] ?? {}) as Record<string, unknown>;
+    const challengeIdStr = String(payload['challengeId'] ?? '');
+    if (!/^\d+$/.test(challengeIdStr)) return null;
+    // The notification payload only carries challengeId — hydrate stake/handle
+    // from duel live-state. The accept flow needs the REAL matching stake, so a
+    // failed hydration hides the banner rather than rendering wrong numbers (D-07).
+    const duelRes = await fetch(`${RELAYER_URL}/api/duels/${challengeIdStr}/live-state`, {
+      signal: AbortSignal.timeout(8_000),
+    });
+    if (!duelRes.ok) return null;
+    const duel = await duelRes.json() as Record<string, unknown>;
+    const challengerStakeStr = String(duel['challengerStake'] ?? '');
+    if (!/^\d+$/.test(challengerStakeStr) || challengerStakeStr === '0') return null;
+    const proposedAtStr = String(duel['proposedAt'] ?? '0');
     return {
-      challengeId: BigInt(String(entry['challengeId'] ?? '0')),
-      challengerHandle: String(entry['challengerHandle'] ?? 'challenger'),
-      challengerStake: BigInt(String(entry['challengerStake'] ?? '0')),
-      proposedAt: BigInt(String(entry['proposedAt'] ?? '0')),
+      challengeId: BigInt(challengeIdStr),
+      challengerHandle: String(duel['challengerHandle'] ?? 'challenger'),
+      challengerStake: BigInt(challengerStakeStr),
+      proposedAt: /^\d+$/.test(proposedAtStr) ? BigInt(proposedAtStr) : 0n,
     };
   } catch {
     return null;
