@@ -240,6 +240,9 @@ for (const width of [375, 390]) {
       // RED-pending: 09-03 adds the [data-outcome-word] attribute to the outcome hero <p>.
       const present = (await el.count()) > 0;
       test.skip(!present, 'data-outcome-word hook not present yet (lands in plan 09-03).');
+      // quick-260611-h44: the neutral PENDING RESULT state intentionally renders a small
+      // heading (not the stamp) and is exempt from the >=36px expectation — a future
+      // RESPONSIVE_SETTLED_CALL_ID pointing at a neutral call is a seeding error, not a regression.
       const box = await el.first().boundingBox();
       const fontSize = await el
         .first()
