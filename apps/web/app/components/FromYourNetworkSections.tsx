@@ -11,8 +11,13 @@
  *
  * AUTH-16 (declined-never-renders): the per-platform opt-in preference (persisted in
  * 01.5-04) gates rendering via shouldRenderFollowGraphSection — a declined or unset
- * platform's section is NEVER rendered. If neither platform is opted in, the whole
- * component renders nothing.
+ * platform's section is NEVER rendered. If neither platform is opted in, the component
+ * renders the optional `fallback` (or nothing when no fallback is passed).
+ *
+ * quick-260611-t7h: now hosted under the home feed's Following tab (moved off
+ * the Live tab — prototype parity). The `fallback` prop renders when BOTH
+ * sections are hidden (declined/unset platforms) so the Following tab can show
+ * an honest dashed empty state instead of a blank body.
  *
  * Pitfall 5 (never block the main feed): every fetch degrades to
  * { items: [], source: 'empty' }; an empty section renders a quiet empty state and
@@ -26,7 +31,7 @@
  * Requirements: AUTH-14, AUTH-15, AUTH-16, AUTH-18.
  */
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { usePrivy } from '@privy-io/react-auth';
 import {
   readFollowGraphPreference,
@@ -231,7 +236,7 @@ function NetworkSection({
 
 // ── Main component ──────────────────────────────────────────────────────────────
 
-export function FromYourNetworkSections() {
+export function FromYourNetworkSections({ fallback }: { fallback?: ReactNode } = {}) {
   const { ready, authenticated, getAccessToken } = usePrivy();
   const [pref, setPref] = useState<FollowGraphPreference | null>(null);
   const [xData, setXData] = useState<SectionResponse>(EMPTY);
@@ -262,8 +267,8 @@ export function FromYourNetworkSections() {
   }, [loadSections]);
 
   // AUTH-16: a declined OR unset platform never renders. If neither is opted in,
-  // render nothing at all (the main feed is unaffected).
-  if (!showX && !showFc) return null;
+  // render the host-provided fallback (or nothing — the main feed is unaffected).
+  if (!showX && !showFc) return <>{fallback ?? null}</>;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 16 }}>
