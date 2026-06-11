@@ -2,6 +2,7 @@
 
 import { Controller, type Control, type FieldErrors } from 'react-hook-form';
 import type { CreateCallInput } from '@call-it/shared';
+import { usdToTargetValue, targetValueToUsd } from '../lib/target-scale';
 
 interface SpreadVsFieldsProps {
   control: Control<CreateCallInput>;
@@ -98,12 +99,14 @@ export function SpreadVsFields({ control, errors }: SpreadVsFieldsProps) {
           render={({ field }) => (
             <input
               type="number"
-              value={field.value ? (Number(field.value) / 1_000_000).toString() : ''}
+              // RC3 coherence: same canonical 1e8 scale as the price-target
+              // field (was ×1e6/÷1e6) so the shared preview + confirm modal
+              // can divide every non-event targetValue by one scale.
+              value={field.value ? targetValueToUsd(field.value).toString() : ''}
               onChange={(e) => {
                 const val = parseFloat(e.target.value);
-                if (!isNaN(val)) {
-                  field.onChange(BigInt(Math.round(val * 1_000_000)));
-                }
+                // Empty/invalid input clears the field back to "required".
+                field.onChange(usdToTargetValue(val));
               }}
               onBlur={field.onBlur}
               placeholder="e.g. 2.5 (A is 2.5x B)"

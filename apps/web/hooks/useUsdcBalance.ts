@@ -5,11 +5,16 @@
  * - Polls every 5s via `query.refetchInterval: 5000` (UI-56)
  * - Subscribes to USDC Transfer events to the user's address via
  *   `useWatchContractEvent` for instant updates (AUTH-26)
- * - Always references USDC_ARB_NATIVE from @call-it/shared — never inline
- *   address (T-01-39, grep guard from Phase 0 enforces this)
+ * - Always references the chain-selected USDC_ADDRESS from @/lib/chain
+ *   (which sources @call-it/shared constants) — never an inline address
+ *   (T-01-39, grep guard from Phase 0 enforces this)
+ * - Pins `chainId: ACTIVE_CHAIN_ID` explicitly (quick-260611-5mh RC1): an
+ *   unpinned useBalance defaults to the FIRST chain in the wagmi config,
+ *   which silently read MAINNET and rendered $0.00 for Sepolia wallets.
  *
- * Security: T-01-39 — USDC_ARB_NATIVE imported from @call-it/shared; grep
- *   guard ensures no 0xaf88... or 0xFF97... literals in component source.
+ * Security: T-01-39 — USDC address imported via @/lib/chain from
+ *   @call-it/shared; grep guard ensures no 0xaf88... or 0xFF97... literals
+ *   in component source.
  *
  * Requirements: AUTH-24 ($50 export prompt threshold), AUTH-26 (instant
  *   balance refresh on inbound transfer), UI-56 (5s polling interval)
@@ -19,7 +24,7 @@
 
 import { useAccount, useBalance, useWatchContractEvent } from 'wagmi';
 import { erc20Abi } from 'viem';
-import { USDC_ARB_NATIVE } from '@call-it/shared';
+import { ACTIVE_CHAIN_ID, USDC_ADDRESS } from '@/lib/chain';
 
 export interface UsdcBalance {
   /** Raw balance in 6-decimal USDC units (e.g., 50_000_000 = $50.00) */
@@ -50,7 +55,9 @@ export function useUsdcBalance(): UsdcBalance {
     refetch,
   } = useBalance({
     address,
-    token: USDC_ARB_NATIVE as `0x${string}`,
+    token: USDC_ADDRESS,
+    // RC1: explicit chainId — never fall through to the wagmi default chain
+    chainId: ACTIVE_CHAIN_ID,
     query: {
       // UI-56: 5-second polling interval for near-real-time balance updates
       refetchInterval: 5000,
@@ -63,7 +70,8 @@ export function useUsdcBalance(): UsdcBalance {
   // wagmi v2 cleans up the subscription automatically on unmount (T-01-40).
   // Guard: enabled only when address is present.
   useWatchContractEvent({
-    address: USDC_ARB_NATIVE as `0x${string}`,
+    address: USDC_ADDRESS,
+    chainId: ACTIVE_CHAIN_ID, // RC1: subscribe on the active chain, not the wagmi default
     abi: erc20Abi,
     eventName: 'Transfer',
     args: address ? { to: address } : undefined,

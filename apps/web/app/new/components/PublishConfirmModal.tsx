@@ -1,6 +1,8 @@
 'use client';
 
 import type { CreateCallInput } from '@call-it/shared';
+import { CREATION_FEE } from '@call-it/shared';
+import { formatTargetForDisplay } from '../lib/target-scale';
 
 interface PublishConfirmModalProps {
   isOpen: boolean;
@@ -121,7 +123,8 @@ export function PublishConfirmModal({
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                     <span style={{ color: 'rgba(0,0,0,0.55)' }}>Target</span>
                     <span>
-                      {(Number(formValues.targetValue) / 1_000_000).toLocaleString()} USD
+                      {/* RC3: canonical 1e8 target scale (raw for event milestones) */}
+                      {formatTargetForDisplay(formValues.marketType, formValues.targetValue)} USD
                     </span>
                   </div>
                 )}
@@ -133,6 +136,25 @@ export function PublishConfirmModal({
                   <span style={{ color: 'rgba(0,0,0,0.55)' }}>Stake</span>
                   <span style={{ fontWeight: 700 }}>
                     ${(Number(formValues.stake) / 1_000_000).toFixed(2)} USDC
+                  </span>
+                </div>
+                {/* B7 (quick-260611-5mh): $10 creation-fee disclosure + stake+fee
+                    total — fee from the shared CREATION_FEE constant. */}
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: 'rgba(0,0,0,0.55)' }}>Creation fee</span>
+                  <span>${(Number(CREATION_FEE) / 1_000_000).toFixed(2)} USDC</span>
+                </div>
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    borderTop: '1px solid rgba(0,0,0,0.25)',
+                    paddingTop: 8,
+                  }}
+                >
+                  <span style={{ color: 'rgba(0,0,0,0.55)' }}>Total (stake + fee)</span>
+                  <span style={{ fontWeight: 700 }}>
+                    ${((Number(formValues.stake) + Number(CREATION_FEE)) / 1_000_000).toFixed(2)} USDC
                   </span>
                 </div>
               </div>

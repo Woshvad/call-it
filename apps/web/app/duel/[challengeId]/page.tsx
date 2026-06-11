@@ -33,18 +33,19 @@ import { useParams } from 'next/navigation';
 import { usePrivy } from '@privy-io/react-auth';
 import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
 import Link from 'next/link';
-import { CHALLENGE_ESCROW_ARBITRUM_SEPOLIA, USDC_ARB_NATIVE } from '@call-it/shared';
+import { ACTIVE_CHAIN_ID, CHALLENGE_ESCROW_ADDRESS, USDC_ADDRESS } from '@/lib/chain';
 import { ChallengeFormModal } from '@/app/components/ChallengeFormModal';
 import { DesktopOnlyBanner } from '@/app/components/DesktopOnlyBanner';
 import { useIsMobile } from '@/app/hooks/useIsMobile';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-/** ChallengeEscrow address — imported from @call-it/shared; never inline hex (T-3-06-05) */
-const CE_ADDR = CHALLENGE_ESCROW_ARBITRUM_SEPOLIA as `0x${string}`;
+/** ChallengeEscrow address — chain-selected via @/lib/chain; never inline hex (T-3-06-05) */
+const CE_ADDR = CHALLENGE_ESCROW_ADDRESS;
 
-/** USDC native on Arbitrum (canonical) */
-const USDC_ADDR = USDC_ARB_NATIVE as `0x${string}`; // IN-05: imported from @call-it/shared
+/** USDC token — chain-selected via @/lib/chain (RC1: was hardcoded MAINNET USDC).
+ *  IN-05: ultimately sourced from @call-it/shared constants — never inline hex. */
+const USDC_ADDR = USDC_ADDRESS;
 
 const RELAYER_URL = process.env['NEXT_PUBLIC_RELAYER_URL'] ?? '';
 
@@ -416,6 +417,7 @@ export default function DuelPage() {
 
   const { data: callerAllowanceData, refetch: refetchCallerAllowance } = useReadContract({
     address: USDC_ADDR,
+    chainId: ACTIVE_CHAIN_ID, // RC1: pin the read to the active chain
     abi: USDC_ABI,
     functionName: 'allowance',
     args: [userAddr, CE_ADDR],

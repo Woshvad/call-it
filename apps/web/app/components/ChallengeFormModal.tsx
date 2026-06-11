@@ -26,7 +26,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
-import { CHALLENGE_ESCROW_ARBITRUM_SEPOLIA, USDC_ARB_NATIVE } from '@call-it/shared';
+import { ACTIVE_CHAIN_ID, CHALLENGE_ESCROW_ADDRESS, USDC_ADDRESS } from '@/lib/chain';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -34,11 +34,13 @@ import { CHALLENGE_ESCROW_ARBITRUM_SEPOLIA, USDC_ARB_NATIVE } from '@call-it/sha
 export const CHALLENGE_MIN_STAKE_USDC = 5_000_000n; // $5
 export const CHALLENGE_MAX_STAKE_USDC = 100_000_000n; // $100
 
-/** ChallengeEscrow address — imported from @call-it/shared; never inline hex. */
-const CE_ADDR = CHALLENGE_ESCROW_ARBITRUM_SEPOLIA as `0x${string}`;
+/** ChallengeEscrow address — chain-selected via @/lib/chain; never inline hex. */
+const CE_ADDR = CHALLENGE_ESCROW_ADDRESS;
 
-/** USDC native on Arbitrum (canonical) */
-const USDC_ADDR = USDC_ARB_NATIVE as `0x${string}`; // IN-05: imported from @call-it/shared
+/** USDC token — chain-selected via @/lib/chain (RC1: was hardcoded MAINNET USDC,
+ *  which made the allowance/balance reads return 0 on Sepolia and wrongly block
+ *  challenges with "Insufficient USDC balance"). IN-05: sourced from @call-it/shared. */
+const USDC_ADDR = USDC_ADDRESS;
 
 // ─── Minimal ABIs ─────────────────────────────────────────────────────────────
 
@@ -193,6 +195,7 @@ export function ChallengeFormModal({
 
   const { data: allowanceData, refetch: refetchAllowance } = useReadContract({
     address: USDC_ADDR,
+    chainId: ACTIVE_CHAIN_ID, // RC1: pin the read to the active chain
     abi: USDC_ABI,
     functionName: 'allowance',
     args: [userAddr, CE_ADDR],
@@ -201,6 +204,7 @@ export function ChallengeFormModal({
 
   const { data: balanceData } = useReadContract({
     address: USDC_ADDR,
+    chainId: ACTIVE_CHAIN_ID, // RC1: pin the read to the active chain
     abi: USDC_ABI,
     functionName: 'balanceOf',
     args: [userAddr],

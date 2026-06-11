@@ -66,11 +66,12 @@ import {
   Stamp,
 } from '@call-it/ui';
 import {
-  FOLLOW_FADE_MARKET_ARBITRUM_SEPOLIA,
-  CHALLENGE_ESCROW_ARBITRUM_SEPOLIA,
-  SETTLEMENT_MANAGER_ARBITRUM_SEPOLIA,
-  USDC_ARB_NATIVE,
-} from '@call-it/shared';
+  ACTIVE_CHAIN_ID,
+  FOLLOW_FADE_MARKET_ADDRESS,
+  CHALLENGE_ESCROW_ADDRESS,
+  SETTLEMENT_MANAGER_ADDRESS,
+  USDC_ADDRESS,
+} from '@/lib/chain';
 import { getOutcomeWordResult, resolveSettledWord, SETTLED_NEUTRAL_WORD } from '@/lib/outcome-word';
 import { followFadeMarketAbi } from '@/lib/abis';
 import {
@@ -83,6 +84,9 @@ import {
 import { warpcastComposeUrl, twitterIntentUrl, buildShareText } from '@call-it/shared';
 import { ChallengeFormModal } from '@/app/components/ChallengeFormModal';
 import { useIsMobile } from '@/app/hooks/useIsMobile';
+// B5 (quick-260611-5mh): real wallet balance for the FollowFadeModal
+// insufficient-balance gate (Sepolia-correct after the RC1 chain sweep).
+import { useUsdcBalance } from '@/hooks/useUsdcBalance';
 // MiniAppReady (08-06, UAT 08 GAP 2): calls sdk.actions.ready() once after mount so the
 // Farcaster Mini App host dismisses the splash and reveals this receipt (no blank page).
 // Mounted on EVERY render branch below (loading / settled / live). Fail-safe outside a host.
@@ -206,17 +210,18 @@ const SM_ABI = [
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-/** FFM contract address — CONSTANT, never inlined */
-const FFM_ADDR = FOLLOW_FADE_MARKET_ARBITRUM_SEPOLIA as `0x${string}`;
+/** FFM contract address — chain-selected via @/lib/chain, never inlined */
+const FFM_ADDR = FOLLOW_FADE_MARKET_ADDRESS;
 
-/** ChallengeEscrow address — imported from @call-it/shared (T-3-06-05) */
-const CE_ADDR = CHALLENGE_ESCROW_ARBITRUM_SEPOLIA as `0x${string}`;
+/** ChallengeEscrow address — chain-selected via @/lib/chain (T-3-06-05) */
+const CE_ADDR = CHALLENGE_ESCROW_ADDRESS;
 
-/** SettlementManager address — imported from @call-it/shared (Phase 4) */
-const SM_ADDR = SETTLEMENT_MANAGER_ARBITRUM_SEPOLIA as `0x${string}`;
+/** SettlementManager address — chain-selected via @/lib/chain (Phase 4) */
+const SM_ADDR = SETTLEMENT_MANAGER_ADDRESS;
 
-/** USDC native on Arbitrum (canonical) */
-const USDC_ADDR = USDC_ARB_NATIVE as `0x${string}`; // IN-05: imported from @call-it/shared
+/** USDC token — chain-selected via @/lib/chain (RC1: was hardcoded MAINNET USDC).
+ *  IN-05: ultimately sourced from @call-it/shared constants — never inline hex. */
+const USDC_ADDR = USDC_ADDRESS;
 
 const RELAYER_URL = process.env['NEXT_PUBLIC_RELAYER_URL'] ?? '';
 
@@ -481,6 +486,7 @@ function DisputeModal({ open, onClose, callId, outcomeWord, smAddr, usdcAddr, re
   // USDC allowance check for $5 bond (SETTLE-26)
   const { data: allowanceData, refetch: refetchAllowance } = useReadContract({
     address: usdcAddr,
+    chainId: ACTIVE_CHAIN_ID, // RC1: pin the read to the active chain
     abi: USDC_ALLOWANCE_ABI,
     functionName: 'allowance',
     args: [userAddr, smAddr],
@@ -1140,16 +1146,18 @@ export default function CallPage() {
   // ─── useReadContracts — 8 reads at 5s refetchInterval (D-07) ───────────────
   const userAddr = userAddress ?? '0x0000000000000000000000000000000000000000';
 
+  // RC1: every contract entry pins chainId — unpinned useReadContracts defaults
+  // to the first chain in the wagmi config.
   const { data: contractData } = useReadContracts({
     contracts: [
-      { address: FFM_ADDR, abi: followFadeMarketAbi, functionName: 'followReserve', args: [callId] },
-      { address: FFM_ADDR, abi: followFadeMarketAbi, functionName: 'fadeReserve', args: [callId] },
-      { address: FFM_ADDR, abi: followFadeMarketAbi, functionName: 'followTotalShares', args: [callId] },
-      { address: FFM_ADDR, abi: followFadeMarketAbi, functionName: 'fadeTotalShares', args: [callId] },
-      { address: FFM_ADDR, abi: followFadeMarketAbi, functionName: 'followShares', args: [callId, userAddr] },
-      { address: FFM_ADDR, abi: followFadeMarketAbi, functionName: 'fadeShares', args: [callId, userAddr] },
-      { address: FFM_ADDR, abi: followFadeMarketAbi, functionName: 'followEntryTime', args: [callId, userAddr] },
-      { address: FFM_ADDR, abi: followFadeMarketAbi, functionName: 'fadeEntryTime', args: [callId, userAddr] },
+      { address: FFM_ADDR, chainId: ACTIVE_CHAIN_ID, abi: followFadeMarketAbi, functionName: 'followReserve', args: [callId] },
+      { address: FFM_ADDR, chainId: ACTIVE_CHAIN_ID, abi: followFadeMarketAbi, functionName: 'fadeReserve', args: [callId] },
+      { address: FFM_ADDR, chainId: ACTIVE_CHAIN_ID, abi: followFadeMarketAbi, functionName: 'followTotalShares', args: [callId] },
+      { address: FFM_ADDR, chainId: ACTIVE_CHAIN_ID, abi: followFadeMarketAbi, functionName: 'fadeTotalShares', args: [callId] },
+      { address: FFM_ADDR, chainId: ACTIVE_CHAIN_ID, abi: followFadeMarketAbi, functionName: 'followShares', args: [callId, userAddr] },
+      { address: FFM_ADDR, chainId: ACTIVE_CHAIN_ID, abi: followFadeMarketAbi, functionName: 'fadeShares', args: [callId, userAddr] },
+      { address: FFM_ADDR, chainId: ACTIVE_CHAIN_ID, abi: followFadeMarketAbi, functionName: 'followEntryTime', args: [callId, userAddr] },
+      { address: FFM_ADDR, chainId: ACTIVE_CHAIN_ID, abi: followFadeMarketAbi, functionName: 'fadeEntryTime', args: [callId, userAddr] },
     ],
     query: {
       refetchInterval: 5000,       // 5s poll — D-07
@@ -1170,6 +1178,14 @@ export default function CallPage() {
 
   // ─── Derived state ────────────────────────────────────────────────────────
   const nowSec = BigInt(Math.floor(Date.now() / 1000));
+
+  // B5: live USDC balance (6-decimal) for the FollowFadeModal balance gate
+  const { balance: usdcBalance } = useUsdcBalance();
+
+  // B6 (quick-260611-5mh): FOLLOW/FADE/CHALLENGE are gated on call liveness.
+  // callData.expiry is unix SECONDS (nowSec is too — no ms/s mismatch).
+  const isCallExpired = callData ? nowSec >= callData.expiry : false;
+  const isCallActionable = callData?.status === 'Live' && !isCallExpired;
 
   const isCallerExited = callData?.status === 'CallerExited';
   // Phase 4: settled/disputed branch
@@ -1299,6 +1315,7 @@ export default function CallPage() {
 
   const { data: ceAllowanceData, refetch: refetchCeAllowance } = useReadContract({
     address: USDC_ADDR,
+    chainId: ACTIVE_CHAIN_ID, // RC1: pin the read to the active chain
     abi: USDC_ALLOWANCE_ABI,
     functionName: 'allowance',
     args: [userAddr2, CE_ADDR],
@@ -2200,19 +2217,33 @@ export default function CallPage() {
               marginBottom: 24,
             }}
           >
-            {/* FOLLOW — cream press-physics CTA */}
+            {/* FOLLOW — cream press-physics CTA.
+                B6: handler guarded on isCallActionable (modal cannot open on an
+                expired/non-Live call), button also carries `disabled`. */}
             <button
-              onClick={() => { if (user) setIsFollowModalOpen(true); }}
+              onClick={() => { if (user && isCallActionable) setIsFollowModalOpen(true); }}
+              disabled={!isCallActionable}
               className="btn cream big"
-              style={{ flex: isMobile ? undefined : 1.2, width: isMobile ? '100%' : undefined }}
+              style={{
+                flex: isMobile ? undefined : 1.2,
+                width: isMobile ? '100%' : undefined,
+                cursor: isCallActionable ? undefined : 'not-allowed',
+                opacity: isCallActionable ? 1 : 0.5,
+              }}
             >
               ↗ FOLLOW THIS CALL
             </button>
-            {/* FADE — loss outline */}
+            {/* FADE — loss outline (B6 gate mirrors FOLLOW) */}
             <button
-              onClick={() => { if (user) setIsFadeModalOpen(true); }}
+              onClick={() => { if (user && isCallActionable) setIsFadeModalOpen(true); }}
+              disabled={!isCallActionable}
               className="btn fade big"
-              style={{ flex: isMobile ? undefined : 1, width: isMobile ? '100%' : undefined }}
+              style={{
+                flex: isMobile ? undefined : 1,
+                width: isMobile ? '100%' : undefined,
+                cursor: isCallActionable ? undefined : 'not-allowed',
+                opacity: isCallActionable ? 1 : 0.5,
+              }}
             >
               FADE · BET AGAINST
             </button>
@@ -2221,6 +2252,8 @@ export default function CallPage() {
               <button
                 onClick={() => {
                   if (!user) return;
+                  // B6: never open the challenge form on an expired/non-Live call
+                  if (!isCallActionable) return;
                   // T-3-06-02: prevent self-challenge from UI
                   if (userIsCaller) {
                     setChallengeToast({ text: "You can't challenge your own call.", isError: true });
@@ -2232,18 +2265,37 @@ export default function CallPage() {
                   }
                   setIsChallengeFormOpen(true);
                 }}
+                disabled={!isCallActionable}
                 className="btn duel big"
                 style={{
                   flex: isMobile ? undefined : 1,
                   width: isMobile ? '100%' : undefined,
-                  cursor: user ? 'pointer' : 'not-allowed',
-                  opacity: user ? 1 : 0.5,
+                  cursor: user && isCallActionable ? 'pointer' : 'not-allowed',
+                  opacity: user && isCallActionable ? 1 : 0.5,
                 }}
               >
                 ⚔ CHALLENGE {displayHandle}
               </button>
             )}
           </div>
+
+          {/* B6: inert reason text — rendered only when actions are gated */}
+          {!isCallActionable && (
+            <div
+              className="mono"
+              style={{
+                fontSize: 11,
+                color: 'var(--text-tertiary)',
+                letterSpacing: '0.04em',
+                marginTop: -12,
+                marginBottom: 24,
+              }}
+            >
+              {isCallExpired
+                ? 'call expired — awaiting settlement'
+                : 'call is no longer live — follow/fade/challenge closed'}
+            </div>
+          )}
 
           {/* REASONING — prototype quote treatment (.label-overline header) */}
           {displayReasoning && (
@@ -2603,6 +2655,7 @@ export default function CallPage() {
         followTotalShares={followTotalShares}
         fadeTotalShares={fadeTotalShares}
         userPosition={userFollowPosition}
+        userBalance={usdcBalance}
         onSubmit={handleFollow}
       />
 
@@ -2616,6 +2669,7 @@ export default function CallPage() {
         followTotalShares={followTotalShares}
         fadeTotalShares={fadeTotalShares}
         userPosition={userFadePosition}
+        userBalance={usdcBalance}
         onSubmit={handleFade}
       />
 

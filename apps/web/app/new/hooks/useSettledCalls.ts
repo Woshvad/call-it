@@ -2,10 +2,7 @@
 
 import { useReadContract } from 'wagmi';
 import { useAccount } from 'wagmi';
-import {
-  PROFILE_REGISTRY_ARBITRUM_SEPOLIA,
-  PROFILE_REGISTRY_ARBITRUM_ONE,
-} from '@call-it/shared';
+import { ACTIVE_CHAIN_ID, PROFILE_REGISTRY_ADDRESS } from '@/lib/chain';
 
 // ─── Minimal ProfileRegistry ABI for settledCalls view ───────────────────────
 
@@ -37,16 +34,14 @@ const profileRegistrySettledCallsAbi = [
 export function useSettledCalls(): { settledCalls: number; isLoading: boolean } {
   const { address } = useAccount();
 
-  // Use Sepolia for development; mainnet for production
-  const networkId = process.env['NEXT_PUBLIC_CHAIN_ID'] ?? 'sepolia';
-  const registryAddress = (
-    networkId === 'mainnet'
-      ? PROFILE_REGISTRY_ARBITRUM_ONE
-      : PROFILE_REGISTRY_ARBITRUM_SEPOLIA
-  ) as `0x${string}`;
+  // Chain-selected ProfileRegistry via @/lib/chain (RC1: previously compared
+  // NEXT_PUBLIC_CHAIN_ID against the string 'mainnet' — a numeric chain-id var —
+  // and carried no explicit chainId on the read).
+  const registryAddress = PROFILE_REGISTRY_ADDRESS;
 
   const { data, isLoading } = useReadContract({
     address: registryAddress,
+    chainId: ACTIVE_CHAIN_ID, // RC1: pin the read to the active chain
     abi: profileRegistrySettledCallsAbi,
     functionName: 'settledCalls',
     args: address ? [address] : undefined,

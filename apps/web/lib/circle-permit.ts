@@ -13,7 +13,7 @@
  *
  * Security (T-01-47, T-01-48):
  *   - CIRCLE_PAYMASTER_ADDRESS sourced from NEXT_PUBLIC_CIRCLE_PAYMASTER_ADDRESS env var
- *   - USDC address from USDC_ARB_NATIVE constant (no literal in this file)
+ *   - USDC address chain-selected via @/lib/chain (no literal in this file)
  *   - Per-tx nonce prevents permit replay (T-01-48)
  *   - 5-minute deadline window limits exposure window
  *
@@ -24,7 +24,7 @@
  * Requirements: AUTH-34, D-04, D-05, D-06, T-01-47, T-01-48
  */
 
-import { USDC_ARB_NATIVE } from '@call-it/shared';
+import { USDC_ADDRESS } from './chain';
 
 // ─── USDC EIP-712 Permit types ─────────────────────────────────────────────
 
@@ -178,8 +178,10 @@ export function getCirclePaymasterAddress(): `0x${string}` {
 }
 
 /**
- * Get the USDC address for Arbitrum (from @call-it/shared).
+ * Get the chain-selected USDC address (via @/lib/chain, sourced from
+ * @call-it/shared). RC1 (quick-260611-5mh): previously returned the hardcoded
+ * MAINNET USDC, which made permit verifyingContract wrong on Sepolia.
  */
 export function getUsdcAddress(): `0x${string}` {
-  return USDC_ARB_NATIVE as `0x${string}`;
+  return USDC_ADDRESS;
 }

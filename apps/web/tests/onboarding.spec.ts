@@ -12,7 +12,7 @@
  *   - Middleware exists and contains the resume/redirect logic (taglineCommittedAt check)
  *   - PrivyFundButton uses Privy's useFundWallet flow (funding provider swapped from
  *     the spec's D-34 Coinbase Onramp to Privy-native funding, 2026-05-29)
- *   - useUsdcBalance references USDC_ARB_NATIVE (not inline address)
+ *   - useUsdcBalance references the chain-selected USDC via @/lib/chain (not inline address)
  *
  * **Tier 2 — Browser E2E (requires real Privy app ID)**
  * Skipped unless NEXT_PUBLIC_PRIVY_APP_ID is a real Privy app ID.
@@ -125,10 +125,16 @@ test.describe('Tier 1: Onboarding source code assertions', () => {
     expect(source).toContain("status === 'completed'");
   });
 
-  test('T-01-39: useUsdcBalance references USDC_ARB_NATIVE from @call-it/shared', () => {
+  // quick-260611-5mh RC1 (D-15 honest update): the hook now sources the
+  // CHAIN-SELECTED USDC address + explicit chainId from @/lib/chain (which
+  // itself imports @call-it/shared constants). The old assertion pinned the
+  // hardcoded MAINNET token (USDC_ARB_NATIVE) — that was the $0.00-balance-chip
+  // bug on Sepolia. The no-inline-address invariant (T-01-39) is unchanged.
+  test('T-01-39: useUsdcBalance references chain-selected USDC via @/lib/chain', () => {
     const source = readFileSync(USDC_BALANCE_HOOK, 'utf-8');
-    expect(source).toContain('USDC_ARB_NATIVE');
-    expect(source).toContain('@call-it/shared');
+    expect(source).toContain('USDC_ADDRESS');
+    expect(source).toContain('ACTIVE_CHAIN_ID');
+    expect(source).toContain('@/lib/chain');
     // Must NOT contain inline USDC addresses
     expect(source).not.toMatch(/0xaf88d065/i);
     expect(source).not.toMatch(/0xFF970A61/i);

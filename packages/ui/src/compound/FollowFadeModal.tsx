@@ -58,6 +58,14 @@ export type FollowFadeModalProps = {
   /** User's current position on this side (6-decimal USDC, bigint) */
   userPosition: bigint;
   /**
+   * User's live USDC wallet balance (6-decimal, bigint). When provided, the
+   * confirm button is gated with "Insufficient USDC balance — you need $X.XX
+   * more" if the entered amount exceeds it (quick-260611-5mh B5, mirroring
+   * ChallengeFormModal). When undefined the gate is INACTIVE — degrade
+   * gracefully, never fake a zero balance (D-07).
+   */
+  userBalance?: bigint;
+  /**
    * Called to submit the follow/fade transaction.
    * Returns a promise — resolves on success, throws on contract error.
    * Throws with { name: 'SlippageExceeded', actualOut: bigint } on slippage revert.
@@ -71,9 +79,12 @@ function formatUsdc(amount: bigint): string {
   return dollars.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
-/** Format shares bigint (18 decimals) for display */
+/** Format shares bigint (18 decimals) for display.
+ *  B5 coherence: a tiny non-zero value renders "<0.0001" instead of rounding
+ *  down to "0.0000" (which contradicted the min-shares line next to it). */
 function formatShares(shares: bigint): string {
   const n = Number(shares) / 1e18;
+  if (n > 0 && n < 0.0001) return '<0.0001';
   return n.toLocaleString('en-US', { minimumFractionDigits: 4, maximumFractionDigits: 4 });
 }
 
@@ -87,6 +98,7 @@ export function FollowFadeModal({
   followTotalShares,
   fadeTotalShares,
   userPosition,
+  userBalance,
   onSubmit,
 }: FollowFadeModalProps) {
   const [amountUsd, setAmountUsd] = useState<string>('10');
@@ -140,15 +152,28 @@ export function FollowFadeModal({
   const minSharesOut = amountInUsdc > 0n
     ? computeMinSharesOutWithSlippage(totalShares, reserve, amountInUsdc)
     : 0n;
+  // B5 coherence: both lines derive from the SAME computation — the displayed
+  // min can never exceed the displayed expected (clamp guards display only;
+  // the submitted minSharesOut is mathematically <= expectedShares already).
+  const displayedMinShares = minSharesOut > expectedShares ? expectedShares : minSharesOut;
 
   // Validation
   const amountTooLow = amountInUsdc > 0n && amountInUsdc < MIN_POSITION;
   const amountTooHigh = amountInUsdc > remainingHeadroom;
+  // B5 (quick-260611-5mh): insufficient-balance gate — only active when the
+  // parent supplies a real balance (undefined = inactive, D-07 degrade).
+  const insufficientBalance =
+    userBalance !== undefined && amountInUsdc > 0n && amountInUsdc > userBalance;
+  const balanceDeficit = insufficientBalance ? amountInUsdc - (userBalance ?? 0n) : 0n;
   // WR-02: while awaiting fresh reserves after a slippage revert, the submit
   // (Retry) button is non-interactive via the existing !isValid path (reuses the
   // disabled / not-allowed styling — no new colors/props).
   const isValid =
-    amountInUsdc >= MIN_POSITION && !amountTooHigh && !isSubmitting && !awaitingFreshReserves;
+    amountInUsdc >= MIN_POSITION &&
+    !amountTooHigh &&
+    !insufficientBalance &&
+    !isSubmitting &&
+    !awaitingFreshReserves;
 
   const handleSubmit = useCallback(async () => {
     if (!isValid) return;
@@ -366,6 +391,11 @@ export function FollowFadeModal({
                 Max remaining headroom: ${formatUsdc(remainingHeadroom)} (cumulative $100 cap)
               </span>
             )}
+            {insufficientBalance && (
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', color: '#DC2626' }}>
+                Insufficient USDC balance — you need ${formatUsdc(balanceDeficit)} more
+              </span>
+            )}
           </div>
 
           {/* Expected shares preview */}
@@ -394,7 +424,7 @@ export function FollowFadeModal({
                   Min shares (1% slippage)
                 </span>
                 <span style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'rgba(0,0,0,0.6)' }}>
-                  {formatShares(minSharesOut)}
+                  {formatShares(displayedMinShares)}
                 </span>
               </div>
             </div>

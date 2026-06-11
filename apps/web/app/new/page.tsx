@@ -6,7 +6,8 @@ import { useSearchParams } from 'next/navigation';
 import { useState, useCallback, type CSSProperties } from 'react';
 import { usePrivy } from '@privy-io/react-auth';
 import type { CreateCallInput, MarketType } from '@call-it/shared';
-import { createCallSchema, MIN_STAKE } from '@call-it/shared';
+import { createCallSchema, MIN_STAKE, CREATION_FEE } from '@call-it/shared';
+import { formatTargetForDisplay } from './lib/target-scale';
 import { Receipt, Button } from '@call-it/ui';
 import { MarketTypeSwitcher } from './components/MarketTypeSwitcher';
 import { PriceTargetFields } from './components/PriceTargetFields';
@@ -83,6 +84,11 @@ function StakeField({
       <div className="mono" style={{ fontSize: 11, color: 'var(--text-tertiary)', letterSpacing: '0.02em' }}>
         $5 minimum · $100 maximum during launch
       </div>
+      {/* B7 (quick-260611-5mh): persistent creation-fee disclosure near the
+          stake input — fee value derived from the shared CREATION_FEE constant. */}
+      <div className="mono" style={{ fontSize: 11, color: 'var(--text-tertiary)', letterSpacing: '0.02em' }}>
+        + ${(Number(CREATION_FEE) / 1_000_000).toFixed(2)} creation fee at publish
+      </div>
       {error && (
         <div className="mono" style={{ fontSize: 11, color: 'var(--accent-loss)' }}>
           {String(error.message)}
@@ -130,7 +136,9 @@ export default function NewCallPage() {
       category: 'majors',
       assetA: '',
       assetB: undefined,
-      targetValue: 1n,
+      // RC3: NO numeric prefill — empty required input with placeholder.
+      // The old `1n` default rendered "0.000001" in the target field.
+      targetValue: undefined,
       expiry: BigInt(Math.floor(Date.now() / 1000) + 86400 * 7),
       stake: MIN_STAKE,
       conviction: 50,
@@ -182,10 +190,13 @@ export default function NewCallPage() {
   }, [form, publish, isQuoteMode, quoteId]);
 
   // Build the live preview market line (shared by the right-rail Receipt + thread preview).
+  // RC3: target renders at the canonical 1e8 scale (raw for event milestones).
   const previewMarketLine = `${formValues.assetA || 'Asset'} ${
     formValues.marketType === 'spreadVs' ? 'vs' : '>='
   } ${
-    formValues.targetValue ? (Number(formValues.targetValue) / 1_000_000).toLocaleString() : '?'
+    formValues.targetValue
+      ? formatTargetForDisplay(formValues.marketType, formValues.targetValue)
+      : '?'
   }`;
 
   // Two-column desktop / single-column mobile (Phase 9 carry-over, flexbox only)

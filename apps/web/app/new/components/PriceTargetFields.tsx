@@ -2,6 +2,7 @@
 
 import { Controller, type Control, type FieldErrors } from 'react-hook-form';
 import type { CreateCallInput } from '@call-it/shared';
+import { usdToTargetValue, targetValueToUsd } from '../lib/target-scale';
 
 interface PriceTargetFieldsProps {
   control: Control<CreateCallInput>;
@@ -53,13 +54,15 @@ export function PriceTargetFields({ control, errors }: PriceTargetFieldsProps) {
           render={({ field }) => (
             <input
               type="number"
-              value={field.value ? (Number(field.value) / 1_000_000).toString() : ''}
+              // RC3: canonical 1e8 target scale (SettlementManager.sol:714 —
+              // Pyth 8-decimal form). Was ÷1e6/×1e6, which made a $4,200 entry
+              // create a $42.00 on-chain target.
+              value={field.value ? targetValueToUsd(field.value).toString() : ''}
               onChange={(e) => {
                 const usd = parseFloat(e.target.value);
-                if (!isNaN(usd)) {
-                  // Convert USD to 6 decimal USDC-like units for storage
-                  field.onChange(BigInt(Math.round(usd * 1_000_000)));
-                }
+                // Empty/invalid input clears the field back to "required"
+                // (no stale value, no numeric prefill).
+                field.onChange(usdToTargetValue(usd));
               }}
               onBlur={field.onBlur}
               placeholder="e.g. 80000 (for $80k)"

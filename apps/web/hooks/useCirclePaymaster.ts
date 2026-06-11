@@ -30,13 +30,12 @@
 import { useCallback } from 'react';
 import { useAccount, useReadContract, useSignTypedData } from 'wagmi';
 import { erc20Abi } from 'viem';
-import { arbitrum } from 'viem/chains';
+import { ACTIVE_CHAIN_ID, USDC_ADDRESS } from '@/lib/chain';
 import {
   buildEip2612PermitTypedData,
   encodePermitForCirclePaymaster,
   getPermitDeadline,
   getCirclePaymasterAddress,
-  getUsdcAddress,
 } from '../lib/circle-permit';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -71,7 +70,9 @@ export function useCirclePaymaster(): UseCirclePaymasterReturn {
   const { address } = useAccount();
   const { signTypedDataAsync } = useSignTypedData();
 
-  const usdcAddress = getUsdcAddress();
+  // RC1: chain-selected USDC (was getUsdcAddress() → hardcoded MAINNET USDC,
+  // which made the nonce read AND the permit verifyingContract wrong on Sepolia)
+  const usdcAddress = USDC_ADDRESS;
   const paymasterAddress = getCirclePaymasterAddress();
   const isConfigured = paymasterAddress !== '0x0000000000000000000000000000000000000000';
 
@@ -79,6 +80,7 @@ export function useCirclePaymaster(): UseCirclePaymasterReturn {
   // This is fetched fresh each time buildPaymasterAndData is called (not cached)
   const { refetch: refetchNonce } = useReadContract({
     address: usdcAddress,
+    chainId: ACTIVE_CHAIN_ID, // RC1: pin the read to the active chain
     abi: erc20Abi,
     functionName: 'nonces' as never,  // USDC has nonces() for EIP-2612
     args: address ? [address] : undefined,
@@ -105,7 +107,10 @@ export function useCirclePaymaster(): UseCirclePaymasterReturn {
         value: gasInUsdc,
         nonce,
         deadline,
-        chainId: arbitrum.id,
+        // LATENT PERMIT-SIGNATURE BUG fix (quick-260611-5mh): the EIP-712 domain
+        // chainId was hardcoded to arbitrum.id (42161) — on Sepolia that produced
+        // a permit signature the on-chain USDC would reject. Use the active chain.
+        chainId: ACTIVE_CHAIN_ID,
         usdcAddress,
       });
 
