@@ -30,7 +30,7 @@
 
 // CRITICAL: import from '@privy-io/wagmi', NOT from 'wagmi'
 import { createConfig } from '@privy-io/wagmi';
-import { http } from 'viem';
+import { fallback, http } from 'viem';
 import { arbitrum, arbitrumSepolia } from 'viem/chains';
 
 /**
@@ -46,7 +46,17 @@ export const wagmiConfig = createConfig({
   // Sepolia FIRST: the first chain is wagmi's default for unpinned hooks (RC1).
   chains: [arbitrumSepolia, arbitrum],
   transports: {
-    [arbitrum.id]: http(process.env['NEXT_PUBLIC_ARBITRUM_RPC_URL']!),
-    [arbitrumSepolia.id]: http(process.env['NEXT_PUBLIC_ARBITRUM_SEPOLIA_RPC_URL']!),
+    // fallback(): when the configured RPC dies (e.g. the Alchemy key's monthly
+    // capacity 429s — live failure 2026-06-11), viem fails over to the chain's
+    // default public endpoint instead of surfacing "HTTP request failed".
+    // http() with no URL = the viem chain object's default public RPC.
+    [arbitrum.id]: fallback([
+      http(process.env['NEXT_PUBLIC_ARBITRUM_RPC_URL']),
+      http(),
+    ]),
+    [arbitrumSepolia.id]: fallback([
+      http(process.env['NEXT_PUBLIC_ARBITRUM_SEPOLIA_RPC_URL']),
+      http(),
+    ]),
   },
 });

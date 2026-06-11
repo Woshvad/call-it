@@ -36,7 +36,7 @@ export const runtime = 'nodejs';
 import { type NextRequest } from 'next/server';
 import { createElement as h, type ReactElement } from 'react';
 import { ImageResponse } from '@vercel/og';
-import { createPublicClient, http } from 'viem';
+import { createPublicClient, fallback, http } from 'viem';
 import { arbitrumSepolia } from 'viem/chains';
 import { renderFallback } from '@/lib/og-fallback-render';
 import { resolveOgFooterHost } from '@/lib/og-host';
@@ -116,7 +116,9 @@ const profileRegistryAbi = [
 // All CE reads against the zero address will revert → caught by try/catch → renderFallback.
 const publicClient = createPublicClient({
   chain: arbitrumSepolia,
-  transport: http(process.env['ARBITRUM_SEPOLIA_RPC_URL'] ?? 'https://sepolia-rollup.arbitrum.io/rpc'),
+  // fallback(): the configured key can die mid-month (Alchemy capacity 429,
+  // live 2026-06-11) — fail over to the chain's default public RPC.
+  transport: fallback([http(process.env['ARBITRUM_SEPOLIA_RPC_URL']), http()]),
 });
 
 // ── Zero address constant ───────────────────────────────────────────────────────
