@@ -84,6 +84,17 @@ describe('wallet popover — AUTH-44 pill-face contract', () => {
   });
 });
 
+describe('wallet popover — face is balance-only', () => {
+  it('the pill face renders no handle — it lives in the panel headline (user decision 2026-06-11)', () => {
+    const src = pill();
+    const gateIdx = src.search(/open && profileAddr &&/);
+    // No handle interpolation in the face region (before the gated panel)…
+    expect(src.slice(0, gateIdx)).not.toMatch(/\{handle\}/);
+    // …while the panel headline still renders it.
+    expect(src.slice(gateIdx)).toContain('@{handle}');
+  });
+});
+
 describe('wallet popover — handle casing', () => {
   it('handles render AS STORED — no uppercase transform', () => {
     const src = pill();

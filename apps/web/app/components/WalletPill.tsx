@@ -1,11 +1,11 @@
 'use client';
 /**
- * WalletPill — the header balance pill ("2,840.21 USDC · handle") extracted
- * from AppShell, now a click-anchored wallet popover (quick-260611-scj).
+ * WalletPill — the header balance pill ("2,840.21 USDC") extracted from
+ * AppShell, now a click-anchored wallet popover (quick-260611-scj).
  *
- * Pill FACE (AUTH-44): handle + balance ONLY — never an address. When the
- * relayer's handle source is 'truncated' (a shortened wallet address), the
- * face shows the balance alone. The address NEVER exists in the DOM while
+ * Pill FACE: balance ONLY — the handle lives in the popover headline, not
+ * on the face (user decision 2026-06-11: face must stay narrow on mobile),
+ * and never an address (AUTH-44). The address NEVER exists in the DOM while
  * the popover is closed.
  *
  * Popover (user decision 2026-06-11): clicking the pill opens an anchored
@@ -105,7 +105,6 @@ export function WalletPill() {
           {balance}
           <span className="ccy">USDC</span>
         </span>
-        {handle && <span className="handle">{handle}</span>}
       </button>
 
       {/* AUTH-44 pill-face contract: the address exists in the DOM ONLY

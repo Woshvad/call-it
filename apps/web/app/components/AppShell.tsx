@@ -24,7 +24,9 @@
  * Late-hydration (wiring-risk #4): static chrome renders unconditionally;
  * ONLY auth-dependent slots (wallet pill, bell, rep card) gate on Privy.
  *
- * AUTH-44: the wallet pill renders handle + balance ONLY — never an address.
+ * Wallet pill face + popover live in WalletPill.tsx (balance-only face,
+ * AUTH-44). Brand tagline is desktop-only — on mobile it crowded the wallet
+ * pill out of the viewport (user report 2026-06-11).
  */
 
 import { useState } from 'react';
@@ -82,8 +84,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             style={{ color: 'inherit', textDecoration: 'none' }}
           >
             <span>CALL IT</span>
-            <span className="slash">·</span>
-            <span className="tagline">be right in public</span>
+            {/* Tagline is desktop-only: on <768px it pushed the wallet pill
+                past the viewport edge (user report 2026-06-11). */}
+            {!isMobile && (
+              <>
+                <span className="slash">·</span>
+                <span className="tagline">be right in public</span>
+              </>
+            )}
           </Link>
         </div>
 
