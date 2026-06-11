@@ -1823,6 +1823,9 @@ export default function CallPage() {
     // C3: profile-resolved handle preferred; rep renders ONLY from the real
     // profile fetch (live-state repScore is a hardcoded 0 — D-07 hides it).
     const handle = callerProfile?.handle ?? callData?.handle ?? `#${callIdNum}`;
+    // quick-260611-h44 locked decision 3 (D-07/AUTH-44): the '#N' fallback is
+    // never rendered AS identity — avatar/name gate on a REAL resolved handle.
+    const handleResolved = Boolean(callerProfile?.handle ?? callData?.handle);
     const marketLine = callData?.marketLine || 'Open Call';
     const conviction = callData?.conviction ?? 50;
     const settledAt = callData?.settledAt;
@@ -1972,34 +1975,62 @@ export default function CallPage() {
           {/* Top row: square grad avatar + handle + rep · share controls */}
           <div className="spread" style={{ marginBottom: 28, alignItems: 'flex-start', flexWrap: 'wrap', gap: 14 }}>
             <div className="row" style={{ gap: 14 }}>
-              <span className={`avatar lg ${avatarGradClass(handle)}`} aria-hidden="true">
-                {avatarInitial(handle)}
-              </span>
-              <div className="col" style={{ gap: 6 }}>
-                {/* handle only — AUTH-44: NEVER wallet address */}
-                <span style={{ fontFamily: 'var(--font-display)', fontSize: 20, fontWeight: 900, letterSpacing: '-0.02em' }}>
-                  {handle}
+              {handleResolved ? (
+                <span className={`avatar lg ${avatarGradClass(handle)}`} aria-hidden="true">
+                  {avatarInitial(handle)}
                 </span>
+              ) : (
+                /* D-07: a grad identity seeded by '#N' is fabricated — neutral avatar */
+                <span
+                  className="avatar lg"
+                  aria-hidden="true"
+                  style={{ background: 'var(--bg-tertiary)', color: 'var(--text-tertiary)' }}
+                >
+                  ?
+                </span>
+              )}
+              <div className="col" style={{ gap: 6 }}>
+                {/* handle only — AUTH-44: NEVER wallet address; '#N' fallback is
+                    never styled as identity (locked decision 3) */}
+                {handleResolved ? (
+                  <span style={{ fontFamily: 'var(--font-display)', fontSize: 20, fontWeight: 900, letterSpacing: '-0.02em' }}>
+                    {handle}
+                  </span>
+                ) : (
+                  <span className="mono" style={{ fontSize: 13, color: 'var(--text-tertiary)' }}>
+                    caller unresolved
+                  </span>
+                )}
                 {/* C3/D-07: rep only from the REAL profile fetch — never the
-                    hardcoded live-state 0 */}
+                    hardcoded live-state 0. Locked decision 1: accent-win ONLY
+                    when rep > 0; zero and negative both render muted. */}
                 {callerProfile && (
-                  <span className="mono" style={{ fontSize: 11, color: 'var(--accent-win)' }}>
+                  <span
+                    className="mono"
+                    style={{
+                      fontSize: 11,
+                      color: callerProfile.globalRep > 0 ? 'var(--accent-win)' : 'var(--text-secondary)',
+                    }}
+                  >
                     {callerProfile.globalRep} rep
                   </span>
                 )}
               </div>
             </div>
 
-            {/* SHARE row — existing working wiring kept (D-09): twitter web
-                intent + SHARE AS FRAME warpcast compose intent. Controls are
-                OMITTED (never dead) when no real share URL exists. */}
+            {/* SHARE controls — existing working wiring kept (D-09): primary
+                cream twitter web intent on top; the warpcast frame intent is
+                DEMOTED to a small mono text link below it (locked decision 4 —
+                the two actions are not equivalent). Controls are OMITTED
+                (never dead) when no real share URL exists. */}
             <div
               data-receipt-action-row
               style={{
                 display: 'flex',
-                flexDirection: isMobile ? 'column' : 'row',
+                flexDirection: 'column',
                 gap: 12,
                 width: isMobile ? '100%' : undefined,
+                alignItems: isMobile ? 'stretch' : 'flex-end',
               }}
             >
               {shareOnXUrl && (
@@ -2014,14 +2045,24 @@ export default function CallPage() {
                 </a>
               )}
               {shareAsFrameUrl && (
+                /* rel kept — reverse-tabnabbing guard (T-h44-01). minHeight 44 +
+                   mobile full width keep the touch-target + action-row specs green. */
                 <a
                   href={shareAsFrameUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="btn outline-white"
-                  style={{ width: isMobile ? '100%' : undefined, textDecoration: 'none' }}
+                  className="mono receipt-frame-link"
+                  style={{
+                    fontSize: 11.5,
+                    color: 'var(--text-secondary)',
+                    textDecoration: 'none',
+                    minHeight: 44,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    width: isMobile ? '100%' : undefined,
+                  }}
                 >
-                  SHARE AS FRAME →
+                  or share as a Farcaster frame ↗
                 </a>
               )}
             </div>
@@ -2036,6 +2077,18 @@ export default function CallPage() {
               </div>
               <p className="mono" style={{ fontSize: 13, color: 'var(--text-secondary)', margin: '12px 0 0' }}>
                 This settlement is under dispute review. The outcome may change.
+              </p>
+            </div>
+          ) : isNeutralOutcome ? (
+            /* quick-260611-h44 locked decision 2: an UNCONFIRMED outcome never
+               gets the giant stamp — small dispute-pattern heading + explainer
+               (D-07 honesty). data-outcome-word stays as the Playwright hook. */
+            <div data-outcome-word={outcomeWord} style={{ textAlign: 'center', padding: '28px 0 24px' }}>
+              <div className="h-2" style={{ color: outcomeStyle.hex, textTransform: 'uppercase' }}>
+                Pending result
+              </div>
+              <p className="mono" style={{ fontSize: 13, color: 'var(--text-secondary)', margin: '12px 0 0' }}>
+                Settlement recorded — the final outcome hasn&apos;t been confirmed yet. Check back shortly.
               </p>
             </div>
           ) : (
@@ -2077,20 +2130,48 @@ export default function CallPage() {
           {/* 4-stat row (.stat-block) — each stat hides when its field is absent
               (D-07); wraps 2-up below 768px (UI-48) */}
           <div className="row" style={{ gap: 14, marginBottom: 28, alignItems: 'stretch', flexWrap: isMobile ? 'wrap' : 'nowrap' }}>
+            {/* quick-260611-h44 locked decision 1: zero is NEUTRAL — never a
+                win-styled '+$0.00'. Three-way color/sign on the REAL values. */}
             {callerPnl !== undefined && (
               <div className="stat-block" style={{ flex: isMobile ? '1 1 45%' : 1 }}>
                 <div className="stat-label">P&L</div>
-                <div className="stat-value" style={{ color: callerPnl >= 0n ? 'var(--accent-win)' : 'var(--accent-loss)' }}>
-                  {callerPnl >= 0n ? `+${formatUsdc(callerPnl)}` : `-${formatUsdc(-callerPnl)}`}
+                <div
+                  className="stat-value"
+                  style={{
+                    color:
+                      callerPnl === 0n
+                        ? 'var(--text-secondary)'
+                        : callerPnl > 0n
+                          ? 'var(--accent-win)'
+                          : 'var(--accent-loss)',
+                  }}
+                >
+                  {callerPnl === 0n
+                    ? formatUsdc(0n)
+                    : callerPnl > 0n
+                      ? `+${formatUsdc(callerPnl)}`
+                      : `-${formatUsdc(-callerPnl)}`}
                 </div>
               </div>
             )}
             {repDelta !== undefined && (
               <div className="stat-block" style={{ flex: isMobile ? '1 1 45%' : 1 }}>
                 <div className="stat-label">Rep Δ</div>
-                {/* UI-45 count-up rides the existing displayedRepDelta animation state */}
-                <div className="stat-value" style={{ color: repDelta >= 0 ? 'var(--accent-win)' : 'var(--accent-loss)' }}>
-                  {displayedRepDelta >= 0 ? '+' : ''}
+                {/* UI-45 count-up rides the existing displayedRepDelta animation
+                    state; color + sign key off the REAL repDelta (zero = muted,
+                    no '+'; negative displayedRepDelta carries its own minus). */}
+                <div
+                  className="stat-value"
+                  style={{
+                    color:
+                      repDelta === 0
+                        ? 'var(--text-secondary)'
+                        : repDelta > 0
+                          ? 'var(--accent-win)'
+                          : 'var(--accent-loss)',
+                  }}
+                >
+                  {repDelta > 0 ? '+' : ''}
                   {displayedRepDelta}
                 </div>
               </div>

@@ -531,6 +531,10 @@ textarea::placeholder {
 }
 .btn.outline-white:hover { background: rgba(255,255,255,0.04); }
 
+/* quick-260611-h44: demoted SHARE AS FRAME mono text link on the settled
+   receipt — inline styles cannot express :hover, so the underline lives here */
+.receipt-frame-link:hover { text-decoration: underline; }
+
 .btn.fade {
   background: transparent;
   color: var(--accent-loss);
