@@ -55,6 +55,16 @@ const RELAYER_BASE = (process.env['NEXT_PUBLIC_RELAYER_BASE_URL'] ?? '').replace
 const EMPTY: SectionResponse = { items: [], source: 'empty' };
 
 /**
+ * X follow-graph availability gate. The relayer's "From your X" cross-reference
+ * needs the PAID X API tier (follows.read scope via X_API_BEARER_TOKEN), which
+ * is not provisioned — the endpoint always degrades to empty. Until the operator
+ * lands the key on the relayer (apps/relayer/src/lib/x-api-client.ts), the X
+ * section renders a COMING SOON state and skips the pointless fetch. Flip to
+ * true when the key is live. The Farcaster section is independent of this gate.
+ */
+const X_FOLLOW_GRAPH_LIVE = false;
+
+/**
  * Fetch a feed section with the Privy bearer token. Always resolves (never throws);
  * a missing base URL / token / non-200 / network error degrades to an empty section
  * so the main feed is never blocked (Pitfall 5).
@@ -121,12 +131,15 @@ function NetworkSection({
   data,
   collapsed,
   onToggle,
+  comingSoon = false,
 }: {
   title: string;
   platform: FollowGraphPlatform;
   data: SectionResponse;
   collapsed: boolean;
   onToggle: () => void;
+  /** Renders a COMING SOON body instead of items/empty copy (X — paid API tier pending). */
+  comingSoon?: boolean;
 }) {
   // REAL caller count from the fetched items (unique handles) — never faked (D-07).
   const callerCount = new Set(data.items.map((i) => i.handle)).size;
@@ -172,7 +185,29 @@ function NetworkSection({
       {/* Body */}
       {!collapsed && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {data.items.length === 0 ? (
+          {comingSoon ? (
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 8,
+                flexWrap: 'wrap',
+                border: '2px solid var(--border-active)',
+                background: 'var(--bg-secondary)',
+                padding: '10px 12px',
+              }}
+            >
+              <span className="pill warn">COMING SOON</span>
+              <span
+                className="mono"
+                style={{ fontSize: 12, color: 'var(--text-tertiary)', lineHeight: 1.4 }}
+              >
+                Calls from people you follow on X will appear here. Follow-graph sync is in the
+                works.
+              </span>
+            </div>
+          ) : data.items.length === 0 ? (
             <span
               className="mono"
               style={{
@@ -218,7 +253,7 @@ export function FromYourNetworkSections() {
     if (!ready || !authenticated || (!showX && !showFc)) return;
     const token = await getAccessToken().catch(() => null);
     if (!token) return;
-    if (showX) void fetchSection('/api/feed/from-your-x', token).then(setXData);
+    if (showX && X_FOLLOW_GRAPH_LIVE) void fetchSection('/api/feed/from-your-x', token).then(setXData);
     if (showFc) void fetchSection('/api/feed/from-your-farcaster', token).then(setFcData);
   }, [ready, authenticated, showX, showFc, getAccessToken]);
 
@@ -239,6 +274,7 @@ export function FromYourNetworkSections() {
           data={xData}
           collapsed={xCollapsed}
           onToggle={() => setXCollapsed((c) => !c)}
+          comingSoon={!X_FOLLOW_GRAPH_LIVE}
         />
       )}
       {showFc && (
