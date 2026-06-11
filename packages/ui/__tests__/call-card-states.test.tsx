@@ -64,6 +64,20 @@ describe('CallCard settlement states (C2)', () => {
     expect(screen.queryByText('LIVE')).not.toBeInTheDocument();
   });
 
+  it('missing conviction hides the CONVICTION row entirely (D-07 — never fake 50%)', () => {
+    const { conviction: _omitted, ...callWithoutConviction } = baseCall;
+    render(
+      <CallCard
+        call={{
+          ...callWithoutConviction,
+          status: 'live',
+          deadline: new Date(Date.now() + 86_400_000),
+        }}
+      />,
+    );
+    expect(screen.queryByText(/CONVICTION/)).not.toBeInTheDocument();
+  });
+
   it('avatar initial of a truncated-address handle skips the 0x prefix (C11)', () => {
     render(
       <CallCard

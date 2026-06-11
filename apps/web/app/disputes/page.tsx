@@ -612,10 +612,12 @@ export default function DisputesPage() {
           )}
         </div>
 
-        {/* Loading state */}
+        {/* Loading state — hard-edge skeleton blocks (F-B8, duel-page recipe) */}
         {isLoading && disputes.length === 0 && (
-          <div style={{ fontFamily: 'var(--font-mono)', fontSize: '14px', color: 'var(--text-tertiary)', padding: '32px 0' }}>
-            Loading disputes…
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <div style={{ height: 24, background: 'var(--bg-tertiary)', width: 200 }} />
+            <div style={{ height: 120, background: 'var(--bg-secondary)', border: '1px solid var(--border-subtle)' }} />
+            <div style={{ height: 120, background: 'var(--bg-secondary)', border: '1px solid var(--border-subtle)' }} />
           </div>
         )}
       </div>

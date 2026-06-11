@@ -156,7 +156,7 @@ export default function DuelsPage() {
             NO DUELS YET
           </span>
           <span style={{ color: 'var(--text-secondary)', fontSize: 14 }}>
-            Challenge a call to start one.
+            Open any call and hit CHALLENGE to start a 1v1.
           </span>
           <Link href="/" className="btn cream" style={{ textDecoration: 'none' }}>
             BACK TO THE TAPE

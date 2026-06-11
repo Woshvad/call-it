@@ -569,7 +569,9 @@ export default function DuelPage() {
   const callId = liveState?.callId ?? 0n;
 
   // We rely on the relayer live-state (included in the deferred response or live data)
-  // Fallback to 50/50 when data unavailable (per UI-SPEC stale contract)
+  // D-07 honest-degradation contract: when reserves are missing or zero, the consensus
+  // bar is HIDDEN and the "CONSENSUS DATA UNAVAILABLE" notice renders instead.
+  // Never fabricate an even split — a fake 50/50 misrepresents market state.
   const followReserveFromState = 0n; // placeholder — will come from relayer
   const fadeReserveFromState = 0n;
 
@@ -587,8 +589,8 @@ export default function DuelPage() {
       : fadeReserveFromState;
 
   const total = followReserve + fadeReserve;
-  const callerPct = total === 0n ? 50 : Number((followReserve * 100n) / total);
-  const challengerPct = 100 - callerPct;
+  const callerPct = total > 0n ? Number((followReserve * 100n) / total) : null;
+  const challengerPct = callerPct !== null ? 100 - callerPct : null;
 
   // ─── Loading skeleton (token recipes) ───────────────────────────────────────
   if (loading && !liveState) {
@@ -1034,7 +1036,7 @@ export default function DuelPage() {
             )}
           </div>
 
-          {total > 0n ? (
+          {callerPct !== null && challengerPct !== null ? (
             <>
               <div className="spread" style={{ marginBottom: 10, alignItems: 'baseline', flexWrap: 'wrap', gap: 8 }}>
                 <div className="row" style={{ gap: 10, alignItems: 'baseline' }}>
@@ -1062,8 +1064,8 @@ export default function DuelPage() {
               </div>
             </>
           ) : (
-            <div className="mono" style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>
-              consensus data unavailable
+            <div className="mono" style={{ fontSize: 11, color: 'var(--text-tertiary)', letterSpacing: '0.08em' }}>
+              CONSENSUS DATA UNAVAILABLE
             </div>
           )}
         </div>

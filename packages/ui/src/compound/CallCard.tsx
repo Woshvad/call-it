@@ -10,7 +10,9 @@
  * D-07 (honest degradation): this card renders ONLY the fields its props
  * contract provides. No pool dollars, no position counts, no caller
  * rep/accuracy/streak, no editorial flag fields, no tx/block footer — those
- * have no live data source and are HIDDEN, never faked.
+ * have no live data source and are HIDDEN, never faked. Conviction is
+ * optional and degrades-to-hidden: a missing value hides the entire
+ * CONVICTION row item rather than fabricating a default.
  *
  * D-06: the card itself carries no stake toggles. Its only affordance is the
  * optional `onClick` (consumers navigate to the call page, where the real
@@ -27,7 +29,7 @@ import { VerifiedBadge } from '../primitives/VerifiedBadge';
 export type CallCardData = {
   handle: string;
   marketLine: string;
-  conviction: number;
+  conviction?: number;
   deadline: Date;
   stake: number | bigint;
   status?: 'live' | 'settled' | 'preview';
@@ -211,11 +213,13 @@ export function CallCard({ call, className, onClick }: CallCardProps) {
           )}
         </span>
 
-        {/* Conviction — JBM overline, accent number */}
-        <span className="font-mono text-[11px] font-semibold uppercase tracking-[0.06em] text-[var(--text-tertiary)] whitespace-nowrap">
-          CONVICTION ·{' '}
-          <span className="text-[var(--accent-win)]">{call.conviction}%</span>
-        </span>
+        {/* Conviction — JBM overline, accent number. D-07: hidden when absent, never faked. */}
+        {typeof call.conviction === 'number' && (
+          <span className="font-mono text-[11px] font-semibold uppercase tracking-[0.06em] text-[var(--text-tertiary)] whitespace-nowrap">
+            CONVICTION ·{' '}
+            <span className="text-[var(--accent-win)]">{call.conviction}%</span>
+          </span>
+        )}
       </div>
     </div>
   );

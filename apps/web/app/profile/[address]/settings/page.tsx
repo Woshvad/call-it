@@ -162,7 +162,7 @@ export default function ProfileSettingsPage({ params }: SettingsPageProps) {
             <button
               className="btn cream"
               onClick={handleSetDisplayHandle}
-              disabled={isPending()}
+              disabled={isWritingHandle}
               style={{
                 cursor: isWritingHandle ? 'not-allowed' : 'pointer',
                 opacity: isWritingHandle ? 0.6 : 1,
@@ -228,8 +228,4 @@ export default function ProfileSettingsPage({ params }: SettingsPageProps) {
       </div>
     </main>
   );
-
-  function isPending() {
-    return isWritingHandle;
-  }
 }

@@ -44,7 +44,8 @@ function feedItemToCallCardData(item: FeedItem) {
   return {
     handle,
     marketLine,
-    conviction: item.conviction ?? 50,
+    // D-07: never fabricate conviction — missing value hides the CONVICTION row.
+    conviction: typeof item.conviction === 'number' ? item.conviction : undefined,
     deadline,
     stake: BigInt(item.stake ?? '0'),
     // status is canonical lowercase from the relayer-client boundary (C1);

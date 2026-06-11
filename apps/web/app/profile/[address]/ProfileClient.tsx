@@ -291,7 +291,28 @@ export function ProfileClient({ profile, fetchError }: ProfileClientProps) {
               })}
             </div>
           ) : (
-            <div className="label-overline">No calls on record yet.</div>
+            /* F-B7: home-feed EmptyTape containment pattern */
+            <div
+              className="brutal-card"
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: 16,
+                padding: '48px 24px',
+                textAlign: 'center',
+              }}
+            >
+              <span className="label-overline" style={{ letterSpacing: '0.14em' }}>
+                NO CALLS ON RECORD YET
+              </span>
+              <span style={{ color: 'var(--text-secondary)', fontSize: 14 }}>
+                Every call is permanent and public. Go on record.
+              </span>
+              <Link href="/new" className="btn cream" style={{ textDecoration: 'none' }}>
+                Make your first call
+              </Link>
+            </div>
           )}
         </>
       )}

@@ -31,6 +31,8 @@
 
 'use client';
 
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useAccount } from 'wagmi';
 import { Card, avatarInitial } from '@call-it/ui';
 import { useIsMobile } from '@/app/hooks/useIsMobile';
@@ -76,6 +78,8 @@ function honestCallCount(row: LeaderboardRow): number {
 
 export function LeaderboardClient({ data, fetchError }: LeaderboardClientProps) {
   const isMobile = useIsMobile(); // UI-48: single-column hero + scrollable table + 44px rows at 375px
+  // F-B4: data + fetchError arrive from page.tsx's RSC fetch — retry re-runs it.
+  const router = useRouter();
 
   // Viewer address for the UI-13 own-row highlight (comparison only — AUTH-44).
   const { address: viewerAddress } = useAccount();
@@ -90,7 +94,7 @@ export function LeaderboardClient({ data, fetchError }: LeaderboardClientProps) 
       {/* Page header — period toggles CUT (D-08: they never refetched; data is All-time only) */}
       <div className="page-header">
         <div>
-          <h1>The Tape · Top of book</h1>
+          <h1>Top of Book</h1>
           <div className="sub">
             Reputation is a function of <span className="em">accuracy</span> ×{' '}
             <span className="em">volume</span>. Easy to climb. Easy to fall.
@@ -115,31 +119,65 @@ export function LeaderboardClient({ data, fetchError }: LeaderboardClientProps) 
         land in a later release.
       </div>
 
-      {/* Error state (UI-SPEC error-states table) */}
+      {/* Error state — home-feed TapeError containment (F-B4) */}
       {fetchError && (
         <div
-          className="mono"
+          className="brutal-card"
           style={{
-            fontSize: '13px',
-            color: 'var(--text-secondary)',
-            padding: '12px 16px',
-            borderLeft: '3px solid var(--accent-loss)',
-            background: 'var(--bg-secondary)',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: 14,
+            padding: '48px 24px',
+            textAlign: 'center',
+            borderColor: 'var(--accent-loss)',
           }}
         >
-          Couldn&apos;t load the tape. The data feed is catching up — refresh in a moment.
+          <span
+            className="mono"
+            style={{
+              fontSize: 12,
+              fontWeight: 600,
+              letterSpacing: '0.08em',
+              textTransform: 'uppercase',
+              color: 'var(--accent-loss)',
+            }}
+          >
+            Couldn&apos;t load the board. Retry.
+          </span>
+          <button
+            type="button"
+            className="btn outline-white"
+            onClick={() => router.refresh()}
+            style={{ minHeight: 44 }}
+          >
+            RETRY
+          </button>
         </div>
       )}
 
-      {/* Empty state (UI-SPEC empty-states table) */}
+      {/* Empty state — home-feed EmptyTape containment (F-B5) */}
       {!fetchError && rows.length === 0 && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', padding: '32px 0' }}>
-          <h2 className="h-2" style={{ margin: 0 }}>
-            Nothing on the tape yet
-          </h2>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '15px', margin: 0 }}>
-            No callers ranked yet. Make a call to get on the board.
-          </p>
+        <div
+          className="brutal-card"
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: 16,
+            padding: '64px 24px',
+            textAlign: 'center',
+          }}
+        >
+          <span className="label-overline" style={{ letterSpacing: '0.14em' }}>
+            NO CALLERS RANKED YET
+          </span>
+          <span style={{ color: 'var(--text-secondary)', fontSize: 14 }}>
+            Make a call to get on the board.
+          </span>
+          <Link href="/new" className="btn cream" style={{ textDecoration: 'none' }}>
+            + NEW CALL
+          </Link>
         </div>
       )}
 
