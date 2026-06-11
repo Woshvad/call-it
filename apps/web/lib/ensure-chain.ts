@@ -13,7 +13,7 @@
  * privy-config supportedChains; injected wallets may prompt the user once.
  */
 
-import { getChainId, switchChain } from 'wagmi/actions';
+import { getAccount, switchChain } from 'wagmi/actions';
 import { wagmiConfig } from '@/lib/wagmi';
 import { ACTIVE_CHAIN, ACTIVE_CHAIN_ID } from '@/lib/chain';
 
@@ -23,10 +23,18 @@ type ConfigChainId = (typeof wagmiConfig)['chains'][number]['id'];
  * Align the connected wallet to the active chain before a write.
  * No-op when already aligned. Throws a human-actionable Error when the
  * switch fails (user rejected the prompt / connector refused).
+ *
+ * IMPORTANT: the source of truth is getAccount().chainId — the CONNECTOR's
+ * actual chain. getChainId() reads the wagmi config store, which defaults to
+ * the first configured chain (Sepolia) regardless of where the wallet really
+ * is — comparing it no-opped the guard while the Privy session sat on
+ * Ethereum mainnet (live failure 2026-06-11, twice).
  */
 export async function ensureActiveChain(): Promise<void> {
-  const current = getChainId(wagmiConfig);
-  if (current === ACTIVE_CHAIN_ID) return;
+  const account = getAccount(wagmiConfig);
+  // Not connected: let the write surface its own clear connect error.
+  if (!account.isConnected) return;
+  if (account.chainId === ACTIVE_CHAIN_ID) return;
   try {
     await switchChain(wagmiConfig, {
       chainId: ACTIVE_CHAIN_ID as ConfigChainId,
