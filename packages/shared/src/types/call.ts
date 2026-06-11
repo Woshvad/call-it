@@ -7,7 +7,9 @@
  *
  *   enum MarketType  { PriceTarget=0, SpreadVs=1, Event=2 }
  *   enum EventSubtype{ None=0, TvlMilestone=1, VolumeFees=2, OnchainMetric=3,
- *                      CexListing=4, TokenLaunch=5, Governance=6, ProtocolMilestone=7 }
+ *                      CexListing=4, TokenLaunch=5,
+ *                      Governance_Snapshot=6, Governance_Tally=7,   // Phase 05.1 Option A enum split
+ *                      ProtocolMilestone=8 }                        // renumbered from 7 (Phase 05.1)
  *   enum Category    { Majors=0, DeFi=1, Other=2 }
  *   enum CallStatus  { Live=0, Settled=1, Disputed=2, CallerExited=3 }
  *
@@ -64,8 +66,18 @@ export type EventSubtype = (typeof EVENT_SUBTYPES)[number];
 
 /**
  * Map from TS event subtype string → Solidity enum integer value.
- * MUST match ICallRegistry.sol: None=0, TvlMilestone=1, VolumeFees=2, OnchainMetric=3,
- * CexListing=4, TokenLaunch=5, Governance=6, ProtocolMilestone=7
+ * MUST match the DEPLOYED post-05.1 ICallRegistry.sol:23-34:
+ *   None=0, TvlMilestone=1, VolumeFees=2, OnchainMetric=3, CexListing=4,
+ *   TokenLaunch=5, Governance_Snapshot=6, Governance_Tally=7, ProtocolMilestone=8
+ *
+ * quick-260611-co5 CR-01: the TS union keeps a SINGLE 'governance' entry, which
+ * maps to Governance_Snapshot(6) — the only governance flavor expressible from
+ * the composer today. Governance_Tally(7) is intentionally unreachable from TS
+ * until the union splits into governanceSnapshot/governanceTally (follow-up
+ * documented in .planning/quick/260611-co5-.../REVIEW.md). ProtocolMilestone
+ * was renumbered 7 → 8 in the Phase 05.1 Option A enum split — the old `7`
+ * here would have submitted Governance_Tally on-chain for a Protocol Milestone
+ * call (mis-settled by the Tally adapter).
  */
 export const EVENT_SUBTYPE_TO_UINT: Record<EventSubtype, number> = {
   none: 0,
@@ -74,12 +86,14 @@ export const EVENT_SUBTYPE_TO_UINT: Record<EventSubtype, number> = {
   onchainMetric: 3,
   cexListing: 4,
   tokenLaunch: 5,
-  governance: 6,
-  protocolMilestone: 7,
+  governance: 6, // Governance_Snapshot — deployed 05.1 enum split
+  protocolMilestone: 8, // renumbered from 7 in Phase 05.1 (7 = Governance_Tally)
 } as const;
 
 /**
  * Map from Solidity enum integer → TS event subtype string (inverse of above).
+ * On-chain 6 (Governance_Snapshot) AND 7 (Governance_Tally) both decode to the
+ * single TS 'governance' label until the union splits (CR-01 follow-up).
  */
 export const UINT_TO_EVENT_SUBTYPE: Record<number, EventSubtype> = {
   0: 'none',
@@ -88,8 +102,9 @@ export const UINT_TO_EVENT_SUBTYPE: Record<number, EventSubtype> = {
   3: 'onchainMetric',
   4: 'cexListing',
   5: 'tokenLaunch',
-  6: 'governance',
-  7: 'protocolMilestone',
+  6: 'governance', // Governance_Snapshot
+  7: 'governance', // Governance_Tally — same TS label until the union splits
+  8: 'protocolMilestone',
 } as const;
 
 /** Event subtypes that require a resolution criteria text (CALL-15/16, CALL-49). */

@@ -18,7 +18,10 @@ const EVENT_SUBTYPE_LABELS: Record<EventSubtype, string> = {
   onchainMetric: 'On-chain Metric',
   cexListing: 'CEX Listing',
   tokenLaunch: 'Token Launch',
-  governance: 'Governance',
+  // CR-01 (quick-260611-co5): 'governance' submits Governance_Snapshot(6) on
+  // the deployed 05.1 enum — label it honestly. Governance_Tally(7) is not
+  // expressible from the composer until the TS union splits (REVIEW.md follow-up).
+  governance: 'Governance (Snapshot)',
   protocolMilestone: 'Protocol Milestone',
 };
 

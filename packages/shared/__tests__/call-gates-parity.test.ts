@@ -96,6 +96,9 @@ function toMarketType(n: number): (typeof MARKET_TYPES)[number] | null {
 }
 
 function toEventSubtype(n: number): (typeof EVENT_SUBTYPES)[number] | null {
+  // Ordinals match the DEPLOYED post-05.1 ICallRegistry.sol:23-34 (CR-01,
+  // quick-260611-co5): Governance_Snapshot=6, Governance_Tally=7 (both decode
+  // to the single TS 'governance' label), ProtocolMilestone renumbered 7 → 8.
   const map: Record<number, (typeof EVENT_SUBTYPES)[number]> = {
     0: 'none',
     1: 'tvlMilestone',
@@ -103,8 +106,9 @@ function toEventSubtype(n: number): (typeof EVENT_SUBTYPES)[number] | null {
     3: 'onchainMetric',
     4: 'cexListing',
     5: 'tokenLaunch',
-    6: 'governance',
-    7: 'protocolMilestone',
+    6: 'governance', // Governance_Snapshot
+    7: 'governance', // Governance_Tally
+    8: 'protocolMilestone',
   };
   return map[n] ?? null;
 }

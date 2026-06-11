@@ -33,7 +33,7 @@ import {
   extractRevertErrorName,
   isUserRejection,
 } from '../lib/call-created-log';
-import { keccak256, toBytes } from 'viem';
+import { BaseError, InsufficientFundsError, keccak256, toBytes } from 'viem';
 
 /**
  * RHF fields with NO visible form input / error slot on /new. A 422 whose
@@ -58,6 +58,16 @@ const HIDDEN_ERROR_FIELDS = new Set([
  * letting the wallet throw an opaque gas-estimation error.
  */
 const GAS_FLOOR_WEI = 10_000_000_000_000n;
+
+/**
+ * Faucet-direction copy — shared by the pre-tx gas guard AND the catch-side
+ * InsufficientFundsError walk (WR-01, quick-260611-co5 review): the guard's
+ * floor is deliberately below one tx's real cost, so a dust wallet can pass
+ * the guard and still die in approve/createCall with insufficient funds —
+ * that path must surface the SAME message, not viem's multi-paragraph error.
+ */
+const FAUCET_MESSAGE =
+  'This wallet has no Sepolia ETH for gas — get a free drip from a faucet (e.g. the Alchemy Arbitrum Sepolia faucet), then retry.';
 
 /**
  * wagmi/actions take the typed wagmiConfig as their first argument, so the
@@ -117,7 +127,13 @@ export function usePublishCall(
   const publish = useCallback(
     async (input: CreateCallInput): Promise<PublishResult> => {
       if (!address) {
-        setState((s) => ({ ...s, error: 'Wallet not connected', step: 'error' }));
+        // WR-02 (quick-260611-co5 review): the caller closes the modal
+        // unconditionally after publish() resolves and nothing on /new renders
+        // state.error inline — without a toast this branch is a silent
+        // dead-end (modal closes, nothing visible happens).
+        const msg = 'Wallet not connected — sign in again, then retry.';
+        showToast({ status: 'error', message: msg, duration: 5000 });
+        setState((s) => ({ ...s, error: msg, step: 'error', isPublishing: false }));
         return { status: 'error' };
       }
 
@@ -158,13 +174,11 @@ export function usePublishCall(
           chainId: ACTIVE_CHAIN_ID as ActiveChainId,
         });
         if (balance.value < GAS_FLOOR_WEI) {
-          const faucetMessage =
-            'This wallet has no Sepolia ETH for gas — get a free drip from a faucet (e.g. the Alchemy Arbitrum Sepolia faucet), then retry.';
-          showToast({ status: 'error', message: faucetMessage, duration: 5000 });
+          showToast({ status: 'error', message: FAUCET_MESSAGE, duration: 5000 });
           setState({
             isPublishing: false,
             step: 'error',
-            error: faucetMessage,
+            error: FAUCET_MESSAGE,
             txHash: null,
           });
           return { status: 'error' };
@@ -286,13 +300,28 @@ export function usePublishCall(
         let message: string;
         if (isUserRejection(err)) {
           message = 'Signature request rejected — nothing was sent.';
+        } else if (
+          // WR-01 (quick-260611-co5 review): a dust wallet (above GAS_FLOOR_WEI
+          // but below 2 real txs' gas) passes the guard and fails here — walk
+          // the viem error tree and reuse the exact faucet-direction message.
+          err instanceof BaseError &&
+          err.walk((e) => e instanceof InsufficientFundsError) !== null
+        ) {
+          message = FAUCET_MESSAGE;
         } else if (revertName !== null) {
           message =
             revertName === 'AssetNotAllowlisted'
               ? "This asset isn't allowlisted on this deployment yet."
               : `Transaction reverted: ${revertName}`;
         } else {
-          message = err instanceof Error ? err.message : 'Failed to publish call';
+          // WR-01: viem BaseErrors carry a one-line shortMessage — never toast
+          // the full multi-paragraph err.message (request args + docs URL).
+          message =
+            err instanceof BaseError
+              ? err.shortMessage
+              : err instanceof Error
+                ? err.message
+                : 'Failed to publish call';
         }
 
         setState({

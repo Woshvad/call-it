@@ -52,8 +52,14 @@ export function PublishConfirmModal({
 
   return (
     <div className="modal-overlay" style={{ position: 'fixed', inset: 0, zIndex: 200 }}>
-      {/* Backdrop click target */}
-      <div style={{ position: 'absolute', inset: 0 }} onClick={onCancel} />
+      {/* Backdrop click target — WR-03 (quick-260611-co5 review): guarded
+          exactly like the Cancel button (disabled={isPublishing}); a stray
+          click must NOT dismiss the progress UI mid-money-flow (approve +
+          createCall + two unbounded receipt waits are in flight). */}
+      <div
+        style={{ position: 'absolute', inset: 0 }}
+        onClick={isPublishing ? undefined : onCancel}
+      />
 
       {/* Cream panel (.modal-panel template) */}
       <div className="modal-panel" style={{ position: 'relative', zIndex: 201 }}>
