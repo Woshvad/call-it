@@ -154,17 +154,20 @@ jobs:
           # and the generated dist/*.d.ts re-declares the negative-test constant.
           # Case-insensitive (-i): addresses pasted from viem/subgraph/explorer
           # output are frequently all-lowercase and would evade a cased match
-          # (quick-260610-vab WR-02). The grep -v allowlist filters match on
-          # path, not address casing, so they are unaffected.
+          # (quick-260610-vab WR-02). Each allowlist filter is anchored to the
+          # `./path:` prefix of grep -r's output (quick-260611-156 WR-02): an
+          # unanchored substring filter masked any violating LINE that merely
+          # mentioned a fixture path (e.g. in a trailing comment), and let
+          # `usdc.ts.bak`-style paths hide behind the fixture-path prefix.
           VIOLATIONS=$(grep -riE "0xFF970A61[A-Fa-f0-9]+" \
             --include="*.sol" --include="*.ts" --include="*.tsx" \
             --exclude-dir=node_modules --exclude-dir=dist --exclude-dir=.next \
             --exclude-dir=.turbo --exclude-dir=out --exclude-dir=target \
             . 2>/dev/null \
-            | grep -vF "packages/shared/src/constants/usdc.ts" \
-            | grep -vF "packages/shared/test/usdc.test.ts" \
-            | grep -vF "packages/contracts/src/constants/USDC.sol" \
-            | grep -vF "packages/contracts/test/USDC.t.sol" || true)
+            | grep -v '^\./packages/shared/src/constants/usdc\.ts:' \
+            | grep -v '^\./packages/shared/test/usdc\.test\.ts:' \
+            | grep -v '^\./packages/contracts/src/constants/USDC\.sol:' \
+            | grep -v '^\./packages/contracts/test/USDC\.t\.sol:' || true)
           if [ -n "$VIOLATIONS" ]; then
             echo "::error::Bridged USDC.e address found outside the canonical negative-test fixtures:"
             echo "$VIOLATIONS"
@@ -496,15 +499,17 @@ jobs:
           # phase-1-complete-gate job builds shared/ui/web BEFORE this grep runs,
           # and the generated dist/*.d.ts re-declares the negative-test constant.
           # Case-insensitive (-i) — see usdc-paste-guard job comment (WR-02).
+          # Filters anchored to grep's `./path:` output prefix
+          # (quick-260611-156 WR-02) — see usdc-paste-guard job comment.
           VIOLATIONS=$(grep -riE "0xFF970A61[A-Fa-f0-9]+" \
             --include="*.sol" --include="*.ts" --include="*.tsx" \
             --exclude-dir=node_modules --exclude-dir=dist --exclude-dir=.next \
             --exclude-dir=.turbo --exclude-dir=out --exclude-dir=target \
             . 2>/dev/null \
-            | grep -vF "packages/shared/src/constants/usdc.ts" \
-            | grep -vF "packages/shared/test/usdc.test.ts" \
-            | grep -vF "packages/contracts/src/constants/USDC.sol" \
-            | grep -vF "packages/contracts/test/USDC.t.sol" || true)
+            | grep -v '^\./packages/shared/src/constants/usdc\.ts:' \
+            | grep -v '^\./packages/shared/test/usdc\.test\.ts:' \
+            | grep -v '^\./packages/contracts/src/constants/USDC\.sol:' \
+            | grep -v '^\./packages/contracts/test/USDC\.t\.sol:' || true)
           if [ -n "$VIOLATIONS" ]; then
             echo "::error::Bridged USDC.e address found outside the canonical negative-test fixtures"
             echo "$VIOLATIONS"

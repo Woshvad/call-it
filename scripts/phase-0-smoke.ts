@@ -111,17 +111,36 @@ export async function step1BuildGreen(): Promise<{ status: StepStatus; error?: s
 export async function step2GrepGuards(): Promise<{ status: StepStatus; error?: string }> {
   console.log('\n[Step 2] Grep guards — 3 invariants from grep-guards.yml must pass');
 
+  // A missing local rg must FAIL the smoke run, not pass it (quick-260611-156
+  // WR-01: the old `|| true` swallowed exit 127 as "no match").
+  try {
+    execSync('command -v rg', { shell: '/bin/bash', stdio: 'pipe' });
+  } catch {
+    const msg = 'ripgrep (rg) not found on PATH — grep guards cannot run';
+    console.error(`  FAIL: ${msg}`);
+    return { status: 'fail', error: msg };
+  }
+
+  // Each rg-based cmd mirrors the resurrected grep-guards.yml command
+  // (quick-260611-156): pure positive globs (NOT --type + --glob, which rg
+  // ANDs into selecting ZERO files), the full 4-fixture allowlist, the
+  // continuation-hex-char pattern, and explicit exit-code discrimination —
+  // rg's contract is 0=match, 1=no match, >=2=error. Exit 1 (clean) maps to
+  // exit 0 with no output; exit >=2 propagates so the catch block FAILS the
+  // run instead of treating it as "no match".
+  // Self-reference note: the pattern text below contains the bare prefix
+  // followed by '[' (not a hex char), so it does not trip the CI guard.
   const checks: Array<{ name: string; cmd: string; shouldMatch: boolean }> = [
     {
       name: 'USDC.e bridged address must NOT appear outside fixture',
       // Matches if USDC.e appears — so a match means FAILURE
-      cmd: `rg --hidden --no-ignore --type ts --type js --glob "**/*.rs" --glob "!packages/shared/src/constants/usdc.ts" --glob "!**/node_modules/**" --glob "!**/out/**" --glob "!**/.next/**" --glob "!**/target/**" --glob "!**/.turbo/**" --glob "!**/dist/**" --ignore-case "0xff970a61" . || true`,
+      cmd: `rc=0; rg --hidden --no-ignore --glob "**/*.ts" --glob "**/*.tsx" --glob "**/*.js" --glob "**/*.jsx" --glob "**/*.mjs" --glob "**/*.cjs" --glob "**/*.rs" --glob "!packages/shared/src/constants/usdc.ts" --glob "!packages/shared/test/usdc.test.ts" --glob "!packages/contracts/src/constants/USDC.sol" --glob "!packages/contracts/test/USDC.t.sol" --glob "!**/node_modules/**" --glob "!**/out/**" --glob "!**/.next/**" --glob "!**/target/**" --glob "!**/.turbo/**" --glob "!**/dist/**" --ignore-case "0xff970a61[0-9a-f]" . || rc=$?; if [ "$rc" -eq 1 ]; then exit 0; fi; if [ "$rc" -ne 0 ]; then echo "rg failed with exit $rc - guard did not run" >&2; exit "$rc"; fi`,
       shouldMatch: false,
     },
     {
       name: 'All Solidity pragmas must be exactly =0.8.30',
       // Returns non-pinned pragmas — a match means FAILURE
-      cmd: `(rg --hidden --no-ignore --glob "**/*.sol" --glob "!**/node_modules/**" --glob "!**/out/**" --glob "!**/target/**" --glob "!**/lib/**" "pragma solidity " . 2>/dev/null || true) | (rg -v "pragma solidity =0\\.8\\.30;" || true)`,
+      cmd: `rc=0; PRAGMAS=$(rg --hidden --no-ignore --glob "**/*.sol" --glob "!**/node_modules/**" --glob "!**/out/**" --glob "!**/target/**" --glob "!**/lib/**" "pragma solidity " .) || rc=$?; if [ "$rc" -gt 1 ]; then echo "rg failed with exit $rc - guard did not run" >&2; exit "$rc"; fi; frc=0; printf "%s\\n" "$PRAGMAS" | rg -v "pragma solidity =0\\.8\\.30;" || frc=$?; if [ "$frc" -gt 1 ]; then echo "rg filter failed with exit $frc - guard did not run" >&2; exit "$frc"; fi; exit 0`,
       shouldMatch: false,
     },
     {
@@ -147,8 +166,13 @@ export async function step2GrepGuards(): Promise<{ status: StepStatus; error?: s
         console.log(`  PASS: ${check.name}`);
       }
     } catch (err) {
-      // Shell commands that exit non-zero still count as "no match" when using || true
-      console.log(`  PASS: ${check.name} (command exited; treated as no match)`);
+      // A non-zero exit here means the guard command itself failed to run
+      // (rg error, bad glob, missing tool) — that is a FAILURE, not a pass
+      // (quick-260611-156 WR-01: the old catch printed PASS).
+      const msg = err instanceof Error ? err.message : String(err);
+      const fullMsg = `Guard "${check.name}" failed to execute: ${msg.slice(0, 300)}`;
+      errors.push(fullMsg);
+      console.error(`  FAIL: ${fullMsg}`);
     }
   }
 

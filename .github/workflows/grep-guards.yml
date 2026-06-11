@@ -57,11 +57,18 @@ jobs:
           # Case-insensitive match on the first 10 hex chars (0xff970a61) plus at
           # least one continuation hex char — mirrors the phase-1-gates pattern
           # `0xFF970A61[A-Fa-f0-9]+`. The continuation char keeps guard
-          # self-references (the bare prefix in scripts/phase-0-smoke.ts's embedded
-          # command string and apps/web/tests/onboarding.spec.ts's negative-assertion
-          # regex) from false-positiving; any real paste of the bridged address has
-          # 30 more hex chars and always trips.
-          if rg --hidden --no-ignore \
+          # self-references (the pattern text in scripts/phase-0-smoke.ts's embedded
+          # command string — the char after the prefix is '[' — and
+          # apps/web/tests/onboarding.spec.ts's negative-assertion regex) from
+          # false-positiving; any real paste of the bridged address has 30 more hex
+          # chars and always trips.
+          #
+          # rg exit contract: 0 = match (violation), 1 = no match (pass),
+          # >=2 = usage/runtime error (bad glob, bad regex, IO). The previous
+          # `if rg ...` form read exit 2 as "no match" -> green-but-vacuous with
+          # rg fully installed (quick-260611-156 WR-03). Discriminate explicitly.
+          rc=0
+          rg --hidden --no-ignore \
               --glob '**/*.ts' \
               --glob '**/*.tsx' \
               --glob '**/*.js' \
@@ -78,10 +85,14 @@ jobs:
               --glob '!**/.turbo/**' \
               --glob '!**/dist/**' \
               --ignore-case '0xff970a61[0-9a-f]' \
-              .; then
+              . || rc=$?
+          if [ "$rc" -eq 0 ]; then
             echo "::error::Bridged USDC.e address (0xFF970A61...) found outside the documented negative-test fixture."
             echo "::error::Legal location: packages/shared/src/constants/usdc.ts only."
             echo "::error::Use native USDC: 0xaf88d065e77c8cC2239327C5EDb3A432268e5831 (SAFETY-13, OPS-22)"
+            exit 1
+          elif [ "$rc" -ne 1 ]; then
+            echo "::error::rg failed with exit $rc — guard did not run (WR-03)"
             exit 1
           fi
           echo "PASS: No USDC.e address found outside the documented fixture."
@@ -95,7 +106,10 @@ jobs:
           #   packages/contracts/src/constants/USDC.sol (WARNING comment naming the bad address)
           #   packages/contracts/test/USDC.t.sol        (negative-test constant)
           # Pattern requires a continuation hex char — see the ts/js/rs step comment.
-          if rg --hidden --no-ignore \
+          # Exit-code discrimination: 0=violation, 1=pass, >=2=fail loud (WR-03) —
+          # see the ts/js/rs step comment.
+          rc=0
+          rg --hidden --no-ignore \
               --glob '**/*.sol' \
               --glob '!packages/contracts/src/constants/USDC.sol' \
               --glob '!packages/contracts/test/USDC.t.sol' \
@@ -103,9 +117,13 @@ jobs:
               --glob '!**/out/**' \
               --glob '!**/target/**' \
               --ignore-case '0xff970a61[0-9a-f]' \
-              .; then
+              . || rc=$?
+          if [ "$rc" -eq 0 ]; then
             echo "::error::Bridged USDC.e address found in a Solidity file."
             echo "::error::Use native USDC: 0xaf88d065e77c8cC2239327C5EDb3A432268e5831 (SAFETY-13)"
+            exit 1
+          elif [ "$rc" -ne 1 ]; then
+            echo "::error::rg failed with exit $rc — guard did not run (WR-03)"
             exit 1
           fi
           echo "PASS: No USDC.e address in Solidity files."
@@ -123,15 +141,24 @@ jobs:
           # Case-insensitive match because Solidity checksummed addresses mix case.
           USDC_MAINNET="af88d065e77c8cc2239327c5edb3a432268e5831"
           USDC_SEPOLIA="75faf114eafb1bdbe2f0316df893fd58ce46aa4d"
-          VIOLATIONS=$(rg --hidden --no-ignore \
+          # Capture rg's exit code separately from the grep filters: the old
+          # `$(rg ... | grep ... || true)` swallowed rg exit >=2 (bad glob/regex/
+          # IO error) as "no violations" -> green-but-vacuous (quick-260611-156
+          # WR-03). rg exit contract: 0=match, 1=no match, >=2=error.
+          rc=0
+          MATCHES=$(rg --hidden --no-ignore \
               --glob '**/*.sol' --glob '**/*.ts' \
               --glob '!**/node_modules/**' --glob '!**/out/**' \
               --glob '!**/target/**' --glob '!**/.next/**' \
               --glob '!**/.turbo/**' --glob '!**/dist/**' \
               --ignore-case \
               -o "(af88d065|75faf114)[0-9a-fA-F]{32}" \
-              . \
-              | grep -iv "$USDC_MAINNET" | grep -iv "$USDC_SEPOLIA" || true)
+              .) || rc=$?
+          if [ "$rc" -gt 1 ]; then
+            echo "::error::rg failed with exit $rc — guard did not run (WR-03)"
+            exit 1
+          fi
+          VIOLATIONS=$(printf '%s\n' "$MATCHES" | grep -iv "$USDC_MAINNET" | grep -iv "$USDC_SEPOLIA" || true)
           if [ -n "$VIOLATIONS" ]; then
             echo "::error::USDC address outside 2-address allowlist: $VIOLATIONS"
             echo "::error::Allowed: USDC_ARB_NATIVE (af88d065...e5831) and USDC_ARB_SEPOLIA (75faf114...AA4d)"
@@ -161,14 +188,31 @@ jobs:
           #
           # Strategy: find all pragma solidity lines, then reject any that are NOT
           # exactly `pragma solidity =0.8.30;`
-          VIOLATIONS=$(rg --hidden --no-ignore \
+          #
+          # Exit-code discrimination (quick-260611-156 WR-03): the old
+          # `$(rg ... | rg -v ... || true)` swallowed rg exit >=2 (bad glob/
+          # regex/IO error) as "no violations". rg exit contract: 0=match,
+          # 1=no match, >=2=error — capture each stage's code and fail loud
+          # on >=2.
+          rc=0
+          PRAGMAS=$(rg --hidden --no-ignore \
               --glob '**/*.sol' \
               --glob '!**/node_modules/**' \
               --glob '!**/out/**' \
               --glob '!**/target/**' \
               --glob '!**/lib/**' \
               'pragma solidity ' \
-              | rg -v 'pragma solidity =0\.8\.30;' || true)
+              .) || rc=$?
+          if [ "$rc" -gt 1 ]; then
+            echo "::error::rg failed with exit $rc — guard did not run (WR-03)"
+            exit 1
+          fi
+          frc=0
+          VIOLATIONS=$(printf '%s\n' "$PRAGMAS" | rg -v 'pragma solidity =0\.8\.30;') || frc=$?
+          if [ "$frc" -gt 1 ]; then
+            echo "::error::rg filter failed with exit $frc — guard did not run (WR-03)"
+            exit 1
+          fi
 
           if [ -n "$VIOLATIONS" ]; then
             echo "::error::Floating or incorrect Solidity pragma found (must be exactly 'pragma solidity =0.8.30;'):"
