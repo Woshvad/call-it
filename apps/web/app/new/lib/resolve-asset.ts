@@ -45,3 +45,45 @@ export function resolveAssetToFeedId(input: string): `0x${string}` | null {
   }
   return null;
 }
+
+// ─── Relayer assetToUint256 parity (CR-01, quick-260611-bf2 review) ──────────
+//
+// The relayer recomputes uint256(assetA) from the wire string for its
+// duplicateHash (apps/relayer/src/routes/calls-preflight.ts:150-158, mirrored
+// in calls-dup-check.ts): trimmed input starting 0x/0X → BigInt(), pure-digit
+// string → BigInt(), anything else → 0n. The calldata uint MUST match that
+// derivation or preflight Gate 6.2 checks the wrong hash.
+//
+// ONE deliberate divergence: the web side validates hex chars before BigInt()
+// so malformed input like '0xNotHex' returns 0n instead of throwing (the
+// relayer's bare BigInt(trimmed) throws → 500 server-side on such input —
+// relayer hardening is a noted follow-up, out of scope for apps/web).
+
+/** 0x/0X-prefixed hex string of any length (BigInt-parseable). */
+const HEX_UINT_REGEX = /^0[xX][0-9a-fA-F]+$/;
+
+/** Pure-digit decimal string (BigInt-parseable). */
+const DECIMAL_UINT_REGEX = /^\d+$/;
+
+/** True when the relayer's assetToUint256 would BigInt() the input (0x-hex or pure digits). */
+export function isUintParseableAsset(input: string): boolean {
+  const trimmed = input.trim();
+  return HEX_UINT_REGEX.test(trimmed) || DECIMAL_UINT_REGEX.test(trimmed);
+}
+
+/** Mirror of the relayer's assetToUint256 — the dup-hash invariant derivation. */
+export function assetToUint256Parity(input: string): bigint {
+  const trimmed = input.trim();
+  return isUintParseableAsset(trimmed) ? BigInt(trimmed) : 0n;
+}
+
+/**
+ * Canonical wire value for an asset field: the resolved feed id when the input
+ * is a listed symbol / 64-hex feed id, the raw input otherwise. The dup-check
+ * pre-warning MUST post this same canonical value the preflight body carries
+ * (WR-01) — posting the raw symbol hashes to 0n on the relayer while published
+ * calls now carry BigInt(feedId), so the DuplicateWarning would never match.
+ */
+export function canonicalAssetForWire(input: string): string {
+  return resolveAssetToFeedId(input) ?? input;
+}

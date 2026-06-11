@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import type { CreateCallInput } from '@call-it/shared';
 import { MARKET_TYPE_TO_UINT, EVENT_SUBTYPE_TO_UINT } from '@call-it/shared';
 import { postDupCheck } from '@/lib/relayer-client';
+import { canonicalAssetForWire } from '../lib/resolve-asset';
 
 export interface DupCheckMatch {
   existingCallId: number;
@@ -53,12 +54,18 @@ export function useDebouncedDupCheck(
     const marketTypeNum = MARKET_TYPE_TO_UINT[marketType];
     const metricNum = eventSubtype ? EVENT_SUBTYPE_TO_UINT[eventSubtype] : 0;
 
+    // WR-01 (quick-260611-bf2 review): hash the SAME canonical asset value the
+    // preflight body + calldata carry. Posting the raw symbol ('ETH') made the
+    // relayer's assetToUint256 derive 0n while published calls now carry
+    // BigInt(feedId) — the DuplicateWarning could never match for symbol input.
+    const canonicalAssetA = canonicalAssetForWire(assetA);
+
     try {
       setIsLoading(true);
       const result = await postDupCheck(
         {
           marketType: marketTypeNum,
-          assetA,
+          assetA: canonicalAssetA,
           metric: String(metricNum),
           targetValue: String(targetValue),
           deadline: Number(expiry),

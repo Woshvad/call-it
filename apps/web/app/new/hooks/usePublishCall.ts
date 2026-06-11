@@ -226,6 +226,9 @@ export function usePublishCall(
         // (no visible input) must surface the actual message in the toast —
         // "Please fix the form errors below" with nothing visible below was
         // the exact dead-end users hit.
+        // Initialized to err.message: a 422 with no parseable field errors
+        // keeps it — never the bare generic line when there is nothing
+        // visible to fix (IN-04: the explicit empty-fields branch was dead).
         let toastMessage = message;
         if (isPreflightError) {
           const fieldErrors = (err as RelayerError).fieldErrors;
@@ -234,11 +237,7 @@ export function usePublishCall(
             const firstHidden = fieldErrors![fields[0]!];
             const firstMsg = Array.isArray(firstHidden) ? firstHidden[0] : undefined;
             toastMessage = `Preflight rejected: ${firstMsg ?? message}`;
-          } else if (fields.length === 0) {
-            // 422 with no parseable field errors — err.message, never the
-            // bare generic line when there is nothing visible to fix.
-            toastMessage = message;
-          } else {
+          } else if (fields.length > 0) {
             // At least one error landed on a visible field — it renders inline.
             toastMessage = 'Please fix the form errors below';
           }

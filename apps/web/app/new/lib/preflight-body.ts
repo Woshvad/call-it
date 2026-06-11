@@ -20,7 +20,11 @@
 
 import type { CreateCallInput } from '@call-it/shared';
 import type { PreflightInput } from '@/lib/relayer-client';
-import { resolveAssetToFeedId, UNKNOWN_ASSET_MESSAGE } from './resolve-asset';
+import {
+  resolveAssetToFeedId,
+  assetToUint256Parity,
+  UNKNOWN_ASSET_MESSAGE,
+} from './resolve-asset';
 
 /** Discriminated result of building the preflight body. */
 export type PreflightBuildResult =
@@ -34,10 +38,16 @@ export type PreflightBuildResult =
  * Per-market-type asset rules:
  * - 'priceTarget': assetA MUST resolve to a Pyth feed id; assetB unused (0n).
  * - 'spreadVs':    BOTH assetA and assetB MUST resolve.
- * - 'event':       best-effort — resolved feed id when the symbol is listed,
- *                  raw string passthrough otherwise (relayer assetToUint256
- *                  maps non-hex strings to 0n; event settlement is
- *                  criteria/attestation-based, not Pyth). Never fails.
+ * - 'event':       resolved feed id when the symbol is listed; otherwise raw
+ *                  string passthrough with assetToUint256Parity (CR-01:
+ *                  0x-hex / numeric → BigInt — NFT collection addresses keep
+ *                  their uint; freeform text → 0n). NOTE: CallRegistry's
+ *                  _assertAllowlisted runs for Event market types too
+ *                  (CallRegistry.sol:492-506) — an assetA deriving to 0 (or
+ *                  any non-allowlisted uint) reverts AssetNotAllowlisted
+ *                  on-chain. webCreateCallSchema gates freeform event assets
+ *                  pre-modal (WR-02); this builder still never fails so the
+ *                  derivation parity holds for whatever reaches it.
  */
 export function buildPreflightBody(
   input: CreateCallInput,
@@ -70,14 +80,18 @@ export function buildPreflightBody(
     bodyAssetB = resolvedB;
     assetBUint = BigInt(resolvedB);
   } else {
-    // 'event' — best-effort resolution, raw passthrough fallback, never fails.
+    // 'event' — best-effort resolution; unresolved input falls back to the
+    // relayer's exact assetToUint256 semantics (CR-01): 0x-hex (NFT collection
+    // address) / pure-digit string → BigInt, anything else → 0n. This keeps
+    // the dup-hash invariant for EVERY input class — the prior bare `0n`
+    // fallback diverged for 0x-address and numeric event assets.
     const resolvedA = resolveAssetToFeedId(input.assetA);
     if (resolvedA !== null) {
       bodyAssetA = resolvedA;
       assetAUint = BigInt(resolvedA);
     } else {
-      bodyAssetA = input.assetA; // relayer assetToUint256 → 0n (parity)
-      assetAUint = 0n;
+      bodyAssetA = input.assetA;
+      assetAUint = assetToUint256Parity(input.assetA);
     }
     bodyAssetB = undefined;
   }

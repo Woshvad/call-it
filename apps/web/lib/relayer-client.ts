@@ -522,8 +522,12 @@ export interface PreflightInput {
   openToChallenges: boolean;
   parentCallId?: string;
   callerAddress: `0x${string}`;
-  /** Number of caller's settled calls — used for Gate 6.3 conviction floor */
-  callerSettledCalls?: number;
+  /**
+   * Number of caller's settled calls — used for Gate 6.3 conviction floor.
+   * REQUIRED (IN-05): the relayer's httpBodyPreprocessSchema requires it
+   * (non-optional union transform) — an omitting caller would 422.
+   */
+  callerSettledCalls: number;
 }
 
 export interface PreflightError {

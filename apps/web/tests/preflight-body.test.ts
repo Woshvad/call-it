@@ -122,6 +122,59 @@ describe('buildPreflightBody', () => {
     expect(result.body.eventSubtype).toBe('cexListing');
   });
 
+  it("event + NFT collection address (0x 40-hex): raw passthrough, assetAUint = BigInt(address) (CR-01 relayer parity)", () => {
+    const nftAddress = '0xAbCdEf0123456789aBcDeF0123456789AbCdEf01';
+    const result = buildPreflightBody(
+      fixture({
+        marketType: 'event',
+        eventSubtype: 'tvlMilestone',
+        assetA: nftAddress,
+      }),
+      CALLER,
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    // 40-hex is NOT a feed id (64-hex) — raw passthrough on the wire...
+    expect(result.body.assetA).toBe(nftAddress);
+    // ...and the calldata uint mirrors relayer assetToUint256 (0x → BigInt),
+    // NOT 0n — address(0) is never allowlisted; the prior 0n fallback was a
+    // guaranteed AssetNotAllowlisted revert for allowlisted collections.
+    expect(result.assetAUint).toBe(BigInt(nftAddress));
+    expect(result.assetAUint).not.toBe(0n);
+  });
+
+  it("event + numeric string '12345': assetAUint 12345n (CR-01 relayer parity)", () => {
+    const result = buildPreflightBody(
+      fixture({
+        marketType: 'event',
+        eventSubtype: 'tvlMilestone',
+        assetA: '12345',
+      }),
+      CALLER,
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.body.assetA).toBe('12345');
+    expect(result.assetAUint).toBe(12345n);
+  });
+
+  it("event + malformed hex '0xNotHex': assetAUint 0n WITHOUT throwing (web-side hex validation)", () => {
+    // Deliberate divergence from the relayer (whose bare BigInt('0xNotHex')
+    // throws → 500 server-side): the web validates hex chars first.
+    const result = buildPreflightBody(
+      fixture({
+        marketType: 'event',
+        eventSubtype: 'tvlMilestone',
+        assetA: '0xNotHex',
+      }),
+      CALLER,
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.body.assetA).toBe('0xNotHex');
+    expect(result.assetAUint).toBe(0n);
+  });
+
   it("event + resolvable asset 'ETH': best-effort resolution to the feed id", () => {
     const result = buildPreflightBody(
       fixture({
