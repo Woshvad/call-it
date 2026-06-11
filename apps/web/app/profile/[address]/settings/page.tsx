@@ -4,7 +4,10 @@
  * Owner-only access: if useAccount().address !== address, redirect to read-only profile.
  *
  * Sections (per plan spec):
- *   1. Handle edit — calls ProfileRegistry.setDisplayHandle (AUTH-35, wagmi direct)
+ *   1. Handle edit — ensureActiveChain → setDisplayHandle (chainId-pinned
+ *      writeContractAsync) → waitForTransactionReceipt; success indicator is
+ *      MINED-receipt-gated (AUTH-35, fixed quick-260611-m72 after live
+ *      silent-failure 2026-06-11)
  *   2. Custody Disclosure card — Plan 06 component (AUTH-22)
  *   3. Wallet Export button — usePrivy().exportWallet() (AUTH-23)
  *   4. Connect/Disconnect socials — Privy linkAccount stubs (Phase 1.5 wires onchain)
@@ -25,9 +28,15 @@
 
 import { useEffect, useState } from 'react';
 import { useAccount, useWriteContract } from 'wagmi';
+import { waitForTransactionReceipt } from 'wagmi/actions';
+import { BaseError } from 'viem';
 import { usePrivy } from '@privy-io/react-auth';
 import { useRouter } from 'next/navigation';
 import { profileRegistryAbi } from '@/lib/abis/ProfileRegistry';
+import { ensureActiveChain } from '@/lib/ensure-chain';
+import { ACTIVE_CHAIN_ID } from '@/lib/chain';
+import { wagmiConfig } from '@/lib/wagmi';
+import { isUserRejection } from '@/app/new/lib/call-created-log';
 import { CustodyDisclosureCard } from '@/components/CustodyDisclosureCard';
 import { AddressBookManager } from '@/components/AddressBookManager';
 import { SocialLinkControls } from '@/app/components/SocialLinkControls';
@@ -37,6 +46,10 @@ import { Card } from '@call-it/ui';
 const PROFILE_REGISTRY_ADDR = (
   process.env.NEXT_PUBLIC_PROFILE_REGISTRY_ADDRESS as `0x${string}` | undefined
 ) ?? '0x0000000000000000000000000000000000000000';
+
+// Actions-API chainId cast (mirrors call page) — wagmi actions want the
+// config's literal chain-id union, not the plain number.
+type ActiveChainId = (typeof wagmiConfig)['chains'][number]['id'];
 
 interface SettingsPageProps {
   params: Promise<{
@@ -65,9 +78,14 @@ export default function ProfileSettingsPage({ params }: SettingsPageProps) {
   // Handle input for setDisplayHandle
   const [handleInput, setHandleInput] = useState('');
   const [handleError, setHandleError] = useState('');
+  // Spans the ENTIRE flow: chain switch → submit → mined receipt.
+  const [isSavingHandle, setIsSavingHandle] = useState(false);
+  // True ONLY after a mined success receipt — never on submission.
+  const [handleSaved, setHandleSaved] = useState(false);
 
-  // wagmi write contract for AUTH-35 handle edit
-  const { writeContract, isPending: isWritingHandle, isSuccess: handleWriteSuccess } = useWriteContract();
+  // wagmi write contract for AUTH-35 handle edit (async — hook's
+  // isPending/isSuccess are dishonest here: they track submission, not mining)
+  const { writeContractAsync } = useWriteContract();
 
   // Resolve params (Next.js 15+ params are Promises)
   useEffect(() => {
@@ -107,7 +125,7 @@ export default function ProfileSettingsPage({ params }: SettingsPageProps) {
     );
   }
 
-  function handleSetDisplayHandle() {
+  async function handleSetDisplayHandle() {
     if (!handleInput.trim()) {
       setHandleError('Handle cannot be empty');
       return;
@@ -117,14 +135,58 @@ export default function ProfileSettingsPage({ params }: SettingsPageProps) {
       return;
     }
     setHandleError('');
+    setHandleSaved(false);
+    setIsSavingHandle(true);
 
-    // AUTH-35: direct user tx — not through relayer
-    writeContract({
-      abi: profileRegistryAbi,
-      address: PROFILE_REGISTRY_ADDR,
-      functionName: 'setDisplayHandle',
-      args: [handleInput],
-    });
+    try {
+      // Align the wallet to the active chain first — chainId-pinned writes
+      // fail when the Privy session sits on another chain (live 2026-06-11).
+      await ensureActiveChain();
+
+      // AUTH-35: direct user tx — not through relayer
+      const hash = await writeContractAsync({
+        abi: profileRegistryAbi,
+        address: PROFILE_REGISTRY_ADDR,
+        functionName: 'setDisplayHandle',
+        args: [handleInput],
+        chainId: ACTIVE_CHAIN_ID,
+      });
+
+      const receipt = await waitForTransactionReceipt(wagmiConfig, {
+        hash,
+        chainId: ACTIVE_CHAIN_ID as ActiveChainId,
+      });
+      if (receipt.status !== 'success') {
+        setHandleError('Save failed on-chain — try again.');
+      } else {
+        setHandleSaved(true);
+      }
+    } catch (err) {
+      // Honest error taxonomy — every failure path lands in handleError.
+      if (isUserRejection(err)) {
+        setHandleError('Transaction rejected — your username was not saved.');
+      } else {
+        const rawMessage =
+          err instanceof BaseError
+            ? err.walk().message || err.shortMessage
+            : err instanceof Error
+              ? err.message
+              : '';
+        if (/insufficient funds/i.test(rawMessage)) {
+          setHandleError(
+            'This wallet has no Sepolia ETH for gas — switch to your funded wallet or grab a faucet drip, then retry.',
+          );
+        } else if (err instanceof BaseError && err.shortMessage) {
+          setHandleError(err.shortMessage.trim());
+        } else if (err instanceof Error && err.message) {
+          setHandleError(err.message.split('\n')[0].trim());
+        } else {
+          setHandleError('Save failed — try again.');
+        }
+      }
+    } finally {
+      setIsSavingHandle(false);
+    }
   }
 
   return (
@@ -162,13 +224,13 @@ export default function ProfileSettingsPage({ params }: SettingsPageProps) {
             <button
               className="btn cream"
               onClick={handleSetDisplayHandle}
-              disabled={isWritingHandle}
+              disabled={isSavingHandle}
               style={{
-                cursor: isWritingHandle ? 'not-allowed' : 'pointer',
-                opacity: isWritingHandle ? 0.6 : 1,
+                cursor: isSavingHandle ? 'not-allowed' : 'pointer',
+                opacity: isSavingHandle ? 0.6 : 1,
               }}
             >
-              {isWritingHandle ? 'Saving...' : 'Save Handle'}
+              {isSavingHandle ? 'Saving...' : 'Save Handle'}
             </button>
           </div>
           {handleError && (
@@ -176,7 +238,7 @@ export default function ProfileSettingsPage({ params }: SettingsPageProps) {
               {handleError}
             </p>
           )}
-          {handleWriteSuccess && (
+          {handleSaved && (
             <p style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', color: 'var(--accent-win)', margin: '8px 0 0 0' }}>
               Handle saved on-chain.
             </p>
