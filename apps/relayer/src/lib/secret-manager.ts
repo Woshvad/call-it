@@ -203,7 +203,16 @@ export async function loadSecrets(): Promise<RelayerEnv> {
     fetchSecret('FARCASTER_AUTH_DOMAIN'),
     fetchSecret('X_API_BEARER_TOKEN'),
     fetchSecret('NEYNAR_API_KEY'),
-    fetchSecret('SETTLEMENT_SIGNER_PRIVATE_KEY'),
+    // quick-260611-o5b follow-up: SETTLEMENT_SIGNER_PRIVATE_KEY is ENV-FIRST,
+    // unlike every other secret. The operator provisions it as a Fly secret
+    // (h36 operator notes); it has never existed in GCP Secret Manager, and in
+    // production getSecret() consults ONLY GCP — so without this override the
+    // poller boots IDLE despite the Fly secret being Deployed (live-verified
+    // 2026-06-11). Scoped to this one key: DATABASE_URL/RPC/SUBGRAPH etc. keep
+    // GCP-first precedence (their Fly env values may be stale).
+    process.env.SETTLEMENT_SIGNER_PRIVATE_KEY && process.env.SETTLEMENT_SIGNER_PRIVATE_KEY !== ''
+      ? Promise.resolve(process.env.SETTLEMENT_SIGNER_PRIVATE_KEY)
+      : fetchSecret('SETTLEMENT_SIGNER_PRIVATE_KEY'),
   ]);
 
   // Build the env object from process.env for non-secret fields + fetched secrets

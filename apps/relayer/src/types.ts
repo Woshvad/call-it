@@ -102,7 +102,9 @@ export interface RelayerEnv {
    * Hot key for the Redis-free settlement poller's SM.settle transactions.
    * OPTIONAL: absent → the poller runs IDLE (dry-run, single P1 alert, zero
    * transactions). NEVER logged (pino redact), never committed, set by the
-   * operator as a Fly secret only (T-h36-01).
+   * operator as a Fly secret only (T-h36-01). The Fly secret works because
+   * loadSecrets() reads this ONE key env-first (secret-manager.ts) — every
+   * other secret is GCP-first and would ignore a Fly env value in production.
    */
   SETTLEMENT_SIGNER_PRIVATE_KEY?: string;
 }
