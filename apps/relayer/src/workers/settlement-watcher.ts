@@ -179,10 +179,12 @@ export async function getAcceptedChallengeIds(
     return [];
   }
 
+  // Challenge entity fields: id = on-chain challengeId.toString(), call =
+  // callId.toString() (packages/subgraph/schema.graphql) — no challengeId field.
   const query = `
     query AcceptedChallenges($callId: String!) {
-      challenges(where: { callId: $callId, status: "Accepted" }) {
-        challengeId
+      challenges(where: { call: $callId, status: "Accepted" }) {
+        id
       }
     }
   `;
@@ -203,7 +205,7 @@ export async function getAcceptedChallengeIds(
     }
 
     const json = (await res.json()) as {
-      data?: { challenges: { challengeId: string }[] };
+      data?: { challenges: { id: string }[] };
       errors?: { message: string }[];
     };
 
@@ -212,7 +214,7 @@ export async function getAcceptedChallengeIds(
     }
 
     const challenges = json.data?.challenges ?? [];
-    const ids = challenges.map((c) => BigInt(c.challengeId));
+    const ids = challenges.map((c) => BigInt(c.id));
 
     logger.info(
       {

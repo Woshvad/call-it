@@ -725,10 +725,13 @@ export async function queryActiveCallsByCallers(
 
 // ── Accepted challenge ids (quick-260611-h36 — settlement-poller path) ────────
 
+// Challenge entity fields (packages/subgraph/schema.graphql): id = on-chain
+// challengeId.toString(), call = callId.toString(). There is NO challengeId/
+// callId field on Challenge — querying them is a GraphQL error → []-fallback.
 const ACCEPTED_CHALLENGES_QUERY = `
 query AcceptedChallenges($callId: String!) {
-  challenges(where: { callId: $callId, status: "Accepted" }) {
-    challengeId
+  challenges(where: { call: $callId, status: "Accepted" }) {
+    id
   }
 }
 `;
@@ -746,7 +749,7 @@ query AcceptedChallenges($callId: String!) {
  * @param callId The on-chain call id.
  */
 export async function queryAcceptedChallengeIds(callId: bigint): Promise<bigint[]> {
-  type AcceptedData = { challenges: { challengeId: string }[] };
+  type AcceptedData = { challenges: { id: string }[] };
 
   // WR-03: with-meta variant so a breaker-served snapshot is NEVER silently
   // treated as fresh for settle-time duel discovery — a duel accepted AFTER
@@ -766,7 +769,8 @@ export async function queryAcceptedChallengeIds(callId: bigint): Promise<bigint[
     );
   }
 
-  return (data.challenges ?? []).map((c) => BigInt(c.challengeId));
+  // Challenge.id is the decimal on-chain challengeId string — BigInt() is safe.
+  return (data.challenges ?? []).map((c) => BigInt(c.id));
 }
 
 // ── Settled-fields read (08-05 GAP 1 — Core Value: receipts must be truthful) ──

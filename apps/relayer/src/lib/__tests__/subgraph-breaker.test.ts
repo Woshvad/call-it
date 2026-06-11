@@ -245,7 +245,7 @@ describe('subgraph circuit breaker', () => {
   it('Test 7 (WR-03): queryAcceptedChallengeIds served stale → explicit warn with ageMs (never silently fresh)', async () => {
     const challengesResponse = {
       ok: true,
-      json: async () => ({ data: { challenges: [{ challengeId: '7' }] } }),
+      json: async () => ({ data: { challenges: [{ id: '7' }] } }),
     };
 
     // 1. Fresh query stores the snapshot — no stale warn.
