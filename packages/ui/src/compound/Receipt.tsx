@@ -69,6 +69,8 @@ export type ReceiptProps = {
   mode: 'preview' | 'live' | 'settled';
   data: ReceiptData;
   className?: string;
+  /** Footer chain label — pass the actual deploy network (e.g. 'arbitrum sepolia'). */
+  chainLabel?: string;
 };
 
 /** Format stake for display — bigint stakes are 6-decimal micro-USDC (matches CallCard.formatStake) */
@@ -118,7 +120,7 @@ function MarketLineHeadline({ marketLine }: { marketLine: string }) {
   );
 }
 
-export function Receipt({ mode, data, className }: ReceiptProps) {
+export function Receipt({ mode, data, className, chainLabel = 'arbitrum' }: ReceiptProps) {
   const avatarInitial = (data.handle.replace(/^@/, '')[0] ?? '?').toUpperCase();
 
   return (
@@ -351,7 +353,7 @@ export function Receipt({ mode, data, className }: ReceiptProps) {
             color: 'var(--text-muted)',
           }}
         >
-          chain · arbitrum
+          chain · {chainLabel}
         </span>
       </div>
     </Card>

@@ -109,6 +109,11 @@ function formatUsdc(raw: bigint): string {
   return `$${whole.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
 }
 
+/** Truncated 0x addresses are not handles — render them without the @ prefix. */
+function displayHandle(handle: string): string {
+  return handle.startsWith('0x') ? handle : `@${handle}`;
+}
+
 // ── Settled-stat formatting (D-03) ──────────────────────────────────────────────
 // Pyth/oracle prices are scaled 1e8 in the SettlementManager finalPrice/priceDelta.
 const PRICE_SCALE = 1e8;
@@ -291,7 +296,7 @@ function buildLiveCard(props: LiveCardProps): ReactElement {
       },
       h('div', {
         style: { fontFamily: 'SpaceGrotesk', fontSize: 20, color: '#94A3B8', display: 'flex' },
-      }, `@${handle} · ${conviction}% conviction · ${stakeStr} staked`),
+      }, `${displayHandle(handle)} · ${conviction}% conviction · ${stakeStr} staked`),
     ),
 
     // ── Call statement hero ────────────────────────────────────────────────
@@ -490,7 +495,7 @@ function buildSettledCard(props: SettledCardProps): ReactElement {
     },
       h('div', {
         style: { fontFamily: 'SpaceGrotesk', fontSize: 18, color: '#94A3B8', display: 'flex' },
-      }, `@${handle} · ${conviction}% conviction · ${repRaw} rep`),
+      }, `${displayHandle(handle)} · ${conviction}% conviction · ${repRaw} rep`),
     ),
 
     // ── OUTCOME WORD hero: §14.1 locked color, ≥64px one-line fit ─────────
@@ -571,7 +576,7 @@ function buildSettledCard(props: SettledCardProps): ReactElement {
     },
       h('div', {
         style: { fontFamily: 'SpaceGrotesk', fontSize: 16, color: '#F1F5F9', display: 'flex', fontWeight: 700 },
-      }, `@${handle}`),
+      }, displayHandle(handle)),
       h('div', {
         style: { fontFamily: 'SpaceGrotesk', fontSize: 12, color: '#94A3B8', display: 'flex' },
       }, footerBrand),
@@ -708,7 +713,7 @@ function buildCallerExitedCard(props: CallerExitedCardProps): ReactElement {
       ),
       h('div', {
         style: { fontFamily: 'SpaceGrotesk', fontSize: 16, color: '#94A3B8', display: 'flex' },
-      }, `@${handle}`),
+      }, displayHandle(handle)),
     ),
 
     // ── Note copy ──────────────────────────────────────────────────────────

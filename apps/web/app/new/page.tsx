@@ -8,6 +8,7 @@ import { usePrivy } from '@privy-io/react-auth';
 import type { CreateCallInput, MarketType } from '@call-it/shared';
 import { createCallSchema, MIN_STAKE, CREATION_FEE } from '@call-it/shared';
 import { formatTargetForDisplay } from './lib/target-scale';
+import { ACTIVE_CHAIN } from '@/lib/chain';
 import { Receipt, Button } from '@call-it/ui';
 import { MarketTypeSwitcher } from './components/MarketTypeSwitcher';
 import { PriceTargetFields } from './components/PriceTargetFields';
@@ -338,6 +339,7 @@ export default function NewCallPage() {
           </div>
           <Receipt
             mode="preview"
+            chainLabel={ACTIVE_CHAIN.name.toLowerCase()}
             data={{
               handle: '@you',
               marketLine: previewMarketLine,
@@ -474,6 +476,7 @@ export default function NewCallPage() {
         </div>
         <Receipt
           mode="preview"
+          chainLabel={ACTIVE_CHAIN.name.toLowerCase()}
           data={{
             handle: '@you',
             marketLine: previewMarketLine,
