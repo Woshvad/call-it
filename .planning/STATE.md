@@ -557,3 +557,4 @@ Items acknowledged and carried forward from previous milestone close:
 Last session: 2026-06-10T17:47:59.457Z
 Stopped at: Completed 09.2-14-PLAN.md
 Resume file: None
+| 260611-fast-challenge-query | (gsd-fast) AcceptedChallenges subgraph query asked for nonexistent Challenge fields — schema has `id` (= challengeId.toString()) + `call` (= callId.toString()), query used `challengeId`/`callId` → GraphQL error → every duel discovery fell back to [] (accepted duels would never settle with their call). Fixed both copies (subgraph-client.ts circuit-breaker path + settlement-watcher.ts gated BullMQ path): where `{ call: $callId }`, select `id`, map BigInt(c.id). subgraph-breaker mock updated. Suite: my file 10/10, build 0 (full-suite ENS failure is parallel-session WIP, pre-existing). ⚠️ Takes effect at next relayer Fly redeploy. | 2026-06-11 | 48db3aa | — |
