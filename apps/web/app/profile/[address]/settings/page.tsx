@@ -124,11 +124,16 @@ export default function ProfileSettingsPage({ params }: SettingsPageProps) {
   }
 
   async function handleSetDisplayHandle() {
-    if (!handleInput.trim()) {
+    // quick-260611-p9a: normalize ONCE — trim + strip a leading @ (users type
+    // "@test" by habit; storing the @ on-chain rendered "@@test" everywhere
+    // the UI prefixes handles). The normalized value flows through validation,
+    // the tx args, the read-back compare, and the post-success input sync.
+    const normalized = handleInput.trim().replace(/^@+/, '');
+    if (!normalized) {
       setHandleError('Handle cannot be empty');
       return;
     }
-    if (handleInput.length > 50) {
+    if (normalized.length > 50) {
       setHandleError('Handle cannot exceed 50 characters (AUTH-42)');
       return;
     }
@@ -157,7 +162,7 @@ export default function ProfileSettingsPage({ params }: SettingsPageProps) {
         abi: profileRegistryAbi,
         address: PROFILE_REGISTRY_ADDRESS,
         functionName: 'setDisplayHandle',
-        args: [handleInput],
+        args: [normalized],
         chainId: ACTIVE_CHAIN_ID,
       });
 
@@ -178,8 +183,11 @@ export default function ProfileSettingsPage({ params }: SettingsPageProps) {
           functionName: 'displayHandle',
           args: [caller],
         });
-        if (onChainHandle === handleInput) {
+        if (onChainHandle === normalized) {
           setHandleSaved(true);
+          // Sync the input to exactly what was stored on-chain (the @-stripped
+          // value) so the UI never shows a value that differs from the chain.
+          setHandleInput(normalized);
         } else {
           setHandleError('Save confirmed but the handle did not update — contact support.');
         }
@@ -233,6 +241,7 @@ export default function ProfileSettingsPage({ params }: SettingsPageProps) {
           <SectionTitle>// Display Handle</SectionTitle>
           <p style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', color: 'var(--text-secondary)', margin: '0 0 16px 0' }}>
             Set your preferred on-chain display name. This overrides ENS and social handles (AUTH-35).
+            Type it without the @ — a leading @ is stripped automatically.
           </p>
           <div style={{ display: 'flex', flexDirection: 'row', gap: '8px' }}>
             <input

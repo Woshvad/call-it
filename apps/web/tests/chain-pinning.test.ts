@@ -143,3 +143,28 @@ describe('ProfileRegistry writes — canonical address, no env fallback (quick-2
     expect(source).toContain('readContract');
   });
 });
+
+describe('settings handle input normalization (quick-260611-p9a)', () => {
+  // Root cause (verified live 2026-06-11): the save flow used raw handleInput
+  // for the length check, the tx args, and the read-back compare — so a
+  // user-typed leading "@" was stored as part of the on-chain handle and the
+  // UI (which prefixes handles with @) rendered "@@test".
+
+  const source = read('app/profile/[address]/settings/page.tsx');
+
+  test('normalization exists — trim + strip leading @ before validation', () => {
+    expect(source).toContain('replace(/^@+/');
+  });
+
+  test('tx sends the normalized value, not raw handleInput', () => {
+    expect(source).toContain('args: [normalized]');
+  });
+
+  test('read-back compares against what was actually submitted', () => {
+    expect(source).toContain('onChainHandle === normalized');
+  });
+
+  test('raw-input tx pattern is dead', () => {
+    expect(source).not.toContain('args: [handleInput]');
+  });
+});
