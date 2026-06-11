@@ -16,15 +16,24 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
-vi.mock('../logger.js', () => ({
-  getLogger: vi.fn(() => ({ info: vi.fn(), warn: vi.fn(), error: vi.fn() })),
-  logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
-}));
+// Stable logger capture (review fixes WR-03/WR-04 assert on structured warns).
+const logged = vi.hoisted(() => ({ events: [] as Array<Record<string, unknown>> }));
+vi.mock('../logger.js', () => {
+  const push = (obj: Record<string, unknown>) => {
+    logged.events.push(obj);
+  };
+  const fake = { info: push, warn: push, error: push };
+  return { getLogger: vi.fn(() => fake), logger: fake };
+});
 
 const mockFetch = vi.fn();
 vi.stubGlobal('fetch', mockFetch);
 
-import { queryFeed, _resetBreakerForTesting } from '../subgraph-client.js';
+import {
+  queryFeed,
+  queryAcceptedChallengeIds,
+  _resetBreakerForTesting,
+} from '../subgraph-client.js';
 
 const FEED_ITEM = {
   id: '1',
@@ -55,6 +64,7 @@ describe('subgraph circuit breaker', () => {
     vi.useFakeTimers();
     _resetBreakerForTesting();
     mockFetch.mockReset();
+    logged.events.length = 0;
     process.env.SUBGRAPH_STUDIO_URL = 'https://studio.example/subgraph/v1';
     delete process.env.SUBGRAPH_BREAKER_COOLDOWN_MS;
   });
@@ -172,5 +182,86 @@ describe('subgraph circuit breaker', () => {
     // While open with no servable snapshot → circuit-open throw, no fetch.
     await expect(queryFeed({ cursor: null })).rejects.toThrow(/circuit open/);
     expect(mockFetch).toHaveBeenCalledTimes(2);
+  });
+
+  it('Test 5 (WR-04b): GraphQL validation errors do NOT open the breaker — next query still fetches', async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ errors: [{ message: 'Type `Call` has no field `foo`' }] }),
+    });
+
+    await expect(queryFeed({ cursor: null })).rejects.toThrow(/GraphQL errors/);
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+
+    // Breaker must still be CLOSED: a deterministic query bug is not an
+    // outage — the next query fetches upstream instead of short-circuiting.
+    mockFetch.mockResolvedValueOnce(okResponse());
+    const fresh = await queryFeed({ cursor: null });
+    expect(mockFetch).toHaveBeenCalledTimes(2);
+    expect(fresh._stale).toBeUndefined();
+  });
+
+  it('Test 5b (WR-04b): a non-429 4xx response does NOT open the breaker', async () => {
+    mockFetch.mockResolvedValueOnce({ ok: false, status: 400, statusText: 'Bad Request' });
+
+    await expect(queryFeed({ cursor: null })).rejects.toThrow(/400/);
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+
+    mockFetch.mockResolvedValueOnce(okResponse());
+    await queryFeed({ cursor: null });
+    expect(mockFetch).toHaveBeenCalledTimes(2);
+  });
+
+  it('Test 6 (WR-04a): half-open allows exactly ONE probe — concurrent callers get the stale path', async () => {
+    // Store a snapshot, then open the breaker.
+    mockFetch.mockResolvedValueOnce(okResponse());
+    await queryFeed({ cursor: null });
+    mockFetch.mockRejectedValueOnce(new Error('boom'));
+    await queryFeed({ cursor: null }); // opens (serves stale)
+    expect(mockFetch).toHaveBeenCalledTimes(2);
+
+    vi.advanceTimersByTime(121_000); // cooldown lapsed → half-open
+
+    // The probe hangs; a concurrent caller must NOT fetch — it gets the snapshot.
+    let resolveProbe!: (v: unknown) => void;
+    mockFetch.mockReturnValueOnce(new Promise((resolve) => { resolveProbe = resolve; }));
+    const probePromise = queryFeed({ cursor: null }); // becomes THE probe
+    const concurrent = await queryFeed({ cursor: null });
+    expect(concurrent._stale).toBe(true);
+    expect(mockFetch).toHaveBeenCalledTimes(3); // only the probe fetched
+
+    // The probe succeeds → fresh result, breaker closed.
+    resolveProbe(okResponse(300));
+    const probed = await probePromise;
+    expect(probed._stale).toBeUndefined();
+    expect(probed._meta.block.number).toBe(300);
+
+    // Closed: subsequent queries fetch normally (no probe gate).
+    mockFetch.mockResolvedValueOnce(okResponse(301));
+    await queryFeed({ cursor: null });
+    expect(mockFetch).toHaveBeenCalledTimes(4);
+  });
+
+  it('Test 7 (WR-03): queryAcceptedChallengeIds served stale → explicit warn with ageMs (never silently fresh)', async () => {
+    const challengesResponse = {
+      ok: true,
+      json: async () => ({ data: { challenges: [{ challengeId: '7' }] } }),
+    };
+
+    // 1. Fresh query stores the snapshot — no stale warn.
+    mockFetch.mockResolvedValueOnce(challengesResponse);
+    expect(await queryAcceptedChallengeIds(15n)).toEqual([7n]);
+    expect(logged.events.find((e) => e['event'] === 'accepted_challenge_ids_stale')).toBeUndefined();
+
+    // 2. Upstream failure → breaker opens, the snapshot is served stale…
+    vi.advanceTimersByTime(5_000);
+    mockFetch.mockRejectedValueOnce(new Error('ECONNRESET'));
+    expect(await queryAcceptedChallengeIds(15n)).toEqual([7n]);
+
+    // …and the stale serve is loudly flagged with the snapshot age.
+    const warn = logged.events.find((e) => e['event'] === 'accepted_challenge_ids_stale');
+    expect(warn).toBeDefined();
+    expect(warn!['callId']).toBe('15');
+    expect(warn!['ageMs']).toBe(5_000);
   });
 });

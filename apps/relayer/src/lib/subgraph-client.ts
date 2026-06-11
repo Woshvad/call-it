@@ -274,11 +274,24 @@ query ActiveCallsByCallers($callers: [Bytes!]!, $excluded: [String!]!, $first: I
 const SUBGRAPH_FETCH_TIMEOUT_MS = 10_000;
 
 /**
+ * Deterministic, non-infrastructure subgraph failure (review WR-04b):
+ * GraphQL validation/query errors, missing endpoint config, and non-429 4xx
+ * responses. These are CODE/CONFIG bugs — they rethrow straight through the
+ * circuit breaker WITHOUT opening it, so a schema typo can't masquerade as a
+ * 120s outage and silently serve up-to-1h-stale data for every query.
+ */
+export class SubgraphNonInfraError extends Error {}
+
+/**
  * Execute a raw GraphQL query against the Subgraph Studio endpoint.
  * Adds Authorization header with the API key (D-27).
  *
  * quick-260611-h36: renamed from executeQuery (body unchanged) — all calls
  * now route through the circuit breaker in executeQueryWithMeta below.
+ *
+ * Failure classification (WR-04b): infra-class failures (network/timeout,
+ * HTTP 429/5xx, missing-data body) throw plain Error and may open the
+ * breaker; deterministic failures throw SubgraphNonInfraError and bypass it.
  */
 async function executeQueryUpstream<T>(
   query: string,
@@ -288,7 +301,7 @@ async function executeQueryUpstream<T>(
   const apiKey = process.env.SUBGRAPH_STUDIO_API_KEY ?? '';
 
   if (!endpoint) {
-    throw new Error('SUBGRAPH_STUDIO_URL is not configured');
+    throw new SubgraphNonInfraError('SUBGRAPH_STUDIO_URL is not configured');
   }
 
   const res = await fetch(endpoint, {
@@ -303,13 +316,20 @@ async function executeQueryUpstream<T>(
   });
 
   if (!res.ok) {
-    throw new Error(`Subgraph request failed: ${res.status} ${res.statusText}`);
+    const message = `Subgraph request failed: ${res.status} ${res.statusText}`;
+    // WR-04b: only rate-limit / server-side failures are outages; any other
+    // 4xx is a deterministic request bug that must surface, not trip the breaker.
+    if (res.status === 429 || res.status >= 500) throw new Error(message);
+    throw new SubgraphNonInfraError(message);
   }
 
   const json = (await res.json()) as { data?: T; errors?: { message: string }[] };
 
   if (json.errors && json.errors.length > 0) {
-    throw new Error(`Subgraph GraphQL errors: ${json.errors.map((e) => e.message).join(', ')}`);
+    // WR-04b: a 200-with-errors body is a GraphQL validation/query bug, not an outage.
+    throw new SubgraphNonInfraError(
+      `Subgraph GraphQL errors: ${json.errors.map((e) => e.message).join(', ')}`,
+    );
   }
 
   if (!json.data) {
@@ -340,6 +360,14 @@ const SUBGRAPH_BREAKER_COOLDOWN_MS = 120_000;
 let breakerOpenUntil = 0;
 
 /**
+ * WR-04a: true while a half-open probe is in flight. Exactly ONE caller may
+ * probe upstream when the cooldown lapses — concurrent callers take the
+ * stale path instead of thundering-herding the recovering (rate-limited)
+ * Studio endpoint at the exact moment it comes back.
+ */
+let probeInFlight = false;
+
+/**
  * Last-known-good snapshots keyed by hash(query + variables). DEDICATED
  * instance (never the shared memoryCache) so feed-route keys can't evict
  * snapshots. The 30s "fresh" TTL is irrelevant — getStale's 1h horizon
@@ -353,6 +381,7 @@ const LAST_GOOD_STALE_HORIZON_MS = 3_600_000;
 /** @internal Test isolation: closes the breaker + clears all snapshots. */
 export function _resetBreakerForTesting(): void {
   breakerOpenUntil = 0;
+  probeInFlight = false;
   lastGood._clearAllForTesting();
 }
 
@@ -380,18 +409,18 @@ function snapshotKey(query: string, variables: Record<string, unknown>): string 
 async function executeQueryWithMeta<T>(
   query: string,
   variables: Record<string, unknown>,
-): Promise<{ data: T; stale: boolean }> {
+): Promise<{ data: T; stale: boolean; ageMs?: number }> {
   const logger = getLogger();
   const key = snapshotKey(query, variables);
 
-  const serveStale = (): { data: T; stale: boolean } | null => {
+  const serveStale = (): { data: T; stale: true; ageMs: number } | null => {
     const snapshot = lastGood.getStale<T>(key, LAST_GOOD_STALE_HORIZON_MS);
     if (!snapshot) return null;
     logger.warn(
       { event: 'subgraph_breaker_stale_served', key, ageMs: snapshot.ageMs },
       'Subgraph circuit open — serving last-known-good snapshot',
     );
-    return { data: snapshot.value, stale: true };
+    return { data: snapshot.value, stale: true, ageMs: snapshot.ageMs };
   };
 
   // ── Circuit OPEN: short-circuit to the snapshot (or throw) ─────────────────
@@ -401,13 +430,28 @@ async function executeQueryWithMeta<T>(
     throw new Error('subgraph circuit open — no last-good snapshot');
   }
 
-  // ── Closed / half-open probe ────────────────────────────────────────────────
+  // ── Half-open single-probe gate (WR-04a) ───────────────────────────────────
+  // breakerOpenUntil !== 0 here means the cooldown lapsed but no success has
+  // closed the circuit yet — exactly ONE caller probes upstream; concurrent
+  // callers get the stale path (or the circuit-open throw).
+  const halfOpen = breakerOpenUntil !== 0;
+  if (halfOpen && probeInFlight) {
+    const stale = serveStale();
+    if (stale) return stale;
+    throw new Error('subgraph circuit open — half-open probe in flight');
+  }
+
+  if (halfOpen) probeInFlight = true;
   try {
     const data = await executeQueryUpstream<T>(query, variables);
     lastGood.set(key, data, 30_000);
     breakerOpenUntil = 0;
     return { data, stale: false };
   } catch (err) {
+    // WR-04b: deterministic non-infra failures (GraphQL validation, missing
+    // config, non-429 4xx) surface as bugs — never open the breaker for them
+    // and never mask them with stale data.
+    if (err instanceof SubgraphNonInfraError) throw err;
     const cooldownMs = breakerCooldownMs();
     breakerOpenUntil = Date.now() + cooldownMs;
     logger.warn(
@@ -421,6 +465,8 @@ async function executeQueryWithMeta<T>(
     const stale = serveStale();
     if (stale) return stale;
     throw err;
+  } finally {
+    if (halfOpen) probeInFlight = false;
   }
 }
 
@@ -702,9 +748,23 @@ query AcceptedChallenges($callId: String!) {
 export async function queryAcceptedChallengeIds(callId: bigint): Promise<bigint[]> {
   type AcceptedData = { challenges: { challengeId: string }[] };
 
-  const data = await executeQuery<AcceptedData>(ACCEPTED_CHALLENGES_QUERY, {
-    callId: callId.toString(),
-  });
+  // WR-03: with-meta variant so a breaker-served snapshot is NEVER silently
+  // treated as fresh for settle-time duel discovery — a duel accepted AFTER
+  // the snapshot would be omitted from settle(...) and go unsettled in this
+  // tx. The warn carries the snapshot age for the operator; the return shape
+  // stays bigint[] (the poller passes ids straight through, and the contract
+  // validates every id on-chain via ce.getChallenge regardless).
+  const { data, stale, ageMs } = await executeQueryWithMeta<AcceptedData>(
+    ACCEPTED_CHALLENGES_QUERY,
+    { callId: callId.toString() },
+  );
+
+  if (stale) {
+    getLogger().warn(
+      { event: 'accepted_challenge_ids_stale', callId: callId.toString(), ageMs },
+      `queryAcceptedChallengeIds served a STALE snapshot (${ageMs}ms old) — duels accepted after the snapshot will NOT settle in this tx`,
+    );
+  }
 
   return (data.challenges ?? []).map((c) => BigInt(c.challengeId));
 }

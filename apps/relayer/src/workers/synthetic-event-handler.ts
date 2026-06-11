@@ -17,12 +17,15 @@ import { getRedis } from '../lib/redis.js';
 import { getLogger } from '../lib/logger.js';
 import { MemoryCache } from '../lib/memory-cache.js';
 
-// ── In-memory nonce fallback (quick-260611-h36, T-h36-03) ────────────────────
-// Used ONLY when the Redis SETNX claim ERRORS (outage), never on a normal
-// replay-reject. WHY this is sound: the relayer is a SINGLE Fly machine
-// (fly.toml, auto_stop_machines=false) — there is no second process a replay
-// could race against. The memory fallback preserves the replay guard during
-// Redis outages instead of 500ing the synthetic-alert CI probe.
+// ── In-memory nonce guard (quick-260611-h36, T-h36-03; hardened per WR-05) ───
+// Kept SUPERSET-consistent with Redis on this single Fly machine (fly.toml,
+// auto_stop_machines=false — no second process a replay could race against):
+// memory is checked FIRST and claimed BEFORE the Redis SETNX on EVERY request,
+// so a nonce claimed during a Redis outage stays claimed in-process after
+// Redis recovers (previously, recovery reopened a replay window — Redis never
+// saw the outage-claimed nonce, so a replayed SETNX would succeed). This
+// guarantee is bounded to a single machine; a multi-machine deploy would need
+// the Redis claim to be authoritative again.
 const nonceFallbackCache = new MemoryCache(1000);
 
 /** @internal Test isolation helper — clears the in-memory nonce fallback. */
@@ -103,11 +106,23 @@ export async function syntheticEventHandler(
   }
 
   // 4. Nonce uniqueness (SET NX prevents replay attacks)
-  // quick-260611-h36: the SETNX claim is guarded — a Redis ERROR (outage)
-  // falls back to the in-memory nonce check above (single-machine sound,
-  // T-h36-03). A normal `acquired !== 'OK'` stays a 400 replay-reject.
+  // quick-260611-h36 + WR-05: memory and Redis stay superset-consistent on
+  // this single machine — memory is checked FIRST and claimed BEFORE the
+  // Redis SETNX (memory-first write), so a nonce claimed during a Redis
+  // outage stays claimed in-process after Redis recovers. A Redis ERROR
+  // (outage) keeps the memory claim and proceeds; a normal
+  // `acquired !== 'OK'` stays a 400 replay-reject (the memory claim is
+  // harmless then — the nonce IS used).
   const redis = getRedis();
   const nonceKey = `paymaster:internal-nonce:${body.nonce}`;
+  if (nonceFallbackCache.get<string>(nonceKey) !== undefined) {
+    getLogger().warn({ event: 'synthetic_alert_nonce_replay', nonce: body.nonce }, 'Nonce already used');
+    await reply.status(400).send({ error: 'Bad Request', message: 'Nonce already used' });
+    return;
+  }
+  // Memory-first claim — synchronous (no await between check and set), so
+  // concurrent same-nonce requests cannot interleave in this process.
+  nonceFallbackCache.set(nonceKey, '1', NONCE_TTL_SECONDS * 1000);
   let acquired: string | null;
   try {
     acquired = await redis.set(nonceKey, '1', 'EX', NONCE_TTL_SECONDS, 'NX');
@@ -118,14 +133,8 @@ export async function syntheticEventHandler(
         nonce: body.nonce,
         err: err instanceof Error ? err.message : String(err),
       },
-      'Redis SETNX failed — falling back to in-memory nonce replay guard',
+      'Redis SETNX failed — relying on the in-memory nonce replay guard (claimed above)',
     );
-    if (nonceFallbackCache.get<string>(nonceKey) !== undefined) {
-      getLogger().warn({ event: 'synthetic_alert_nonce_replay', nonce: body.nonce }, 'Nonce already used');
-      await reply.status(400).send({ error: 'Bad Request', message: 'Nonce already used' });
-      return;
-    }
-    nonceFallbackCache.set(nonceKey, '1', NONCE_TTL_SECONDS * 1000);
     acquired = 'OK';
   }
   if (acquired !== 'OK') {

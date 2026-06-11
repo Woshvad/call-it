@@ -68,7 +68,7 @@ vi.mock('../../lib/logger.js', () => {
 
 // ── Import SUT (after mocks) ──────────────────────────────────────────────────
 
-import { startSettlementPoller, type SettlementPollerHandle } from '../settlement-poller.js';
+import { startSettlementPoller, sanitizeError, type SettlementPollerHandle } from '../settlement-poller.js';
 
 // ── Fixtures ──────────────────────────────────────────────────────────────────
 
@@ -123,7 +123,11 @@ describe('settlement-poller', () => {
   let calls: Map<string, ReturnType<typeof makeCall>>;
   let adapterType: number;
   let mockReadContract: ReturnType<typeof vi.fn>;
-  let publicClient: { readContract: ReturnType<typeof vi.fn> };
+  let mockWaitForReceipt: ReturnType<typeof vi.fn>;
+  let publicClient: {
+    readContract: ReturnType<typeof vi.fn>;
+    waitForTransactionReceipt: ReturnType<typeof vi.fn>;
+  };
   let walletClient: { writeContract: ReturnType<typeof vi.fn> };
   let handle: SettlementPollerHandle | undefined;
 
@@ -143,7 +147,9 @@ describe('settlement-poller', () => {
       }
       throw new Error(`unexpected readContract: ${functionName}`);
     });
-    publicClient = { readContract: mockReadContract };
+    // WR-01: receipt-gated terminality — default to a confirmed success.
+    mockWaitForReceipt = vi.fn().mockResolvedValue({ status: 'success' });
+    publicClient = { readContract: mockReadContract, waitForTransactionReceipt: mockWaitForReceipt };
     walletClient = { writeContract: vi.fn() };
 
     mockQueryAcceptedChallengeIds.mockResolvedValue([]);
@@ -173,11 +179,12 @@ describe('settlement-poller', () => {
     const h = start();
     await h.tick();
 
-    // Exactly 4 getCall probes (ids 1..4; id 4 returns the zeroed tuple).
+    // The WR-06 startup registry sanity probe reads getCall(1) once, then the
+    // tick discovers ids 1..4 (id 4 returns the zeroed tuple).
     const getCallArgs = mockReadContract.mock.calls
       .filter(([p]) => (p as { functionName: string }).functionName === 'getCall')
       .map(([p]) => ((p as { args: unknown[] }).args[0] as bigint).toString());
-    expect(getCallArgs).toEqual(['1', '2', '3', '4']);
+    expect(getCallArgs).toEqual(['1', '1', '2', '3', '4']);
     expect(h.getStats().known).toBe(3);
     expect(h.getStats().frontier).toBe('4');
 
@@ -186,7 +193,9 @@ describe('settlement-poller', () => {
     const getCallArgs2 = mockReadContract.mock.calls
       .filter(([p]) => (p as { functionName: string }).functionName === 'getCall')
       .map(([p]) => ((p as { args: unknown[] }).args[0] as bigint).toString());
-    expect(getCallArgs2.filter((a) => a === '1')).toHaveLength(1);
+    // id 1: exactly twice — once for the WR-06 startup probe, once for tick-1
+    // discovery; NEVER re-probed by tick 2.
+    expect(getCallArgs2.filter((a) => a === '1')).toHaveLength(2);
     expect(getCallArgs2.filter((a) => a === '2')).toHaveLength(1);
     expect(getCallArgs2.filter((a) => a === '3')).toHaveLength(1);
     expect(h.getStats().frontier).toBe('4');
@@ -296,5 +305,111 @@ describe('settlement-poller', () => {
       expect.objectContaining({ callId: 1n, acceptedChallengeIds: [] }),
     );
     expect(countEvents('settlement_poller_challenge_ids_failed')).toBe(1);
+  });
+
+  it('Test 7 (WR-01): mined-but-reverted settle tx is NOT terminal — attempt recorded, retried next tick', async () => {
+    const expired = BigInt(Math.floor(Date.now() / 1000) - 3600);
+    calls.set('1', makeCall({ expiry: expired, assetA: ETH_FEED }));
+    mockWaitForReceipt.mockResolvedValue({ status: 'reverted' });
+
+    const h = start();
+    await h.tick();
+
+    // Settle was submitted and the receipt waited on (with the 120s bound)…
+    expect(mockSettlePythCall).toHaveBeenCalledTimes(1);
+    expect(mockWaitForReceipt).toHaveBeenCalledWith(
+      expect.objectContaining({ hash: '0xtxhash', timeout: 120_000 }),
+    );
+    // …but the revert means NOT settled, NOT terminal, attempt counted.
+    expect(h.getStats().settled).toBe(0);
+    expect(countEvents('settlement_poller_settled')).toBe(0);
+    expect(countEvents('settlement_poller_tx_reverted')).toBe(1);
+    expect(countEvents('settlement_poller_attempt_failed')).toBe(1);
+    const reverted = logEvents.find((e) => e.obj['event'] === 'settlement_poller_tx_reverted');
+    expect(reverted!.obj['txHash']).toBe('0xtxhash');
+
+    // NOT terminal: the next tick retries the settle; a confirmed receipt
+    // then (and only then) marks the call terminal.
+    mockWaitForReceipt.mockResolvedValue({ status: 'success' });
+    await h.tick();
+    expect(mockSettlePythCall).toHaveBeenCalledTimes(2);
+    expect(h.getStats().settled).toBe(1);
+
+    // Terminal now — no third settle.
+    await h.tick();
+    expect(mockSettlePythCall).toHaveBeenCalledTimes(2);
+  });
+
+  it('Test 8 (WR-01): receipt wait failure/timeout is NOT terminal — retried next tick', async () => {
+    const expired = BigInt(Math.floor(Date.now() / 1000) - 3600);
+    calls.set('1', makeCall({ expiry: expired, assetA: ETH_FEED }));
+    mockWaitForReceipt.mockRejectedValueOnce(new Error('Timed out while waiting for transaction'));
+
+    const h = start();
+    await h.tick();
+
+    expect(mockSettlePythCall).toHaveBeenCalledTimes(1);
+    expect(h.getStats().settled).toBe(0);
+    expect(countEvents('settlement_poller_receipt_wait_failed')).toBe(1);
+    expect(countEvents('settlement_poller_attempt_failed')).toBe(1);
+
+    // Next tick retries; default mock confirms success → terminal.
+    await h.tick();
+    expect(mockSettlePythCall).toHaveBeenCalledTimes(2);
+    expect(h.getStats().settled).toBe(1);
+  });
+
+  it('Test 9 (WR-06): empty registry at startup → loud error + single registry_empty infra P1', async () => {
+    // calls map left EMPTY — getCall(1) returns the zeroed tuple.
+    start();
+    await new Promise((resolve) => setImmediate(resolve)); // flush the async probe
+
+    expect(countEvents('settlement_poller_registry_probe_zero')).toBe(1);
+    const probeAlerts = mockSendAlertSafe.mock.calls.filter(
+      ([, p]) => (p as Record<string, unknown>)['probe'] === 'registry_empty',
+    );
+    expect(probeAlerts).toHaveLength(1);
+    expect(probeAlerts[0]![1]).toEqual(
+      expect.objectContaining({ category: 'infra', subsystem: 'settlement-poller' }),
+    );
+  });
+
+  it('Test 10 (WR-06): frontier stuck at 1 for 10 successful empty ticks → frontier_stuck P1 exactly once', async () => {
+    // calls map left EMPTY — every tick probes getCall(1) and sees the zeroed tuple.
+    const h = start();
+    const stuckAlerts = () =>
+      mockSendAlertSafe.mock.calls.filter(
+        ([, p]) => (p as Record<string, unknown>)['probe'] === 'frontier_stuck',
+      );
+
+    for (let i = 0; i < 9; i++) await h.tick();
+    expect(stuckAlerts()).toHaveLength(0);
+
+    await h.tick(); // 10th successful empty tick crosses the threshold
+    expect(stuckAlerts()).toHaveLength(1);
+    expect(countEvents('settlement_poller_frontier_stuck')).toBe(1);
+
+    // Further empty ticks must NOT re-alert.
+    await h.tick();
+    expect(stuckAlerts()).toHaveLength(1);
+  });
+
+  it('Test 11 (WR-02): sanitizeError keeps only the first line and truncates 0x-hex runs', () => {
+    const viemish = new Error(
+      'The contract function "settle" reverted.\n\nRequest Arguments:\n  from: 0xdFc809220f4f4c11d9F32C629D6b18653Ac0b0d0\n  to:   0x1111111111111111111111111111111111111111',
+    );
+    const out = sanitizeError(viemish);
+    expect(out).toBe('The contract function "settle" reverted.');
+    expect(out).not.toContain('0xdFc80922');
+
+    // A single-line error with an embedded address is truncated, not dropped.
+    const oneLine = sanitizeError(
+      new Error('nonce too low for 0xdFc809220f4f4c11d9F32C629D6b18653Ac0b0d0 retry later'),
+    );
+    expect(oneLine).toBe('nonce too low for 0xdFc80922… retry later');
+    expect(oneLine).not.toContain('0xdFc809220f4f4c11d9F32C629D6b18653Ac0b0d0');
+
+    // Non-Error inputs degrade safely.
+    expect(sanitizeError('plain string failure')).toBe('plain string failure');
   });
 });

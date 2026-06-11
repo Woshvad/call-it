@@ -27,8 +27,12 @@
  * getStats() }`, setInterval with a tick().catch safety net, per-call
  * try/catch so a tick can never throw.
  *
- * SECURITY: this module NEVER logs the signer account address or any key
- * material (T-h36-01). The walletClient arrives pre-built from index.ts.
+ * SECURITY (T-h36-01 + review WR-02): this module NEVER logs key material,
+ * and upstream error text is scrubbed via sanitizeError() before logging —
+ * viem's ContractFunctionExecutionError.message embeds the signer ACCOUNT
+ * ADDRESS in its "Request Arguments" block (`from: 0x…`), so only the first
+ * line of any error, with long 0x-hex runs truncated, ever reaches pino.
+ * The walletClient arrives pre-built from index.ts.
  */
 
 import type { PublicClient, WalletClient, Address } from 'viem';
@@ -54,6 +58,16 @@ const MAX_ATTEMPTS = 30;
 
 /** Backoff after the attempt cap (and re-armed per further failure): 10 min. */
 const BACKOFF_MS = 600_000;
+
+/**
+ * Receipt-wait bound after a settle broadcast (WR-01). Beyond this the tx is
+ * treated as UNCONFIRMED — the call is NOT marked terminal and is retried
+ * next tick (the attempt counter / 30-cap P0 pathway is unchanged).
+ */
+const RECEIPT_TIMEOUT_MS = 120_000;
+
+/** Successful-but-empty frontier ticks before the misconfig P1 fires (WR-06). */
+const REGISTRY_STUCK_TICKS = 10;
 
 /** Discovery bound per tick — caps RPC amplification on public RPC (T-h36-06). */
 const MAX_PROBES_PER_TICK = 50;
@@ -120,6 +134,21 @@ interface CallStruct {
   assetA: bigint;
 }
 
+/**
+ * Scrub upstream error text before logging (WR-02): keep only the FIRST line
+ * and truncate any long 0x-hex run (addresses, calldata, tx hashes). viem's
+ * ContractFunctionExecutionError.message embeds the full "Request Arguments"
+ * block — including `from: <signer account address>` — so logging err.message
+ * verbatim would leak the signer ADDRESS into pino on every failed settle.
+ * (Key material never appears in viem error text; this widens the logged-
+ * invariant to the account address as the module header claims.)
+ */
+export function sanitizeError(err: unknown): string {
+  const msg = err instanceof Error ? err.message : String(err);
+  const firstLine = (msg.split('\n')[0] ?? '').trim() || msg.slice(0, 200);
+  return firstLine.replace(/0x[0-9a-fA-F]{10,}/g, (m) => `${m.slice(0, 10)}…`);
+}
+
 // ── Worker ────────────────────────────────────────────────────────────────────
 
 export function startSettlementPoller(config: SettlementPollerConfig): SettlementPollerHandle {
@@ -143,6 +172,15 @@ export function startSettlementPoller(config: SettlementPollerConfig): Settlemen
   let totalSettled = 0;
   let totalErrors = 0;
   let running = false;
+
+  // WR-06: registry sanity state — a wrong registry address / ABI drift makes
+  // the chain look permanently empty, which is indistinguishable from "no
+  // calls exist yet" (this repo HAS redeployed CallRegistry before — 05.1).
+  // Alert once at startup (zeroed getCall(1)) and once more if the frontier
+  // is still 1 after REGISTRY_STUCK_TICKS successful-but-empty probes.
+  let emptyFrontierTicks = 0;
+  let registryEmptyAlerted = false;
+  let frontierStuckAlerted = false;
 
   // One Pyth adapter instance — mirrors the watcher's config exactly.
   const hermesClient = new HermesClient(hermesUrl, {});
@@ -273,7 +311,7 @@ export function startSettlementPoller(config: SettlementPollerConfig): Settlemen
       }
       updateData = fetchResult.updateData ?? [];
     } catch (err) {
-      await recordFailure(idStr, err instanceof Error ? err.message : String(err));
+      await recordFailure(idStr, sanitizeError(err));
       return;
     }
 
@@ -284,7 +322,7 @@ export function startSettlementPoller(config: SettlementPollerConfig): Settlemen
         {
           event: 'settlement_poller_challenge_ids_failed',
           callId: idStr,
-          err: err instanceof Error ? err.message : String(err),
+          err: sanitizeError(err),
         },
         'queryAcceptedChallengeIds failed — settling with [] (no duels settled for this call)',
       );
@@ -300,15 +338,92 @@ export function startSettlementPoller(config: SettlementPollerConfig): Settlemen
         publicClient,
         settlementManagerAddress,
       });
+
+      // WR-01: a broadcast hash is NOT proof of settlement. viem's implicit
+      // gas estimation catches most reverts pre-broadcast, but an external
+      // settle (or price-update) landing between estimation and inclusion
+      // yields a MINED-BUT-REVERTED tx. Wait for the receipt (publicClient
+      // rides the fallback() RPC transport built in index.ts) and only mark
+      // terminal on an actual on-chain success — anything else re-enters the
+      // retry loop (and the unchanged 30-cap P0 pathway) instead of being
+      // silently abandoned until restart.
+      let receiptStatus: string;
+      try {
+        const receipt = await publicClient.waitForTransactionReceipt({
+          hash: txHash,
+          timeout: RECEIPT_TIMEOUT_MS,
+        });
+        receiptStatus = receipt.status;
+      } catch (waitErr) {
+        logger.error(
+          {
+            event: 'settlement_poller_receipt_wait_failed',
+            callId: idStr,
+            txHash,
+            err: sanitizeError(waitErr),
+          },
+          `Receipt wait failed/timed out for callId ${idStr} settle tx — NOT marking terminal; retrying next tick`,
+        );
+        await recordFailure(idStr, 'receipt_wait_failed');
+        return;
+      }
+      if (receiptStatus !== 'success') {
+        logger.error(
+          {
+            event: 'settlement_poller_tx_reverted',
+            callId: idStr,
+            txHash,
+            receiptStatus,
+          },
+          `Settle tx for callId ${idStr} mined but REVERTED — NOT marking terminal; retrying next tick`,
+        );
+        await recordFailure(idStr, 'tx_reverted');
+        return;
+      }
+
       logger.info(
         { event: 'settlement_poller_settled', callId: idStr, txHash },
-        `Settled callId ${idStr}`,
+        `Settled callId ${idStr} (receipt confirmed)`,
       );
       totalSettled++;
       info.terminal = true;
       clearCounters(idStr);
     } catch (err) {
-      await recordFailure(idStr, err instanceof Error ? err.message : String(err));
+      await recordFailure(idStr, sanitizeError(err));
+    }
+  }
+
+  /**
+   * WR-06: startup sanity probe — getCall(1) returning the zeroed tuple while
+   * a registry address is configured is either a brand-new registry or a
+   * misconfig (wrong address / ABI drift decoding caller as zero). Log loudly
+   * + single infra P1 so an unattended poller can never be structurally blind
+   * while looking healthy. Fire-and-forget; never throws.
+   */
+  async function registrySanityProbe(): Promise<void> {
+    if (callRegistryAddress.toLowerCase() === ZERO_ADDRESS) return;
+    try {
+      const probe = await readCall(1n);
+      if (probe.caller.toLowerCase() === ZERO_ADDRESS && !registryEmptyAlerted) {
+        registryEmptyAlerted = true;
+        logger.error(
+          { event: 'settlement_poller_registry_probe_zero', callRegistryAddress },
+          'Registry probe found zero calls — address/ABI misconfig? (or a brand-new registry)',
+        );
+        await sendAlertSafe('tvl_approach', {
+          category: 'infra',
+          subsystem: 'settlement-poller',
+          probe: 'registry_empty',
+          callRegistryAddress,
+          message: 'registry probe found zero calls — address/ABI misconfig?',
+        });
+      }
+    } catch (err) {
+      // An RPC failure at boot is NOT a misconfig signal — per-tick discovery retries.
+      logger.warn(
+        { event: 'settlement_poller_registry_probe_failed', err: sanitizeError(err) },
+        'Registry sanity probe failed — relying on per-tick discovery',
+      );
     }
   }
 
@@ -318,6 +433,7 @@ export function startSettlementPoller(config: SettlementPollerConfig): Settlemen
     try {
       // ── 1. Discover (no subgraph): ascending getCall until the zeroed tuple ─
       let probes = 0;
+      let sawEmptyFrontier = false; // WR-06: zeroed tuple at id 1 (successful probe)
       while (probes < MAX_PROBES_PER_TICK) {
         let call: CallStruct;
         try {
@@ -327,7 +443,7 @@ export function startSettlementPoller(config: SettlementPollerConfig): Settlemen
             {
               event: 'settlement_poller_probe_failed',
               callId: frontier.toString(),
-              err: err instanceof Error ? err.message : String(err),
+              err: sanitizeError(err),
             },
             'getCall probe failed — retrying next tick',
           );
@@ -337,10 +453,37 @@ export function startSettlementPoller(config: SettlementPollerConfig): Settlemen
         probes++;
         if (call.caller.toLowerCase() === ZERO_ADDRESS) {
           // VERIFIED: a nonexistent id returns a zeroed tuple, no revert.
+          if (frontier === 1n) sawEmptyFrontier = true;
           break;
         }
         recordKnown(frontier.toString(), call);
         frontier++;
+      }
+
+      // ── 1b. WR-06: frontier never advanced past 1 across many SUCCESSFUL
+      // probes while a registry address is configured → likely misconfig
+      // (wrong address / ABI drift). RPC failures do NOT count. Alert once.
+      if (sawEmptyFrontier && callRegistryAddress.toLowerCase() !== ZERO_ADDRESS) {
+        emptyFrontierTicks++;
+        if (emptyFrontierTicks >= REGISTRY_STUCK_TICKS && !frontierStuckAlerted) {
+          frontierStuckAlerted = true;
+          logger.error(
+            {
+              event: 'settlement_poller_frontier_stuck',
+              ticks: emptyFrontierTicks,
+              callRegistryAddress,
+            },
+            `Frontier still at call id 1 after ${emptyFrontierTicks} ticks with a configured registry — address/ABI misconfig?`,
+          );
+          await sendAlertSafe('tvl_approach', {
+            category: 'infra',
+            subsystem: 'settlement-poller',
+            probe: 'frontier_stuck',
+            ticks: emptyFrontierTicks,
+            callRegistryAddress,
+            message: `settlement-poller frontier stuck at 1 after ${emptyFrontierTicks} ticks — registry address/ABI misconfig?`,
+          });
+        }
       }
 
       // ── 2. Candidates: expired, non-terminal, Live/CallerExited, not backing off ─
@@ -364,7 +507,7 @@ export function startSettlementPoller(config: SettlementPollerConfig): Settlemen
             {
               event: 'settlement_poller_candidate_error',
               callId: idStr,
-              err: err instanceof Error ? err.message : String(err),
+              err: sanitizeError(err),
             },
             'Candidate processing failed — continuing',
           );
@@ -391,6 +534,9 @@ export function startSettlementPoller(config: SettlementPollerConfig): Settlemen
     });
   }
 
+  // WR-06: fire-and-forget startup registry sanity probe (never throws).
+  void registrySanityProbe();
+
   logger.info(
     { event: 'settlement_poller_started', intervalMs, idle: !walletClient },
     `Settlement poller started (${walletClient ? 'LIVE' : 'IDLE dry-run'} mode, tick every ${intervalMs}ms)`,
@@ -400,7 +546,7 @@ export function startSettlementPoller(config: SettlementPollerConfig): Settlemen
     tick().catch((err: unknown) => {
       totalErrors++;
       logger.error(
-        { event: 'settlement_poller_tick_error', err: err instanceof Error ? err.message : String(err) },
+        { event: 'settlement_poller_tick_error', err: sanitizeError(err) },
         'Settlement poller tick threw — continuing',
       );
     });
