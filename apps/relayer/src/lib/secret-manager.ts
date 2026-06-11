@@ -188,18 +188,22 @@ export async function loadSecrets(): Promise<RelayerEnv> {
 
   // Phase 1.5 — Social-linking secrets (all optional; CORE never hard-depends
   // on them, and the FEED secrets are gated behind a checkpoint in 01.5-05).
+  // quick-260611-h36: SETTLEMENT_SIGNER_PRIVATE_KEY is OPTIONAL — absent means
+  // the settlement-poller runs IDLE (dry-run). NEVER logged (pino redact).
   const [
     relayerOauthProofAddress,
     farcasterRelayUrl,
     farcasterAuthDomain,
     xApiBearerToken,
     neynarApiKey,
+    settlementSignerPrivateKey,
   ] = await Promise.all([
     fetchSecret('RELAYER_OAUTH_PROOF_ADDRESS'),
     fetchSecret('FARCASTER_RELAY_URL'),
     fetchSecret('FARCASTER_AUTH_DOMAIN'),
     fetchSecret('X_API_BEARER_TOKEN'),
     fetchSecret('NEYNAR_API_KEY'),
+    fetchSecret('SETTLEMENT_SIGNER_PRIVATE_KEY'),
   ]);
 
   // Build the env object from process.env for non-secret fields + fetched secrets
@@ -274,5 +278,8 @@ export async function loadSecrets(): Promise<RelayerEnv> {
     FARCASTER_AUTH_DOMAIN: farcasterAuthDomain,
     X_API_BEARER_TOKEN: xApiBearerToken,
     NEYNAR_API_KEY: neynarApiKey,
+
+    // quick-260611-h36 — settlement-poller signer (optional; never logged)
+    SETTLEMENT_SIGNER_PRIVATE_KEY: settlementSignerPrivateKey,
   };
 }

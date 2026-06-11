@@ -96,4 +96,13 @@ export interface RelayerEnv {
   X_API_BEARER_TOKEN?: string;
   /** Neynar API key — "From your Farcaster" follow graph (AUTH-18) */
   NEYNAR_API_KEY?: string;
+
+  // ── quick-260611-h36 — settlement-poller signer (OPTIONAL) ────────────────
+  /**
+   * Hot key for the Redis-free settlement poller's SM.settle transactions.
+   * OPTIONAL: absent → the poller runs IDLE (dry-run, single P1 alert, zero
+   * transactions). NEVER logged (pino redact), never committed, set by the
+   * operator as a Fly secret only (T-h36-01).
+   */
+  SETTLEMENT_SIGNER_PRIVATE_KEY?: string;
 }

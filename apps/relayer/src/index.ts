@@ -24,7 +24,8 @@
 import './lib/load-dev-env.js';
 import Fastify, { type FastifyInstance } from 'fastify';
 import cors from '@fastify/cors';
-import { fallback, createPublicClient, http } from 'viem';
+import { fallback, createPublicClient, createWalletClient, http, type WalletClient } from 'viem';
+import { privateKeyToAccount } from 'viem/accounts';
 import { arbitrumSepolia } from 'viem/chains';
 import { initEnv } from './env.js';
 import { createLogger, setLogger } from './lib/logger.js';
@@ -65,6 +66,8 @@ import { startDuelKingWorker } from './workers/duel-king-worker.js';
 import { startSocialUnlinkWatcher } from './workers/social-unlink-watcher.js';
 // Phase 4 — Plan 04-04: Settlement watcher (BullMQ + Pyth 30×60s retry)
 import { startSettlementWatcher, type SettlementWatcherHandle } from './workers/settlement-watcher.js';
+// quick-260611-h36: Redis-free chain-polling settlement poller
+import { startSettlementPoller, type SettlementPollerHandle } from './workers/settlement-poller.js';
 // Phase 4 — Plan 04-08: Settlement provenance + dispute routes (D-10, D-06/07)
 import { settleRoute } from './routes/settle.js';
 import { disputesRoute } from './routes/disputes.js';
@@ -100,6 +103,7 @@ export async function buildApp(): Promise<FastifyInstance> {
           'BETTERSTACK_SOURCE_TOKEN',
           'X_API_WRITE_TOKEN',
           'X_API_BEARER_TOKEN',
+          'SETTLEMENT_SIGNER_PRIVATE_KEY',
           '*.privateKey',
           '*.private_key',
           'headers.authorization',
@@ -249,6 +253,33 @@ export async function buildApp(): Promise<FastifyInstance> {
   };
 
   let settlementWatcherHandle: SettlementWatcherHandle | undefined;
+  let settlementPollerHandle: SettlementPollerHandle | undefined;
+
+  // ── quick-260611-h36: settlement-poller signer (OPTIONAL, T-h36-01) ────────
+  // Built from the SETTLEMENT_SIGNER_PRIVATE_KEY secret when present; absent →
+  // undefined and the poller runs IDLE (dry-run + single P1 alert). The key
+  // value is NEVER logged (pino redact above) and never set by this codebase —
+  // the operator provisions it as a Fly secret.
+  let settlementPollerWalletClient: WalletClient | undefined;
+  if (env.SETTLEMENT_SIGNER_PRIVATE_KEY) {
+    try {
+      settlementPollerWalletClient = createWalletClient({
+        account: privateKeyToAccount(env.SETTLEMENT_SIGNER_PRIVATE_KEY as `0x${string}`),
+        chain: arbitrumSepolia,
+        transport: fallback([
+          http(process.env.RPC_URL_ARBITRUM_SEPOLIA ?? process.env.ARBITRUM_SEPOLIA_RPC_URL),
+          http(), // public RPC failover (mirrors notificationFanoutClient)
+        ]),
+      });
+    } catch {
+      // SANITIZED on purpose: a malformed key must never echo any key material.
+      app.log.error(
+        { event: 'settlement_signer_invalid' },
+        'SETTLEMENT_SIGNER_PRIVATE_KEY is set but malformed — settlement poller will run IDLE',
+      );
+      settlementPollerWalletClient = undefined;
+    }
+  }
 
   app.addHook('onReady', async () => {
     // Start paymaster confirmer worker (Plan 07 — D-02)
@@ -317,18 +348,59 @@ export async function buildApp(): Promise<FastifyInstance> {
     }
     // Start settlement watcher (Phase 4 — Plan 04-04 — D-04)
     // BullMQ expiry queue + Pyth 30×60s retry + Telegram stuck alert
-    try {
-      settlementWatcherHandle = startSettlementWatcher({
-        publicClient: settlementPublicClient,
-        walletClient: settlementWalletClient,
-        redisConfig: settlementRedisConfig,
-        subgraphUrl: notificationSubgraphUrl,
-      });
-      app.log.info({ event: 'settlement_watcher_started' }, 'Settlement watcher started');
-    } catch (err) {
-      app.log.error(
-        { event: 'settlement_watcher_start_failed', err: String(err) },
-        'Failed to start settlement watcher',
+    //
+    // quick-260611-h36: GATED behind SETTLEMENT_BULLMQ_ENABLED — default FALSE.
+    // Two reasons:
+    //   (a) enqueueSettlement has NO producer anywhere in the codebase, so the
+    //       queue worker can never receive a job — the pipeline is structurally
+    //       inert (and settlementWalletClient is a throw-stub anyway);
+    //   (b) the idle BullMQ worker polls Upstash 24/7 and is the prime suspect
+    //       for the 500K-command free-tier quota burn (LIVE outage 2026-06-11).
+    // The Redis-free settlement-poller below replaces it.
+    if (process.env.SETTLEMENT_BULLMQ_ENABLED === 'true') {
+      try {
+        settlementWatcherHandle = startSettlementWatcher({
+          publicClient: settlementPublicClient,
+          walletClient: settlementWalletClient,
+          redisConfig: settlementRedisConfig,
+          subgraphUrl: notificationSubgraphUrl,
+        });
+        app.log.info({ event: 'settlement_watcher_started' }, 'Settlement watcher started');
+      } catch (err) {
+        app.log.error(
+          { event: 'settlement_watcher_start_failed', err: String(err) },
+          'Failed to start settlement watcher',
+        );
+      }
+    } else {
+      app.log.info(
+        { event: 'settlement_watcher_bullmq_disabled' },
+        'BullMQ settlement watcher disabled (SETTLEMENT_BULLMQ_ENABLED != true) — Redis-free poller handles settlement',
+      );
+    }
+    // Start the Redis-free chain-polling settlement poller (quick-260611-h36).
+    // Default ON; set SETTLEMENT_POLLER_ENABLED=false to disable. Without a
+    // configured signer it runs IDLE (dry-run + single P1 alert).
+    if (process.env.SETTLEMENT_POLLER_ENABLED !== 'false') {
+      try {
+        settlementPollerHandle = startSettlementPoller({
+          publicClient: notificationFanoutClient,
+          walletClient: settlementPollerWalletClient,
+        });
+        app.log.info(
+          { event: 'settlement_poller_wired', idle: !settlementPollerWalletClient },
+          'Settlement poller started',
+        );
+      } catch (err) {
+        app.log.error(
+          { event: 'settlement_poller_start_failed', err: String(err) },
+          'Failed to start settlement poller',
+        );
+      }
+    } else {
+      app.log.info(
+        { event: 'settlement_poller_disabled' },
+        'Settlement poller disabled via SETTLEMENT_POLLER_ENABLED=false',
       );
     }
     // Start auto-post share-loop worker (Phase 7 — Plan 07-04 — D-02, SHARE-16/17/18)
@@ -388,6 +460,10 @@ export async function buildApp(): Promise<FastifyInstance> {
       app.log.info({ event: 'settlement_watcher_stopping' }, 'Stopping settlement watcher on server close');
       await settlementWatcherHandle.stop();
       app.log.info({ event: 'settlement_watcher_stopped' }, 'Settlement watcher stopped');
+    }
+    // quick-260611-h36: stop the Redis-free settlement poller too.
+    if (settlementPollerHandle) {
+      settlementPollerHandle.stop();
     }
   });
 

@@ -63,8 +63,9 @@ const SETTLEMENT_QUEUE_NAME = 'settlement';
 /**
  * Canonical 19-field Call struct ABI — mirrors ICallRegistry.sol:130-157 exactly.
  * Field names and types must match the deployed contract; any drift causes wrong ABI decode.
+ * Exported (quick-260611-h36) for reuse by the Redis-free settlement-poller.
  */
-const CALL_REGISTRY_ABI = [
+export const CALL_REGISTRY_ABI = [
   {
     type: 'function',
     name: 'getCall',
@@ -103,8 +104,9 @@ const CALL_REGISTRY_ABI = [
 /**
  * adapterMap public mapping getter — derived from SettlementManager.sol:119-120.
  * adapterMap[marketType][eventSubtype] -> OracleAdapter enum value (uint8).
+ * Exported (quick-260611-h36) for reuse by the Redis-free settlement-poller.
  */
-const ADAPTER_MAP_ABI = [
+export const ADAPTER_MAP_ABI = [
   {
     type: 'function',
     name: 'adapterMap',
