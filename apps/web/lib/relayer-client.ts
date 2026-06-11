@@ -39,9 +39,14 @@ async function relayerFetch<T>(
   init?: RequestInit,
 ): Promise<T> {
   const url = `${RELAYER_BASE}${path}`;
+  // Headers must merge AFTER the init spread: `...init` re-introduces
+  // `init.headers` wholesale, so spreading it last clobbered Content-Type
+  // whenever a caller passed Authorization — fetch then sent string bodies as
+  // text/plain and the relayer's zod saw "Expected object, received string".
+  const { headers: initHeaders, ...restInit } = init ?? {};
   const res = await fetch(url, {
-    headers: { 'Content-Type': 'application/json', ...init?.headers },
-    ...init,
+    ...restInit,
+    headers: { 'Content-Type': 'application/json', ...initHeaders },
   });
 
   if (!res.ok) {
