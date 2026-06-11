@@ -30,12 +30,32 @@ import { arbitrumSepolia } from 'viem/chains';
 import { getRedis } from '../lib/redis.js';
 import { getLogger } from '../lib/logger.js';
 import { resolveEns } from '../lib/ens-resolver.js';
-import { queryProfileSocials } from '../lib/subgraph-client.js';
+import {
+  queryProfileSocials,
+  queryProfileStats,
+  queryProfileCalls,
+  type SubgraphProfileStats,
+  type SubgraphProfileCall,
+} from '../lib/subgraph-client.js';
 import { withTimeout, TimeoutError } from '../lib/with-timeout.js';
+import { peekEnrichment } from '../lib/call-enrichment.js';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 export type HandleSource = 'display_handle' | 'ens' | 'twitter' | 'farcaster' | 'truncated';
+
+/** A single calls-history item (quick-260611-5mh A3c — ADDITIVE `calls` array). */
+export interface ProfileCallHistoryItem {
+  id: string;
+  status: string;
+  outcome: string | null;
+  stake: string;
+  createdAt: string;
+  statement: string | null;
+  /** Present only when the call-enrichment cache already holds this call (cheap path). */
+  marketLine?: string;
+  assetSymbol?: string;
+}
 
 export interface ProfileResponseBody {
   address: string;
@@ -53,6 +73,8 @@ export interface ProfileResponseBody {
   globalRep: number;
   verifiedX: boolean;
   verifiedFc: boolean;
+  /** Recent calls history (subgraph-sourced, recency desc — quick-260611-5mh A3c). */
+  calls: ProfileCallHistoryItem[];
 }
 
 // ── Viem client for Arbitrum (ProfileRegistry reads) ─────────────────────────
@@ -135,6 +157,7 @@ function buildDegradedBody(address: string): ProfileResponseBody {
     globalRep: 100,
     verifiedX: false,
     verifiedFc: false,
+    calls: [],
   };
 }
 
@@ -158,9 +181,16 @@ export async function profileRoute(
       },
     },
     async (request, reply) => {
-      const { address } = request.params;
       const logger = getLogger();
       const redis = getRedis();
+
+      // quick-260611-5mh (RC4a): lowercase BEFORE validation so CHECKSUMMED
+      // addresses are accepted — viem's strict isAddress rejects mixed-case
+      // inputs whose EIP-55 checksum doesn't verify (live 400 repro:
+      // 0x7304A289Aa8d5a4DB23eb78c143E9aA376415CeD). All-lowercase input
+      // behavior is byte-identical. Every downstream use (ENS, contract reads,
+      // truncation, cache key, response body) takes the lowercased form.
+      const address = request.params.address.toLowerCase();
 
       // Validate address format (must be 0x + 40 hex chars)
       if (!isAddress(address)) {
@@ -170,7 +200,7 @@ export async function profileRoute(
         });
       }
 
-      const normalizedAddress = address.toLowerCase() as `0x${string}`;
+      const normalizedAddress = address as `0x${string}`;
       const cacheKey = `profile:${normalizedAddress}`;
 
       // ── 60s Redis cache ────────────────────────────────────────────────────
@@ -202,8 +232,8 @@ export async function profileRoute(
       // status mapping degrades them to fallback values) and the cache write is
       // guarded.
       const resolveProfile = async (): Promise<ProfileResponseBody> => {
-        // ── Concurrent reads: ENS + ProfileRegistry + subgraph socials ────────
-        const [ensName, displayHandle, settledCallsRaw, socials] = await Promise.allSettled([
+        // ── Concurrent reads: ENS + ProfileRegistry + subgraph socials/stats/calls ──
+        const [ensName, displayHandle, settledCallsRaw, socials, stats, profileCalls] = await Promise.allSettled([
           withTimeout(resolveEns(address as `0x${string}`, redis), legTimeoutMs, 'ens'),
           withTimeout(
             (async () => {
@@ -255,6 +285,42 @@ export async function profileRoute(
             legTimeoutMs,
             'socials',
           ),
+          // RC4b (quick-260611-5mh): REAL Profile stats from the subgraph
+          // (globalRep/totalCalls/settledCalls/wins/losses). Wrapped so a
+          // subgraph failure degrades to null → the previous hardcoded
+          // defaults (never 500s the public profile read).
+          withTimeout(
+            (async (): Promise<SubgraphProfileStats | null> => {
+              try {
+                return await queryProfileStats(address);
+              } catch (statsErr) {
+                logger.warn(
+                  { event: 'profile_stats_read_failed', address: normalizedAddress, err: String(statsErr) },
+                  'Subgraph stats read failed — degrading to hardcoded defaults',
+                );
+                return null;
+              }
+            })(),
+            legTimeoutMs,
+            'stats',
+          ),
+          // RC4c (quick-260611-5mh): calls history via the (previously unused)
+          // queryProfileCalls. Wrapped so failure degrades to [] (D-07).
+          withTimeout(
+            (async (): Promise<SubgraphProfileCall[]> => {
+              try {
+                return await queryProfileCalls(address, 0, 20);
+              } catch (callsErr) {
+                logger.warn(
+                  { event: 'profile_calls_read_failed', address: normalizedAddress, err: String(callsErr) },
+                  'Subgraph calls-history read failed — degrading to empty array',
+                );
+                return [];
+              }
+            })(),
+            legTimeoutMs,
+            'profileCalls',
+          ),
         ]);
 
         const resolvedEns = ensName.status === 'fulfilled' ? ensName.value : null;
@@ -269,6 +335,30 @@ export async function profileRoute(
             : { twitterHandle: null, farcasterHandle: null };
         const twitterHandle: string | null = resolvedSocials.twitterHandle;
         const farcasterHandle: string | null = resolvedSocials.farcasterHandle;
+
+        // RC4b: real subgraph stats (null on missing Profile / any failure →
+        // the previous hardcoded defaults below, so behavior only ever improves).
+        const resolvedStats: SubgraphProfileStats | null =
+          stats.status === 'fulfilled' ? stats.value : null;
+
+        // RC4c: calls history. marketLine/assetSymbol come from the in-process
+        // call-enrichment cache ONLY (cheap path — no RPC from the profile
+        // route); absent cache entries degrade to the subgraph statement.
+        const resolvedProfileCalls: SubgraphProfileCall[] =
+          profileCalls.status === 'fulfilled' ? profileCalls.value : [];
+        const callsHistory: ProfileCallHistoryItem[] = resolvedProfileCalls.map((c) => {
+          const cached = peekEnrichment(c.id);
+          return {
+            id: c.id,
+            status: c.status,
+            outcome: c.outcome ?? null,
+            stake: c.stake,
+            createdAt: c.createdAt,
+            statement: c.statement ?? null,
+            ...(cached?.marketLine !== undefined ? { marketLine: cached.marketLine } : {}),
+            ...(cached?.assetSymbol !== undefined ? { assetSymbol: cached.assetSymbol } : {}),
+          };
+        });
 
         // ── AUTH-11 handle priority chain ──────────────────────────────────────
         let handle: string;
@@ -301,16 +391,20 @@ export async function profileRoute(
           ensName: resolvedEns,
           twitterHandle,
           farcasterHandle,
-          totalCalls: 0, // Phase 1: not yet indexed (Phase 7 reads from subgraph)
-          settledCalls: resolvedSettledCalls,
-          wins: 0,       // Phase 4: settlement manager writes wins/losses
-          losses: 0,
+          // RC4b (quick-260611-5mh): REAL subgraph stats when available; the
+          // previous hardcoded values remain ONLY as the degrade-on-failure /
+          // no-Profile-entity fallback (never fake-better, never 500).
+          totalCalls: resolvedStats?.totalCalls ?? 0,
+          settledCalls: resolvedStats?.settledCalls ?? resolvedSettledCalls,
+          wins: resolvedStats?.wins ?? 0,
+          losses: resolvedStats?.losses ?? 0,
           streak: 0,
-          globalRep: 100, // Phase 1 initial value (REP-01)
+          globalRep: resolvedStats?.globalRep ?? 100, // REP-01 initial value fallback
           // D-08: verification flags derived from the subgraph-linked handles.
           // null handle (never linked / unlinked) → false; AUTH-10 zero mechanical effect.
           verifiedX: !!twitterHandle,
           verifiedFc: !!farcasterHandle,
+          calls: callsHistory,
         };
 
         // ── Cache the response — ONLY if fully resolved (CR-01) ────────────────
@@ -319,7 +413,7 @@ export async function profileRoute(
         // the user's on-chain identity). Caching it would serve the wrong
         // profile for 60s with x-source: cache and no degraded marker — so a
         // timed-out resolution is never cached.
-        const anyLegTimedOut = [ensName, displayHandle, settledCallsRaw, socials].some(
+        const anyLegTimedOut = [ensName, displayHandle, settledCallsRaw, socials, stats, profileCalls].some(
           (r) => r.status === 'rejected' && r.reason instanceof TimeoutError,
         );
 

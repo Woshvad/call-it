@@ -52,6 +52,29 @@ export interface SubgraphProfileCall {
   conviction: number;
   status: string;
   createdAt: string;
+  /** Settled outcome ('CallerWon' | 'CallerLost') — null while Live (quick-260611-5mh). */
+  outcome?: string | null;
+  /** Templated market-statement mirror (D-05/D-03) — nullable pre-v0.9.0 rows. */
+  statement?: string | null;
+}
+
+/** Real Profile entity stats (RC4 closure — quick-260611-5mh). */
+export interface SubgraphProfileStats {
+  globalRep: number;
+  totalCalls: number;
+  settledCalls: number;
+  wins: number;
+  losses: number;
+}
+
+/** A single FollowFadeMarket position for a call (quick-260611-5mh A5). */
+export interface SubgraphCallPosition {
+  user: string;
+  side: string;
+  usdcDeposited: string;
+  sharesHeld: string;
+  entryTime: string;
+  exitedAt: string | null;
 }
 
 /** Social verification handles for a single Profile (D-08). */
@@ -142,6 +165,39 @@ query ProfileCalls($caller: Bytes!, $first: Int!, $skip: Int!) {
     conviction
     status
     createdAt
+    outcome
+    statement
+  }
+}
+`;
+
+// Real Profile stats (RC4 closure — quick-260611-5mh). Entity id = lowercased
+// address; fields per schema.graphql Profile (globalRep/totalCalls/settledCalls/
+// wins/losses are all non-nullable Int!).
+const PROFILE_STATS_QUERY = `
+query ProfileStats($id: ID!) {
+  profile(id: $id) {
+    globalRep
+    totalCalls
+    settledCalls
+    wins
+    losses
+  }
+}
+`;
+
+// Positions for a single call (quick-260611-5mh A5 — GET /api/calls/:id/positions).
+// Position.callId is a String field (FFM handler id shape) — pass the numeric
+// callId as a string. Mirrors the SETTLED_FIELDS_QUERY positions selection.
+const CALL_POSITIONS_QUERY = `
+query CallPositions($callIdStr: String!) {
+  positions(first: 1000, where: { callId: $callIdStr }) {
+    user
+    side
+    usdcDeposited
+    sharesHeld
+    entryTime
+    exitedAt
   }
 }
 `;
@@ -366,6 +422,64 @@ export async function queryProfileCalls(
   });
 
   return data.calls ?? [];
+}
+
+/**
+ * Query a Profile's REAL stats from the subgraph (RC4 — quick-260611-5mh).
+ *
+ * Entity id = lowercased address. Returns null when no Profile entity exists
+ * (address never interacted). THROWS on network/GraphQL errors — callers wrap
+ * and degrade to the previous hardcoded defaults (never 500 the profile read).
+ *
+ * @param userAddress Ethereum address of the profile owner
+ */
+export async function queryProfileStats(
+  userAddress: string,
+): Promise<SubgraphProfileStats | null> {
+  type ProfileStatsData = {
+    profile: {
+      globalRep: number;
+      totalCalls: number;
+      settledCalls: number;
+      wins: number;
+      losses: number;
+    } | null;
+  };
+
+  const data = await executeQuery<ProfileStatsData>(PROFILE_STATS_QUERY, {
+    id: userAddress.toLowerCase(),
+  });
+
+  if (!data.profile) return null;
+  return {
+    globalRep: data.profile.globalRep,
+    totalCalls: data.profile.totalCalls,
+    settledCalls: data.profile.settledCalls,
+    wins: data.profile.wins,
+    losses: data.profile.losses,
+  };
+}
+
+/**
+ * Query all positions for a single call (quick-260611-5mh A5).
+ *
+ * Backs GET /api/calls/:id/positions (the web's FINAL POSITIONS block).
+ * THROWS on network/GraphQL errors — the route wraps and degrades to [].
+ *
+ * @param callId The on-chain call id (numeric string).
+ */
+export async function queryCallPositions(
+  callId: string,
+): Promise<SubgraphCallPosition[]> {
+  type CallPositionsData = {
+    positions: SubgraphCallPosition[];
+  };
+
+  const data = await executeQuery<CallPositionsData>(CALL_POSITIONS_QUERY, {
+    callIdStr: String(callId),
+  });
+
+  return data.positions ?? [];
 }
 
 /** Status values EXCLUDED from the "From your X / Farcaster" feed (AUTH-15: exclude settled). */

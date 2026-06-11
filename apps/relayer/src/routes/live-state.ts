@@ -42,6 +42,7 @@ import { getRedis } from '../lib/redis.js';
 import { getLogger } from '../lib/logger.js';
 import { resolveCallStatement } from '../db/criteria-store.js';
 import { querySettledFields } from '../lib/subgraph-client.js';
+import { buildEnrichmentFromStruct, type EnrichedCallFields } from '../lib/call-enrichment.js';
 import {
   FOLLOW_FADE_MARKET_ARBITRUM_SEPOLIA,
   CALL_REGISTRY_ARBITRUM_SEPOLIA,
@@ -186,9 +187,17 @@ interface LiveStateResponse {
   callerExitedAt: string | null;
   // marketLine: the authoritative human-readable market statement (D-05, IN-03
   // closure). Sourced from the relayer call_statement store via resolveCallStatement.
-  // Omitted (undefined) when no statement has been stored yet — the client/OG then
-  // falls back to the subgraph templated mirror (D-03; no IPFS on the hot path).
+  // quick-260611-5mh: when no statement is stored, falls back to the server-built
+  // enrichment line (e.g. "ETH ≥ $1,000,000") from the shared call-enrichment
+  // helper; omitted entirely only when neither is derivable (D-03 client fallback).
   marketLine?: string;
+  // ── Enrichment additions (quick-260611-5mh — RC2/D-05, ADDITIVE) ──
+  // assetSymbol: resolved Pyth ticker for assetA (e.g. "ETH") — omitted when the
+  // on-chain feed id is unknown (D-07: degrade, never guess).
+  assetSymbol?: string;
+  // targetValue: raw on-chain target as a STRING at 1e8 scale — omitted for
+  // nonexistent calls.
+  targetValue?: string;
   // ── Settled outcome fields (08-05 — GAP 1, Core Value: truthful receipts) ──
   // ONLY present when status is Settled/Disputed AND the on-chain outcome is
   // non-Pending. These let the receipt PAGE drive getOutcomeWordResult from the
@@ -317,6 +326,11 @@ export async function liveStateRoute(
           callerExitedAt: bigint;
           outcome: number;
           criteriaHash: `0x${string}`;
+          // quick-260611-5mh: enrichment inputs (assetSymbol/targetValue/marketLine)
+          marketType: number;
+          assetA: bigint;
+          assetB: bigint;
+          targetValue: bigint;
         };
 
         let call: CallStruct | null = null;
@@ -339,6 +353,10 @@ export async function liveStateRoute(
               callerExitedAt: raw['callerExitedAt'] as bigint,
               outcome: Number(raw['outcome']),
               criteriaHash: raw['criteriaHash'] as `0x${string}`,
+              marketType: Number(raw['marketType']),
+              assetA: (raw['assetA'] as bigint) ?? 0n,
+              assetB: (raw['assetB'] as bigint) ?? 0n,
+              targetValue: (raw['targetValue'] as bigint) ?? 0n,
             };
           } catch (callErr) {
             logger.warn(
@@ -373,6 +391,30 @@ export async function liveStateRoute(
             { event: 'live_state_statement_read_failed', error: String(statementErr), callId: callId.toString() },
             'call_statement read failed — marketLine omitted, client falls back to subgraph templated mirror (D-03)',
           );
+        }
+
+        // ── Enrichment (quick-260611-5mh — RC2/D-05, SAME helper as /api/feed) ──
+        // Computes assetSymbol/targetValue/marketLine from the getCall struct we
+        // ALREADY read above (zero extra RPC) and shares the in-process immutable
+        // cache with the feed route. Failure degrades to omission, never a 500.
+        let enriched: EnrichedCallFields | null = null;
+        if (call) {
+          try {
+            enriched = buildEnrichmentFromStruct(callId.toString(), {
+              createdAt: call.createdAt,
+              expiry: call.expiry,
+              conviction: call.conviction,
+              marketType: call.marketType,
+              assetA: call.assetA,
+              assetB: call.assetB,
+              targetValue: call.targetValue,
+            });
+          } catch (enrichErr) {
+            logger.warn(
+              { event: 'live_state_enrichment_failed', error: String(enrichErr), callId: callId.toString() },
+              'Call enrichment failed — assetSymbol/targetValue/marketLine omitted',
+            );
+          }
         }
 
         // ── Settled outcome fields (08-05 — GAP 1, Core Value) ─────────────────
@@ -442,9 +484,17 @@ export async function liveStateRoute(
           status: call ? statusLabel(call.status) : 'Live',
           callerExitedAt:
             call && call.callerExitedAt > 0n ? call.callerExitedAt.toString() : null,
-          // marketLine (D-05) — only present when an authoritative statement is stored;
-          // otherwise omitted so the spread keeps it undefined (subgraph fallback, D-03).
-          ...(marketLine !== undefined ? { marketLine } : {}),
+          // marketLine (D-05) — the stored authoritative statement wins; the
+          // server-built enrichment line is the fallback (quick-260611-5mh);
+          // omitted only when neither is derivable (subgraph fallback, D-03).
+          ...(marketLine !== undefined
+            ? { marketLine }
+            : enriched?.marketLine !== undefined
+              ? { marketLine: enriched.marketLine }
+              : {}),
+          // ── Enrichment additions (quick-260611-5mh — ADDITIVE) ──
+          ...(enriched?.assetSymbol !== undefined ? { assetSymbol: enriched.assetSymbol } : {}),
+          ...(enriched !== null ? { targetValue: enriched.targetValue } : {}),
           // Settled outcome fields (08-05) — conditional spread keeps them absent for
           // Live/non-settled calls so the page never sees a phantom outcome (CRITICAL).
           ...(outcome !== undefined ? { outcome } : {}),

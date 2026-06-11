@@ -23,6 +23,7 @@ import type { FastifyInstance, FastifyPluginOptions } from 'fastify';
 import { getRedis } from '../lib/redis.js';
 import { getLogger } from '../lib/logger.js';
 import { queryFeed } from '../lib/subgraph-client.js';
+import { enrichFeedItems } from '../lib/call-enrichment.js';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -172,9 +173,26 @@ export async function feedRoute(
         };
       }
 
+      // ── quick-260611-5mh (RC2/D-05): on-chain enrichment ─────────────────────
+      // The subgraph mapping writes asset=''/expiry=0/conviction=50 placeholders
+      // (CallCreated only carries id/caller/marketType/stake). Enrich each item
+      // with the real getCall facts via ONE multicall per page + an in-process
+      // immutable cache. enrichFeedItems NEVER throws — RPC failure returns the
+      // items unchanged (graceful degradation; the feed never blocks/500s).
+      let enrichedItems = racedResult.data.items;
+      try {
+        enrichedItems = await enrichFeedItems(racedResult.data.items);
+      } catch (enrichErr) {
+        logger.warn(
+          { event: 'feed_enrichment_failed', err: String(enrichErr) },
+          'Feed enrichment failed — serving unenriched items',
+        );
+        enrichedItems = racedResult.data.items;
+      }
+
       // ── Build response ────────────────────────────────────────────────────────
       const responseData = {
-        items: racedResult.data.items,
+        items: enrichedItems,
         nextCursor: racedResult.data.nextCursor,
         _source: racedResult.source,
       };

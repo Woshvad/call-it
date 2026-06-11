@@ -45,6 +45,8 @@ import { callsDupCheckRoute } from './routes/calls-dup-check.js';
 import { feedRoute } from './routes/feed.js';
 import { profileRoute } from './routes/profile.js';
 import { liveStateRoute } from './routes/live-state.js';
+// quick-260611-5mh A5: FINAL POSITIONS endpoint (web call page fetchFinalPositions)
+import { callPositionsRoute } from './routes/call-positions.js';
 import { quoteStanceRoute } from './routes/quote-stance.js';
 import { notificationsRoute } from './routes/notifications.js';
 import { duelLiveStateRoute } from './routes/duel-live-state.js';
@@ -169,6 +171,9 @@ export async function buildApp(): Promise<FastifyInstance> {
   // ── Plan 02-07 routes ─────────────────────────────────────
   // Phase 2 — Plan 07: live-state proxy (FFM contract reads + 4s Redis cache — D-07)
   await app.register(liveStateRoute);
+  // quick-260611-5mh A5: positions per call (subgraph Position entities —
+  // backs the web's FINAL POSITIONS block; degrades to [] on subgraph failure)
+  await app.register(callPositionsRoute);
   // Phase 2 — Plan 07: quote-stance CRUD (D-15, SOCIAL-43)
   await app.register(quoteStanceRoute);
   // Phase 2 — Plan 07: notifications inbox (D-13, D-14 — Privy-gated mark-read)

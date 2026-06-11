@@ -91,8 +91,12 @@ vi.mock('../src/lib/logger.js', () => ({
 
 // Mock subgraph-client (NOT mocked in profile.test.ts — that suite relies on
 // the real queryProfileSocials fast-throwing on missing SUBGRAPH_STUDIO_URL)
+// quick-260611-5mh: the route grew stats + calls-history legs; mock them as
+// fast no-data resolutions so this suite keeps testing ONLY the deadline paths.
 vi.mock('../src/lib/subgraph-client.js', () => ({
   queryProfileSocials: mockQueryProfileSocials,
+  queryProfileStats: vi.fn(async () => null),
+  queryProfileCalls: vi.fn(async () => []),
 }));
 
 // ── Import SUT (after mocks) ──────────────────────────────────────────────────
@@ -119,6 +123,9 @@ const EXPECTED_BODY_KEYS = [
   'globalRep',
   'verifiedX',
   'verifiedFc',
+  // quick-260611-5mh A3c: ADDITIVE calls-history array (intentional shape
+  // change — degraded body carries calls: []).
+  'calls',
 ];
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
@@ -218,7 +225,7 @@ describe('GET /api/profile/:address — deadline regression (quick-260610-sr0)',
     expect(body.verifiedFc).toBe(false);
     expect(body.settledCalls).toBe(0);
 
-    // Shape drift fails loudly: exact ProfileResponseBody key set (15 fields)
+    // Shape drift fails loudly: exact ProfileResponseBody key set (16 fields)
     expect(Object.keys(body).sort()).toEqual([...EXPECTED_BODY_KEYS].sort());
 
     // WR-03: the response above raced AHEAD of the abandoned resolveProfile

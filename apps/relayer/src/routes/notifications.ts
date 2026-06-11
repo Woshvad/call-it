@@ -64,6 +64,10 @@ async function resolveSessionWalletAddress(privyUserId: string): Promise<string 
 interface NotificationsQuerystring {
   user?: string;
   cursor?: string;
+  /** quick-260611-5mh A4: optional callId filter (pending-challenge banner). */
+  callId?: string;
+  /** quick-260611-5mh A4: optional event_type filter (e.g. challenge_proposed). */
+  type?: string;
 }
 
 interface MarkReadBody {
@@ -86,6 +90,8 @@ export async function notificationsRoute(
           properties: {
             user: { type: 'string' },
             cursor: { type: 'string' },
+            callId: { type: 'string' },
+            type: { type: 'string' },
           },
         },
       },
@@ -95,6 +101,90 @@ export async function notificationsRoute(
       const db = getDb();
 
       const userAddress = request.query.user;
+
+      // ── quick-260611-5mh A4: callId/type filter mode ────────────────────────
+      // When callId and/or type is present, `user` becomes OPTIONAL — the web's
+      // pending-challenge banner queries GET /api/notifications?callId=N&type=
+      // challenge_proposed without a user. The legacy user+cursor mode below is
+      // BYTE-IDENTICAL when neither filter param is supplied.
+      const callIdParam = request.query.callId;
+      const typeParam = request.query.type;
+      const filterMode = callIdParam !== undefined || typeParam !== undefined;
+
+      if (filterMode) {
+        const cursorDate = request.query.cursor ? new Date(request.query.cursor) : null;
+        const PAGE_SIZE = 20;
+        const normalizedUser = userAddress ? userAddress.toLowerCase() : null;
+
+        const conds = [];
+        if (callIdParam !== undefined) {
+          const callIdNum = parseInt(callIdParam, 10);
+          if (Number.isNaN(callIdNum)) {
+            return reply.status(400).send({ error: 'invalid_param', message: 'callId must be a numeric string' });
+          }
+          conds.push(eq(notifications.callId, callIdNum));
+        }
+        if (typeParam !== undefined && typeParam.length > 0) {
+          conds.push(eq(notifications.eventType, typeParam));
+        }
+        if (normalizedUser) {
+          conds.push(eq(notifications.userAddress, normalizedUser));
+        }
+        if (cursorDate) {
+          conds.push(lt(notifications.createdAt, cursorDate));
+        }
+
+        try {
+          const rows = await db
+            .select()
+            .from(notifications)
+            .where(conds.length === 1 ? conds[0] : and(...conds))
+            .orderBy(sql`${notifications.createdAt} DESC`)
+            .limit(PAGE_SIZE);
+
+          // unreadCount is per-user — only meaningful when a user is supplied
+          // (anonymous callId/type queries get 0, never another user's count).
+          let unreadCount = 0;
+          if (normalizedUser) {
+            const unreadResult = await db
+              .select({ count: sql<string>`COUNT(*)` })
+              .from(notifications)
+              .where(and(eq(notifications.userAddress, normalizedUser), isNull(notifications.readAt)));
+            unreadCount = parseInt(unreadResult[0]?.count ?? '0', 10);
+          }
+
+          const nextCursor =
+            rows.length === PAGE_SIZE
+              ? rows[rows.length - 1]?.createdAt?.toISOString() ?? null
+              : null;
+
+          logger.info(
+            {
+              event: 'notifications_filtered',
+              callId: callIdParam,
+              type: typeParam,
+              userAddress: normalizedUser,
+              count: rows.length,
+            },
+            'Notifications fetched (filter mode)',
+          );
+
+          return reply.send({
+            notifications: rows,
+            unreadCount,
+            nextCursor,
+          });
+        } catch (err) {
+          const message = err instanceof Error ? err.message : String(err);
+          logger.error(
+            { event: 'notifications_fetch_error', error: message, callId: callIdParam, type: typeParam },
+            'Failed to fetch notifications (filter mode)',
+          );
+          return reply.status(500).send({ error: 'db_error', message: 'Failed to fetch notifications' });
+        }
+      }
+
+      // ── Legacy user+cursor mode (UNCHANGED — byte-identical behavior) ───────
       if (!userAddress) {
         return reply.status(400).send({ error: 'missing_param', message: 'user address is required' });
       }
