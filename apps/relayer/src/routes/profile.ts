@@ -25,7 +25,7 @@
  */
 
 import type { FastifyInstance, FastifyPluginOptions } from 'fastify';
-import { createPublicClient, http, isAddress } from 'viem';
+import { fallback, createPublicClient, http, isAddress } from 'viem';
 import { arbitrumSepolia } from 'viem/chains';
 import { getRedis } from '../lib/redis.js';
 import { getLogger } from '../lib/logger.js';
@@ -80,17 +80,21 @@ export interface ProfileResponseBody {
 // ── Viem client for Arbitrum (ProfileRegistry reads) ─────────────────────────
 
 // Phase 1: reads against Sepolia (staging). Phase 7: switch to mainnet.
-// quick-260610-sr0: bounded transport — the public-RPC fallback tarpit-
-// throttles, and viem's default timeout/retries never settle the read legs.
+// quick-260610-sr0: bounded transport — viem's default timeout/retries never
+// settle the read legs on a throttled endpoint.
+// quick-260611-co5: fallback() public-RPC failover (the configured key can die
+// mid-month — Alchemy capacity 429, live 2026-06-11). The old
+// NEXT_PUBLIC_SUBGRAPH_URL-as-RPC fallthrough is DELETED — a GraphQL endpoint
+// can never answer JSON-RPC and only guaranteed 5s timeouts (9.1 cleanup).
 const arbitrumClient = createPublicClient({
   chain: arbitrumSepolia,
-  transport: http(
-    process.env.RPC_URL_ARBITRUM_SEPOLIA ??
-    process.env.ARBITRUM_SEPOLIA_RPC_URL ??
-    process.env.NEXT_PUBLIC_SUBGRAPH_URL?.replace('/subgraphs', '') ??
-    'https://sepolia-rollup.arbitrum.io/rpc',
-    { timeout: 5_000, retryCount: 1 },
-  ),
+  transport: fallback([
+    http(
+      process.env.RPC_URL_ARBITRUM_SEPOLIA ?? process.env.ARBITRUM_SEPOLIA_RPC_URL,
+      { timeout: 5_000, retryCount: 1 },
+    ),
+    http(undefined, { timeout: 5_000, retryCount: 1 }),
+  ]),
 });
 
 // ProfileRegistry address from env or constants

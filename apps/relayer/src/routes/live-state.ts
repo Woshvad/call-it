@@ -36,7 +36,7 @@
  */
 
 import type { FastifyInstance, FastifyPluginOptions } from 'fastify';
-import { createPublicClient, http } from 'viem';
+import { fallback, createPublicClient, http } from 'viem';
 import { arbitrumSepolia } from 'viem/chains';
 import { getRedis } from '../lib/redis.js';
 import { getLogger } from '../lib/logger.js';
@@ -274,7 +274,7 @@ export async function liveStateRoute(
           process.env.RPC_URL_ARBITRUM_SEPOLIA ?? process.env.ARBITRUM_SEPOLIA_RPC_URL;
         const publicClient = createPublicClient({
           chain: arbitrumSepolia,
-          transport: http(rpcUrl),
+          transport: fallback([http(rpcUrl), http()]),
         });
 
         const ffmAddress = FOLLOW_FADE_MARKET_ARBITRUM_SEPOLIA as `0x${string}`;

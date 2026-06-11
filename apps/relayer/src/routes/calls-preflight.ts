@@ -27,7 +27,7 @@
 
 import type { FastifyInstance, FastifyPluginOptions } from 'fastify';
 import { z } from 'zod';
-import { createPublicClient, http, keccak256, toBytes } from 'viem';
+import { fallback, createPublicClient, http, keccak256, toBytes } from 'viem';
 import { arbitrum } from 'viem/chains';
 import { privySessionPreHandler } from '../lib/privy-auth.js';
 import { getLogger } from '../lib/logger.js';
@@ -265,7 +265,7 @@ export async function callsPreflightRoute(
       const rpcUrl = process.env['ALCHEMY_RPC_URL'] ?? process.env['ARBITRUM_RPC_URL'];
       const publicClient = createPublicClient({
         chain: arbitrum,
-        transport: http(rpcUrl),
+        transport: fallback([http(rpcUrl), http()]),
       });
 
       const contractsDeployed =

@@ -17,7 +17,7 @@
  * Security: T-01-60 (ENS cache poisoning — mitigated by dedicated Mainnet RPC + 24h TTL)
  */
 
-import { createPublicClient, http } from 'viem';
+import { fallback, createPublicClient, http } from 'viem';
 import { mainnet } from 'viem/chains';
 import type { Redis } from 'ioredis';
 import { getLogger } from './logger.js';
@@ -28,10 +28,10 @@ const mainnetClient = createPublicClient({
   chain: mainnet,
   // quick-260610-sr0: bounded transport — the demo-key fallback 429s/hangs
   // when ENS_MAINNET_RPC_URL is unset; never let a lookup stall the caller.
-  transport: http(process.env.ENS_MAINNET_RPC_URL ?? 'https://eth-mainnet.g.alchemy.com/v2/demo', {
-    timeout: 5_000,
-    retryCount: 1,
-  }),
+  transport: fallback([
+    http(process.env.ENS_MAINNET_RPC_URL, { timeout: 5_000, retryCount: 1 }),
+    http(undefined, { timeout: 5_000, retryCount: 1 }), // viem mainnet default — public failover
+  ]),
 });
 
 /**

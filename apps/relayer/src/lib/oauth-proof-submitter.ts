@@ -22,6 +22,7 @@
 
 import {
   createPublicClient,
+  fallback,
   http,
   encodeFunctionData,
   serializeTransaction,
@@ -86,11 +87,10 @@ export function buildOauthProofSubmitter(rpcUrl?: string): OauthProofSubmitter {
     expectedAddress,
   });
 
-  const transport = http(
-    rpcUrl ??
-      process.env.RPC_URL_ARBITRUM_SEPOLIA ??
-      process.env.ARBITRUM_SEPOLIA_RPC_URL,
-  );
+  const transport = fallback([
+    http(rpcUrl ?? process.env.RPC_URL_ARBITRUM_SEPOLIA ?? process.env.ARBITRUM_SEPOLIA_RPC_URL),
+    http(), // public RPC failover
+  ]);
   const publicClient = createPublicClient({ chain: arbitrumSepolia, transport });
 
   async function writeContract(params: WriteContractParams): Promise<Hex> {

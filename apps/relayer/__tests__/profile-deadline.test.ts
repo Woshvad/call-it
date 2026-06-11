@@ -58,6 +58,8 @@ vi.mock('../src/lib/ens-resolver.js', () => ({
 // Mock viem (for ProfileRegistry reads)
 vi.mock('viem', () => ({
   createPublicClient: vi.fn(() => ({ readContract: mockReadContract })),
+  // quick-260611-co5: passthrough — production code wraps transports in fallback()
+  fallback: vi.fn((transports: unknown[]) => transports[0]),
   http: vi.fn((url: string) => url),
   isAddress: vi.fn((addr: string) => /^0x[0-9a-fA-F]{40}$/.test(addr)),
 }));

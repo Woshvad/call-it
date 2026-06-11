@@ -24,7 +24,7 @@
 import './lib/load-dev-env.js';
 import Fastify, { type FastifyInstance } from 'fastify';
 import cors from '@fastify/cors';
-import { createPublicClient, http } from 'viem';
+import { fallback, createPublicClient, http } from 'viem';
 import { arbitrumSepolia } from 'viem/chains';
 import { initEnv } from './env.js';
 import { createLogger, setLogger } from './lib/logger.js';
@@ -211,9 +211,10 @@ export async function buildApp(): Promise<FastifyInstance> {
     // Production injects RPC_URL_ARBITRUM_SEPOLIA (GCP/Fly secret); local .env.local
     // uses ARBITRUM_SEPOLIA_RPC_URL (matches foundry/web). Read both so the fan-out
     // RPC transport is defined in dev AND prod. undefined => viem default public RPC.
-    transport: http(
-      process.env.RPC_URL_ARBITRUM_SEPOLIA ?? process.env.ARBITRUM_SEPOLIA_RPC_URL,
-    ),
+    transport: fallback([
+      http(process.env.RPC_URL_ARBITRUM_SEPOLIA ?? process.env.ARBITRUM_SEPOLIA_RPC_URL),
+      http(), // public RPC failover — configured key can die mid-month (Alchemy 429, live 2026-06-11)
+    ]),
   });
   const notificationFanoutDb = getDb();
   const notificationSubgraphUrl =

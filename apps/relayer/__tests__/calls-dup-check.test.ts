@@ -73,6 +73,8 @@ vi.mock('viem', async (importOriginal) => {
     createPublicClient: vi.fn(() => ({
       readContract: mockReadContract,
     })),
+    // quick-260611-co5: passthrough — production code wraps transports in fallback()
+    fallback: vi.fn((transports: unknown[]) => transports[0]),
     http: vi.fn(() => ({})),
   };
 });

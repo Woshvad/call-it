@@ -35,6 +35,8 @@ vi.mock('../src/lib/ens-resolver.js', () => ({ resolveEns: mockResolveEns }));
 // so only the lowercase path should ever reach isAddress.
 vi.mock('viem', () => ({
   createPublicClient: vi.fn(() => ({ readContract: mockReadContract })),
+  // quick-260611-co5: passthrough — production code wraps transports in fallback()
+  fallback: vi.fn((transports: unknown[]) => transports[0]),
   http: vi.fn((url: string) => url),
   // Mirrors strict viem semantics for this suite: any mixed-case input fails
   // (the live checksummed repro address has a non-verifying EIP-55 checksum),

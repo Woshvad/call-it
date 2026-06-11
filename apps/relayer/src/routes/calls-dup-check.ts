@@ -23,7 +23,7 @@
 
 import type { FastifyInstance, FastifyPluginOptions } from 'fastify';
 import { z } from 'zod';
-import { createPublicClient, http } from 'viem';
+import { fallback, createPublicClient, http } from 'viem';
 import { arbitrum } from 'viem/chains';
 import { privySessionPreHandler } from '../lib/privy-auth.js';
 import { getRedis } from '../lib/redis.js';
@@ -174,7 +174,7 @@ export async function callsDupCheckRoute(
       const rpcUrl = process.env['ALCHEMY_RPC_URL'] ?? process.env['ARBITRUM_RPC_URL'];
       const publicClient = createPublicClient({
         chain: arbitrum,
-        transport: http(rpcUrl),
+        transport: fallback([http(rpcUrl), http()]),
       });
 
       let response: DupCheckResponse;

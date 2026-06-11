@@ -20,6 +20,8 @@ const { mockGetEnsName } = vi.hoisted(() => ({
 
 vi.mock('viem', () => ({
   createPublicClient: vi.fn(() => ({ getEnsName: mockGetEnsName })),
+  // quick-260611-co5: passthrough — production code wraps transports in fallback()
+  fallback: vi.fn((transports: unknown[]) => transports[0]),
   http: vi.fn((url: string) => url),
 }));
 

@@ -30,7 +30,7 @@
  * Requirements: D-05, D-07, RC2 (quick-260611-5mh live investigation)
  */
 
-import { createPublicClient, http } from 'viem';
+import { fallback, createPublicClient, http } from 'viem';
 import { arbitrumSepolia } from 'viem/chains';
 import { getLogger } from './logger.js';
 import { PYTH_FEED_IDS, CALL_REGISTRY_ARBITRUM_SEPOLIA } from '@call-it/shared';
@@ -208,7 +208,10 @@ function getClient(): MulticallClient {
       chain: arbitrumSepolia,
       // Bounded transport (quick-260610-sr0 lesson): the public-RPC fallback
       // tarpit-throttles; never let an enrichment read hang the feed.
-      transport: http(rpcUrl, { timeout: 5_000, retryCount: 1 }),
+      transport: fallback([
+        http(rpcUrl, { timeout: 5_000, retryCount: 1 }),
+        http(undefined, { timeout: 5_000, retryCount: 1 }), // public RPC failover
+      ]),
     }) as unknown as MulticallClient;
   }
   return client;
