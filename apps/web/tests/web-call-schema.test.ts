@@ -1,22 +1,24 @@
 /**
- * web-call-schema.test.ts — webCreateCallSchema event-asset gate (WR-02,
- * quick-260611-bf2 review fixes).
+ * web-call-schema.test.ts — webCreateCallSchema ticker-only form gate
+ * (quick-260611-if0, closing the quick-260611-hog finding (2)).
  *
- * Contract-verified premise: CallRegistry._assertAllowlisted
- * (CallRegistry.sol:492-506) runs for ALL market types — for Event, assetA
- * must derive to an allowlisted NFT collection address or feed key, so a
- * freeform event asset (uint derivation 0) is a GUARANTEED on-chain
- * AssetNotAllowlisted revert. The schema gates event assetA to
- * resolvable-or-0x/numeric (the input classes that produce a non-zero uint).
+ * Since the AssetSelect dropdown landed (quick-260611-hog), the ONLY
+ * UI-producible asset values are the 24 PYTH_FEED_IDS tickers — the form
+ * schema now rejects every non-ticker string (0x-64-hex feed id, 0x-40-hex
+ * address, numeric, freeform) with LISTED_ASSET_MESSAGE BEFORE preflight.
+ *
+ * The resolution/parity layer is UNCHANGED: resolveAssetToFeedId's 0x-64-hex
+ * passthrough stays intact (pinned in tests/resolve-asset.test.ts) — these
+ * tests pin that the FORM gate sits in front of it and rejects the dead path.
  */
 import { describe, it, expect } from 'vitest';
 import type { CreateCallInput } from '@call-it/shared';
 import { PYTH_FEED_IDS } from '@call-it/shared';
 import {
   webCreateCallSchema,
-  EVENT_ASSET_MESSAGE,
+  LISTED_ASSET_MESSAGE,
 } from '@/app/new/lib/web-call-schema';
-import { UNKNOWN_ASSET_MESSAGE } from '@/app/new/lib/resolve-asset';
+import { resolveAssetToFeedId } from '@/app/new/lib/resolve-asset';
 
 /** Valid fixture mirroring the preflight-body tests (expiry in the future). */
 function fixture(overrides: Partial<CreateCallInput> = {}): CreateCallInput {
@@ -44,7 +46,57 @@ function issueOn(result: ReturnType<typeof webCreateCallSchema.safeParse>, path:
   return result.error.issues.find((i) => i.path[0] === path);
 }
 
-describe('webCreateCallSchema — event asset gate (WR-02)', () => {
+describe('webCreateCallSchema — ticker-only gate (priceTarget/spreadVs)', () => {
+  it("priceTarget + 'ETH' passes", () => {
+    const result = webCreateCallSchema.safeParse(fixture());
+    expect(result.success).toBe(true);
+  });
+
+  it("priceTarget + ' eth ' passes (case/trim-insensitive ticker membership)", () => {
+    const result = webCreateCallSchema.safeParse(fixture({ assetA: ' eth ' }));
+    expect(result.success).toBe(true);
+  });
+
+  it('priceTarget + full 0x-64-hex ETH feed id FAILS at the form gate (dead-path pin) while resolveAssetToFeedId still resolves it (lib passthrough intact)', () => {
+    const feedId = PYTH_FEED_IDS.ETH;
+    // The resolution/parity layer still resolves the raw feed id…
+    expect(resolveAssetToFeedId(feedId)).toBe(feedId);
+    // …but the FORM gate rejects it: no UI flow produces this input class.
+    const result = webCreateCallSchema.safeParse(fixture({ assetA: feedId }));
+    expect(result.success).toBe(false);
+    expect(issueOn(result, 'assetA')?.message).toBe(LISTED_ASSET_MESSAGE);
+  });
+
+  it("priceTarget + unknown 'DOGECOIN' fails on assetA with LISTED_ASSET_MESSAGE", () => {
+    const result = webCreateCallSchema.safeParse(fixture({ assetA: 'DOGECOIN' }));
+    expect(result.success).toBe(false);
+    expect(issueOn(result, 'assetA')?.message).toBe(LISTED_ASSET_MESSAGE);
+  });
+
+  it('spreadVs + unresolvable assetB fails on assetB with LISTED_ASSET_MESSAGE', () => {
+    const result = webCreateCallSchema.safeParse(
+      fixture({ marketType: 'spreadVs', assetA: 'BTC', assetB: 'DOGECOIN' }),
+    );
+    expect(result.success).toBe(false);
+    expect(issueOn(result, 'assetB')?.message).toBe(LISTED_ASSET_MESSAGE);
+  });
+
+  it('spreadVs + missing assetB fails on assetB with LISTED_ASSET_MESSAGE', () => {
+    const result = webCreateCallSchema.safeParse(
+      fixture({ marketType: 'spreadVs', assetA: 'BTC', assetB: undefined }),
+    );
+    expect(result.success).toBe(false);
+    expect(issueOn(result, 'assetB')?.message).toBe(LISTED_ASSET_MESSAGE);
+  });
+
+  it('hardcoded cross-check: ETH feed id catalogue entry unchanged', () => {
+    expect(PYTH_FEED_IDS.ETH).toBe(
+      '0xff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace',
+    );
+  });
+});
+
+describe('webCreateCallSchema — ticker-only gate (event)', () => {
   it("event + resolvable symbol 'ETH' passes", () => {
     const result = webCreateCallSchema.safeParse(
       fixture({ marketType: 'event', eventSubtype: 'tvlMilestone', assetA: 'ETH' }),
@@ -52,7 +104,7 @@ describe('webCreateCallSchema — event asset gate (WR-02)', () => {
     expect(result.success).toBe(true);
   });
 
-  it('event + 0x 40-hex collection address passes (non-zero uint derivation)', () => {
+  it('event + 0x 40-hex collection address FAILS (FLIPPED — no UI flow produces it)', () => {
     const result = webCreateCallSchema.safeParse(
       fixture({
         marketType: 'event',
@@ -60,17 +112,19 @@ describe('webCreateCallSchema — event asset gate (WR-02)', () => {
         assetA: '0xAbCdEf0123456789aBcDeF0123456789AbCdEf01',
       }),
     );
-    expect(result.success).toBe(true);
+    expect(result.success).toBe(false);
+    expect(issueOn(result, 'assetA')?.message).toBe(LISTED_ASSET_MESSAGE);
   });
 
-  it("event + numeric string '12345' passes (non-zero uint derivation)", () => {
+  it("event + numeric string '12345' FAILS (FLIPPED — no UI flow produces it)", () => {
     const result = webCreateCallSchema.safeParse(
       fixture({ marketType: 'event', eventSubtype: 'tvlMilestone', assetA: '12345' }),
     );
-    expect(result.success).toBe(true);
+    expect(result.success).toBe(false);
+    expect(issueOn(result, 'assetA')?.message).toBe(LISTED_ASSET_MESSAGE);
   });
 
-  it("event + freeform 'SomeNewToken' FAILS on assetA with the exact event copy", () => {
+  it("event + freeform 'SomeNewToken' FAILS on assetA with LISTED_ASSET_MESSAGE", () => {
     const result = webCreateCallSchema.safeParse(
       fixture({
         marketType: 'event',
@@ -79,45 +133,20 @@ describe('webCreateCallSchema — event asset gate (WR-02)', () => {
       }),
     );
     expect(result.success).toBe(false);
-    expect(issueOn(result, 'assetA')?.message).toBe(EVENT_ASSET_MESSAGE);
+    expect(issueOn(result, 'assetA')?.message).toBe(LISTED_ASSET_MESSAGE);
   });
 
-  it("event + malformed hex '0xNotHex' FAILS (derives to 0n — would revert on-chain)", () => {
+  it("event + malformed hex '0xNotHex' FAILS with LISTED_ASSET_MESSAGE", () => {
     const result = webCreateCallSchema.safeParse(
       fixture({ marketType: 'event', eventSubtype: 'tvlMilestone', assetA: '0xNotHex' }),
     );
     expect(result.success).toBe(false);
-    expect(issueOn(result, 'assetA')?.message).toBe(EVENT_ASSET_MESSAGE);
-  });
-
-  it('exports the exact EVENT_ASSET_MESSAGE copy', () => {
-    expect(EVENT_ASSET_MESSAGE).toBe('Use a listed asset (BTC, ETH, SOL…)');
+    expect(issueOn(result, 'assetA')?.message).toBe(LISTED_ASSET_MESSAGE);
   });
 });
 
-describe('webCreateCallSchema — pre-existing priceTarget/spreadVs gate still holds', () => {
-  it("priceTarget + 'ETH' passes and resolves nothing away (input untouched)", () => {
-    const result = webCreateCallSchema.safeParse(fixture());
-    expect(result.success).toBe(true);
-  });
-
-  it("priceTarget + unknown 'DOGECOIN' fails on assetA with UNKNOWN_ASSET_MESSAGE", () => {
-    const result = webCreateCallSchema.safeParse(fixture({ assetA: 'DOGECOIN' }));
-    expect(result.success).toBe(false);
-    expect(issueOn(result, 'assetA')?.message).toBe(UNKNOWN_ASSET_MESSAGE);
-  });
-
-  it("spreadVs + unresolvable assetB fails on assetB", () => {
-    const result = webCreateCallSchema.safeParse(
-      fixture({ marketType: 'spreadVs', assetA: 'BTC', assetB: 'DOGECOIN' }),
-    );
-    expect(result.success).toBe(false);
-    expect(issueOn(result, 'assetB')?.message).toBe(UNKNOWN_ASSET_MESSAGE);
-  });
-
-  it('hardcoded cross-check: ETH feed id catalogue entry unchanged', () => {
-    expect(PYTH_FEED_IDS.ETH).toBe(
-      '0xff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace',
-    );
+describe('webCreateCallSchema — exported copy', () => {
+  it('exports the exact LISTED_ASSET_MESSAGE copy', () => {
+    expect(LISTED_ASSET_MESSAGE).toBe('Use a listed asset (BTC, ETH, SOL…)');
   });
 });
