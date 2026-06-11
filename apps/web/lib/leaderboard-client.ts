@@ -7,11 +7,13 @@
  * limitation surfaced in the client copy. The `LeaderboardEntry` entity exists in
  * the schema but is UNPOPULATED, so this module deliberately does NOT depend on it.
  *
- * D-27 (Studio key stays server-side): like the feed/profile reads, the privileged
- * Subgraph Studio key is never shipped to the browser. This module reads the public
- * Studio query URL (`NEXT_PUBLIC_SUBGRAPH_URL`) server-side from the Leaderboard
- * Server Component; the key never enters `NEXT_PUBLIC_*`. (Same posture as
- * `relayer-client.ts getSettledFields`.)
+ * D-27 (gateway key stays server-side): the production Graph gateway URL embeds the
+ * API key in its path (`.../api/<KEY>/subgraphs/id/<ID>`) — the key IS the URL. It
+ * therefore lives ONLY in the server-only `SUBGRAPH_URL` env var, read here from the
+ * Leaderboard Server Component. The `NEXT_PUBLIC_SUBGRAPH_URL` fallback is LEGACY
+ * (keyless Studio URL only — keeps the current deploy working until the Vercel env
+ * lands). NEVER put a gateway URL in any `NEXT_PUBLIC_*` var: Next.js inlines those
+ * into every browser bundle. (Same posture as `relayer-client.ts getSettledFields`.)
  *
  * This is a DEDICATED module (not relayer-client.ts) to avoid a Wave-2 file-overlap
  * with Plan 07-03.
@@ -19,7 +21,11 @@
  * Requirements: UI-12, UI-13, D-06, D-27
  */
 
-const SUBGRAPH_URL = (process.env['NEXT_PUBLIC_SUBGRAPH_URL'] ?? '').replace(/\/$/, '');
+const SUBGRAPH_URL = (
+  process.env['SUBGRAPH_URL'] ??
+  process.env['NEXT_PUBLIC_SUBGRAPH_URL'] ??
+  ''
+).replace(/\/$/, '');
 
 /** A single ranked caller on the leaderboard (sourced from Profile.globalRep, D-06). */
 export interface LeaderboardRow {
@@ -86,8 +92,8 @@ function resolveHandle(p: {
  * The `window` argument is accepted so the page can pass through the active toggle,
  * but per D-06 all windows are backed by the All-time `globalRep` data — the
  * returned `windowedDataAvailable: false` tells the client to render the limitation
- * note. Server-side only (the Leaderboard page is a Server Component); the Studio
- * key never reaches the bundle (D-27).
+ * note. Server-side only (the Leaderboard page is a Server Component); the
+ * server-only `SUBGRAPH_URL` env var keeps the gateway key out of the bundle (D-27).
  *
  * Throws on a hard fetch/subgraph failure so the Server Component can render the
  * UI-SPEC error state ("Couldn't load the tape…"). Returns an EMPTY (not throwing)

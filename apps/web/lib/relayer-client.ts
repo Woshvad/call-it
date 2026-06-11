@@ -227,12 +227,18 @@ export async function getMarketLine(callId: string | number): Promise<string | n
 
 // ─── Settled-field subgraph read (OG real-data wiring, D-03) ─────────────────────
 
-// Subgraph query URL — AUTHORITATIVELY sourced from the network-pinned constant in
-// @call-it/shared (SUBGRAPH_URL_SEPOLIA), consistent with the hardcoded-single-network
-// architecture. This intentionally does NOT read NEXT_PUBLIC_SUBGRAPH_URL: the Studio
-// dev endpoint churns version labels, and a stale Vercel env var would silently break
-// every settled card. Bumping SUBGRAPH_URL_SEPOLIA + git push redeploys the correct URL.
-const SUBGRAPH_URL = SUBGRAPH_URL_SEPOLIA.replace(/\/$/, '');
+// Subgraph query URL — env-driven server-side (D-27). The production Graph gateway
+// URL embeds the API key in its path (`.../api/<KEY>/subgraphs/id/<ID>`), so it can
+// NEVER be committed to the shared SUBGRAPH_URL_SEPOLIA const (git is public) — it
+// lives only in the server-only `SUBGRAPH_URL` env var. Runtime behavior, both halves:
+// (a) server-side — the ONLY place getSettledFields/getDuelSettledFields are ever
+//     invoked (the two Node-runtime og Route Handlers) — `SUBGRAPH_URL` wins when set;
+// (b) client bundles also evaluate this module-level line (relayer-client.ts is
+//     imported by client components for getFeed etc.); there the server-only var is
+//     undefined (Next never inlines non-NEXT_PUBLIC vars) and the const falls back to
+//     the keyless Sepolia Studio URL — an acceptable degrade, since no client code
+//     path ever calls the subgraph readers.
+const SUBGRAPH_URL = (process.env['SUBGRAPH_URL'] ?? SUBGRAPH_URL_SEPOLIA).replace(/\/$/, '');
 
 /**
  * Real settled stats for a single call, read from the subgraph Settlement +
@@ -284,8 +290,9 @@ query SettledFields($callId: ID!, $callIdStr: String!) {
  *
  * Returns all-null fields (never throws) on any error / missing subgraph URL so
  * the OG card degrades to safe em-dashes instead of 500ing (SHARE-10).
- * Server-side only — the subgraph URL is read from NEXT_PUBLIC_SUBGRAPH_URL
- * (the public Studio query URL; the privileged Studio key stays relayer-side).
+ * Server-only function (the Node-runtime og routes are its only callers) — the
+ * subgraph URL comes from the server-only `SUBGRAPH_URL` env var (key-bearing
+ * gateway URL, D-27) with the keyless `SUBGRAPH_URL_SEPOLIA` const as fallback.
  */
 export async function getSettledFields(callId: string | number): Promise<SettledFields> {
   const empty: SettledFields = {
