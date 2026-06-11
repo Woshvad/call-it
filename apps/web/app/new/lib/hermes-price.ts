@@ -105,6 +105,8 @@ export function roundForTarget(usd: number): number {
  * (verified — call-gates.ts has no `direction`; the /new preview market line
  * hardcodes '>='), so all chips compute upside targets. Revisit if a
  * direction control ever ships in the composer.
+ * Below-target direction is a contracts-v2 feature — SettlementManager v1
+ * settles >= only (SettlementManager.sol:718).
  */
 export function computeChipTarget(currentPrice: number, pct: number): number {
   return roundForTarget(currentPrice * (1 + pct / 100));

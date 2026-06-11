@@ -197,7 +197,7 @@ export default function NewCallPage() {
   // Build the live preview market line (shared by the right-rail Receipt + thread preview).
   // RC3: target renders at the canonical 1e8 scale (raw for event milestones).
   const previewMarketLine = `${formValues.assetA || 'Asset'} ${
-    formValues.marketType === 'spreadVs' ? 'vs' : '>='
+    formValues.marketType === 'spreadVs' ? 'vs' : '≥'
   } ${
     formValues.targetValue
       ? formatTargetForDisplay(formValues.marketType, formValues.targetValue)

@@ -16,6 +16,8 @@ interface PriceTargetFieldsProps {
  * Percentage quick-pick chips. Direction default is ABOVE (+pct) — CreateCallInput
  * has no direction field (call-gates.ts; preview hardcodes '>='), so all four
  * chips (including +100%) compute upside targets.
+ * Below-target direction is a contracts-v2 feature — SettlementManager v1
+ * settles >= only (SettlementManager.sol:718).
  */
 const TARGET_CHIP_PCTS = [10, 20, 50, 100] as const;
 
@@ -117,6 +119,9 @@ export function PriceTargetFields({ control, errors }: PriceTargetFieldsProps) {
             </>
           )}
         />
+        <div className="mono" style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>
+          Wins if price closes at or above target at the deadline.
+        </div>
         {errors.targetValue && (
           <div className="mono" style={{ fontSize: 11, color: 'var(--accent-loss)' }}>
             {String(errors.targetValue.message)}
