@@ -157,6 +157,20 @@ export interface FeedItem {
    * milestone targets are raw/unscaled and must never be ÷1e8-rendered.
    */
   targetValue?: string;
+  /**
+   * Settlement time (unix seconds, Settlement.settledAt) — settled tape-card
+   * enrichment (quick-260611-tbc). ABSENT until the relayer Fly redeploy
+   * carries the enrichment; the card degrades gracefully without it.
+   */
+  settledAt?: number;
+  /** The CALLER's settled rep delta (signed int) — quick-260611-tbc; optional. */
+  repDelta?: number;
+  /**
+   * Signed % by which the final price landed past(+)/short(−) of the target.
+   * Truthful marketType-0 derivation ONLY — see
+   * apps/relayer/src/lib/settled-enrichment.ts (quick-260611-tbc); optional.
+   */
+  finalPct?: number;
 }
 
 export interface FeedResponse {

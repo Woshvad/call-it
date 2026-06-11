@@ -24,6 +24,7 @@ import { getCached, setCached } from '../lib/cache.js';
 import { getLogger } from '../lib/logger.js';
 import { queryFeed } from '../lib/subgraph-client.js';
 import { enrichFeedItems } from '../lib/call-enrichment.js';
+import { enrichSettledFeedItems } from '../lib/settled-enrichment.js';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -183,6 +184,23 @@ export async function feedRoute(
           'Feed enrichment failed — serving unenriched items',
         );
         enrichedItems = racedResult.data.items;
+      }
+
+      // ── quick-260611-tbc: additive settled enrichment ─────────────────────────
+      // Merges settledAt/repDelta/finalPct onto settled/disputed items for the
+      // settled tape card. INERT until the Fly redeploy. Runs AFTER
+      // enrichFeedItems (needs the enriched marketType/targetValue). The
+      // first-page Redis/L1 cache (10s TTL) caches the post-enrichment response
+      // so the extra subgraph query is bounded; the breaker + fail-safe empty
+      // map protect the feed from subgraph outages (items pass through
+      // unchanged — never blocks, never 500s).
+      try {
+        enrichedItems = await enrichSettledFeedItems(enrichedItems);
+      } catch (settledErr) {
+        logger.warn(
+          { event: 'settled_feed_enrichment_failed', err: String(settledErr) },
+          'Settled feed enrichment failed — serving items without settled fields',
+        );
       }
 
       // ── Build response ────────────────────────────────────────────────────────

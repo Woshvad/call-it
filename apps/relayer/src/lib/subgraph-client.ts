@@ -866,3 +866,125 @@ export async function querySettledFields(callId: string): Promise<SubgraphSettle
     return empty;
   }
 }
+
+// ── Settled FEED fields (quick-260611-tbc) ────────────────────────────────────
+//
+// Batched settled-card enrichment for GET /api/feed: ONE GraphQL document for
+// the whole page — settlements(id_in) + repEvents(callId_in) — through the
+// circuit breaker. Settlement entity id = callId string (ensureSettlement,
+// settlement-manager.ts), so id_in works directly; RepEvent.callId is String.
+
+/** Subgraph-sourced settled FEED fields for one call (quick-260611-tbc). */
+export interface SubgraphSettledFeedFields {
+  /** Settlement.settledAt as unix seconds (number); null on absence/error. */
+  settledAt: number | null;
+  /** Raw Settlement.priceDelta (1e8-scale BigInt string); null when absent. */
+  priceDelta: string | null;
+  /** The CALLER's latest RepEvent.delta (signed int); null on absence. */
+  repDelta: number | null;
+}
+
+const SETTLED_FEED_FIELDS_QUERY = `
+query SettledFeedFields($ids: [ID!]!, $idStrs: [String!]!) {
+  settlements(first: 100, where: { id_in: $ids }) {
+    id
+    priceDelta
+    settledAt
+  }
+  repEvents(first: 1000, where: { callId_in: $idStrs }) {
+    callId
+    user
+    delta
+    timestamp
+  }
+}
+`;
+
+/**
+ * Batched settled-feed fields for a page of feed items (quick-260611-tbc).
+ *
+ * FAIL-SAFE: returns an EMPTY Map on ANY error — including SubgraphNonInfraError
+ * (validation/config bugs) — and NEVER throws. Mirrors querySettledFields'
+ * fail-safe contract: the feed must never block or 500 on the settled
+ * enrichment; absent fields degrade the card, never fabricate.
+ *
+ * repDelta pick: the latest (max timestamp) RepEvent whose user matches the
+ * item's CALLER, case-insensitive. This is deliberately STRICTER than the OG
+ * path's unfiltered repEvents(first:1), which can grab a CHALLENGER's event on
+ * duels — the feed card claims the caller's rep movement, so only the caller's
+ * event may drive it.
+ */
+export async function querySettledFeedFields(
+  items: Array<{ id: string; caller: string }>,
+): Promise<Map<string, SubgraphSettledFeedFields>> {
+  const result = new Map<string, SubgraphSettledFeedFields>();
+  try {
+    if (items.length === 0) return result;
+
+    type SettledFeedData = {
+      settlements?: Array<{
+        id?: string | null;
+        priceDelta?: string | null;
+        settledAt?: string | null;
+      }>;
+      repEvents?: Array<{
+        callId?: string | null;
+        user?: string | null;
+        delta?: number | null;
+        timestamp?: string | null;
+      }>;
+    };
+
+    const ids = items.map((i) => String(i.id));
+    const data = await executeQuery<SettledFeedData>(SETTLED_FEED_FIELDS_QUERY, {
+      ids,
+      idStrs: ids,
+    });
+
+    const callerById = new Map<string, string>();
+    for (const item of items) {
+      callerById.set(String(item.id), item.caller.toLowerCase());
+    }
+
+    // Settlement rows: settledAt parseable + > 0 else null; priceDelta as-is.
+    for (const s of data.settlements ?? []) {
+      if (typeof s?.id !== 'string') continue;
+      const settledAtNum = Number(s.settledAt);
+      result.set(s.id, {
+        settledAt: Number.isFinite(settledAtNum) && settledAtNum > 0 ? settledAtNum : null,
+        priceDelta: typeof s.priceDelta === 'string' ? s.priceDelta : null,
+        repDelta: null,
+      });
+    }
+
+    // RepEvents: latest CALLER-matched event per callId (BigInt timestamp compare).
+    const bestTs = new Map<string, bigint>();
+    for (const e of data.repEvents ?? []) {
+      if (typeof e?.callId !== 'string' || typeof e?.user !== 'string') continue;
+      const caller = callerById.get(e.callId);
+      if (!caller || e.user.toLowerCase() !== caller) continue;
+      if (typeof e.delta !== 'number' || !Number.isFinite(e.delta)) continue;
+      let ts: bigint;
+      try {
+        ts = BigInt(e.timestamp ?? '0');
+      } catch {
+        ts = 0n;
+      }
+      const prev = bestTs.get(e.callId);
+      if (prev !== undefined && ts <= prev) continue;
+      bestTs.set(e.callId, ts);
+      const existing = result.get(e.callId);
+      if (existing) {
+        existing.repDelta = e.delta;
+      } else {
+        result.set(e.callId, { settledAt: null, priceDelta: null, repDelta: e.delta });
+      }
+    }
+
+    return result;
+  } catch {
+    // FAIL-SAFE — catch EVERYTHING (incl. SubgraphNonInfraError): empty map,
+    // never throw. The settled enrichment is strictly additive to the feed.
+    return new Map();
+  }
+}

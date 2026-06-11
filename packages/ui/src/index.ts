@@ -37,6 +37,7 @@ export { useToast, ToastContext, type ToastItem, type ToastStatus, type ToastAct
 export { Receipt, type ReceiptProps, type ReceiptData } from './compound/Receipt';
 export { ConvictionBar, type ConvictionBarProps } from './compound/ConvictionBar';
 export { CallCard, type CallCardProps, type CallCardData } from './compound/CallCard';
+export { SettledCallCard, settledOutcomeWord, OUTCOME_WORD_COLORS, type SettledCallCardProps } from './compound/SettledCallCard';
 export { ProfileHeader, type ProfileHeaderProps, type ProfileHeaderUser } from './compound/ProfileHeader';
 export { MarketPositioningBar, type MarketPositioningBarProps } from './compound/MarketPositioningBar';
 export { FollowFadeModal, type FollowFadeModalProps } from './compound/FollowFadeModal';

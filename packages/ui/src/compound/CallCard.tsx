@@ -25,6 +25,7 @@ import { cn } from '../lib/cn';
 import { avatarInitial } from '../lib/avatar-initial';
 import { Tag } from '../primitives/Tag';
 import { VerifiedBadge } from '../primitives/VerifiedBadge';
+import { SettledCallCard, settledOutcomeWord } from './SettledCallCard';
 
 export type CallCardData = {
   handle: string;
@@ -34,9 +35,9 @@ export type CallCardData = {
   stake: number | bigint;
   status?: 'live' | 'settled' | 'preview';
   /**
-   * Settled outcome wire value ('CallerWon' | 'CallerLost'). When present, the
-   * settled tag renders the caller-centric §15.7 word (CALLED IT / LOUD AND
-   * WRONG) instead of the muted SETTLED tag. Absent/unknown → muted SETTLED
+   * Settled outcome wire value ('CallerWon' | 'CallerLost'). When a §15.7
+   * word is derivable, the settled card routes to the SettledCallCard big
+   * treatment (quick-260611-tbc). Absent/unknown → muted SETTLED tag
    * (D-07 honest degradation — never guess an outcome).
    */
   outcome?: string;
@@ -44,12 +45,34 @@ export type CallCardData = {
   verifiedX?: boolean;
   /** Farcaster link verified — renders VERIFIED · FC next to the handle (AUTH-09) */
   verifiedFc?: boolean;
+  /**
+   * Settlement time (unix seconds) — relayer settled enrichment
+   * (quick-260611-tbc). ABSENT on pre-enrichment deploys; the settled card's
+   * overline degrades to hidden (D-07).
+   */
+  settledAt?: number;
+  /** The CALLER's settled rep delta (signed int) — hidden when absent (D-07). */
+  repDelta?: number;
+  /**
+   * Signed % by which the final price landed past(+)/short(−) of the target —
+   * the truthful marketType-0 derivation ONLY (see
+   * apps/relayer/src/lib/settled-enrichment.ts). Hidden when absent.
+   */
+  finalPct?: number;
+  /**
+   * True when the market type semantically has no final-vs-target price
+   * (RelativePerformance/Event) — the FINAL block renders '—'. Distinct from
+   * an ABSENT finalPct (missing data hides the block — D-07).
+   */
+  finalNA?: boolean;
 };
 
 export type CallCardProps = {
   call: CallCardData;
   className?: string;
   onClick?: () => void;
+  /** Pre-built X web-intent URL for the settled treatment (D-08 env-gated). */
+  shareHref?: string;
 };
 
 // Prototype avatar grad palette a–f (square, black initials except the duel
@@ -65,7 +88,7 @@ const AVATAR_GRADS: ReadonlyArray<{ bg: string; fg: string }> = [
 ];
 
 /** Deterministic grad pick from the handle (prototype grad a–f). */
-function gradFor(handle: string): { bg: string; fg: string } {
+export function gradFor(handle: string): { bg: string; fg: string } {
   let acc = 0;
   for (let i = 0; i < handle.length; i++) {
     acc = (acc + handle.charCodeAt(i)) % AVATAR_GRADS.length;
@@ -74,7 +97,7 @@ function gradFor(handle: string): { bg: string; fg: string } {
 }
 
 /** "$N" JBM stake — bigint = raw 6-dp USDC base units; number = dollars. */
-function formatStake(stake: number | bigint): string {
+export function formatStake(stake: number | bigint): string {
   const dollars =
     typeof stake === 'bigint' ? Number(stake) / 1_000_000 : stake;
   return `$${dollars.toLocaleString('en-US', { maximumFractionDigits: 2 })}`;
@@ -112,7 +135,7 @@ function Countdown({ deadline }: { deadline: Date }) {
   );
 }
 
-export function CallCard({ call, className, onClick }: CallCardProps) {
+export function CallCard({ call, className, onClick, shareHref }: CallCardProps) {
   const grad = gradFor(call.handle);
 
   // C2 (quick-260611-5mh): a live call whose deadline has PASSED is not live —
@@ -129,6 +152,24 @@ export function CallCard({ call, className, onClick }: CallCardProps) {
   const isExpired = call.deadline.getTime() <= nowMs;
   const isLive = isLiveStatus && !isExpired;
   const isAwaitingSettlement = isLiveStatus && isExpired;
+
+  // quick-260611-tbc: settled + derivable §15.7 word → the prototype settled
+  // treatment (SettledCallCard). Placed AFTER the hooks above so the hook
+  // order stays constant when a mounted card transitions live → settled
+  // (an early return BEFORE the hooks would change the hook count across
+  // renders — a rules-of-hooks violation). The live-status effect already
+  // no-ops for non-live statuses. Settled WITHOUT a derivable outcome falls
+  // through to the muted SETTLED tag below (D-07: never guess a word).
+  if (call.status === 'settled' && settledOutcomeWord(call.outcome) !== null) {
+    return (
+      <SettledCallCard
+        call={call}
+        className={className}
+        onClick={onClick}
+        shareHref={shareHref}
+      />
+    );
+  }
 
   return (
     <div
@@ -182,13 +223,10 @@ export function CallCard({ call, className, onClick }: CallCardProps) {
               AWAITING SETTLEMENT
             </Tag>
           ) : call.status === 'settled' ? (
-            call.outcome === 'CallerWon' ? (
-              <Tag intent="win">CALLED IT</Tag>
-            ) : call.outcome === 'CallerLost' ? (
-              <Tag intent="loss">LOUD AND WRONG</Tag>
-            ) : (
-              <Tag intent="muted">SETTLED</Tag>
-            )
+            /* quick-260611-tbc: outcome-absent fallback ONLY — settled cards
+               WITH a derivable word routed to SettledCallCard above (the
+               7e33294 CALLED IT / LOUD AND WRONG pill arms are superseded). */
+            <Tag intent="muted">SETTLED</Tag>
           ) : (
             <Tag intent="neutral">PREVIEW</Tag>
           )}
