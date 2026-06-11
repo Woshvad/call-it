@@ -34,12 +34,15 @@
 import React, { useEffect, useState } from 'react';
 import { usePrivy } from '@privy-io/react-auth';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
 import { useFeed } from '@/hooks/useFeed';
 import { FeedList } from '@/components/FeedList';
 import { FromYourNetworkSections } from '@/app/components/FromYourNetworkSections';
 import { ASSET_CLASS_CHIPS, assetMatchesChip } from '@/lib/asset-class';
 import type { FeedItem } from '@/lib/relayer-client';
+import { fetchDuels, type DuelEntry } from '@/lib/duels-client';
+import { DuelCard } from '@/components/DuelCard';
+import { useDuelEnrichment } from '@/hooks/useDuelEnrichment';
+import { useFeedHandles } from '@/hooks/useFeedMarketData';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -52,110 +55,11 @@ const TAB_LABELS: Record<FeedTab, string> = {
   Duels: 'Duels',
 };
 
-// ── Duels tab wiring (borrowed from app/duels/page.tsx — READ-ONLY precedent) ──
-
-const RELAYER_URL = process.env['NEXT_PUBLIC_RELAYER_URL'] ?? '';
-
-type DuelTabRow = {
-  challengeId: string;
-  challenger: string;
-  caller: string;
-  pot: string;
-  status: string;
-};
-
-function truncateAddress(address: string): string {
-  if (!address || address.length < 10) return address || '—';
-  return `${address.slice(0, 6)}…${address.slice(-4)}`;
-}
-
-function formatUsdc(raw: string): string {
-  try {
-    const n = Number(BigInt(raw)) / 1_000_000;
-    if (!Number.isFinite(n)) return '—';
-    return `$${n.toLocaleString('en-US', { maximumFractionDigits: 2 })}`;
-  } catch {
-    return '—';
-  }
-}
-
-/** null = not-loaded/failed (D-07: no count badge, dashed empty body). */
-async function fetchDuels(): Promise<DuelTabRow[] | null> {
-  if (!RELAYER_URL) return null; // skip entirely when the env is unset
-  try {
-    const res = await fetch(`${RELAYER_URL}/api/duels`, {
-      signal: AbortSignal.timeout(8_000),
-    });
-    if (!res.ok) return null;
-    const raw = (await res.json()) as { duels?: unknown[] };
-    if (!Array.isArray(raw.duels)) return [];
-    return raw.duels
-      .map((d) => {
-        const e = d as Record<string, unknown>;
-        return {
-          challengeId: String(e['challengeId'] ?? ''),
-          challenger: String(e['challenger'] ?? ''),
-          caller: String(e['caller'] ?? ''),
-          pot: String(e['pot'] ?? '0'),
-          status: String(e['status'] ?? 'Proposed'),
-        };
-      })
-      .filter((d) => d.challengeId.length > 0);
-  } catch {
-    return null;
-  }
-}
-
-/** Compact duel row — brutal styling consistent with /duels, links to the duel page. */
-function DuelRowLink({ duel }: { duel: DuelTabRow }) {
-  return (
-    <Link
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      href={`/duel/${duel.challengeId}` as any}
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        gap: 12,
-        padding: '14px 16px',
-        border: '2px solid var(--border-active)',
-        background: 'var(--bg-secondary)',
-        textDecoration: 'none',
-        minHeight: 44,
-      }}
-    >
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-        <span className="mono" style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>
-          #{duel.challengeId}
-        </span>
-        <span className="mono" style={{ fontSize: 12.5, fontWeight: 700, color: '#A855F7' }}>
-          {truncateAddress(duel.challenger)}
-        </span>
-        <span className="mono" style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>
-          vs
-        </span>
-        <span className="mono" style={{ fontSize: 12.5, fontWeight: 700, color: '#E8F542' }}>
-          {truncateAddress(duel.caller)}
-        </span>
-      </div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-        <span className="mono" style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>
-          {formatUsdc(duel.pot)}
-        </span>
-        <span
-          className="mono"
-          style={{
-            fontSize: 11,
-            color: 'var(--text-secondary)',
-            textTransform: 'uppercase',
-          }}
-        >
-          {duel.status}
-        </span>
-      </div>
-    </Link>
-  );
-}
+// ── Duels tab wiring — shared duels-client + DuelCard (quick-260611-ust) ──────
+// The former local DuelTabRow type / fetchDuels copy / compact DuelRowLink
+// moved to lib/duels-client.ts and components/DuelCard.tsx — the feed Duels
+// tab now renders the same rich at-a-glance cards as /duels. The count-chip
+// logic and the 'NO LIVE DUELS IN YOUR GRAPH.' empty state are unchanged.
 
 // ── Dashed empty block (prototype feed.jsx ~294-305) ──────────────────────────
 
@@ -255,18 +159,30 @@ export default function HomePage() {
 
   const [activeTab, setActiveTab] = useState<FeedTab>('Live');
   const [activeChip, setActiveChip] = useState<string>('All');
-  const [duels, setDuels] = useState<DuelTabRow[] | null>(null);
+  const [duels, setDuels] = useState<DuelEntry[] | null>(null);
 
   // One fetch on mount; failure keeps `duels` null (no badge, dashed empty).
   useEffect(() => {
     let cancelled = false;
-    void fetchDuels().then((rows) => {
-      if (!cancelled) setDuels(rows);
+    void fetchDuels().then((result) => {
+      if (!cancelled) setDuels(result ? result.duels : null);
     });
     return () => {
       cancelled = true;
     };
   }, []);
+
+  // Duel-card enrichment + handles (quick-260611-ust) — hooks called
+  // unconditionally at component top (empty inputs no-op internally).
+  const duelEnrichMap = useDuelEnrichment(duels);
+  const duelHandleAddrs: string[] = [];
+  for (const d of duels ?? []) {
+    duelHandleAddrs.push(d.challenger, d.caller);
+  }
+  for (const e of duelEnrichMap.values()) {
+    if (e.winner) duelHandleAddrs.push(e.winner);
+  }
+  const duelHandles = useFeedHandles(duelHandleAddrs);
 
   // Real wiring per tab: Live = not-yet-settled, Settled = settled (or under
   // dispute review — the settlement happened). `item.status` is the canonical
@@ -482,7 +398,12 @@ export default function HomePage() {
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {duels.map((duel) => (
-              <DuelRowLink key={duel.challengeId} duel={duel} />
+              <DuelCard
+                key={duel.challengeId}
+                duel={duel}
+                enrichment={duelEnrichMap.get(duel.challengeId)}
+                handles={duelHandles}
+              />
             ))}
           </div>
         ))}

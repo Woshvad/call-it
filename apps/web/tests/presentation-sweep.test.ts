@@ -52,7 +52,10 @@ describe('C7/C8 — duels index + branded 404 exist', () => {
     expect(existsSync(p)).toBe(true);
     const src = readFileSync(p, 'utf-8');
     expect(src).toContain('NO DUELS YET');
-    expect(src).toContain('/api/duels');
+    // quick-260611-ust: the /api/duels fetch moved into lib/duels-client.ts —
+    // the page imports the shared client (same contract, relocated pin).
+    expect(src).toContain('duels-client');
+    expect(read('lib', 'duels-client.ts')).toContain('/api/duels');
   });
 
   it('Sidebar carries a DUELS entry', () => {

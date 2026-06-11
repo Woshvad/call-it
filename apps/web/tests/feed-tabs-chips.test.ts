@@ -39,11 +39,17 @@ describe('(i) tabs — 4 tabs with prototype count markup', () => {
 
 describe('(ii) duels wiring — real endpoint, real links, honest empty', () => {
   it('fetches the real relayer /api/duels endpoint', () => {
-    expect(page()).toContain('/api/duels');
+    // quick-260611-ust: the fetch moved from page.tsx into the shared
+    // lib/duels-client.ts — same contract, relocated (page imports the client).
+    expect(page()).toContain('duels-client');
+    expect(read('lib', 'duels-client.ts')).toContain('/api/duels');
   });
 
   it('rows link to /duel/:challengeId (template literal)', () => {
-    expect(page()).toMatch(/\/duel\/\$\{/);
+    // quick-260611-ust: the /duel/:id Link moved from the local DuelRowLink
+    // into the shared components/DuelCard.tsx — same contract, relocated.
+    expect(page()).toContain('DuelCard');
+    expect(read('components', 'DuelCard.tsx')).toMatch(/\/duel\/\$\{/);
   });
 
   it('renders the prototype dashed empty block copy', () => {

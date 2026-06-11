@@ -1,13 +1,22 @@
 /**
- * /duels — Duels index (quick-260611-5mh C7)
+ * /duels — tabbed duels surface (quick-260611-ust, user request 2026-06-11).
  *
- * Lists active 1v1 duels from the relayer `GET /api/duels` (subgraph-backed:
- * `{ duels: [...], count: N, duelKing: ... }`) with rows linking to
- * /duel/:challengeId. Live response today is empty (`{"duels":[],"count":0}`)
- * — the brutal empty state owns that case honestly (D-07: no fake rows).
+ * Live duels / Settled duels tabs mirroring the tape's .tabs recipe
+ * (app/page.tsx), a DUEL KING banner surfacing the wire field the web
+ * previously dropped, and rich at-a-glance DuelCard lists replacing the bare
+ * 4-column brutal-table.
  *
- * The relayer duel entries carry ADDRESSES (challenger/caller), not handles —
- * rows render truncated address aliases (AUTH-44-safe display alias).
+ * Data: TWO independent fetches via lib/duels-client — fetchDuels() (route
+ * default Proposed+Accepted) and fetchDuels('Settled') (subgraph status value,
+ * packages/subgraph/src/challenge-escrow.ts). Each tab owns its OWN
+ * loading/error state — a settled-fetch failure never kills the live tab and
+ * vice versa. Count chips render ONLY post-fetch-success (D-07: null while
+ * loading/failed). The DUEL KING banner hides entirely when the wire field is
+ * null (D-07).
+ *
+ * Per-duel enrichment (market line / expiry clock / consensus / winner) via
+ * useDuelEnrichment (one-shot, capped, zero polling); handles via the existing
+ * useFeedHandles ProfileRegistry tier — fallback stays the truncated address.
  *
  * D-27: the relayer proxies the subgraph — no Studio key in this bundle.
  */
@@ -15,98 +24,107 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { avatarInitial } from '@call-it/ui';
+import {
+  fetchDuels,
+  formatUsdc,
+  truncateAddress,
+  type DuelEntry,
+  type DuelKing,
+} from '@/lib/duels-client';
+import { DuelCard } from '@/components/DuelCard';
+import { useDuelEnrichment } from '@/hooks/useDuelEnrichment';
+import { useFeedHandles } from '@/hooks/useFeedMarketData';
 
-const RELAYER_URL = process.env['NEXT_PUBLIC_RELAYER_URL'] ?? '';
+type DuelsTab = 'live' | 'settled';
 
-const DUEL_ACCENT = '#A855F7';
-const CALLER_ACCENT = '#E8F542';
-
-type DuelRow = {
-  challengeId: string;
-  challengerStake: string;
-  callerStake: string;
-  pot: string;
-  status: string;
-  proposedAt: string;
-  challenger: string;
-  caller: string;
-  isTrending: boolean;
-};
-
-function truncateAddress(address: string): string {
-  if (!address || address.length < 10) return address || '—';
-  return `${address.slice(0, 6)}…${address.slice(-4)}`;
-}
-
-function formatUsdc(raw: string): string {
-  try {
-    const n = Number(BigInt(raw)) / 1_000_000;
-    if (!Number.isFinite(n)) return '—';
-    return `$${n.toLocaleString('en-US', { maximumFractionDigits: 2 })}`;
-  } catch {
-    return '—';
-  }
-}
-
-/** Deterministic prototype avatar grad class (a–f) per handle. */
-const AVATAR_GRAD_CLASSES = ['a', 'b', 'c', 'd', 'e', 'f'] as const;
-function gradFor(handle: string): string {
-  let acc = 0;
-  for (let i = 0; i < handle.length; i++) acc = (acc + handle.charCodeAt(i)) % AVATAR_GRAD_CLASSES.length;
-  return `avatar-grad-${AVATAR_GRAD_CLASSES[acc] ?? 'a'}`;
-}
-
-async function fetchDuels(): Promise<DuelRow[] | null> {
-  if (!RELAYER_URL) return null;
-  try {
-    const res = await fetch(`${RELAYER_URL}/api/duels`, { signal: AbortSignal.timeout(8_000) });
-    if (!res.ok) return null;
-    const raw = await res.json() as { duels?: unknown[] };
-    if (!Array.isArray(raw.duels)) return [];
-    return raw.duels.map((d) => {
-      const e = d as Record<string, unknown>;
-      return {
-        challengeId: String(e['challengeId'] ?? ''),
-        challengerStake: String(e['challengerStake'] ?? '0'),
-        callerStake: String(e['callerStake'] ?? '0'),
-        pot: String(e['pot'] ?? '0'),
-        status: String(e['status'] ?? 'Proposed'),
-        proposedAt: String(e['proposedAt'] ?? '0'),
-        challenger: String(e['challenger'] ?? ''),
-        caller: String(e['caller'] ?? ''),
-        isTrending: Boolean(e['isTrending'] ?? false),
-      };
-    }).filter((d) => d.challengeId.length > 0);
-  } catch {
-    return null;
-  }
+/** Coarse honest time-ago from an ISO timestamp (duelKing.lastWinAt). */
+function timeAgoIso(iso: string): string | null {
+  const ms = Date.parse(iso);
+  if (!Number.isFinite(ms)) return null;
+  const delta = Math.floor((Date.now() - ms) / 1000);
+  if (delta < 60) return 'just now';
+  if (delta < 3600) return `${Math.floor(delta / 60)}m ago`;
+  if (delta < 86400) return `${Math.floor(delta / 3600)}h ago`;
+  return `${Math.floor(delta / 86400)}d ago`;
 }
 
 export default function DuelsPage() {
-  const router = useRouter();
-  const [duels, setDuels] = useState<DuelRow[] | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isError, setIsError] = useState(false);
+  const [activeTab, setActiveTab] = useState<DuelsTab>('live');
 
-  const load = useCallback(async () => {
-    setIsLoading(true);
-    setIsError(false);
-    const rows = await fetchDuels();
-    if (rows === null) {
-      setIsError(true);
-      setDuels([]);
+  // Independent per-tab state (D-07: count chips only post-fetch-success;
+  // a settled failure degrades ONLY the settled tab).
+  const [liveDuels, setLiveDuels] = useState<DuelEntry[] | null>(null);
+  const [liveLoading, setLiveLoading] = useState(true);
+  const [liveError, setLiveError] = useState(false);
+  const [settledDuels, setSettledDuels] = useState<DuelEntry[] | null>(null);
+  const [settledLoading, setSettledLoading] = useState(true);
+  const [settledError, setSettledError] = useState(false);
+  const [duelKing, setDuelKing] = useState<DuelKing | null>(null);
+
+  const loadLive = useCallback(async () => {
+    setLiveLoading(true);
+    setLiveError(false);
+    const res = await fetchDuels(); // route default: Proposed + Accepted
+    if (res === null) {
+      setLiveError(true);
+      setLiveDuels(null);
+      setDuelKing(null);
     } else {
-      setDuels(rows);
+      setLiveDuels(res.duels);
+      setDuelKing(res.duelKing);
     }
-    setIsLoading(false);
+    setLiveLoading(false);
+  }, []);
+
+  const loadSettled = useCallback(async () => {
+    setSettledLoading(true);
+    setSettledError(false);
+    // Subgraph ChallengeStatus value (packages/subgraph/src/challenge-escrow.ts)
+    const res = await fetchDuels('Settled');
+    if (res === null) {
+      setSettledError(true);
+      setSettledDuels(null);
+    } else {
+      setSettledDuels(res.duels);
+    }
+    setSettledLoading(false);
   }, []);
 
   useEffect(() => {
-    void load();
-  }, [load]);
+    void loadLive();
+    void loadSettled();
+  }, [loadLive, loadSettled]);
+
+  // ── Hooks at top, unconditional (React hook rules) — empty inputs no-op ─────
+  const activeDuels = activeTab === 'live' ? liveDuels : settledDuels;
+  const enrichMap = useDuelEnrichment(activeDuels);
+
+  // ALL challenger/caller/winner/duelKing addresses (useFeedHandles dedupes +
+  // lowercases internally; empty array when nothing has loaded yet).
+  const handleAddrs: string[] = [];
+  for (const d of [...(liveDuels ?? []), ...(settledDuels ?? [])]) {
+    handleAddrs.push(d.challenger, d.caller);
+  }
+  for (const e of enrichMap.values()) {
+    if (e.winner) handleAddrs.push(e.winner);
+  }
+  if (duelKing) handleAddrs.push(duelKing.winnerAddress);
+  const handlesMap = useFeedHandles(handleAddrs);
+
+  // ── Per-tab view state ──────────────────────────────────────────────────────
+  const isLoading = activeTab === 'live' ? liveLoading : settledLoading;
+  const isError = activeTab === 'live' ? liveError : settledError;
+  const retry = activeTab === 'live' ? loadLive : loadSettled;
+
+  const liveCount = liveDuels !== null ? liveDuels.length : null;
+  const settledCount = settledDuels !== null ? settledDuels.length : null;
+
+  const kingLastWin = duelKing?.lastWinAt ? timeAgoIso(duelKing.lastWinAt) : null;
+  const kingHandle = duelKing
+    ? handlesMap.get(duelKing.winnerAddress.toLowerCase()) ??
+      truncateAddress(duelKing.winnerAddress)
+    : null;
 
   return (
     <div>
@@ -118,6 +136,70 @@ export default function DuelsPage() {
             <span className="em">1v1.</span> Matched stakes. Winner takes all.
           </div>
         </div>
+      </div>
+
+      {/* DUEL KING banner — the wire field the web previously dropped.
+          Hidden entirely when null (D-07: never fake a king). */}
+      {duelKing && (
+        <div
+          className="brutal-card"
+          style={{
+            display: 'flex',
+            flexWrap: 'wrap',
+            alignItems: 'center',
+            gap: 16,
+            marginBottom: 20,
+            borderLeft: '3px solid var(--accent-duel)',
+          }}
+        >
+          <span className="label-overline" style={{ color: 'var(--accent-duel)' }}>
+            DUEL KING
+          </span>
+          <span className="mono" style={{ fontSize: 13, fontWeight: 700, color: 'var(--accent-duel)' }}>
+            {kingHandle}
+          </span>
+          <span className="mono" style={{ fontSize: 11, color: 'var(--text-secondary)' }}>
+            WIN STREAK {duelKing.winStreak}
+          </span>
+          <span className="mono" style={{ fontSize: 11, color: 'var(--text-secondary)' }}>
+            HIGHEST POT {formatUsdc(duelKing.highestPotUsdc)}
+          </span>
+          {kingLastWin && (
+            <span className="mono" style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>
+              last win {kingLastWin}
+            </span>
+          )}
+        </div>
+      )}
+
+      {/* Tab bar — the tape's .tabs recipe (app/page.tsx): role=tab,
+          aria-selected, min-height 44, count chip ONLY post-fetch-success */}
+      <div className="tabs" role="tablist">
+        {(['live', 'settled'] as const).map((tab) => {
+          const count = tab === 'live' ? liveCount : settledCount;
+          return (
+            <button
+              type="button"
+              key={tab}
+              role="tab"
+              aria-selected={activeTab === tab}
+              onClick={() => setActiveTab(tab)}
+              className={`tab ${activeTab === tab ? 'active' : ''}`}
+              style={{
+                background: 'none',
+                border: 'none',
+                borderBottom:
+                  activeTab === tab
+                    ? '3px solid var(--accent-win)'
+                    : '3px solid transparent',
+                minHeight: 44,
+              }}
+            >
+              {tab === 'live' ? 'Live duels' : 'Settled duels'}
+              {count != null && <span className="count">{count}</span>}
+            </button>
+          );
+        })}
       </div>
 
       {isLoading ? (
@@ -139,87 +221,56 @@ export default function DuelsPage() {
           <span className="mono" style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
             The duel list didn&apos;t come back. Retry.
           </span>
-          <button type="button" className="btn outline-white" onClick={() => void load()} style={{ minHeight: 44 }}>
+          <button type="button" className="btn outline-white" onClick={() => void retry()} style={{ minHeight: 44 }}>
             RETRY
           </button>
         </div>
-      ) : duels && duels.length === 0 ? (
-        /* Brutal empty state (C7) */
-        <div
-          className="brutal-card"
-          style={{
-            display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16,
-            padding: '64px 24px', textAlign: 'center',
-          }}
-        >
-          <span className="label-overline" style={{ letterSpacing: '0.14em' }}>
-            NO DUELS YET
-          </span>
-          <span style={{ color: 'var(--text-secondary)', fontSize: 14 }}>
-            Open any call and hit CHALLENGE to start a 1v1.
-          </span>
-          <Link href="/" className="btn cream" style={{ textDecoration: 'none' }}>
-            BACK TO THE TAPE
-          </Link>
-        </div>
+      ) : activeDuels && activeDuels.length === 0 ? (
+        activeTab === 'live' ? (
+          /* Brutal empty state (C7) */
+          <div
+            className="brutal-card"
+            style={{
+              display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16,
+              padding: '64px 24px', textAlign: 'center',
+            }}
+          >
+            <span className="label-overline" style={{ letterSpacing: '0.14em' }}>
+              NO DUELS YET
+            </span>
+            <span style={{ color: 'var(--text-secondary)', fontSize: 14 }}>
+              Open any call and hit CHALLENGE to start a 1v1.
+            </span>
+            <Link href="/" className="btn cream" style={{ textDecoration: 'none' }}>
+              BACK TO THE TAPE
+            </Link>
+          </div>
+        ) : (
+          <div
+            className="brutal-card"
+            style={{
+              display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16,
+              padding: '64px 24px', textAlign: 'center',
+            }}
+          >
+            <span className="label-overline" style={{ letterSpacing: '0.14em' }}>
+              NO SETTLED DUELS YET.
+            </span>
+            <span style={{ color: 'var(--text-secondary)', fontSize: 14 }}>
+              Finished duels land here with their receipts.
+            </span>
+          </div>
+        )
       ) : (
-        <div className="brutal-card" style={{ padding: 0 }}>
-          <table className="brutal-table">
-            <thead>
-              <tr>
-                <th style={{ width: 60 }}>#</th>
-                <th>Matchup</th>
-                <th style={{ textAlign: 'right' }}>Pot</th>
-                <th style={{ textAlign: 'right' }}>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {(duels ?? []).map((duel) => {
-                const challengerAlias = truncateAddress(duel.challenger);
-                const callerAlias = truncateAddress(duel.caller);
-                return (
-                  <tr
-                    key={duel.challengeId}
-                    onClick={() => {
-                      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                      router.push(`/duel/${duel.challengeId}` as any);
-                    }}
-                    style={{ cursor: 'pointer' }}
-                  >
-                    <td>
-                      <span className="mono" style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>
-                        #{duel.challengeId}
-                      </span>
-                    </td>
-                    <td>
-                      <div className="row" style={{ gap: 10, flexWrap: 'wrap' }}>
-                        <span className={`avatar sm ${gradFor(challengerAlias)}`} aria-hidden="true">
-                          {avatarInitial(challengerAlias)}
-                        </span>
-                        <span className="mono" style={{ fontSize: 12.5, fontWeight: 700, color: DUEL_ACCENT }}>
-                          {challengerAlias}
-                        </span>
-                        <span className="mono" style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>vs</span>
-                        <span className="mono" style={{ fontSize: 12.5, fontWeight: 700, color: CALLER_ACCENT }}>
-                          {callerAlias}
-                        </span>
-                        {duel.isTrending && <span className="pill duel">TRENDING</span>}
-                      </div>
-                      <div className="mono" style={{ fontSize: 10.5, color: 'var(--text-tertiary)', marginTop: 4 }}>
-                        stakes {formatUsdc(duel.challengerStake)} vs {formatUsdc(duel.callerStake)}
-                      </div>
-                    </td>
-                    <td className="mono" style={{ textAlign: 'right', fontWeight: 700, fontSize: 14 }}>
-                      {formatUsdc(duel.pot)}
-                    </td>
-                    <td className="mono" style={{ textAlign: 'right', fontSize: 11, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
-                      {duel.status}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          {(activeDuels ?? []).map((duel) => (
+            <DuelCard
+              key={duel.challengeId}
+              duel={duel}
+              enrichment={enrichMap.get(duel.challengeId)}
+              handles={handlesMap}
+            />
+          ))}
         </div>
       )}
     </div>
