@@ -262,11 +262,11 @@ export default function SignInPage() {
           </div>
 
           {/* Desktop size is the design-verbatim clamp(64px, 8.6vw, 124px) in
-              .ci-h1; ≤640px re-scales to a vw-driven clamp (the 64px floor
-              overflows ≤350px viewports and eats a third of a phone screen).
-              Headline split per user 2026-06-12: "BE RIGHT IN" stays white,
-              only "PUBLIC." carries the acid — and renders LARGER (1.2em of
-              the responsive base, so the emphasis scales at every width). */}
+              .ci-h1; ≤640px re-scales to a SMALLER vw clamp + white-space:nowrap
+              so "BE RIGHT IN" holds ONE line (user 2026-06-12 — at 14.8vw it
+              wrapped on phones). Headline split per user 2026-06-12: "BE RIGHT IN"
+              stays white, only "PUBLIC." carries the acid — and renders LARGER
+              (1.25em of the responsive base, so the emphasis scales at every width). */}
           <h1 className="ci-h1" style={{ fontFamily: archivoBlack.style.fontFamily }}>
             BE RIGHT IN
             <br />
@@ -828,6 +828,11 @@ export default function SignInPage() {
           line-height: 0.92;
           letter-spacing: -0.025em;
           color: #FFFFFF;
+          /* Each line stays unbroken — the <br> is the ONLY break. The mobile
+             tier sizes the font so "BE RIGHT IN" fits one line (user 2026-06-12);
+             nowrap guarantees it never re-wraps as text/metrics shift. Safe at
+             all widths: desktop/tablet sizes leave ample room (verified). */
+          white-space: nowrap;
         }
         /* User 2026-06-12: only PUBLIC. is acid, and it reads LARGER than the
            white line — em-sized so the emphasis holds at every breakpoint
@@ -1082,16 +1087,21 @@ export default function SignInPage() {
           .ci-hero {
             padding: 40px 18px 0;
           }
+          /* User 2026-06-12: hide the "Stake smarter · Call it public" eyebrow on
+             phones (kept in the DOM + on desktop — the source string stays for the
+             signin.spec.ts pin; this is a mobile-only display:none, not a removal). */
           .ci-badge {
-            padding: 8px 14px;
-          }
-          .ci-badge-text {
-            font-size: 10px;
-            letter-spacing: 0.1em;
+            display: none;
           }
           .ci-h1 {
             margin-top: 24px;
-            font-size: clamp(40px, 14.8vw, 64px);
+            /* Smaller + nowrap (base rule) so the headline holds ONE line down to
+               320px — at 14.8vw "BE RIGHT IN" was ~370px and wrapped. Tuned LIVE
+               (real Archivo Black metrics): the block is ~6.7× the base font incl.
+               -0.025em spacing; 11vw keeps it ~85% of the content width at 375–430px
+               and still leaves ~10% margin at 320px, while PUBLIC. (1.25em) keeps its
+               bigger-than-white emphasis (prior user request). */
+            font-size: clamp(30px, 11vw, 56px);
           }
           /* Width-bound on phones: past ~1.27em "PUBLIC." clips a 320px
              viewport — 1.25em is the safe ceiling (desktop runs 1.45em). */
