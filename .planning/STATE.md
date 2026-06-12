@@ -4,14 +4,14 @@ milestone: v1.1
 milestone_name: milestone
 status: executing
 stopped_at: Completed 09.2-14-PLAN.md
-last_updated: "2026-06-10T17:47:59.482Z"
-last_activity: 2026-06-10 -- Phase 09.2 execution started
+last_updated: "2026-06-12T07:17:14.711Z"
+last_activity: 2026-06-12
 progress:
   total_phases: 16
-  completed_phases: 11
+  completed_phases: 12
   total_plans: 98
-  completed_plans: 97
-  percent: 69
+  completed_plans: 98
+  percent: 75
 ---
 
 # Project State
@@ -25,8 +25,8 @@ See: .planning/PROJECT.md (updated 2026-05-21)
 
 ## Current Position
 
-Phase: 09.2 (prototype-design-adoption-rebuild-apps-web-ui-to-the-call-it) — EXECUTING
-Plan: 15 of 15
+Phase: 10
+Plan: Not started
 
 > **Strategic pivot (2026-06-09):** Mainnet is PAUSED till further notice. Phases **10 (mainnet deploy gate)** and **10.5 (mainnet multisig lockdown)** are ON HOLD. Active focus is **Phase 09.1 — Testnet Demo Hardening**: make the full product demo-perfect end-to-end on the live Arbitrum Sepolia deployment. Next: `/gsd-discuss-phase 09.1`.
 
@@ -37,7 +37,7 @@ Plan: 15 of 15
 > **Phase 01.5 status (2026-06-07):** ✅ **ALL 5 plans COMPLETE** — **01.5-02** (relayer social-link service), **01.5-03** (VerifiedBadge + AUTH-10 invariant), **01.5-04** (link/unlink UI + AuthKitProvider + opt-in), **01.5-05** (FEED sections — complete-with-documented-deferral: X/Neynar keys deferred, AUTH-14 live data dormant until keys set; AUTH-15/16/17/18 satisfied + tested), and **01.5-01** (env surface + setRelayer). **setRelayer gate CLEARED on-chain (2026-06-07):** derived oauth-proof KMS `0xdFc80922FAbc51a08350c0b371917e6EaB8b550A` (scaffold `9b41f0f`), funded 0.05 ETH, operator broadcast `setRelayer` from treasury `0xDa8c5726`; verified `relayer()` == `0xdFc80922…` (was `0x0`), `owner()` unchanged. `RELAYER_OAUTH_PROOF_ADDRESS` set in local `.env.local`. **Remaining follow-ups (non-gating):** (1) deployed Fly relayer `fly secrets set RELAYER_OAUTH_PROOF_ADDRESS=0xdFc80922… -a call-it-relayer-sepolia` — deferred to avoid restarting the relayer mid Phase-6 soak; (2) X API + Neynar key provisioning to activate live feed data. **Local DB:** ✅ provisioned `callit-postgres` (127.0.0.1:5434), all 6 migrations applied (`follow_graph` + `social_link_index`). **Phase ✅ VERIFIED + COMPLETE (2026-06-07)** — goal-backward verification PASSED: 4/4 ROADMAP success criteria, 11/11 requirements (8 PASS, 3 documented deferrals: AUTH-14 live X data, live FC data, Fly secret), 0 FAILs (see `01.5-VERIFICATION.md`). Full relayer suite 189✓/1 skipped; relayer+web+ui+shared builds 0.
 
 > **⚡ CURRENT REALITY (2026-06-07) — owner-key-recovery cluster, supersedes the 06-02 and 06-05 clusters below.** A 2026-06-06 owner-key-recovery REDEPLOY (block 274393587) moved all 5 contracts to owner = treasury `0xDa8c5726f596E8dae99e6dDEBa8AEa1c8bE9A4a5` (a key the operator HOLDS = `SOAK_WALLET_0` = root `.env` `DEPLOYER_PRIVATE_KEY`), recovering from the lost `0xF4ee6195` owner key. **Canonical Sepolia cluster (on-chain owner-verified 2026-06-07):** PR `0xF66C0AFEf03b43338FC5aE282e45C0Cf6A3c4820` · CR `0xc79bB19dBCA44D8b467b9f7bbb191b56e9fb3CB0` · FFM `0x188Db2970A46D1541EB712A2302e4a9F67740d82` · CE `0xC738dBcDBC3aCDCF7E25EB9B7E15bB3911aFf5e6` · SM `0x2E26eEb3b4CC9FA49B543846ea2E01B7600897e7`. Stylus proxy `0xe7e15980C40db52BFC6dcaBb21B3d90edFB27c14` (Phase 5, NOT redeployed). Subgraph `call-it-sepolia` v0.8.0 indexes this cluster. Relayer LIVE (Fly `/health` ok 2026-06-07). **SAFETY-22/23/24/25/27/42 are ALL PROVEN on the recovery cluster:** SAFETY-22/23/24 re-proven 2026-06-06 (calls 1–12, 30 follow/fade, 6 settles "CALLED IT", 0 failed; globalRep persists); SAFETY-25 caller-exit proven 2026-06-07 (`callerExit(12)` from treasury, tx `0xc5dc9a04…`, CallerExited event, $3.55 USDC returned, globalRep 100→76 verified); SAFETY-27 raise+resolve proven 2026-06-06 on call #1 (`SM.disputes(1).resolved=true`, disputer treasury, $5 bond); SAFETY-42 Stylus destruction drill proven 2026-06-06 on call #11 (reverting engine → RepCalculatedFallback → engine restored to `0xe7e15980`). **SUPERSEDED / DEAD (reference only):** the 06-05 lost-key cluster (CR `0xb864308D…` / SM `0x9235003d…` / PR `0xE82308B3…`, owner `0xF4ee6195` — key LOST) and the 06-02 cluster (CR `0x015758Cb…`) — neither is current. See `evidence/phase-6-soak/SOAK-STATUS-SNAPSHOT-2026-06-07.md` for the live status sheet + operator command checklist.
-Last activity: 2026-06-12 -- Completed fast task 260612-fast-force-settle-script: forceSettle ops script for stuck event calls 3-7 (run after 2026-06-13 11:16 UTC unlock). Yesterday: uf9 trivially-true call guard (relayer side awaits Fly deploy), fast-awaiting-actions (FOLLOW/FADE/CHALLENGE hidden on expired cards), u1l/tbc card redesigns, sof subgraph v0.9.2.
+Last activity: 2026-06-12
 
 **CI-safe code built this session (on master):**
 
@@ -98,7 +98,7 @@ All 3 operator actions were run this session (user explicitly authorized "run al
 
 **Velocity:**
 
-- Total plans completed: 55
+- Total plans completed: 70
 - Average duration: —
 - Total execution time: 0 hours
 
@@ -112,6 +112,7 @@ All 3 operator actions were run this session (user explicitly authorized "run al
 | 05 | 7 | - | - |
 | 05.1 | 5 | - | - |
 | 09 | 8 | - | - |
+| 09.2 | 15 | - | - |
 
 **Recent Trend:**
 
