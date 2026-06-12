@@ -68,3 +68,13 @@ packages/shared/.vitest-parity-output.json
 packages/shared/.vitest-duplicate-hash-parity-output.json
 packages/.vitest-parity-output.json
 packages/.vitest-duplicate-hash-parity-output.json
+.env*.local
+
+# Local-only project files — untracked per user request 2026-06-12 (kept on disk, out of GitHub).
+# git rm --cached'd, so they stop being pushed; they remain in PAST history (rewrite separately if needed).
+# Only the phase-6-soak subdir of evidence/ is ignored — the rest of evidence/ stays tracked.
+/.claude/
+/.planning/
+/evidence/phase-6-soak/
+/CALL_IT_SPEC1.md
+/CLAUDE.md
