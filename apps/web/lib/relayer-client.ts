@@ -279,6 +279,13 @@ export interface SettledFields {
    * CONTRARIAN HIT threshold (D-08: >= 0.5). Null on any error (SHARE-10).
    */
   fadeRealShare: number | null;
+  /**
+   * CallerExit.penaltyApplied — the REAL slashed amount (raw 6-dp USDC string)
+   * from the subgraph CallerExit entity (WR-10, 260612-hi3). Null when the
+   * call has no exit (or on any error) — the OG card then OMITS the STAKE
+   * SLASHED cell entirely (D-07: degrade-to-hidden, never fabricate).
+   */
+  exitPenalty: string | null;
 }
 
 const SETTLED_FIELDS_QUERY = `
@@ -297,6 +304,9 @@ query SettledFields($callId: ID!, $callIdStr: String!) {
   positions(first: 1000, where: { callId: $callIdStr }) {
     side
     usdcDeposited
+  }
+  callerExits(first: 1, where: { callId: $callIdStr }) {
+    penaltyApplied
   }
 }
 `;
@@ -318,6 +328,7 @@ export async function getSettledFields(callId: string | number): Promise<Settled
     repDelta: null,
     repFallback: null,
     fadeRealShare: null,
+    exitPenalty: null,
   };
   if (!SUBGRAPH_URL) return empty;
 
@@ -339,6 +350,7 @@ export async function getSettledFields(callId: string | number): Promise<Settled
         settlements?: Array<{ finalPrice?: string | null; priceDelta?: string | null }>;
         repEvents?: Array<{ delta?: number | null; fallback?: boolean | null }>;
         positions?: Array<{ side?: string | null; usdcDeposited?: string | null }>;
+        callerExits?: Array<{ penaltyApplied?: string | null }>;
       };
       errors?: unknown;
     };
@@ -377,6 +389,12 @@ export async function getSettledFields(callId: string | number): Promise<Settled
       repFallback:
         typeof repEvent?.fallback === 'boolean' ? repEvent.fallback : null,
       fadeRealShare,
+      // WR-10: real slash from CallerExit.penaltyApplied — null preserves the
+      // all-null degrade contract (SHARE-10: never throw, never fabricate).
+      exitPenalty:
+        typeof d.callerExits?.[0]?.penaltyApplied === 'string'
+          ? d.callerExits[0]!.penaltyApplied
+          : null,
     };
   } catch {
     return empty;

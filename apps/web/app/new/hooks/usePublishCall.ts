@@ -91,6 +91,12 @@ export interface PublishState {
  */
 export interface PublishResult {
   status: 'success' | 'error';
+  /**
+   * The NEW call's id extracted from the CallCreated log (WR-11,
+   * 260612-hi3) — lets quote mode link the freshly-minted quote-call
+   * receipt instead of the parent. Null when the log was unparseable.
+   */
+  callId?: string | null;
 }
 
 /**
@@ -102,7 +108,9 @@ export interface PublishResult {
  *   3. USDC allowance check — approve(stake + CREATION_FEE) when allowance is short
  *   4. CallRegistry.createCall via direct wagmi writeContract (connected EOA signs)
  *   5. waitForTransactionReceipt → extract callId from the CallCreated log
- *   6. Toast success → redirect to /call/{callId} (the receipt page)
+ *   6. Toast success → redirect to /call/{callId} (the receipt page), unless
+ *      opts.suppressRedirect (quote mode renders its own success screen and
+ *      receives the new callId via PublishResult — WR-11, 260612-hi3)
  *
  * Direct EOA until the AA client lands (quick-260611-co5 — the AA stub at
  * lib/aa-config.ts was never wired; verified live 2026-06-11). No gas
@@ -126,7 +134,12 @@ export function usePublishCall(
   });
 
   const publish = useCallback(
-    async (input: CreateCallInput): Promise<PublishResult> => {
+    async (
+      input: CreateCallInput,
+      // WR-11 (260612-hi3): quote mode renders its own success screen — the
+      // unconditional redirect navigated away before QuoteSuccess could mount.
+      opts?: { suppressRedirect?: boolean },
+    ): Promise<PublishResult> => {
       if (!address) {
         // WR-02 (quick-260611-co5 review): the caller closes the modal
         // unconditionally after publish() resolves and nothing on /new renders
@@ -270,18 +283,20 @@ export function usePublishCall(
           duration: 5000,
         });
 
-        if (callId !== null) {
-          // The receipt page IS the product moment.
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          router.push(`/call/${callId}` as any);
-        } else {
-          // Defensive: a success receipt should always carry CallCreated —
-          // never dead-end a succeeded tx; fall back to the profile page.
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          router.push(`/profile/${address}` as any);
+        if (!opts?.suppressRedirect) {
+          if (callId !== null) {
+            // The receipt page IS the product moment.
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            router.push(`/call/${callId}` as any);
+          } else {
+            // Defensive: a success receipt should always carry CallCreated —
+            // never dead-end a succeeded tx; fall back to the profile page.
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            router.push(`/profile/${address}` as any);
+          }
         }
 
-        return { status: 'success' };
+        return { status: 'success', callId: callId !== null ? String(callId) : null };
       } catch (err: unknown) {
         const isPreflightError = err instanceof RelayerError && err.status === 422;
 

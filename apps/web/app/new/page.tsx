@@ -5,6 +5,8 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useSearchParams } from 'next/navigation';
 import { useState, useCallback, type CSSProperties } from 'react';
 import { usePrivy } from '@privy-io/react-auth';
+import { useAccount } from 'wagmi';
+import { useProfile } from '@/hooks/useProfile';
 import type { CreateCallInput, MarketType } from '@call-it/shared';
 import { MIN_STAKE, CREATION_FEE } from '@call-it/shared';
 import { webCreateCallSchema } from './lib/web-call-schema';
@@ -127,8 +129,20 @@ export default function NewCallPage() {
   const isMobile = useIsMobile();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [token, setToken] = useState<string | undefined>(undefined);
-  // Quote success screen state (UI-28). Holds the new quote-call id once published.
-  const [quotePosted, setQuotePosted] = useState<{ quoteCallId: string } | null>(null);
+  // Quote success screen state (UI-28). `newCallId` is the freshly-minted
+  // QUOTE call's id from publish() (WR-11, 260612-hi3) — the parent id stays
+  // available as `quoteId`. Null when the CallCreated log was unparseable.
+  const [quotePosted, setQuotePosted] = useState<{ newCallId: string | null } | null>(null);
+
+  // WR-11 (260612-hi3): resolved viewer handle for the preview Receipts —
+  // a truncated address is NOT a handle (AUTH-44); '@you' survives ONLY as
+  // the unresolved-preview fallback (never in a share intent).
+  const { address: viewerAddress } = useAccount();
+  const { data: viewerProfile } = useProfile(viewerAddress);
+  const previewHandle =
+    viewerProfile && viewerProfile.source !== 'truncated' && viewerProfile.handle
+      ? viewerProfile.handle
+      : '@you';
 
   // Initialize form with zodResolver (D-29 parity — same schema as relayer preflight)
   const form = useForm<CreateCallInput>({
@@ -207,18 +221,20 @@ export default function NewCallPage() {
 
   const onConfirmPublish = useCallback(async () => {
     const values = form.getValues();
-    const result = await publish(values);
+    // WR-11 (260612-hi3): quote mode suppresses the publish redirect — the
+    // unconditional router.push navigated away before QuoteSuccess rendered.
+    const result = await publish(values, { suppressRedirect: isQuoteMode });
     setIsModalOpen(false);
     // In quote mode, surface the success screen (UI-28) once the publish flow reports
     // success. Branch on publish()'s returned terminal status — NOT the closed-over
     // `publishStep` const, which is captured stale at callback-creation time and never
     // reflects the just-completed publish (WR-01). The quote_stance write is keyed to the
     // on-chain CallQuoted event (parent + new quote-call ids); the success thread anchors
-    // on the parent call.
+    // on the parent call, but the share receipt links the NEW quote-call id.
     if (isQuoteMode && result?.status === 'success') {
-      setQuotePosted({ quoteCallId: quoteId ?? '' });
+      setQuotePosted({ newCallId: result.callId ?? null });
     }
-  }, [form, publish, isQuoteMode, quoteId]);
+  }, [form, publish, isQuoteMode]);
 
   // Build the live preview market line (shared by the right-rail Receipt + thread preview).
   // RC3: target renders at the canonical 1e8 scale (raw for event milestones).
@@ -251,6 +267,7 @@ export default function NewCallPage() {
         <DesktopOnlyBanner />
         <QuoteSuccess
           parentCallId={quoteId!}
+          quoteCallId={quotePosted.newCallId}
           quoteMarketLine={previewMarketLine}
           quoteConviction={formValues.conviction ?? 50}
           thesis={formValues.criteriaText ?? ''}
@@ -376,7 +393,7 @@ export default function NewCallPage() {
             mode="preview"
             chainLabel={ACTIVE_CHAIN.name.toLowerCase()}
             data={{
-              handle: '@you',
+              handle: previewHandle,
               marketLine: previewMarketLine,
               conviction: formValues.conviction ?? 50,
               deadline: new Date(Number(formValues.expiry ?? 0n) * 1000),
@@ -518,7 +535,7 @@ export default function NewCallPage() {
           mode="preview"
           chainLabel={ACTIVE_CHAIN.name.toLowerCase()}
           data={{
-            handle: '@you',
+            handle: previewHandle,
             marketLine: previewMarketLine,
             conviction: formValues.conviction ?? 50,
             deadline: new Date(Number(formValues.expiry ?? 0n) * 1000),

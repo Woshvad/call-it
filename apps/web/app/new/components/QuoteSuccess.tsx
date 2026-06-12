@@ -9,6 +9,16 @@
  *     social publishing worker uses (relocated to @call-it/shared in 07-04,
  *     re-exported from apps/web/lib/share-text.ts).
  *
+ * WR-11 (260612-hi3) share-intent honesty:
+ *   - the intent NEVER contains the literal you-placeholder handle — the
+ *     viewer's relayer-resolved handle is passed only when real
+ *     (source !== 'truncated', AUTH-44), else the @segment is omitted
+ *     entirely (isRealHandle guard);
+ *   - the head word is 'ON RECORD' (the screen's own copy) — never a settled
+ *     outcome word the quote hasn't earned;
+ *   - receiptUrl points at the NEW quote-call id when available, falling back
+ *     to the parent call URL only when the id is unavailable.
+ *
  * The Share button is the reusable affordance the receipt/profile pages can also
  * use (it takes a receipt URL + outcome/handle/statement and produces the intent).
  *
@@ -19,12 +29,16 @@
 
 'use client';
 
+import { useAccount } from 'wagmi';
 import { Card, Button } from '@call-it/ui';
+import { useProfile } from '@/hooks/useProfile';
 import { QuoteParentCard } from './QuoteParentCard';
 import { ShareButton } from '@/components/ShareButton';
 
 interface QuoteSuccessProps {
   parentCallId: string;
+  /** The NEW quote-call's id from publish() (WR-11); null when unavailable. */
+  quoteCallId?: string | null;
   quoteMarketLine: string;
   quoteConviction: number;
   thesis: string;
@@ -32,16 +46,29 @@ interface QuoteSuccessProps {
 
 export function QuoteSuccess({
   parentCallId,
+  quoteCallId,
   quoteMarketLine,
   quoteConviction,
   thesis,
 }: QuoteSuccessProps) {
-  // Receipt URL for the share intent (the quote's public surface). In production
-  // this is the deployed origin; relative is fine for the intent's url param.
+  // WR-11: viewer's resolved handle for the share intent. A truncated address
+  // is NOT a handle (AUTH-44) — pass undefined and let buildShareText's
+  // isRealHandle guard omit the @segment entirely.
+  const { address } = useAccount();
+  const { data: profile } = useProfile(address);
+  const shareHandle =
+    profile && profile.source !== 'truncated' && profile.handle
+      ? profile.handle
+      : undefined;
+
+  // Receipt URL for the share intent — the NEW quote-call's public surface
+  // (WR-11); the parent call URL is the fallback only when the new id is
+  // unavailable. Relative is fine for the intent's url param.
+  const receiptPath = quoteCallId ? `/call/${quoteCallId}` : `/call/${parentCallId}`;
   const receiptUrl =
     typeof window !== 'undefined'
-      ? `${window.location.origin}/call/${parentCallId}`
-      : `/call/${parentCallId}`;
+      ? `${window.location.origin}${receiptPath}`
+      : receiptPath;
 
   return (
     <main
@@ -119,12 +146,13 @@ export function QuoteSuccess({
         </Card>
       </div>
 
-      {/* Share affordance (SHARE-15) */}
+      {/* Share affordance (SHARE-15). 'ON RECORD' matches the screen's own
+          permanence copy — NOT a lib/outcome-word.ts settled word (WR-11). */}
       <div style={{ display: 'flex', flexDirection: 'row', gap: '12px' }}>
         <ShareButton
           receiptUrl={receiptUrl}
-          outcomeWord="CALLED A QUOTE"
-          handle="@you"
+          outcomeWord="ON RECORD"
+          handle={shareHandle}
           statement={quoteMarketLine}
         />
         <a href={`/call/${parentCallId}`} style={{ textDecoration: 'none' }}>

@@ -9,12 +9,22 @@
  * AUTH-22: CustodyDisclosureCard is rendered on this screen (guaranteed display moment).
  * AUTH-44: No wallet address rendered — handle-only.
  *
- * On submit: calls `useOnboardingState().advance('handle')` then navigates to /onboarding/socials.
+ * On submit (WR-12, 260612-hi3 — the typed handle was previously silently
+ * discarded):
+ *   - CUSTOMIZED handle (differs from the pre-fill/placeholder) → persisted
+ *     ON-CHAIN via ProfileRegistry.setDisplayHandle (the settings-page wagmi
+ *     path: ensureActiveChain → chainId-pinned writeContractAsync → receipt
+ *     wait). Any failure surfaces in the existing error UI and does NOT
+ *     navigate — no silent loss.
+ *   - UNMODIFIED pre-fill/placeholder → advance + navigate with NO transaction
+ *     (the handle already resolves via the relayer's ens/twitter precedence;
+ *     zero new failure modes for fresh gas-less embedded wallets).
+ * Then `useOnboardingState().advance('handle')` + navigate to /onboarding/socials.
  *
  * 09.2-13 retheme: .brutal-input recipe + Archivo heading; validation/advance
  * logic and all data-testid hooks untouched (D-05/D-14).
  *
- * Requirements: AUTH-19, AUTH-20, AUTH-22, AUTH-44
+ * Requirements: AUTH-19, AUTH-20, AUTH-22, AUTH-35, AUTH-44
  */
 
 'use client';
@@ -22,13 +32,23 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { usePrivy } from '@privy-io/react-auth';
-import { useEnsName } from 'wagmi';
+import { useEnsName, useWriteContract } from 'wagmi';
 import { useAccount } from 'wagmi';
+import { waitForTransactionReceipt } from 'wagmi/actions';
 import { Button } from '@call-it/ui';
 import { CustodyDisclosureCard } from '../../../components/CustodyDisclosureCard';
 import { useOnboardingState } from '../../../hooks/useOnboardingState';
 import { useIsMobile } from '../../hooks/useIsMobile';
 import { normalize } from 'viem/ens';
+import { profileRegistryAbi } from '@/lib/abis/ProfileRegistry';
+import { ensureActiveChain } from '@/lib/ensure-chain';
+import { ACTIVE_CHAIN_ID, PROFILE_REGISTRY_ADDRESS } from '@/lib/chain';
+import { wagmiConfig } from '@/lib/wagmi';
+import { isUserRejection } from '@/app/new/lib/call-created-log';
+
+// Actions-API chainId cast (mirrors the settings page) — wagmi actions want
+// the config's literal chain-id union, not the plain number.
+type ActiveChainId = (typeof wagmiConfig)['chains'][number]['id'];
 
 function getTwitterUsername(user: ReturnType<typeof usePrivy>['user']): string | null {
   if (!user) return null;
@@ -44,6 +64,9 @@ export default function HandlePage() {
   const { address } = useAccount();
   const { advance, isLoading: stateLoading } = useOnboardingState();
   const isMobile = useIsMobile(); // D-03: >=44px touch targets at mobile only
+
+  // WR-12: on-chain persistence for customized handles (settings-page path).
+  const { writeContractAsync } = useWriteContract();
 
   // ENS reverse-record lookup (Wallet path — D-13)
   const { data: ensName } = useEnsName({
@@ -83,11 +106,54 @@ export default function HandlePage() {
     setIsSubmitting(true);
     setError(null);
 
+    // WR-12 (260612-hi3): normalize ONCE — trim + strip leading @ (matches the
+    // settings-page setDisplayHandle normalization; storing the @ on-chain
+    // rendered "@@handle" everywhere the UI prefixes handles).
+    const normalized = handle.trim().replace(/^@+/, '');
+    const normalizedDefault = defaultHandle.trim().replace(/^@+/, '');
+    // Customized = non-empty AND differs from the pre-fill AND isn't the
+    // 'you.eth' placeholder. Only a customized handle costs a transaction —
+    // the unmodified path stays tx-free (fresh gas-less embedded wallets).
+    const isCustomized =
+      normalized.length > 0 &&
+      normalized !== normalizedDefault &&
+      normalized !== 'you.eth';
+
     try {
+      if (isCustomized) {
+        // Persist on-chain via ProfileRegistry.setDisplayHandle — the exact
+        // settings-page wagmi path (ensureActiveChain → chainId-pinned write →
+        // receipt wait). The typed handle is never silently discarded.
+        await ensureActiveChain();
+        const hash = await writeContractAsync({
+          abi: profileRegistryAbi,
+          address: PROFILE_REGISTRY_ADDRESS,
+          functionName: 'setDisplayHandle',
+          args: [normalized],
+          chainId: ACTIVE_CHAIN_ID,
+        });
+        const receipt = await waitForTransactionReceipt(wagmiConfig, {
+          hash,
+          chainId: ACTIVE_CHAIN_ID as ActiveChainId,
+        });
+        if (receipt.status !== 'success') {
+          // Honest failure — do NOT navigate (the user can retry, or restore
+          // the suggested pre-fill to proceed without a transaction).
+          setError('Handle save failed on-chain — retry, or restore the suggested handle to continue without a transaction.');
+          return;
+        }
+      }
+
       await advance('handle');
       router.push('/onboarding/socials');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to save handle. Please try again.');
+      // Honest error taxonomy — every failure path lands in the existing
+      // error UI and never navigates (WR-12: no silent loss).
+      if (isUserRejection(err)) {
+        setError('Transaction rejected — your handle was not saved. Retry, or restore the suggested handle to continue without a transaction.');
+      } else {
+        setError(err instanceof Error ? err.message : 'Failed to save handle. Please try again.');
+      }
     } finally {
       setIsSubmitting(false);
     }

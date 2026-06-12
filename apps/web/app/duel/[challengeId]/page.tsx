@@ -450,12 +450,19 @@ export default function DuelPage() {
     userAddress && liveState?.caller?.toLowerCase() === userAddress.toLowerCase(),
   );
   const isProposed = liveState?.status === ChallengeStatus.Proposed;
-  const callerMatchingStake =
-    liveState
-      ? liveState.callerStake < liveState.challengerStake
-        ? liveState.callerStake
-        : liveState.challengerStake
-      : 0n;
+  // WR-04 (260612-hi3): pre-accept (Proposed) callerStake is 0n on-chain, so a
+  // bare min(callerStake, challengerStake) collapsed to 0n → callerNeedsApproval
+  // was always false → ACCEPT rendered without allowance → acceptChallenge
+  // reverted on-chain. Pre-accept, the caller's matching stake is the
+  // CHALLENGER's stake (what acceptChallenge pulls); once callerStake is set,
+  // min() applies (SOCIAL-31 asymmetric-stake formula).
+  const callerMatchingStake = liveState
+    ? (liveState.callerStake > 0n
+        ? (liveState.callerStake < liveState.challengerStake
+            ? liveState.callerStake
+            : liveState.challengerStake)
+        : liveState.challengerStake)
+    : 0n;
 
   const acceptWindowExpiry = liveState
     ? liveState.proposedAt + 86400n
@@ -722,6 +729,10 @@ export default function DuelPage() {
   const displayExpiry = liveState?.expiry ?? 0n;
   // CR-04 fix: pot = min(callerStake, challengerStake) * 2 (contract §8.9 prize-pot formula).
   // In a pre-accept (Proposed) state callerStake is 0n; pot reads as 0 -- hidden (D-07).
+  // NOTE (WR-04, 260612-hi3): this 0n-pre-accept assumption applies ONLY to the
+  // displayed pot. The accept-preflight callerMatchingStake above intentionally
+  // falls back to challengerStake while Proposed (the amount acceptChallenge
+  // pulls) — the two formulas differ by design, not by contradiction.
   // In an Accepted state both stakes are set; min*2 is the actual prize pot.
   // displayCallerStake + displayChallengerStake is the raw escrowed total, NOT the pot.
   const matchedStake = displayCallerStake < displayChallengerStake

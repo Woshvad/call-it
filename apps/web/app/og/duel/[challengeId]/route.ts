@@ -555,8 +555,11 @@ export async function GET(
     const profileRegistryDeployed =
       (PROFILE_REGISTRY_ARBITRUM_SEPOLIA as string).toLowerCase() !== ZERO_ADDRESS;
 
-    let callerHandle = `0x${challenge.caller.slice(2, 8)}`;
-    let challengerHandle = `0x${challenge.challenger.slice(2, 8)}`;
+    // CR-02 (260612-hi3): uniform truncate-everywhere fallback policy —
+    // 0xAB12…9F34 style (slice(0, 6) + slice(-4)), matching /og/[callId] and
+    // lib/duels-client.ts. No @ prefix (0x-strings render bare).
+    let callerHandle = `${challenge.caller.slice(0, 6)}…${challenge.caller.slice(-4)}`;
+    let challengerHandle = `${challenge.challenger.slice(0, 6)}…${challenge.challenger.slice(-4)}`;
 
     if (profileRegistryDeployed) {
       const [callerProfile, challengerProfile] = await Promise.all([

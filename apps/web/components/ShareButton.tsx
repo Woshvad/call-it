@@ -25,8 +25,12 @@ interface ShareButtonProps {
   receiptUrl: string;
   /** Settled outcome word, e.g. "CALLED IT" / "LOUD AND WRONG". */
   outcomeWord: string;
-  /** Caller handle (with or without leading @). */
-  handle: string;
+  /**
+   * Caller handle (with or without leading @). OPTIONAL (WR-11, 260612-hi3) —
+   * buildShareText's isRealHandle guard omits the @segment entirely for
+   * absent/0x/numeric handles, so no placeholder is ever needed here.
+   */
+  handle?: string;
   /** Optional human-readable market statement (D-03 Call.statement). */
   statement?: string;
   /** Button label override (default "Share receipt"). */

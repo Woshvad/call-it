@@ -12,7 +12,8 @@
  *   - resolveDispute(callId, finalOutcome) writeContract
  *
  * 09.2-13 retheme: .page-header + .brutal-card rows + .pill status pills +
- * .brutal-select/.brutal-textarea admin inputs on the token layer. All data
+ * .brutal-select admin input on the token layer (the dead resolver-note
+ * textarea was removed in 260612-hi3 WR-03 — it had no sink, D-08). All data
  * wiring, the resolve state machine, preview gating, and the two-step confirm
  * are UNTOUCHED (D-05/D-14). Real dispute data only — empty states are mono
  * overlines, never fabricated rows (D-07).
@@ -25,7 +26,7 @@
 
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { ACTIVE_CHAIN_ID } from '@/lib/chain';
 import { ensureActiveChain } from '@/lib/ensure-chain';
 import { usePrivy } from '@privy-io/react-auth';
@@ -162,10 +163,11 @@ export default function DisputesPage() {
   const [disputes, setDisputeList] = useState<DisputeRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Owner-gated resolve admin state (per dispute)
+  // Owner-gated resolve admin state (per dispute).
+  // WR-03 (260612-hi3): the dead resolver-note field is GONE — it had no
+  // sink (handleResolve only calls resolveDispute(callId, outcome); D-08).
   const [resolveState, setResolveState] = useState<Record<string, {
     outcome: number;
-    note: string;
     preview: ProvenanceSnapshot | null;
     previewLoading: boolean;
     previewFailed: boolean;
@@ -202,7 +204,6 @@ export default function DisputesPage() {
       ...prev,
       [disputeId]: {
         outcome: OUTCOME_CALLER_WON,
-        note: '',
         preview: null,
         previewLoading: false,
         previewFailed: false,
@@ -222,11 +223,18 @@ export default function DisputesPage() {
     }));
   };
 
-  const loadReversalPreview = async (disputeId: string, callId: string, newOutcome: number) => {
+  // WR-02 (260612-hi3): the on-chain current outcome comes ONLY from the
+  // FETCHED provenance snapshot (prefetched on admin-section mount below).
+  // It is NEVER defaulted — the old code derived currentOutcome from a null
+  // pre-fetch preview, which fell back to CallerLost and made a CallerLost
+  // selection look like a non-reversal (single-click resolve bypass).
+  // Re-fetch only when the snapshot is absent or previously failed.
+  const loadReversalPreview = async (disputeId: string, callId: string) => {
     const state = resolveState[disputeId];
-    const currentOutcomeNum = state?.preview?.currentOutcome === 'CallerWon' ? OUTCOME_CALLER_WON : OUTCOME_CALLER_LOST;
-    const isReversal = currentOutcomeNum !== newOutcome;
-    if (!isReversal) return;
+    if (state?.preview && !state.previewFailed) {
+      // Snapshot already fetched — currentOutcome is the on-chain value.
+      return;
+    }
     updateResolveField(disputeId, 'previewLoading', true);
     updateResolveField(disputeId, 'previewFailed', false);
     try {
@@ -242,6 +250,60 @@ export default function DisputesPage() {
       updateResolveField(disputeId, 'previewLoading', false);
     }
   };
+
+  // WR-02 (260612-hi3): prefetch the provenance snapshot for every open
+  // dispute on admin-section mount — BEFORE any outcome selection — so the
+  // reversal gate always compares against the FETCHED on-chain outcome.
+  const prefetchedSnapshotsRef = useRef<Set<string>>(new Set());
+  // Serialized id list — a stable effect dep that changes only when the set of
+  // open disputes changes (not on every poll-driven array identity change).
+  const openDisputeKeys = JSON.stringify(
+    disputes
+      .filter((d) => d.status === 'Open')
+      .map((d) => ({ id: d.id, callId: d.callId })),
+  );
+
+  useEffect(() => {
+    if (!isOwner) return;
+    const pairs = JSON.parse(openDisputeKeys) as Array<{ id: string; callId: string }>;
+    for (const { id: disputeId, callId } of pairs) {
+      if (!disputeId || !callId) continue;
+      if (prefetchedSnapshotsRef.current.has(disputeId)) continue;
+      prefetchedSnapshotsRef.current.add(disputeId);
+
+      setResolveState((prev) => {
+        const existing = prev[disputeId];
+        return {
+          ...prev,
+          [disputeId]: {
+            outcome: existing?.outcome ?? OUTCOME_CALLER_WON,
+            preview: existing?.preview ?? null,
+            previewLoading: true,
+            previewFailed: false,
+            confirmStep: existing?.confirmStep ?? 1,
+            ...(existing?.txHash ? { txHash: existing.txHash } : {}),
+            ...(existing?.toast ? { toast: existing.toast } : {}),
+          },
+        };
+      });
+
+      void (async () => {
+        try {
+          const snapshot = await fetchProvenanceSnapshot(callId);
+          if (!snapshot) {
+            updateResolveField(disputeId, 'previewFailed', true);
+          } else {
+            updateResolveField(disputeId, 'preview', snapshot);
+          }
+        } catch {
+          updateResolveField(disputeId, 'previewFailed', true);
+        } finally {
+          updateResolveField(disputeId, 'previewLoading', false);
+        }
+      })();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOwner, openDisputeKeys]);
 
   const handleResolve = async (disputeId: string, callId: string) => {
     const state = resolveState[disputeId];
@@ -412,11 +474,16 @@ export default function DisputesPage() {
                     {/* OWNER RESOLVE ADMIN — only visible when isOwner (T-04-08-01) */}
                     {isOwner && (() => {
                       if (!st) initResolveState(dispute.id);
-                      const state = st ?? { outcome: OUTCOME_CALLER_WON, note: '', preview: null, previewLoading: false, previewFailed: false, confirmStep: 1 as const };
+                      const state = st ?? { outcome: OUTCOME_CALLER_WON, preview: null, previewLoading: false, previewFailed: false, confirmStep: 1 as const };
                       const currentOutcomeIsWon = state.preview?.currentOutcome === 'CallerWon';
                       const selectedOutcomeIsWon = state.outcome === OUTCOME_CALLER_WON;
                       const isReversal = currentOutcomeIsWon !== selectedOutcomeIsWon && state.preview !== null;
-                      const canConfirm = !state.previewFailed && !state.previewLoading;
+                      // WR-02 fail-closed gate (260612-hi3): NO resolve of any
+                      // kind until the on-chain provenance snapshot is fetched
+                      // (state.preview !== null) — a null preview previously
+                      // defaulted the current outcome and enabled a one-click
+                      // "Resolve · CallerLost" with no two-step confirm.
+                      const canConfirm = !state.previewFailed && !state.previewLoading && state.preview !== null;
 
                       return (
                         <div style={{ borderTop: '2px solid var(--border-active)', padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px', backgroundColor: 'rgba(248,113,113,0.04)' }}>
@@ -436,7 +503,7 @@ export default function DisputesPage() {
                                 const newOutcome = Number(e.target.value);
                                 updateResolveField(dispute.id, 'outcome', newOutcome);
                                 updateResolveField(dispute.id, 'confirmStep', 1);
-                                await loadReversalPreview(dispute.id, dispute.callId, newOutcome);
+                                await loadReversalPreview(dispute.id, dispute.callId);
                               }}
                               style={{ maxWidth: '240px' }}
                             >
@@ -475,19 +542,9 @@ export default function DisputesPage() {
                             </div>
                           )}
 
-                          {/* Resolver note input */}
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                            <label className="label-overline">
-                              Resolver Note (public)
-                            </label>
-                            <textarea
-                              className="brutal-textarea"
-                              value={state.note}
-                              onChange={(e) => updateResolveField(dispute.id, 'note', e.target.value)}
-                              rows={2}
-                              placeholder="Enter your resolution rationale…"
-                            />
-                          </div>
+                          {/* WR-03 (260612-hi3): the dead resolver-note textarea is
+                              GONE — it had no sink (D-08: no dead controls). The
+                              resolved-list still renders relayer-sourced resolverNote. */}
 
                           {/* Action buttons — two-step confirm for reversals (D-07) */}
                           {state.toast && (

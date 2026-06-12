@@ -36,6 +36,7 @@ import { syneBold, spaceGrotesk, jetBrainsMono } from '@/lib/og-fonts';
 import {
   FOLLOW_FADE_MARKET_ARBITRUM_SEPOLIA,
   CALL_REGISTRY_ARBITRUM_SEPOLIA,
+  PROFILE_REGISTRY_ARBITRUM_SEPOLIA,
 } from '@call-it/shared';
 import { followFadeMarketAbi } from '@/lib/abis/FollowFadeMarket';
 import { getOutcomeWordResult } from '@/lib/outcome-word';
@@ -81,6 +82,31 @@ const callRegistryGetCallAbi = [
   },
 ] as const;
 
+// ── Minimal ProfileRegistry ABI — getProfile(address) ─────────────────────────
+// CR-02 (D-03): caller identity is resolved SERVER-SIDE from the on-chain
+// caller address — mirrors the duel OG route's exact pattern.
+const profileRegistryGetProfileAbi = [
+  {
+    type: 'function',
+    name: 'getProfile',
+    inputs: [{ name: 'user', type: 'address', internalType: 'address' }],
+    outputs: [
+      {
+        name: '',
+        type: 'tuple',
+        internalType: 'struct IProfileRegistry.Profile',
+        components: [
+          { name: 'handle', type: 'string', internalType: 'string' },
+          { name: 'avatarUri', type: 'string', internalType: 'string' },
+          { name: 'repScore', type: 'uint64', internalType: 'uint64' },
+          { name: 'createdAt', type: 'uint64', internalType: 'uint64' },
+        ],
+      },
+    ],
+    stateMutability: 'view',
+  },
+] as const;
+
 // ── Server-side viem public client (NOT wagmi — server route only) ─────────────
 // Using Arbitrum Sepolia RPC for staging; RPC key is server-side only (T-02-09-01).
 // FOLLOW_FADE_MARKET_ARBITRUM_SEPOLIA is 0x000...000 until Phase 2 deploy lands.
@@ -91,6 +117,39 @@ const publicClient = createPublicClient({
   // live 2026-06-11) — fail over to the chain's default public RPC.
   transport: fallback([http(process.env['ARBITRUM_SEPOLIA_RPC_URL']), http()]),
 });
+
+// ── Server-side caller-identity resolution (CR-02, D-03) ───────────────────────
+
+/**
+ * Resolve the caller's display handle from ProfileRegistry.getProfile —
+ * SERVER-SIDE, from the on-chain caller address. The forgeable ?handle= query
+ * param is GONE (CR-02 remainder, 260612-hi3 / 09.1-CONTEXT D-03).
+ *
+ * Fallback policy: when no handle resolves (registry undeployed, read failure,
+ * or empty handle), render the truncated address `0xAB12…9F34` with no @
+ * prefix (displayHandle() already renders 0x-strings without the @). A
+ * profile-read failure must degrade to the address fallback, never 500 the
+ * card (SHARE-10).
+ */
+async function resolveCallerHandle(caller: `0x${string}`): Promise<string> {
+  const truncated = `${caller.slice(0, 6)}…${caller.slice(-4)}`;
+  const registryDeployed =
+    (PROFILE_REGISTRY_ARBITRUM_SEPOLIA as string).toLowerCase() !==
+    '0x0000000000000000000000000000000000000000';
+  if (!registryDeployed) return truncated;
+  try {
+    const profile = await publicClient.readContract({
+      address: PROFILE_REGISTRY_ARBITRUM_SEPOLIA as `0x${string}`,
+      abi: profileRegistryGetProfileAbi,
+      functionName: 'getProfile',
+      args: [caller],
+    });
+    if (profile.handle && profile.handle.trim().length > 0) return profile.handle;
+    return truncated;
+  } catch {
+    return truncated;
+  }
+}
 
 // ── Time formatting ────────────────────────────────────────────────────────────
 
@@ -594,10 +653,15 @@ function buildSettledCard(props: SettledCardProps): ReactElement {
 interface CallerExitedCardProps {
   callStatement: string;
   handle: string;
-  timeBeforeExit: string;   // e.g. "3d before expiry"
-  stakeSlashed: string;     // e.g. "-$25.00"
-  repImpact: string;        // e.g. "-35 REP"
-  expiryStr: string;        // e.g. "Jun 30"
+  timeBeforeExit: string;       // e.g. "3d before expiry"
+  /**
+   * Real slashed amount from the subgraph CallerExit.penaltyApplied (WR-10,
+   * 260612-hi3). Null = unavailable → the STAKE SLASHED stat cell is OMITTED
+   * entirely (D-07: degrade-to-hidden, never fabricate an estimate).
+   */
+  stakeSlashed: string | null;
+  repImpact: string;            // e.g. "-35 REP"
+  expiryStr: string;            // e.g. "Jun 30"
   footerBrand: string;
 }
 
@@ -672,7 +736,12 @@ function buildCallerExitedCard(props: CallerExitedCardProps): ReactElement {
     },
       ...[
         { label: 'TIME BEFORE EXIT', value: timeBeforeExit, color: '#94A3B8' },
-        { label: 'STAKE SLASHED', value: stakeSlashed, color: '#F87171' },
+        // WR-10: omit the STAKE SLASHED cell entirely when the real
+        // penaltyApplied is unavailable — the flexbox row simply renders
+        // fewer cells (D-07: degrade-to-hidden, never fabricate).
+        ...(stakeSlashed !== null
+          ? [{ label: 'STAKE SLASHED', value: stakeSlashed, color: '#F87171' }]
+          : []),
         { label: 'REPUTATION IMPACT', value: repImpact, color: '#F87171' },
       ].map((cell, i, arr) => h('div', {
         key: cell.label,
@@ -744,10 +813,13 @@ function buildCallerExitedCard(props: CallerExitedCardProps): ReactElement {
 // ── GET handler ────────────────────────────────────────────────────────────────
 
 /**
- * GET /og/[callId]?v={statusVersion}&handle={hint}&as={fader}
+ * GET /og/[callId]?v={statusVersion}&as={fader}
  *
  * Phase 2: Reads live state from CallRegistry + FollowFadeMarket via viem.
  * Phase 4: Branches on callData.status for Settled/CallerExited variants.
+ * CR-02 (260612-hi3): the forgeable ?handle= param is GONE — caller identity
+ * is resolved server-side from callData.caller via ProfileRegistry.getProfile,
+ * degrading to the truncated address (0xAB12…9F34) when unresolvable.
  * Falls through to renderFallback on any RPC failure or call-not-found (SHARE-10).
  *
  * D-09: ?v= param provides CDN cache-bust when statusVersion changes.
@@ -763,8 +835,9 @@ export async function GET(
   const url = new URL(req.url);
   // ?v= is the CDN cache-bust version (D-09); value is read by CDN — not used server-side.
   void url.searchParams.get('v');
-  const handleHint = (url.searchParams.get('handle') ?? '').slice(0, 32);
-  // ?as=fader: viewer is a winning fader — show FADED CORRECTLY variant (D-09 / T-04-07-05)
+  // CR-02: NO ?handle= read — identity comes from ProfileRegistry server-side.
+  // ?as=fader: viewer is a winning fader — show FADED CORRECTLY variant (D-09 / T-04-07-05).
+  // STAYS AS-IS per the 09.1-CONTEXT D-03 user decision (viewer-lens flip only).
   const isViewerFader = url.searchParams.get('as') === 'fader';
 
   // D-12: footer brand from env-var. C13 (quick-260611-5mh): the fallback is
@@ -781,7 +854,7 @@ export async function GET(
     if (callId === 0n) throw new Error('callId 0 is burned');
   } catch {
     // Invalid callId → fallback (SHARE-10)
-    const resp = renderFallback({ handle: handleHint || 'someone', footerBrand });
+    const resp = renderFallback({ handle: 'someone', footerBrand });
     resp.headers.set('Cache-Control', 'public, max-age=60, stale-while-revalidate=300');
     resp.headers.set('X-Variant', 'live-fallback');
     resp.headers.set('X-Reason', 'invalid-call-id');
@@ -855,23 +928,22 @@ export async function GET(
     const timeLeft = formatTimeLeft(secondsLeft);
 
     // ── Build card data ────────────────────────────────────────────────────
-    // callStatement: use handle hint or fallback label since we don't have the
-    // market line in on-chain data (stored in IPFS/subgraph). Use a minimal representation.
-    // The handle hint from og:image URL is the caller's handle.
-    const handle = handleHint || `0x${callData.caller.slice(2, 8)}`;
     const conviction = Number(callData.conviction);
     const stakeRaw = BigInt(callData.stake);
 
-    // ── D-03: real statement + settled stats ─────────────────────────────────
+    // ── D-03: real statement + settled stats + server-resolved identity ──────
     // Statement: relayer marketLine (authoritative, D-05) → subgraph Call.statement
     // templated mirror (D-03) → generic safe string. Settled stats: subgraph
-    // Settlement.finalPrice/priceDelta + RepEvent.delta. Both fetches are
-    // fail-safe (return null/em-dash) so the card NEVER crashes (SHARE-10).
+    // Settlement.finalPrice/priceDelta + RepEvent.delta. Identity (CR-02):
+    // ProfileRegistry.getProfile(callData.caller) → truncated address fallback.
+    // All three fetches are fail-safe (return null/em-dash/truncated address)
+    // so the card NEVER crashes (SHARE-10).
     // NOTE: the RPC status/outcome read above stays the freshness source of
     // truth (Pitfall 8) — the subgraph supplies display fields only.
-    const [marketLine, settledFields] = await Promise.all([
+    const [marketLine, settledFields, handle] = await Promise.all([
       getMarketLine(callIdStr),
       getSettledFields(callIdStr),
+      resolveCallerHandle(callData.caller),
     ]);
     const callStatement = resolveStatement(marketLine, settledFields.statement, callIdStr);
 
@@ -949,11 +1021,24 @@ export async function GET(
       const exitRepImpact =
         settledFields.repDelta !== null ? formatRepDelta(settledFields.repDelta) : '-35 REP';
 
+      // WR-10 (260612-hi3): the REAL slashed amount from the subgraph
+      // CallerExit.penaltyApplied — the fabricated ~50% estimate is GONE.
+      // When unavailable the STAKE SLASHED cell is OMITTED entirely
+      // (D-07: degrade-to-hidden, never fabricate).
+      let stakeSlashed: string | null = null;
+      if (settledFields.exitPenalty !== null) {
+        try {
+          stakeSlashed = formatUsdc(BigInt(settledFields.exitPenalty));
+        } catch {
+          stakeSlashed = null; // non-parseable subgraph value — hide, never throw
+        }
+      }
+
       cardJsx = buildCallerExitedCard({
         callStatement,
         handle,
         timeBeforeExit,
-        stakeSlashed: formatUsdc(BigInt(stakeRaw / 2n)), // ~50% slash estimate; exact slash needs the settled event
+        stakeSlashed,              // WR-10: real penaltyApplied or omitted cell
         repImpact: exitRepImpact,  // D-03: RepEvent.delta when present
         expiryStr: expiryDate,
         footerBrand,
@@ -991,7 +1076,7 @@ export async function GET(
 
   } catch {
     // SHARE-10 contract: any error → renderFallback
-    const resp = renderFallback({ handle: handleHint || 'someone', footerBrand });
+    const resp = renderFallback({ handle: 'someone', footerBrand });
     resp.headers.set('Cache-Control', 'public, max-age=60, stale-while-revalidate=300');
     resp.headers.set('X-Variant', 'live-fallback');
     resp.headers.set('X-Reason', 'rpc-error-or-not-found');
