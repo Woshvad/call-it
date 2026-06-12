@@ -95,10 +95,6 @@ export function LeaderboardClient({ data, fetchError }: LeaderboardClientProps) 
       <div className="page-header">
         <div>
           <h1>Top of Book</h1>
-          <div className="sub">
-            Reputation is a function of <span className="em">accuracy</span> ×{' '}
-            <span className="em">volume</span>. Easy to climb. Easy to fall.
-          </div>
         </div>
       </div>
 
