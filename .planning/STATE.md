@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: milestone
 status: executing
-stopped_at: Completed 09.2-14-PLAN.md
-last_updated: "2026-06-12T07:17:14.711Z"
+stopped_at: Phase 09.1 context gathered
+last_updated: "2026-06-12T09:36:00.296Z"
 last_activity: 2026-06-12
 progress:
   total_phases: 16
@@ -556,9 +556,9 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-06-10T17:47:59.457Z
-Stopped at: Completed 09.2-14-PLAN.md
-Resume file: None
+Last session: 2026-06-12T09:36:00.267Z
+Stopped at: Phase 09.1 context gathered
+Resume file: .planning/phases/09.1-testnet-demo-hardening-on-arbitrum-sepolia/09.1-CONTEXT.md
 | 260611-fast-challenge-query | (gsd-fast) AcceptedChallenges subgraph query asked for nonexistent Challenge fields — schema has `id` (= challengeId.toString()) + `call` (= callId.toString()), query used `challengeId`/`callId` → GraphQL error → every duel discovery fell back to [] (accepted duels would never settle with their call). Fixed both copies (subgraph-client.ts circuit-breaker path + settlement-watcher.ts gated BullMQ path): where `{ call: $callId }`, select `id`, map BigInt(c.id). subgraph-breaker mock updated. Suite: my file 10/10, build 0 (full-suite ENS failure is parallel-session WIP, pre-existing). ⚠️ Takes effect at next relayer Fly redeploy. | 2026-06-11 | 48db3aa | — |
 | 260611-qbg | ENS out of the profile request path (user-approved stale-while-revalidate design — follows p9a: live box has ENS_MAINNET_RPC_URL SET but pointing at a hanging mainnet RPC, so the p9a unset-skip never triggered; measured 5.9s/request post-p9a-deploy with profile_cache_skipped_degraded in Fly logs). resolveEns is now CACHE-ONLY in the request path: p9a unconfigured-skip first → cache hit returns ('::null::' AND new '::fail::' sentinels read as null; '::fail::' kicks NO new resolve) → miss returns null IMMEDIATELY + fires exported resolveEnsInBackground (in-flight dedup Map deleted in finally; success → 24h cache; RPC failure → '::fail::' 300s cooldown = Alchemy-CU protection, retry in minutes not 24h; promise never rejects unhandled). Result after deploy: dead ENS RPC can NEVER slow profiles again — no leg timeouts → CR-01 lets the 60s profile cache fill → p50 sub-second; first-ever view of an ENS-named address shows fallback handle, name appears from next view (≤24h staleness unchanged, D-07/D-13). profile.ts UNTOUCHED (diff-guard proven). 8 pre-existing ens tests migrated to the new contract (intentional change, documented — deferred-promise no-await/dedup proofs + vi.waitFor, no sleeps) + 1 new '::fail::' read test; p9a skip test byte-identical. Relayer 325/1skip, tsc 0. ⚠️ Inert until Fly redeploy; ENS_MAINNET_RPC_URL may stay set or be unset — both harmless now. | 2026-06-11 | b4f3514 | [260611-qbg-ens-background-resolve](./quick/260611-qbg-ens-background-resolve/) |
 | 260611-fast-lowercase-handles | (gsd-fast) Usernames now render AS STORED — removed the real-handle `text-transform: uppercase` on the two surfaces that applied it (packages/ui ProfileHeader headline + LeaderboardClient hero handle; user request — "test" was displaying as "TEST"). Labels/tickers/avatar initials keep the uppercase design voice; CallCard/call-page handle renders were already untransformed; dead headlineIsAddress helper removed. Gates: ui build 0 + 82/82, web build 0 + 249/249. Web-only effect (Vercel deploy on push). | 2026-06-11 | 0587d67 | — |
