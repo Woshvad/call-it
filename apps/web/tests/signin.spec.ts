@@ -99,8 +99,12 @@ test.describe('Sign-in page — Tier 1: Static source assertions', () => {
     // user homepage replacement 2026-06-12). The LIVE NOW strip is gone; the
     // pulse badge carries "Stake smarter · Call it public". Demo cards are
     // decorative marketing art (D-07 does not apply to them).
-    expect(source).toContain('BE RIGHT');
-    expect(source).toContain('IN PUBLIC.');
+    // Pin migrated 2026-06-12 (user headline re-split): "BE RIGHT IN" is the
+    // white line, "PUBLIC." the acid one (ci-h1-public span, 1.2em) — the old
+    // contiguous 'IN PUBLIC.' string no longer exists in source.
+    expect(source).toContain('BE RIGHT IN');
+    expect(source).toContain('PUBLIC.');
+    expect(source).toContain('ci-h1-public');
     // quick-260612-a6v: design-verbatim clamp (was clamp(64px, 10vw, 132px))
     expect(source).toContain('clamp(64px, 8.6vw, 124px)');
     // quick-260612-a6v: pulse-badge copy (was 'LIVE NOW')

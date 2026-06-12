@@ -21,7 +21,9 @@
  *        radius-0 brutal everywhere — straight edges keep the landing on-brand).
  *        The design file's 28px panel / 999px pills / 18-20px cards / 50% dot
  *        are deliberately NOT ported; the pulse dot mirrors the app's square
- *        .live-dot (globals.css:157).
+ *        .live-dot (globals.css:157). Sole radius in the file: the CTA's
+ *        liquid blob-fill ::before — internal hover animation (user-requested),
+ *        clipped by the button's SQUARE silhouette, never visible geometry.
  *
  * (c) The three demo call cards (veda / jaxon.eth / degen_oracle) are STATIC
  *     decorative marketing art on a logged-out surface — D-07 does not apply
@@ -261,11 +263,14 @@ export default function SignInPage() {
 
           {/* Desktop size is the design-verbatim clamp(64px, 8.6vw, 124px) in
               .ci-h1; ≤640px re-scales to a vw-driven clamp (the 64px floor
-              overflows ≤350px viewports and eats a third of a phone screen). */}
+              overflows ≤350px viewports and eats a third of a phone screen).
+              Headline split per user 2026-06-12: "BE RIGHT IN" stays white,
+              only "PUBLIC." carries the acid — and renders LARGER (1.2em of
+              the responsive base, so the emphasis scales at every width). */}
           <h1 className="ci-h1" style={{ fontFamily: archivoBlack.style.fontFamily }}>
-            BE RIGHT
+            BE RIGHT IN
             <br />
-            <span style={{ color: '#D4F500' }}>IN PUBLIC.</span>
+            <span className="ci-h1-public">PUBLIC.</span>
           </h1>
 
           <p className="ci-sub">
@@ -275,7 +280,7 @@ export default function SignInPage() {
 
           <div className="ci-cta-row">
             <button type="button" className="ci-cta-primary" onClick={() => setSigninOpen(true)}>
-              MAKE YOUR FIRST CALL →
+              MAKE YOUR FIRST CALL
             </button>
             <Link href="/calls" className="ci-cta-secondary">
               See Live Calls
@@ -705,7 +710,8 @@ export default function SignInPage() {
         .ci-panel {
           position: relative;
           overflow: hidden;
-          background: #0A0A0A;          min-height: calc(100vh - 28px);
+          background: #0A0A0A;
+          min-height: calc(100vh - 28px);
           min-height: calc(100dvh - 28px);
           display: flex;
           flex-direction: column;
@@ -737,7 +743,8 @@ export default function SignInPage() {
           display: flex;
           align-items: center;
           gap: 4px;
-          padding: 5px;          background: rgba(255,255,255,0.05);
+          padding: 5px;
+          background: rgba(255,255,255,0.05);
           border: 1px solid rgba(255,255,255,0.10);
           backdrop-filter: blur(14px);
           -webkit-backdrop-filter: blur(14px);
@@ -746,7 +753,8 @@ export default function SignInPage() {
           display: inline-flex;
           align-items: center;
           justify-content: center;
-          padding: 8px 18px;          background: rgba(212,245,0,0.14);
+          padding: 8px 18px;
+          background: rgba(212,245,0,0.14);
           border: 1px solid rgba(212,245,0,0.35);
           color: #D4F500;
           font-family: inherit;
@@ -763,7 +771,8 @@ export default function SignInPage() {
         }
         .ci-signin-btn {
           cursor: pointer;
-          padding: 11px 22px;          background: #F5F0E6;
+          padding: 11px 22px;
+          background: #F5F0E6;
           color: #0A0A0A;
           border: none;
           font-family: inherit;
@@ -794,7 +803,8 @@ export default function SignInPage() {
           flex-wrap: wrap;
           gap: 4px 9px;
           max-width: 100%;
-          padding: 8px 18px;          background: rgba(212,245,0,0.07);
+          padding: 8px 18px;
+          background: rgba(212,245,0,0.07);
           border: 1px solid rgba(212,245,0,0.25);
           backdrop-filter: blur(10px);
           -webkit-backdrop-filter: blur(10px);
@@ -814,6 +824,13 @@ export default function SignInPage() {
           letter-spacing: -0.025em;
           color: #FFFFFF;
         }
+        /* User 2026-06-12: only PUBLIC. is acid, and it reads LARGER than the
+           white line — em-sized so the emphasis holds at every breakpoint
+           (the unitless 0.92 line-height recomputes per line, no overlap). */
+        .ci-h1-public {
+          color: #D4F500;
+          font-size: 1.2em;
+        }
         .ci-sub {
           margin: 28px 0 0;
           max-width: 520px;
@@ -831,11 +848,15 @@ export default function SignInPage() {
         }
         .ci-cta-primary {
           cursor: pointer;
+          position: relative;
+          isolation: isolate;
+          overflow: hidden;
           display: inline-flex;
           align-items: center;
           justify-content: center;
           white-space: nowrap;
-          padding: 17px 32px;          background: #F5F0E6;
+          padding: 17px 32px;
+          background: #F5F0E6;
           color: #0A0A0A;
           border: none;
           font-family: inherit;
@@ -843,11 +864,36 @@ export default function SignInPage() {
           font-weight: 800;
           letter-spacing: 0.05em;
           text-transform: uppercase;
-          transition: background 0.15s ease, transform 0.15s ease;
+          transition: transform 0.15s ease;
+        }
+        /* Liquid blob-fill hover (user request 2026-06-12): an organic acid
+           blob rises from the bottom and floods the button. The blob is a huge
+           uneven-radius disc parked just below the face — on hover it rises
+           and tumbles, so its CURVED edge sweeps the label like liquid. The
+           button's own silhouette stays square (overflow hidden, radius 0 —
+           the blob's curves are internal animation, not corner geometry, so
+           the straight-edges brand rule holds). z-index -1 inside the
+           isolated stacking context paints the blob over the cream background
+           but under the label; the dark label keeps contrast on acid. */
+        .ci-cta-primary::before {
+          content: '';
+          position: absolute;
+          z-index: -1;
+          left: 50%;
+          bottom: 0;
+          width: 220%;
+          aspect-ratio: 1;
+          background: #D4F500;
+          border-radius: 43% 45% 41% 47%;
+          transform: translate(-50%, 103%) rotate(0deg);
+          transition: transform 0.55s cubic-bezier(0.45, 0.1, 0.25, 1);
+          pointer-events: none;
         }
         .ci-cta-primary:hover {
-          background: #FFFFFF;
           transform: translateY(-2px);
+        }
+        .ci-cta-primary:hover::before {
+          transform: translate(-50%, 26%) rotate(80deg);
         }
         .ci-cta-secondary {
           cursor: pointer;
@@ -855,7 +901,8 @@ export default function SignInPage() {
           align-items: center;
           justify-content: center;
           white-space: nowrap;
-          padding: 16px 30px;          background: rgba(255,255,255,0.03);
+          padding: 16px 30px;
+          background: rgba(255,255,255,0.03);
           color: #FFFFFF;
           border: 1px solid rgba(255,255,255,0.22);
           backdrop-filter: blur(10px);
