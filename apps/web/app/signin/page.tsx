@@ -2,13 +2,14 @@
 /**
  * Sign-in page — the ACID HERO landing from `call it homepage/CALL IT Hero.dc.html`
  * (user request 2026-06-12, quick-260612-a6v — "replace it with exactly what is in
- * that folder"). Every gradient/border/shadow/blur/spacing value is design-verbatim.
+ * that folder"). Every gradient/border/shadow/blur/spacing value is design-verbatim
+ * EXCEPT border-radius (user delta 4 below).
  *
  * (a) D-12 UNCHANGED: middleware.ts bounces unauthenticated visits here (the
  *     logged-out marketing surface IS /signin — no public-`/` carve-out); AppShell
  *     renders /signin full-bleed (no sidebar/header chrome).
  *
- * (b) THREE USER DELTAS from the design file (everything else is verbatim):
+ * (b) FOUR USER DELTAS from the design file (everything else is verbatim):
  *     1. The design's Market/Leaderboard/Dashboard nav pills become ONE
  *        "How it works" pill that opens the existing HowItWorksModal (whose
  *        MAKE YOUR FIRST CALL ▸ CTA chains into the signup modal).
@@ -16,6 +17,11 @@
  *        tape (public via middleware's existing '/call' startsWith prefix).
  *     3. "MAKE YOUR FIRST CALL →" and "Sign In →" open the signup modal hosting
  *        the EXISTING, untouched Privy auth rail.
+ *     4. ALL border-radius ZEROED (user brand decision 2026-06-12: the app is
+ *        radius-0 brutal everywhere — straight edges keep the landing on-brand).
+ *        The design file's 28px panel / 999px pills / 18-20px cards / 50% dot
+ *        are deliberately NOT ported; the pulse dot mirrors the app's square
+ *        .live-dot (globals.css:157).
  *
  * (c) The three demo call cards (veda / jaxon.eth / degen_oracle) are STATIC
  *     decorative marketing art on a logged-out surface — D-07 does not apply
@@ -246,9 +252,7 @@ export default function SignInPage() {
             <span
               style={{
                 width: '7px',
-                height: '7px',
-                borderRadius: '50%',
-                background: '#D4F500',
+                height: '7px',                background: '#D4F500',
                 animation: 'ci-pulse 2s ease-in-out infinite',
               }}
             />
@@ -285,9 +289,7 @@ export default function SignInPage() {
           <div
             className="ci-card-left"
             style={{
-              padding: '22px 24px',
-              borderRadius: '18px',
-              background:
+              padding: '22px 24px',              background:
                 'linear-gradient(160deg, rgba(212,245,0,0.07) 0%, rgba(255,255,255,0.04) 45%, rgba(255,255,255,0.015) 100%)',
               border: '1px solid rgba(255,255,255,0.13)',
               backdropFilter: 'blur(18px)',
@@ -303,9 +305,7 @@ export default function SignInPage() {
                     alignItems: 'center',
                     justifyContent: 'center',
                     width: '28px',
-                    height: '28px',
-                    borderRadius: '8px',
-                    background: '#FF4D6D',
+                    height: '28px',                    background: '#FF4D6D',
                     color: '#0A0A0A',
                     fontFamily: archivoBlack.style.fontFamily,
                     fontSize: '13px',
@@ -320,9 +320,7 @@ export default function SignInPage() {
               </div>
               <span
                 style={{
-                  padding: '4px 9px',
-                  borderRadius: '6px',
-                  background: 'rgba(212,245,0,0.14)',
+                  padding: '4px 9px',                  background: 'rgba(212,245,0,0.14)',
                   border: '1px solid rgba(212,245,0,0.4)',
                   fontFamily: 'var(--font-jetbrains-mono)',
                   fontSize: '10px',
@@ -353,13 +351,11 @@ export default function SignInPage() {
               <div style={{ flex: 1, display: 'flex', gap: '3px', height: '7px' }}>
                 <span
                   style={{
-                    width: '79%',
-                    borderRadius: '99px',
-                    background: '#D4F500',
+                    width: '79%',                    background: '#D4F500',
                     boxShadow: '0 0 12px rgba(212,245,0,0.45)',
                   }}
                 />
-                <span style={{ flex: 1, borderRadius: '99px', background: '#FF4D6D' }} />
+                <span style={{ flex: 1, background: '#FF4D6D' }} />
               </div>
               <span
                 style={{
@@ -380,9 +376,7 @@ export default function SignInPage() {
           <div
             className="ci-card-center"
             style={{
-              padding: '26px 28px',
-              borderRadius: '20px',
-              background:
+              padding: '26px 28px',              background:
                 'linear-gradient(160deg, rgba(212,245,0,0.11) 0%, rgba(255,255,255,0.05) 45%, rgba(255,255,255,0.02) 100%)',
               border: '1px solid rgba(212,245,0,0.30)',
               backdropFilter: 'blur(22px)',
@@ -399,9 +393,7 @@ export default function SignInPage() {
                     alignItems: 'center',
                     justifyContent: 'center',
                     width: '30px',
-                    height: '30px',
-                    borderRadius: '9px',
-                    background: '#D4F500',
+                    height: '30px',                    background: '#D4F500',
                     color: '#0A0A0A',
                     fontFamily: archivoBlack.style.fontFamily,
                     fontSize: '13px',
@@ -416,9 +408,7 @@ export default function SignInPage() {
               </div>
               <span
                 style={{
-                  padding: '5px 10px',
-                  borderRadius: '6px',
-                  background: 'rgba(212,245,0,0.18)',
+                  padding: '5px 10px',                  background: 'rgba(212,245,0,0.18)',
                   border: '1px solid rgba(212,245,0,0.5)',
                   fontFamily: 'var(--font-jetbrains-mono)',
                   fontSize: '11px',
@@ -450,13 +440,11 @@ export default function SignInPage() {
               <div style={{ flex: 1, display: 'flex', gap: '3px', height: '8px' }}>
                 <span
                   style={{
-                    width: '68%',
-                    borderRadius: '99px',
-                    background: '#D4F500',
+                    width: '68%',                    background: '#D4F500',
                     boxShadow: '0 0 14px rgba(212,245,0,0.5)',
                   }}
                 />
-                <span style={{ flex: 1, borderRadius: '99px', background: '#FF4D6D' }} />
+                <span style={{ flex: 1, background: '#FF4D6D' }} />
               </div>
               <span
                 style={{
@@ -477,9 +465,7 @@ export default function SignInPage() {
           <div
             className="ci-card-right"
             style={{
-              padding: '22px 24px',
-              borderRadius: '18px',
-              background:
+              padding: '22px 24px',              background:
                 'linear-gradient(160deg, rgba(212,245,0,0.07) 0%, rgba(255,255,255,0.04) 45%, rgba(255,255,255,0.015) 100%)',
               border: '1px solid rgba(255,255,255,0.13)',
               backdropFilter: 'blur(18px)',
@@ -495,9 +481,7 @@ export default function SignInPage() {
                     alignItems: 'center',
                     justifyContent: 'center',
                     width: '28px',
-                    height: '28px',
-                    borderRadius: '8px',
-                    background: '#B387FF',
+                    height: '28px',                    background: '#B387FF',
                     color: '#0A0A0A',
                     fontFamily: archivoBlack.style.fontFamily,
                     fontSize: '13px',
@@ -512,9 +496,7 @@ export default function SignInPage() {
               </div>
               <span
                 style={{
-                  padding: '4px 9px',
-                  borderRadius: '6px',
-                  background: 'rgba(212,245,0,0.14)',
+                  padding: '4px 9px',                  background: 'rgba(212,245,0,0.14)',
                   border: '1px solid rgba(212,245,0,0.4)',
                   fontFamily: 'var(--font-jetbrains-mono)',
                   fontSize: '10px',
@@ -545,13 +527,11 @@ export default function SignInPage() {
               <div style={{ flex: 1, display: 'flex', gap: '3px', height: '7px' }}>
                 <span
                   style={{
-                    width: '69%',
-                    borderRadius: '99px',
-                    background: '#D4F500',
+                    width: '69%',                    background: '#D4F500',
                     boxShadow: '0 0 12px rgba(212,245,0,0.45)',
                   }}
                 />
-                <span style={{ flex: 1, borderRadius: '99px', background: '#FF4D6D' }} />
+                <span style={{ flex: 1, background: '#FF4D6D' }} />
               </div>
               <span
                 style={{
@@ -619,9 +599,7 @@ export default function SignInPage() {
           style={{
             position: 'relative',
             backgroundColor: '#0A0A0A',
-            border: '1px solid rgba(255,255,255,0.13)',
-            borderRadius: '20px',
-            width: 'min(92vw, 420px)',
+            border: '1px solid rgba(255,255,255,0.13)',            width: 'min(92vw, 420px)',
             maxHeight: 'min(86dvh, 680px)',
             overflowY: 'auto',
             backdropFilter: 'blur(18px)',
@@ -727,9 +705,7 @@ export default function SignInPage() {
         .ci-panel {
           position: relative;
           overflow: hidden;
-          background: #0A0A0A;
-          border-radius: 28px;
-          min-height: calc(100vh - 28px);
+          background: #0A0A0A;          min-height: calc(100vh - 28px);
           min-height: calc(100dvh - 28px);
           display: flex;
           flex-direction: column;
@@ -761,9 +737,7 @@ export default function SignInPage() {
           display: flex;
           align-items: center;
           gap: 4px;
-          padding: 5px;
-          border-radius: 999px;
-          background: rgba(255,255,255,0.05);
+          padding: 5px;          background: rgba(255,255,255,0.05);
           border: 1px solid rgba(255,255,255,0.10);
           backdrop-filter: blur(14px);
           -webkit-backdrop-filter: blur(14px);
@@ -772,9 +746,7 @@ export default function SignInPage() {
           display: inline-flex;
           align-items: center;
           justify-content: center;
-          padding: 8px 18px;
-          border-radius: 999px;
-          background: rgba(212,245,0,0.14);
+          padding: 8px 18px;          background: rgba(212,245,0,0.14);
           border: 1px solid rgba(212,245,0,0.35);
           color: #D4F500;
           font-family: inherit;
@@ -791,9 +763,7 @@ export default function SignInPage() {
         }
         .ci-signin-btn {
           cursor: pointer;
-          padding: 11px 22px;
-          border-radius: 999px;
-          background: #F5F0E6;
+          padding: 11px 22px;          background: #F5F0E6;
           color: #0A0A0A;
           border: none;
           font-family: inherit;
@@ -824,9 +794,7 @@ export default function SignInPage() {
           flex-wrap: wrap;
           gap: 4px 9px;
           max-width: 100%;
-          padding: 8px 18px;
-          border-radius: 999px;
-          background: rgba(212,245,0,0.07);
+          padding: 8px 18px;          background: rgba(212,245,0,0.07);
           border: 1px solid rgba(212,245,0,0.25);
           backdrop-filter: blur(10px);
           -webkit-backdrop-filter: blur(10px);
@@ -867,9 +835,7 @@ export default function SignInPage() {
           align-items: center;
           justify-content: center;
           white-space: nowrap;
-          padding: 17px 32px;
-          border-radius: 999px;
-          background: #F5F0E6;
+          padding: 17px 32px;          background: #F5F0E6;
           color: #0A0A0A;
           border: none;
           font-family: inherit;
@@ -889,9 +855,7 @@ export default function SignInPage() {
           align-items: center;
           justify-content: center;
           white-space: nowrap;
-          padding: 16px 30px;
-          border-radius: 999px;
-          background: rgba(255,255,255,0.03);
+          padding: 16px 30px;          background: rgba(255,255,255,0.03);
           color: #FFFFFF;
           border: 1px solid rgba(255,255,255,0.22);
           backdrop-filter: blur(10px);
@@ -1013,7 +977,6 @@ export default function SignInPage() {
             padding: 10px;
           }
           .ci-panel {
-            border-radius: 22px;
             min-height: calc(100vh - 20px);
             min-height: calc(100dvh - 20px);
           }
