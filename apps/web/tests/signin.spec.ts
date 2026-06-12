@@ -92,13 +92,19 @@ test.describe('Sign-in page — Tier 1: Static source assertions', () => {
     expect(source).toContain('data-testid="disclaimer"');
   });
 
-  test('D-12/D-07: Landing hero ships the prototype copy with no fake platform totals', () => {
+  test('D-12/D-07: Landing hero ships the design-canon copy with no fake platform totals', () => {
     const source = readFileSync(SIGNIN_PAGE_PATH, 'utf-8');
-    // D-12: the restyled /signin carries the home.jsx hero
+    // D-12: the logged-out landing is still /signin; the canon is now
+    // `call it homepage/CALL IT Hero.dc.html` (acid hero — quick-260612-a6v,
+    // user homepage replacement 2026-06-12). The LIVE NOW strip is gone; the
+    // pulse badge carries "Stake smarter · Call it public". Demo cards are
+    // decorative marketing art (D-07 does not apply to them).
     expect(source).toContain('BE RIGHT');
     expect(source).toContain('IN PUBLIC.');
-    expect(source).toContain('clamp(64px, 10vw, 132px)');
-    expect(source).toContain('LIVE NOW');
+    // quick-260612-a6v: design-verbatim clamp (was clamp(64px, 10vw, 132px))
+    expect(source).toContain('clamp(64px, 8.6vw, 124px)');
+    // quick-260612-a6v: pulse-badge copy (was 'LIVE NOW')
+    expect(source).toContain('Stake smarter');
     // D-07: the prototype's sourceless platform totals are NOT rendered
     expect(source).not.toContain('8,442');
     expect(source).not.toContain('$284K');
@@ -164,8 +170,14 @@ test.describe('Sign-in page — Tier 2: Browser E2E (real Privy app ID)', () => 
   test('renders 3 buttons in D-33 order (Connect Wallet first)', async ({ page }) => {
     await page.goto('/signin');
     await page.waitForLoadState('networkidle');
+    // quick-260612-a6v: the Privy rail now lives inside the always-mounted signin
+    // modal; the nav "Sign In →" button is first in DOM order — the modal's own
+    // auth buttons are aria-hidden/display:none until opened.
+    await page.getByRole('button', { name: /sign in/i }).first().click();
 
-    const buttons = page.getByRole('button');
+    // quick-260612-a6v: scope to the modal buttons wrapper so the nav/CTA/✕
+    // buttons don't pollute order indexes.
+    const buttons = page.getByTestId('signin-modal-buttons').getByRole('button');
     const texts = await buttons.allInnerTexts();
 
     expect(texts[0]).toContain('Connect Wallet');
@@ -175,6 +187,9 @@ test.describe('Sign-in page — Tier 2: Browser E2E (real Privy app ID)', () => 
 
   test('disclaimer text renders below buttons (AUTH-37)', async ({ page }) => {
     await page.goto('/signin');
+    // quick-260612-a6v: open the always-mounted signin modal (the disclaimer
+    // lives inside it; aria-hidden/display:none until opened).
+    await page.getByRole('button', { name: /sign in/i }).first().click();
     const disclaimer = page.getByTestId('disclaimer');
     await expect(disclaimer).toBeVisible({ timeout: 15_000 });
     await expect(disclaimer).toContainText('Terms & Conditions');
@@ -183,6 +198,9 @@ test.describe('Sign-in page — Tier 2: Browser E2E (real Privy app ID)', () => 
   test('custody microcopy tooltip renders on hover (AUTH-38)', async ({ page }) => {
     await page.goto('/signin');
     await page.waitForLoadState('networkidle');
+    // quick-260612-a6v: open the always-mounted signin modal (the Privy rail
+    // is aria-hidden/display:none until opened).
+    await page.getByRole('button', { name: /sign in/i }).first().click();
 
     const googleBtn = page.getByTestId('btn-google');
     await expect(googleBtn).toBeVisible({ timeout: 15_000 });
@@ -195,6 +213,8 @@ test.describe('Sign-in page — Tier 2: Browser E2E (real Privy app ID)', () => 
 
   test('Connect Wallet path: click button, redirect to /', async ({ page }) => {
     await page.goto('/signin');
+    // quick-260612-a6v: open the always-mounted signin modal first.
+    await page.getByRole('button', { name: /sign in/i }).first().click();
     const connectBtn = page.getByTestId('btn-connect-wallet');
     await expect(connectBtn).toBeVisible({ timeout: 15_000 });
     await connectBtn.click();
@@ -205,6 +225,8 @@ test.describe('Sign-in page — Tier 2: Browser E2E (real Privy app ID)', () => 
 
   test('Google path: click button, redirect to /', async ({ page }) => {
     await page.goto('/signin');
+    // quick-260612-a6v: open the always-mounted signin modal first.
+    await page.getByRole('button', { name: /sign in/i }).first().click();
     const googleBtn = page.getByTestId('btn-google');
     await expect(googleBtn).toBeVisible({ timeout: 15_000 });
     await googleBtn.click();
@@ -214,6 +236,8 @@ test.describe('Sign-in page — Tier 2: Browser E2E (real Privy app ID)', () => 
 
   test('Twitter path: click button, redirect to /', async ({ page }) => {
     await page.goto('/signin');
+    // quick-260612-a6v: open the always-mounted signin modal first.
+    await page.getByRole('button', { name: /sign in/i }).first().click();
     const twitterBtn = page.getByTestId('btn-twitter');
     await expect(twitterBtn).toBeVisible({ timeout: 15_000 });
     await twitterBtn.click();

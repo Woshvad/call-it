@@ -52,22 +52,29 @@ describe('HowItWorksModal — content + a11y', () => {
   });
 });
 
-describe('HowItWorksModal — copy-canon lockstep with signin (drift guard)', () => {
-  // Verbatim step bodies — if the landing copy ever changes, this fails and
-  // forces a conscious sync of the modal's local STEPS duplicate.
+describe('HowItWorksModal — single copy canon + landing mount linkage', () => {
+  // quick-260612-a6v (user homepage replacement 2026-06-12): the landing no
+  // longer duplicates the step bodies — its three-step section was deleted
+  // with the acid-hero rewrite. The modal IS the single canon now; guard the
+  // modal verbatim plus the landing's mount linkage that replaced the
+  // duplicated copy.
   const STEP_BODIES = [
     'Make a call on any crypto market. Pick your conviction. Stake USDC. Your prediction is now permanent and public.',
     'Others bet with you or against you. Every position is real money on the line. The market prices your prediction in real time.',
     'When the call settles, the outcome stamps onto your receipt forever. CALLED IT. LOUD AND WRONG. Either way, the world knows.',
   ];
 
-  it('each step body appears verbatim in BOTH the modal and the signin canon', () => {
+  it('modal carries all 3 step bodies verbatim (single canon)', () => {
     const modal = read('app', 'components', 'HowItWorksModal.tsx');
-    const signin = read('app', 'signin', 'page.tsx');
     for (const body of STEP_BODIES) {
       expect(modal).toContain(body);
-      expect(signin).toContain(body);
     }
+  });
+
+  it('signin landing mounts the modal and carries the How it works trigger', () => {
+    const signin = read('app', 'signin', 'page.tsx');
+    expect(signin).toContain('HowItWorksModal');
+    expect(signin).toContain('How it works');
   });
 });
 

@@ -1,35 +1,56 @@
 'use client';
 /**
- * Sign-in page — the prototype `home.jsx` landing carrying the existing Privy auth flow.
+ * Sign-in page — the ACID HERO landing from `call it homepage/CALL IT Hero.dc.html`
+ * (user request 2026-06-12, quick-260612-a6v — "replace it with exactly what is in
+ * that folder"). Every gradient/border/shadow/blur/spacing value is design-verbatim.
  *
- * D-12 (decision of record): the logged-out marketing surface is the RESTYLED /signin —
- * NOT a public-`/` middleware carve-out. middleware.ts PUBLIC_PREFIXES, the privy-token
- * cookie flow, and the onboarding redirect chain are all UNTOUCHED. AppShell already
- * renders /signin full-bleed (no sidebar/header chrome — plan 09.2-03).
+ * (a) D-12 UNCHANGED: middleware.ts bounces unauthenticated visits here (the
+ *     logged-out marketing surface IS /signin — no public-`/` carve-out); AppShell
+ *     renders /signin full-bleed (no sidebar/header chrome).
  *
- * D-07: the prototype's platform totals (callers-on-record count, total pot) have no
- * data source and are NOT rendered — the LIVE status strip keeps only its working parts
- * (live dot + "LIVE NOW"). The mini live-feed + leaderboard preview sections from
- * home.jsx need live data and are HIDDEN (no new endpoints). How-it-works,
- * differentiator, fees, and the risk callout port as static copy.
+ * (b) THREE USER DELTAS from the design file (everything else is verbatim):
+ *     1. The design's Market/Leaderboard/Dashboard nav pills become ONE
+ *        "How it works" pill that opens the existing HowItWorksModal (whose
+ *        MAKE YOUR FIRST CALL ▸ CTA chains into the signup modal).
+ *     2. "See Live Calls" is a Link to /calls — a public re-export of the live
+ *        tape (public via middleware's existing '/call' startsWith prefix).
+ *     3. "MAKE YOUR FIRST CALL →" and "Sign In →" open the signup modal hosting
+ *        the EXISTING, untouched Privy auth rail.
  *
- * Preserved behavioral elements (T-09.2-35):
- *   - PrivyErrorBoundary with data-testid="privy-error-fallback"
- *   - CustodyTooltip (AUTH-38 custody microcopy, role="tooltip")
- *   - SignInButtons dynamic mount (ssr:false — Privy/wagmi hooks after providers)
- *   - Disclaimer with data-testid="disclaimer" + /terms link (AUTH-37)
+ * (c) The three demo call cards (veda / jaxon.eth / degen_oracle) are STATIC
+ *     decorative marketing art on a logged-out surface — D-07 does not apply
+ *     (they are not app data surfaces; no source claims to back them).
  *
- * Decision D-33: Button order is Connect Wallet > Google > Twitter (locked by Playwright test)
- * AUTH-36: All 3 paths must produce an authenticated session that lands on /
- * Pitfall 16: If Privy is unreachable (ready === false after 5s), surface a fallback banner
+ * (d) ALWAYS-MOUNTED SIGNIN MODAL INVARIANT: the modal wrapper is display-toggled
+ *     (`display: signinOpen ? 'flex' : 'none'` + aria-hidden), NEVER conditionally
+ *     rendered around SignInButtons — its privy-token cookie-write/self-heal effect
+ *     (SignInButtons.tsx:114-153) must mount on page load. See the JSX comment at
+ *     the modal below.
  *
- * Requirements: AUTH-01, AUTH-02, AUTH-03, AUTH-04, AUTH-36, AUTH-37, AUTH-38, AUTH-44, UI-48
+ * (e) LOGO VIA STATIC IMPORT: the middleware matcher excludes only
+ *     _next/static|_next/image|favicon.ico|public/ — a raw /brand/ URL would
+ *     307-bounce logged-out visitors to /signin. The static import serves from
+ *     /_next/static/media/* which IS excluded, so the mark always renders.
+ *
+ * (f) Preserved requirement pins: AUTH-37 (disclaimer + /terms link), AUTH-38
+ *     (custody tooltip copy), T-09.2-35 (privy-error-fallback), D-33
+ *     (SignInButtons untouched — Connect Wallet > Google > Twitter).
+ *
+ * Requirements: AUTH-01, AUTH-02, AUTH-03, AUTH-04, AUTH-36, AUTH-37, AUTH-38,
+ * AUTH-44, UI-48, QUICK-260612-A6V
  */
 
-import React, { Component, useState } from 'react';
+import React, { Component, useEffect, useState } from 'react';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
-import { useIsMobile } from '../hooks/useIsMobile';
+import Image from 'next/image';
+import { Archivo, Archivo_Black } from 'next/font/google';
+import { HowItWorksModal } from '../components/HowItWorksModal';
+import callitMark from '@/public/brand/callit-mark.png';
+
+// Page-local fonts (layout.tsx untouched — it does not load Archivo Black).
+const archivoBlack = Archivo_Black({ weight: '400', subsets: ['latin'] });
+const archivo = Archivo({ weight: ['500', '600', '700', '800'], subsets: ['latin'] });
 
 /**
  * Error boundary to catch Privy initialization errors gracefully.
@@ -135,482 +156,816 @@ const SignInButtons = dynamic(() => import('./SignInButtons'), {
   ),
 });
 
-/**
- * Hero headline recipe — prototype `.lp-hero-headline` (styles.css:843), applied
- * locally because globals.css is not in this plan's files_modified. The clamp is
- * prototype-verbatim: clamp(64px, 10vw, 132px).
- */
-const LP_HERO_HEADLINE: React.CSSProperties = {
-  fontFamily: 'var(--font-display)',
-  fontWeight: 900,
-  fontSize: 'clamp(64px, 10vw, 132px)',
-  lineHeight: 0.85,
-  letterSpacing: '-0.055em',
-  textTransform: 'uppercase',
-  margin: 0,
-};
-
-const HOW_IT_WORKS = [
-  {
-    n: '01',
-    title: 'GO ON RECORD',
-    body: 'Make a call on any crypto market. Pick your conviction. Stake USDC. Your prediction is now permanent and public.',
-  },
-  {
-    n: '02',
-    title: 'FOLLOW OR FADE',
-    body: 'Others bet with you or against you. Every position is real money on the line. The market prices your prediction in real time.',
-  },
-  {
-    n: '03',
-    title: 'GET YOUR RECEIPT',
-    body: 'When the call settles, the outcome stamps onto your receipt forever. CALLED IT. LOUD AND WRONG. Either way, the world knows.',
-  },
-];
-
-const DIFFERENTIATORS: Array<[string, string]> = [
-  ['Polymarket: anonymous trades', 'Call It: named callers, permanent reputation'],
-  ['Pump.fun: speculate on memes', 'Call It: stake on outcomes you understand'],
-  ['Twitter: forgotten calls', 'Call It: receipts that last forever'],
-  ['DraftKings: house always wins', 'Call It: peer-to-peer, parimutuel'],
-];
-
-const FEES: Array<[string, string, string]> = [
-  ['Protocol fee', '1.0%', 'At settlement'],
-  ['Creator fee', '0.4%', 'At settlement, to the caller'],
-  ['LP fee', '0.3%', 'At settlement, stays in pool'],
-  ['Market creation', '$10 USDC', 'Once, at creation'],
-];
-
 export default function SignInPage() {
-  const isMobile = useIsMobile();
-  const sectionPad = isMobile ? '64px 16px' : '100px 40px';
+  const [signinOpen, setSigninOpen] = useState(false);
+  const [howOpen, setHowOpen] = useState(false);
+
+  // Escape closes the signin modal. HowItWorksModal carries its OWN Escape
+  // listener — do not duplicate one for it here.
+  useEffect(() => {
+    if (!signinOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setSigninOpen(false);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [signinOpen]);
 
   return (
-    <main style={{ background: 'var(--bg-primary)', minHeight: '100vh' }}>
-      {/* Top bar — brand only (the hero below carries the sign-in CTAs) */}
-      <header
+    <div
+      className={archivo.className}
+      style={{ minHeight: '100vh', background: '#D4F500', padding: '14px' }}
+    >
+      <div
         style={{
+          position: 'relative',
+          overflow: 'hidden',
+          background: '#0A0A0A',
+          borderRadius: '28px',
+          minHeight: 'calc(100vh - 28px)',
           display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          padding: isMobile ? '16px' : '20px 40px',
-          borderBottom: '1px solid var(--border-subtle)',
+          flexDirection: 'column',
+          alignItems: 'stretch',
         }}
       >
-        <div className="brand" style={{ fontSize: 22 }}>
-          <span>CALL IT</span>
-          <span className="slash">·</span>
-          <span className="tagline">be right in public</span>
-        </div>
-      </header>
-
-      {/* HERO — BE RIGHT / IN PUBLIC. + the existing Privy auth flow as the CTAs */}
-      <section
-        style={{
-          padding: isMobile ? '48px 16px 64px' : '60px 40px 100px',
-          maxWidth: 1180,
-          margin: '0 auto',
-        }}
-      >
-        {/* Status strip — D-07: the prototype's platform totals (callers on record,
-            total pot) have NO source and are NOT rendered; only the working parts
-            (live dot + LIVE NOW) ship. */}
-        <div className="row" style={{ gap: 10, marginBottom: 28, color: 'var(--text-tertiary)' }}>
-          <span className="live-dot"></span>
-          <span
-            className="mono"
-            style={{
-              fontSize: 11,
-              letterSpacing: '0.14em',
-              textTransform: 'uppercase',
-              fontWeight: 600,
-            }}
-          >
-            · LIVE NOW ·
-          </span>
-        </div>
-
-        <h1 style={{ ...LP_HERO_HEADLINE, marginBottom: 28 }}>
-          BE RIGHT
-          <br />
-          <span style={{ color: 'var(--accent-win)' }}>IN PUBLIC.</span>
-        </h1>
-
-        <p
-          style={{
-            fontSize: isMobile ? 18 : 22,
-            lineHeight: 1.4,
-            color: 'var(--text-secondary)',
-            maxWidth: '32ch',
-            margin: '0 0 40px',
-            fontWeight: 400,
-          }}
-        >
-          A reputation market for crypto calls. Stake on what you believe. Get a receipt that
-          lasts forever.
-        </p>
-
-        {/* Sign-in CTA block — the EXISTING SignInButtons (Privy flows untouched).
-            D-33 order: Connect Wallet > Google > Twitter. */}
+        {/* background atmosphere: vertical glass columns + acid bloom (design-verbatim) */}
         <div
           style={{
-            width: '100%',
-            maxWidth: isMobile ? 'calc(100vw - 32px)' : '400px',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '1rem',
+            position: 'absolute',
+            inset: 0,
+            pointerEvents: 'none',
+            background:
+              'repeating-linear-gradient(90deg, rgba(255,255,255,0.025) 0px, rgba(255,255,255,0.025) 1px, transparent 1px, transparent 120px)',
           }}
-        >
-          <PrivyErrorBoundary>
-            <SignInButtons CustodyTooltip={CustodyTooltip} />
-          </PrivyErrorBoundary>
-        </div>
-
-        <div
-          className="mono"
-          style={{
-            marginTop: 32,
-            fontSize: 11,
-            color: 'var(--text-muted)',
-            letterSpacing: '0.08em',
-            textTransform: 'uppercase',
-            fontWeight: 600,
-          }}
-        >
-          ↗ no waitlist · sign in with wallet, Google, or X · $5 min stake
-        </div>
-
-        {/* AUTH-37: disclaimer — links to /terms; always visible */}
-        <p
-          className="mono"
-          style={{
-            fontSize: '0.75rem',
-            color: 'var(--text-tertiary)',
-            lineHeight: 1.5,
-            marginTop: '1.5rem',
-            maxWidth: '400px',
-          }}
-          data-testid="disclaimer"
-        >
-          By signing in, you&apos;re agreeing to our{' '}
-          <Link href="/terms" style={{ color: 'var(--accent-win)', textDecoration: 'underline' }}>
-            Terms &amp; Conditions
-          </Link>
-          .
-        </p>
-      </section>
-
-      <div className="section-divider" style={{ borderTop: '1px solid var(--border-subtle)' }}></div>
-
-      {/* HOW IT WORKS — 3 cream blocks (static copy, no data) */}
-      <section style={{ padding: sectionPad, maxWidth: 1180, margin: '0 auto' }}>
-        <div style={{ marginBottom: isMobile ? 40 : 60 }}>
-          <div className="label-overline" style={{ marginBottom: 14 }}>
-            · How it works
-          </div>
-          <h2 className="h-1" style={{ margin: 0, maxWidth: '20ch' }}>
-            Three steps.
-            <br />
-            One receipt.
-          </h2>
-        </div>
-
+        />
         <div
           style={{
-            display: 'grid',
-            gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)',
-            gap: 24,
+            position: 'absolute',
+            left: '50%',
+            top: '-340px',
+            transform: 'translateX(-50%)',
+            width: '1100px',
+            height: '700px',
+            pointerEvents: 'none',
+            background:
+              'radial-gradient(ellipse at center, rgba(212,245,0,0.13) 0%, rgba(212,245,0,0.05) 40%, transparent 70%)',
           }}
-        >
-          {HOW_IT_WORKS.map((step) => (
-            <div key={step.n} className="brutal-card cream" style={{ padding: 32, minHeight: isMobile ? 0 : 320 }}>
-              <div
-                style={{
-                  fontFamily: 'var(--font-display)',
-                  fontSize: 80,
-                  fontWeight: 900,
-                  letterSpacing: '-0.05em',
-                  lineHeight: 0.85,
-                  color: '#000',
-                  marginBottom: 28,
-                }}
-              >
-                {step.n}
-              </div>
-              <h3
-                style={{
-                  fontFamily: 'var(--font-display)',
-                  fontSize: 22,
-                  fontWeight: 900,
-                  letterSpacing: '-0.02em',
-                  margin: '0 0 14px',
-                  color: '#000',
-                  textTransform: 'uppercase',
-                }}
-              >
-                {step.title}
-              </h3>
-              <p style={{ fontSize: 15, lineHeight: 1.5, color: '#1a1a1a', margin: 0 }}>
-                {step.body}
-              </p>
-            </div>
-          ))}
-        </div>
-      </section>
+        />
+        <div
+          style={{
+            position: 'absolute',
+            left: '50%',
+            bottom: '-420px',
+            transform: 'translateX(-50%)',
+            width: '1500px',
+            height: '900px',
+            pointerEvents: 'none',
+            animation: 'ci-bloom 6s ease-in-out infinite',
+            background:
+              'radial-gradient(ellipse at center, rgba(212,245,0,0.30) 0%, rgba(212,245,0,0.12) 35%, rgba(212,245,0,0.04) 55%, transparent 72%)',
+          }}
+        />
 
-      <div style={{ borderTop: '1px solid var(--border-subtle)' }}></div>
-
-      {/* DIFFERENTIATOR — static copy */}
-      <section
-        style={{
-          padding: sectionPad,
-          maxWidth: 1180,
-          margin: '0 auto',
-          display: 'grid',
-          gridTemplateColumns: isMobile ? '1fr' : '1fr 1.2fr',
-          gap: isMobile ? 32 : 60,
-          alignItems: 'center',
-        }}
-      >
-        <div>
-          <div className="label-overline" style={{ marginBottom: 14 }}>
-            · What&apos;s different
-          </div>
-          <h2 className="h-1" style={{ margin: 0, maxWidth: '14ch' }}>
-            The only prediction market built on identity.
-          </h2>
-          <p
-            style={{
-              marginTop: 24,
-              fontSize: 16,
-              color: 'var(--text-secondary)',
-              lineHeight: 1.5,
-              maxWidth: '40ch',
-            }}
-          >
-            Polymarket sells anonymous trades. Twitter forgets last week&apos;s calls. Call It
-            writes them down.
-          </p>
-        </div>
-        <div className="col" style={{ gap: 0 }}>
-          {DIFFERENTIATORS.map(([left, right]) => (
-            <div
-              key={right}
+        {/* nav */}
+        <div className="ci-nav">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1 }}>
+            {/* Static import (NOT a raw /brand/ URL — see header note (e)) */}
+            <Image src={callitMark} alt="CALL IT mark" width={34} height={34} style={{ objectFit: 'contain' }} />
+            <span
               style={{
-                display: 'grid',
-                gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr',
-                gap: isMobile ? 8 : 24,
-                padding: '20px 0',
-                borderBottom: '1px solid var(--border-subtle)',
-                alignItems: 'center',
+                fontFamily: archivoBlack.style.fontFamily,
+                fontSize: '19px',
+                letterSpacing: '0.02em',
+                color: '#FFFFFF',
               }}
             >
-              <span
-                style={{
-                  color: 'var(--text-tertiary)',
-                  textDecoration: 'line-through',
-                  textDecorationColor: 'var(--text-muted)',
-                  fontSize: 14,
-                }}
-              >
-                {left}
-              </span>
-              <span
-                style={{
-                  fontWeight: 700,
-                  color: 'var(--text-primary)',
-                  borderBottom: '3px solid var(--accent-win)',
-                  paddingBottom: 2,
-                  display: 'inline-block',
-                  width: 'fit-content',
-                  fontSize: 15,
-                }}
-              >
-                {right}
-              </span>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      <div style={{ borderTop: '1px solid var(--border-subtle)' }}></div>
-
-      {/* FEES — static protocol constants (spec §6 settlement fee model) */}
-      <section style={{ padding: sectionPad, maxWidth: 1100, margin: '0 auto' }}>
-        <div style={{ marginBottom: 40 }}>
-          <div className="label-overline" style={{ marginBottom: 14 }}>
-            · Transparency
+              CALL IT
+            </span>
           </div>
-          <h2 className="h-1" style={{ margin: 0 }}>
-            The fees, plainly.
-          </h2>
+          {/* Center glass pill container — the design's Market/Leaderboard/Dashboard
+              pills are NOT rendered (user removal, quick-260612-a6v); a single
+              "How it works" pill (the design's ACTIVE pill recipe) opens the modal. */}
+          <nav
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px',
+              padding: '5px',
+              borderRadius: '999px',
+              background: 'rgba(255,255,255,0.05)',
+              border: '1px solid rgba(255,255,255,0.10)',
+              backdropFilter: 'blur(14px)',
+              WebkitBackdropFilter: 'blur(14px)',
+            }}
+          >
+            <button
+              type="button"
+              onClick={() => setHowOpen(true)}
+              style={{
+                display: 'block',
+                padding: '8px 18px',
+                borderRadius: '999px',
+                background: 'rgba(212,245,0,0.14)',
+                border: '1px solid rgba(212,245,0,0.35)',
+                color: '#D4F500',
+                fontFamily: 'inherit',
+                fontSize: '13px',
+                fontWeight: 700,
+                letterSpacing: '0.02em',
+                cursor: 'pointer',
+              }}
+            >
+              How it works
+            </button>
+          </nav>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', flex: 1 }}>
+            <button type="button" className="ci-signin-btn" onClick={() => setSigninOpen(true)}>
+              Sign In →
+            </button>
+          </div>
         </div>
 
-        <div
-          style={{
-            border: '3px solid var(--border-strong)',
-            boxShadow: 'var(--shadow-brutal)',
-            background: 'var(--bg-secondary)',
-            overflowX: 'auto',
-          }}
-        >
-          <table className="brutal-table" style={{ marginBottom: 0 }}>
-            <thead>
-              <tr>
-                <th>Fee</th>
-                <th style={{ textAlign: 'right' }}>Rate</th>
-                <th>When</th>
-              </tr>
-            </thead>
-            <tbody>
-              {FEES.map(([f, r, w]) => (
-                <tr key={f} style={{ cursor: 'default' }}>
-                  <td style={{ fontWeight: 600 }}>{f}</td>
-                  <td className="mono" style={{ textAlign: 'right', fontWeight: 600 }}>
-                    {r}
-                  </td>
-                  <td className="muted">{w}</td>
-                </tr>
-              ))}
-              <tr style={{ cursor: 'default', background: 'var(--bg-quaternary)' }}>
-                <td
-                  style={{
-                    fontWeight: 800,
-                    fontFamily: 'var(--font-display)',
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.02em',
-                  }}
-                >
-                  Total at settlement
-                </td>
-                <td
-                  className="mono"
-                  style={{
-                    textAlign: 'right',
-                    fontWeight: 800,
-                    color: 'var(--accent-win)',
-                    fontSize: 16,
-                  }}
-                >
-                  1.7%
-                </td>
-                <td className="muted">→ caller + protocol + pool</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </section>
-
-      <div style={{ borderTop: '1px solid var(--border-subtle)' }}></div>
-
-      {/* RULES / RISK CALLOUT — "Read the rules" wired to the real /terms page (D-08: no dead controls) */}
-      <section style={{ padding: isMobile ? '48px 16px' : '80px 40px', maxWidth: 1100, margin: '0 auto' }}>
-        <div
-          className="brutal-card cream"
-          style={{
-            padding: isMobile ? 24 : 40,
-            display: 'grid',
-            gridTemplateColumns: isMobile ? '1fr' : 'auto 1fr auto',
-            gap: 32,
-            alignItems: 'center',
-          }}
-        >
+        {/* hero body */}
+        <div className="ci-hero">
           <div
             style={{
-              fontFamily: 'var(--font-display)',
-              fontSize: 80,
-              fontWeight: 900,
-              lineHeight: 1,
-              color: '#000',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '9px',
+              padding: '8px 18px',
+              borderRadius: '999px',
+              background: 'rgba(212,245,0,0.07)',
+              border: '1px solid rgba(212,245,0,0.25)',
+              backdropFilter: 'blur(10px)',
+              WebkitBackdropFilter: 'blur(10px)',
             }}
-            aria-hidden="true"
           >
-            ⚠
-          </div>
-          <div>
-            <h3
+            <span
               style={{
-                fontFamily: 'var(--font-display)',
-                margin: 0,
-                fontSize: 28,
-                fontWeight: 900,
-                letterSpacing: '-0.02em',
-                color: '#000',
+                width: '7px',
+                height: '7px',
+                borderRadius: '50%',
+                background: '#D4F500',
+                animation: 'ci-pulse 2s ease-in-out infinite',
+              }}
+            />
+            <span
+              style={{
+                fontFamily: 'var(--font-jetbrains-mono)',
+                fontSize: '11px',
+                fontWeight: 500,
+                letterSpacing: '0.14em',
+                color: '#D4F500',
                 textTransform: 'uppercase',
               }}
             >
-              Calls are permanent. Stakes are real. Reputation is forever.
-            </h3>
-            <p style={{ margin: '10px 0 0', fontSize: 15, color: '#1a1a1a' }}>
-              Read the rules before you publish anything. There&apos;s no edit, no take-back, no
-              soft launch.
-            </p>
+              Stake smarter · Call it public
+            </span>
           </div>
-          <Link
-            href="/terms"
-            className="btn"
+
+          <h1
             style={{
-              background: '#000',
-              color: 'var(--bg-inverse)',
-              borderColor: '#000',
-              boxShadow: '4px 4px 0 0 #5d5d5d',
-              textDecoration: 'none',
+              margin: '30px 0 0',
+              fontFamily: archivoBlack.style.fontFamily,
+              fontSize: 'clamp(64px, 8.6vw, 124px)',
+              lineHeight: 0.92,
+              letterSpacing: '-0.025em',
+              color: '#FFFFFF',
+            }}
+          >
+            BE RIGHT
+            <br />
+            <span style={{ color: '#D4F500' }}>IN PUBLIC.</span>
+          </h1>
+
+          <p
+            style={{
+              margin: '28px 0 0',
+              maxWidth: '520px',
+              fontSize: '19px',
+              lineHeight: 1.55,
+              fontWeight: 500,
+              color: '#9A9A90',
+              textWrap: 'pretty',
+            }}
+          >
+            A reputation market for crypto calls. Stake on what you believe. Get a receipt that
+            lasts forever.
+          </p>
+
+          <div className="ci-cta-row">
+            <button type="button" className="ci-cta-primary" onClick={() => setSigninOpen(true)}>
+              MAKE YOUR FIRST CALL →
+            </button>
+            <Link href="/calls" className="ci-cta-secondary">
+              See Live Calls
+            </Link>
+          </div>
+        </div>
+
+        {/* staggered glass call cards — STATIC decorative marketing art (header note (c)) */}
+        <div className="ci-cards">
+          {/* left card — veda */}
+          <div
+            className="ci-card-left"
+            style={{
+              padding: '22px 24px',
+              borderRadius: '18px',
+              background:
+                'linear-gradient(160deg, rgba(212,245,0,0.07) 0%, rgba(255,255,255,0.04) 45%, rgba(255,255,255,0.015) 100%)',
+              border: '1px solid rgba(255,255,255,0.13)',
+              backdropFilter: 'blur(18px)',
+              WebkitBackdropFilter: 'blur(18px)',
+              boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.14), 0 24px 60px rgba(0,0,0,0.55)',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '9px' }}>
+                <span
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    width: '28px',
+                    height: '28px',
+                    borderRadius: '8px',
+                    background: '#FF4D6D',
+                    color: '#0A0A0A',
+                    fontFamily: archivoBlack.style.fontFamily,
+                    fontSize: '13px',
+                  }}
+                >
+                  V
+                </span>
+                <span style={{ fontSize: '14px', fontWeight: 700, color: '#FFFFFF' }}>veda</span>
+                <span style={{ fontFamily: 'var(--font-jetbrains-mono)', fontSize: '11px', color: '#6E6E66' }}>
+                  1h ago
+                </span>
+              </div>
+              <span
+                style={{
+                  padding: '4px 9px',
+                  borderRadius: '6px',
+                  background: 'rgba(212,245,0,0.14)',
+                  border: '1px solid rgba(212,245,0,0.4)',
+                  fontFamily: 'var(--font-jetbrains-mono)',
+                  fontSize: '10px',
+                  fontWeight: 700,
+                  letterSpacing: '0.08em',
+                  color: '#D4F500',
+                }}
+              >
+                92% CONV
+              </span>
+            </div>
+            <p
+              style={{
+                margin: '16px 0 0',
+                fontSize: '16px',
+                lineHeight: 1.4,
+                fontWeight: 700,
+                color: '#FFFFFF',
+                textWrap: 'pretty',
+              }}
+            >
+              ETH reclaims $4,200 by Friday close. Mark it.
+            </p>
+            <p style={{ margin: '12px 0 0', fontFamily: 'var(--font-jetbrains-mono)', fontSize: '11px', color: '#6E6E66' }}>
+              $1000 stake · 490 positions
+            </p>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '14px' }}>
+              <div style={{ flex: 1, display: 'flex', gap: '3px', height: '7px' }}>
+                <span
+                  style={{
+                    width: '79%',
+                    borderRadius: '99px',
+                    background: '#D4F500',
+                    boxShadow: '0 0 12px rgba(212,245,0,0.45)',
+                  }}
+                />
+                <span style={{ flex: 1, borderRadius: '99px', background: '#FF4D6D' }} />
+              </div>
+              <span
+                style={{
+                  fontFamily: 'var(--font-jetbrains-mono)',
+                  fontSize: '11px',
+                  fontWeight: 700,
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                <span style={{ color: '#D4F500' }}>79%</span>
+                <span style={{ color: '#6E6E66' }}> / </span>
+                <span style={{ color: '#FF4D6D' }}>21%</span>
+              </span>
+            </div>
+          </div>
+
+          {/* center card (raised) — jaxon.eth */}
+          <div
+            className="ci-card-center"
+            style={{
+              padding: '26px 28px',
+              borderRadius: '20px',
+              background:
+                'linear-gradient(160deg, rgba(212,245,0,0.11) 0%, rgba(255,255,255,0.05) 45%, rgba(255,255,255,0.02) 100%)',
+              border: '1px solid rgba(212,245,0,0.30)',
+              backdropFilter: 'blur(22px)',
+              WebkitBackdropFilter: 'blur(22px)',
+              boxShadow:
+                'inset 0 1px 0 rgba(255,255,255,0.18), 0 0 50px rgba(212,245,0,0.10), 0 32px 80px rgba(0,0,0,0.6)',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '9px' }}>
+                <span
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    width: '30px',
+                    height: '30px',
+                    borderRadius: '9px',
+                    background: '#D4F500',
+                    color: '#0A0A0A',
+                    fontFamily: archivoBlack.style.fontFamily,
+                    fontSize: '13px',
+                  }}
+                >
+                  J
+                </span>
+                <span style={{ fontSize: '15px', fontWeight: 700, color: '#FFFFFF' }}>jaxon.eth</span>
+                <span style={{ fontFamily: 'var(--font-jetbrains-mono)', fontSize: '11px', color: '#6E6E66' }}>
+                  12m ago
+                </span>
+              </div>
+              <span
+                style={{
+                  padding: '5px 10px',
+                  borderRadius: '6px',
+                  background: 'rgba(212,245,0,0.18)',
+                  border: '1px solid rgba(212,245,0,0.5)',
+                  fontFamily: 'var(--font-jetbrains-mono)',
+                  fontSize: '11px',
+                  fontWeight: 700,
+                  letterSpacing: '0.08em',
+                  color: '#D4F500',
+                  boxShadow: '0 0 18px rgba(212,245,0,0.18)',
+                }}
+              >
+                78% CONV
+              </span>
+            </div>
+            <p
+              style={{
+                margin: '18px 0 0',
+                fontSize: '18px',
+                lineHeight: 1.4,
+                fontWeight: 700,
+                color: '#FFFFFF',
+                textWrap: 'pretty',
+              }}
+            >
+              ARB outperforms OP by {'>'}5% over the next 7 days.
+            </p>
+            <p style={{ margin: '13px 0 0', fontFamily: 'var(--font-jetbrains-mono)', fontSize: '11px', color: '#6E6E66' }}>
+              $250 stake · 209 positions
+            </p>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '16px' }}>
+              <div style={{ flex: 1, display: 'flex', gap: '3px', height: '8px' }}>
+                <span
+                  style={{
+                    width: '68%',
+                    borderRadius: '99px',
+                    background: '#D4F500',
+                    boxShadow: '0 0 14px rgba(212,245,0,0.5)',
+                  }}
+                />
+                <span style={{ flex: 1, borderRadius: '99px', background: '#FF4D6D' }} />
+              </div>
+              <span
+                style={{
+                  fontFamily: 'var(--font-jetbrains-mono)',
+                  fontSize: '11px',
+                  fontWeight: 700,
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                <span style={{ color: '#D4F500' }}>68%</span>
+                <span style={{ color: '#6E6E66' }}> / </span>
+                <span style={{ color: '#FF4D6D' }}>32%</span>
+              </span>
+            </div>
+          </div>
+
+          {/* right card — degen_oracle */}
+          <div
+            className="ci-card-right"
+            style={{
+              padding: '22px 24px',
+              borderRadius: '18px',
+              background:
+                'linear-gradient(160deg, rgba(212,245,0,0.07) 0%, rgba(255,255,255,0.04) 45%, rgba(255,255,255,0.015) 100%)',
+              border: '1px solid rgba(255,255,255,0.13)',
+              backdropFilter: 'blur(18px)',
+              WebkitBackdropFilter: 'blur(18px)',
+              boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.14), 0 24px 60px rgba(0,0,0,0.55)',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '9px' }}>
+                <span
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    width: '28px',
+                    height: '28px',
+                    borderRadius: '8px',
+                    background: '#B387FF',
+                    color: '#0A0A0A',
+                    fontFamily: archivoBlack.style.fontFamily,
+                    fontSize: '13px',
+                  }}
+                >
+                  O
+                </span>
+                <span style={{ fontSize: '14px', fontWeight: 700, color: '#FFFFFF' }}>degen_oracle</span>
+                <span style={{ fontFamily: 'var(--font-jetbrains-mono)', fontSize: '11px', color: '#6E6E66' }}>
+                  3h ago
+                </span>
+              </div>
+              <span
+                style={{
+                  padding: '4px 9px',
+                  borderRadius: '6px',
+                  background: 'rgba(212,245,0,0.14)',
+                  border: '1px solid rgba(212,245,0,0.4)',
+                  fontFamily: 'var(--font-jetbrains-mono)',
+                  fontSize: '10px',
+                  fontWeight: 700,
+                  letterSpacing: '0.08em',
+                  color: '#D4F500',
+                }}
+              >
+                64% CONV
+              </span>
+            </div>
+            <p
+              style={{
+                margin: '16px 0 0',
+                fontSize: '16px',
+                lineHeight: 1.4,
+                fontWeight: 700,
+                color: '#FFFFFF',
+                textWrap: 'pretty',
+              }}
+            >
+              Pendle TVL crosses $9B by month end.
+            </p>
+            <p style={{ margin: '12px 0 0', fontFamily: 'var(--font-jetbrains-mono)', fontSize: '11px', color: '#6E6E66' }}>
+              $420 stake · 132 positions
+            </p>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '14px' }}>
+              <div style={{ flex: 1, display: 'flex', gap: '3px', height: '7px' }}>
+                <span
+                  style={{
+                    width: '69%',
+                    borderRadius: '99px',
+                    background: '#D4F500',
+                    boxShadow: '0 0 12px rgba(212,245,0,0.45)',
+                  }}
+                />
+                <span style={{ flex: 1, borderRadius: '99px', background: '#FF4D6D' }} />
+              </div>
+              <span
+                style={{
+                  fontFamily: 'var(--font-jetbrains-mono)',
+                  fontSize: '11px',
+                  fontWeight: 700,
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                <span style={{ color: '#D4F500' }}>69%</span>
+                <span style={{ color: '#6E6E66' }}> / </span>
+                <span style={{ color: '#FF4D6D' }}>31%</span>
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* bottom spacer — the design's bottom microcopy div is EMPTY; keep the spacer
+            so the bloom composition matches. The design's block-counter script is
+            unused decoration and is NOT ported. */}
+        <div
+          style={{
+            position: 'relative',
+            zIndex: 4,
+            display: 'flex',
+            justifyContent: 'center',
+            padding: '58px 24px 36px',
+            marginTop: 'auto',
+          }}
+        />
+      </div>
+
+      {/* How-it-works explainer — its MAKE YOUR FIRST CALL ▸ CTA chains into the
+          signup modal (user-requested behavior, quick-260612-a6v). */}
+      <HowItWorksModal
+        open={howOpen}
+        onClose={() => setHowOpen(false)}
+        onPrimaryCta={() => {
+          setHowOpen(false);
+          setSigninOpen(true);
+        }}
+      />
+
+      {/* SIGNIN MODAL — CRITICAL INVARIANT: SignInButtons carries the privy-token
+          cookie-write effect (SignInButtons.tsx:114-153) that (a) redirects
+          already-authenticated visitors off /signin and (b) self-heals returning
+          users whose localStorage session is live but whose cookie expired. It MUST
+          mount on page load. Therefore this wrapper is ALWAYS in the DOM —
+          display-toggled + aria-hidden — NEVER a conditional-render guard around
+          SignInButtons (display:none does not block React mount/effects;
+          conditional rendering does). landing-hero.test.ts regex-guards this. */}
+      <div
+        aria-hidden={!signinOpen}
+        onClick={(e) => {
+          if (e.target === e.currentTarget) setSigninOpen(false);
+        }}
+        style={{
+          position: 'fixed',
+          inset: 0,
+          zIndex: 200,
+          backgroundColor: 'rgba(0,0,0,0.8)',
+          backdropFilter: 'blur(6px)',
+          WebkitBackdropFilter: 'blur(6px)',
+          display: signinOpen ? 'flex' : 'none',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '40px 20px',
+        }}
+      >
+        <div
+          data-testid="signin-modal"
+          onClick={(e) => e.stopPropagation()}
+          style={{
+            position: 'relative',
+            backgroundColor: '#0A0A0A',
+            border: '1px solid rgba(255,255,255,0.13)',
+            borderRadius: '20px',
+            padding: '32px',
+            width: 'min(92vw, 420px)',
+            backdropFilter: 'blur(18px)',
+            WebkitBackdropFilter: 'blur(18px)',
+            boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.14), 0 32px 80px rgba(0,0,0,0.6)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '16px',
+          }}
+        >
+          <button
+            type="button"
+            onClick={() => setSigninOpen(false)}
+            aria-label="Close"
+            style={{
+              position: 'absolute',
+              top: '4px',
+              right: '4px',
+              backgroundColor: 'transparent',
+              border: 'none',
+              cursor: 'pointer',
+              color: 'rgba(255,255,255,0.55)',
+              fontSize: '20px',
+              lineHeight: 1,
+              minWidth: 44,
               minHeight: 44,
-              display: 'inline-flex',
+              display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
             }}
           >
-            Read the rules →
-          </Link>
-        </div>
-      </section>
-
-      {/* FOOTER — static, real values only (D-07: no fake deploy block / contract hash) */}
-      <footer
-        style={{
-          borderTop: '1px solid var(--border-subtle)',
-          padding: isMobile ? '32px 16px' : '40px',
-          maxWidth: 1180,
-          margin: '0 auto',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: 24,
-          flexWrap: 'wrap',
-        }}
-      >
-        <div>
-          <div className="brand" style={{ fontSize: 18, marginBottom: 6 }}>
-            <span>CALL IT</span>
+            ✕
+          </button>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', paddingRight: '40px' }}>
+            <h2
+              style={{
+                margin: 0,
+                fontFamily: archivoBlack.style.fontFamily,
+                fontSize: '21px',
+                letterSpacing: '0.01em',
+                color: '#FFFFFF',
+              }}
+            >
+              SIGN IN TO CALL IT
+            </h2>
+            <p style={{ margin: 0, fontSize: '13px', lineHeight: 1.5, color: '#9A9A90' }}>
+              Wallet, Google, or X — your call, on the record.
+            </p>
           </div>
+          {/* Tier 2 scoping hook: the D-33 ordering test queries buttons INSIDE this
+              wrapper so the nav/CTA/✕ buttons don't pollute order indexes. */}
           <div
+            data-testid="signin-modal-buttons"
+            style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}
+          >
+            <PrivyErrorBoundary>
+              <SignInButtons CustodyTooltip={CustodyTooltip} />
+            </PrivyErrorBoundary>
+          </div>
+          {/* AUTH-37: disclaimer — links to /terms; always visible (colors restyled
+              for the dark glass panel; copy + testid + href verbatim). */}
+          <p
             className="mono"
             style={{
-              fontSize: 11,
-              color: 'var(--text-tertiary)',
-              letterSpacing: '0.06em',
-              textTransform: 'uppercase',
-              fontWeight: 600,
+              fontSize: '0.75rem',
+              color: '#9A9A90',
+              lineHeight: 1.5,
+              marginTop: '0.5rem',
+              marginBottom: 0,
+              maxWidth: '400px',
             }}
+            data-testid="disclaimer"
           >
-            Built on Arbitrum
-          </div>
+            By signing in, you&apos;re agreeing to our{' '}
+            <Link href="/terms" style={{ color: '#D4F500', textDecoration: 'underline' }}>
+              Terms &amp; Conditions
+            </Link>
+            .
+          </p>
         </div>
-        <Link
-          href="/terms"
-          className="mono"
-          style={{
-            color: 'var(--text-secondary)',
-            fontSize: 12,
-            letterSpacing: '0.04em',
-            textDecoration: 'underline',
-          }}
-        >
-          Terms &amp; Conditions
-        </Link>
-      </footer>
-    </main>
+      </div>
+
+      {/* Page-local styles: keyframes, hover recipes, and the ≤860px responsive
+          overrides. Inline style={{}} beats stylesheet selectors, so every element
+          with a :hover or media-query override gets ALL of its overridable
+          properties from a ci-* class here. */}
+      <style>{`
+        @keyframes ci-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.25; } }
+        @keyframes ci-bloom { 0%, 100% { opacity: 0.85; } 50% { opacity: 1; } }
+
+        .ci-nav {
+          position: relative;
+          z-index: 5;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding: 22px 36px;
+          gap: 24px;
+        }
+        .ci-signin-btn {
+          cursor: pointer;
+          padding: 11px 22px;
+          border-radius: 999px;
+          background: #F5F0E6;
+          color: #0A0A0A;
+          border: none;
+          font-family: inherit;
+          font-size: 13px;
+          font-weight: 800;
+          letter-spacing: 0.04em;
+          text-transform: uppercase;
+          transition: background 0.15s ease, transform 0.15s ease;
+        }
+        .ci-signin-btn:hover {
+          background: #FFFFFF;
+          transform: translateY(-1px);
+        }
+        .ci-hero {
+          position: relative;
+          z-index: 4;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          text-align: center;
+          padding: 64px 32px 0;
+        }
+        .ci-cta-row {
+          display: flex;
+          align-items: center;
+          gap: 14px;
+          margin-top: 36px;
+        }
+        .ci-cta-primary {
+          cursor: pointer;
+          padding: 17px 32px;
+          border-radius: 999px;
+          background: #F5F0E6;
+          color: #0A0A0A;
+          border: none;
+          font-family: inherit;
+          font-size: 14px;
+          font-weight: 800;
+          letter-spacing: 0.05em;
+          text-transform: uppercase;
+          transition: background 0.15s ease, transform 0.15s ease;
+        }
+        .ci-cta-primary:hover {
+          background: #FFFFFF;
+          transform: translateY(-2px);
+        }
+        .ci-cta-secondary {
+          cursor: pointer;
+          display: block;
+          padding: 16px 30px;
+          border-radius: 999px;
+          background: rgba(255,255,255,0.03);
+          color: #FFFFFF;
+          border: 1px solid rgba(255,255,255,0.22);
+          backdrop-filter: blur(10px);
+          -webkit-backdrop-filter: blur(10px);
+          font-family: inherit;
+          font-size: 14px;
+          font-weight: 700;
+          letter-spacing: 0.05em;
+          text-transform: uppercase;
+          text-decoration: none;
+          transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
+        }
+        .ci-cta-secondary:hover {
+          border-color: rgba(212,245,0,0.6);
+          color: #D4F500;
+          background: rgba(212,245,0,0.06);
+        }
+        .ci-cards {
+          position: relative;
+          z-index: 4;
+          display: flex;
+          justify-content: center;
+          align-items: flex-start;
+          gap: 0;
+          margin-top: 74px;
+          padding: 0 24px;
+        }
+        .ci-card-left {
+          transition: transform 0.25s ease;
+          transform: translateY(26px) rotate(-2.5deg);
+          margin-right: -26px;
+          z-index: 1;
+          width: 340px;
+        }
+        .ci-card-left:hover {
+          transform: translateY(16px) rotate(-2deg) scale(1.02);
+        }
+        .ci-card-center {
+          transition: transform 0.25s ease;
+          transform: translateY(-18px);
+          z-index: 3;
+          width: 390px;
+        }
+        .ci-card-center:hover {
+          transform: translateY(-26px) scale(1.01);
+        }
+        .ci-card-right {
+          transition: transform 0.25s ease;
+          transform: translateY(26px) rotate(2.5deg);
+          margin-left: -26px;
+          z-index: 1;
+          width: 340px;
+        }
+        .ci-card-right:hover {
+          transform: translateY(16px) rotate(2deg) scale(1.02);
+        }
+
+        /* Phase 9 mandate: clean 375px render — nav wraps, CTAs wrap, cards stack
+           vertically center-card-first with rotations zeroed. */
+        @media (max-width: 860px) {
+          .ci-nav {
+            flex-wrap: wrap;
+            padding: 16px 16px;
+            gap: 12px;
+          }
+          .ci-hero {
+            padding: 48px 16px 0;
+          }
+          .ci-cta-row {
+            flex-wrap: wrap;
+            justify-content: center;
+          }
+          .ci-cards {
+            flex-direction: column;
+            align-items: center;
+            gap: 18px;
+            margin-top: 48px;
+            padding: 0 16px;
+          }
+          .ci-card-left,
+          .ci-card-center,
+          .ci-card-right {
+            transform: none;
+            margin: 0;
+            width: 100%;
+            max-width: 390px;
+          }
+          .ci-card-left:hover,
+          .ci-card-center:hover,
+          .ci-card-right:hover {
+            transform: none;
+          }
+          .ci-card-center {
+            order: -1;
+          }
+        }
+      `}</style>
+    </div>
   );
 }

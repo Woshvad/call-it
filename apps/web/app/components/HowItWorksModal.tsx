@@ -2,9 +2,13 @@
  * HowItWorksModal — Polymarket-style explainer modal (user request 2026-06-12,
  * quick-260612-8wk).
  *
- * Copy canon: apps/web/app/signin/page.tsx HOW_IT_WORKS array — duplicated
- * locally VERBATIM below (page modules must not cross-import; the
- * how-it-works-modal.test.ts copy-canon lockstep guards drift).
+ * Copy canon (re-anchored quick-260612-a6v, user request 2026-06-12 — the
+ * homepage was replaced with the acid hero): the signin landing no longer
+ * renders the three-step section, so this modal is now the SINGLE copy canon
+ * for the how-it-works steps. The landing (apps/web/app/signin/page.tsx)
+ * MOUNTS this modal from its "How it works" nav pill; the
+ * how-it-works-modal.test.ts lockstep guards the modal verbatim plus that
+ * mount/trigger linkage.
  *
  * Chrome: the D-13 cream .modal-panel template mirrored from
  * ChallengeFormModal.tsx — fixed inset-0 z-200 rgba(0,0,0,0.82) + blur(4px)
@@ -26,8 +30,9 @@ export type HowItWorksModalProps = {
   onPrimaryCta: () => void;
 };
 
-// Copy canon: apps/web/app/signin/page.tsx HOW_IT_WORKS array — byte-identical
-// duplicate. NEVER paraphrase; the lockstep test pins both sources.
+// Copy canon: STEPS is now the CANONICAL source (the signin HOW_IT_WORKS
+// duplicate was deleted in quick-260612-a6v). NEVER paraphrase; the lockstep
+// test now guards this file alone plus the landing's mount/trigger linkage.
 const STEPS = [
   {
     n: '01',
