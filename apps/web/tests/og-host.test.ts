@@ -27,6 +27,13 @@ describe('resolveOgFooterHost (WR-07)', () => {
     expect(resolveOgFooterHost('127.0.0.1:3000')).toBe('127.0.0.1:3000');
   });
 
+  it('passes through the custom domain (callitlive.app, 2026-06-12)', () => {
+    expect(resolveOgFooterHost('callitlive.app')).toBe('callitlive.app');
+    expect(resolveOgFooterHost('www.callitlive.app')).toBe('www.callitlive.app');
+    // Lookalikes still rejected
+    expect(resolveOgFooterHost('callitlive.app.evil.example')).toBe(OG_FALLBACK_HOST);
+  });
+
   it('rejects spoofed / arbitrary Host headers → fixed fallback literal', () => {
     expect(resolveOgFooterHost('evil.example')).toBe(OG_FALLBACK_HOST);
     expect(resolveOgFooterHost('phishing-call-it.vercel.app')).toBe(OG_FALLBACK_HOST);

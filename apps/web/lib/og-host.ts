@@ -20,6 +20,9 @@ export const OG_FALLBACK_HOST = 'call-it-web-sepolia.vercel.app';
 /** Hostnames (no port) whose Host header we trust in the OG footer. */
 const OG_ALLOWED_HOSTNAMES: ReadonlySet<string> = new Set([
   'call-it-web-sepolia.vercel.app',
+  // Custom domain (Namecheap → Vercel, 2026-06-12).
+  'callitlive.app',
+  'www.callitlive.app',
   'localhost',
   '127.0.0.1',
 ]);
