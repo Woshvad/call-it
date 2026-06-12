@@ -700,6 +700,11 @@ export default function SignInPage() {
       <style>{`
         @keyframes ci-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.25; } }
         @keyframes ci-bloom { 0%, 100% { opacity: 0.85; } 50% { opacity: 1; } }
+        /* Continuous spin for the CTA liquid discs — keyframes the individual
+           rotate property so it composes with the transitioned translate.
+           (NO backticks in these comments — this whole block is a JS template
+           literal; a backtick terminates it and breaks the parse.) */
+        @keyframes ci-slosh { to { rotate: 360deg; } }
 
         .ci-page {
           min-height: 100vh;
@@ -826,10 +831,12 @@ export default function SignInPage() {
         }
         /* User 2026-06-12: only PUBLIC. is acid, and it reads LARGER than the
            white line — em-sized so the emphasis holds at every breakpoint
-           (the unitless 0.92 line-height recomputes per line, no overlap). */
+           (the unitless 0.92 line-height recomputes per line, no overlap).
+           1.45em desktop; the ≤640px tier steps it to 1.25em (width-bound:
+           past ~1.27em the word clips a 320px viewport). */
         .ci-h1-public {
           color: #D4F500;
-          font-size: 1.2em;
+          font-size: 1.45em;
         }
         .ci-sub {
           margin: 28px 0 0;
@@ -866,34 +873,52 @@ export default function SignInPage() {
           text-transform: uppercase;
           transition: transform 0.15s ease;
         }
-        /* Liquid blob-fill hover (user request 2026-06-12): an organic acid
-           blob rises from the bottom and floods the button. The blob is a huge
-           uneven-radius disc parked just below the face — on hover it rises
-           and tumbles, so its CURVED edge sweeps the label like liquid. The
-           button's own silhouette stays square (overflow hidden, radius 0 —
-           the blob's curves are internal animation, not corner geometry, so
-           the straight-edges brand rule holds). z-index -1 inside the
-           isolated stacking context paints the blob over the cream background
-           but under the label; the dark label keeps contrast on acid. */
-        .ci-cta-primary::before {
+        /* Wavy liquid-fill hover (user request 2026-06-12, waviness pass):
+           TWO huge uneven-radius discs parked below the face, COUNTER-ROTATING
+           continuously (the individual rotate property animates while the
+           individual translate property transitions — they compose, unlike
+           a single combined transform). On hover both rise: the solid acid disc
+           fills the button while the translucent crest disc rides above its
+           edge — two out-of-phase curved edges crossing = a sloshing WAVE
+           while the fill is happening. The button's own silhouette stays
+           square (overflow hidden, radius 0 — the discs' curves are internal
+           animation, not corner geometry, so the straight-edges brand rule
+           holds). z-index -1 inside the isolated stacking context paints the
+           liquid over the cream background but under the dark label. */
+        .ci-cta-primary::before,
+        .ci-cta-primary::after {
           content: '';
           position: absolute;
           z-index: -1;
           left: 50%;
           bottom: 0;
-          width: 220%;
+          width: 240%;
           aspect-ratio: 1;
-          background: #D4F500;
-          border-radius: 43% 45% 41% 47%;
-          transform: translate(-50%, 103%) rotate(0deg);
-          transition: transform 0.55s cubic-bezier(0.45, 0.1, 0.25, 1);
+          translate: -50% 105%;
+          rotate: 0deg;
+          animation: ci-slosh 6s linear infinite;
+          transition: translate 0.6s cubic-bezier(0.45, 0.1, 0.25, 1);
           pointer-events: none;
+        }
+        .ci-cta-primary::before {
+          background: #D4F500;
+          border-radius: 38% 52% 44% 50%;
+        }
+        .ci-cta-primary::after {
+          background: rgba(212, 245, 0, 0.45);
+          border-radius: 48% 40% 54% 42%;
+          animation-duration: 9s;
+          animation-direction: reverse;
+          transition-duration: 0.8s;
         }
         .ci-cta-primary:hover {
           transform: translateY(-2px);
         }
         .ci-cta-primary:hover::before {
-          transform: translate(-50%, 26%) rotate(80deg);
+          translate: -50% 18%;
+        }
+        .ci-cta-primary:hover::after {
+          translate: -50% 12%;
         }
         .ci-cta-secondary {
           cursor: pointer;
@@ -1067,6 +1092,11 @@ export default function SignInPage() {
           .ci-h1 {
             margin-top: 24px;
             font-size: clamp(40px, 14.8vw, 64px);
+          }
+          /* Width-bound on phones: past ~1.27em "PUBLIC." clips a 320px
+             viewport — 1.25em is the safe ceiling (desktop runs 1.45em). */
+          .ci-h1-public {
+            font-size: 1.25em;
           }
           .ci-sub {
             margin-top: 18px;
