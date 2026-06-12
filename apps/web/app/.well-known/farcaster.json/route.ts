@@ -1,11 +1,14 @@
 /**
  * Farcaster Mini App manifest — GET /.well-known/farcaster.json (SHARE-19 SC1b, D-05).
  *
- * Body-only, UNSIGNED manifest sufficient for feed embed render on the Sepolia origin.
- * The signed domain-ownership proof (a proof, NOT a secret) gates addMiniApp /
- * discoverability / notifications — NOT feed embed render — and is deferred to
- * Phase 10 against the mainnet domain (D-01/D-04/D-05). We deliberately emit NO
- * association proof key here (T-08-02-04: manifest is public display config, no secrets).
+ * Body-only manifest sufficient for feed embed render. The signed domain-ownership
+ * proof (a proof, NOT a secret) gates addMiniApp / discoverability / notifications —
+ * NOT feed embed render. Originally deferred to Phase 10 (D-01/D-04/D-05); the
+ * callitlive.app domain go-live (user decision 2026-06-12) supersedes that deferral:
+ * when the three FARCASTER_ACCOUNT_ASSOCIATION_* env vars are set (signed via the
+ * Farcaster manifest tool for the canonical domain), the accountAssociation block is
+ * emitted; when unset, the manifest stays body-only exactly as before.
+ * (T-08-02-04 still holds: the association is public display config, no secrets.)
  *
  * All URLs derive ONLY from NEXT_PUBLIC_OG_BASE_URL (origin-locked, T-08-02-01) so the
  * Phase-10 mainnet domain cutover re-points them automatically (D-04).
@@ -46,8 +49,20 @@ export async function GET(): Promise<Response> {
     });
   }
 
+  // Signed domain-ownership proof (top-level sibling of `miniapp` per the spec).
+  // Emitted ONLY when all three parts are present — a partial set would be an
+  // invalid association, so it degrades to the unsigned manifest instead.
+  const aaHeader = process.env['FARCASTER_ACCOUNT_ASSOCIATION_HEADER'];
+  const aaPayload = process.env['FARCASTER_ACCOUNT_ASSOCIATION_PAYLOAD'];
+  const aaSignature = process.env['FARCASTER_ACCOUNT_ASSOCIATION_SIGNATURE'];
+  const accountAssociation =
+    aaHeader && aaPayload && aaSignature
+      ? { header: aaHeader, payload: aaPayload, signature: aaSignature }
+      : undefined;
+
   return Response.json(
     {
+      ...(accountAssociation ? { accountAssociation } : {}),
       miniapp: {
         version: '1',
         name: APP_NAME,
@@ -55,7 +70,6 @@ export async function GET(): Promise<Response> {
         iconUrl: `${base}/icon.png`, // 1024x1024 PNG, no alpha (Wave-0 icon.png)
         splashImageUrl: `${base}/splash.png`, // 200x200 (Wave-0 splash.png)
         splashBackgroundColor: SPLASH_BACKGROUND_COLOR,
-        // NO signed association proof (D-05) — Phase 10 adds it against the mainnet domain.
         // NO deprecated top-level imageUrl/buttonTitle — embed meta carries them.
       },
     },

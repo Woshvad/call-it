@@ -23,15 +23,26 @@ const OG_BASE = 'https://callit.app';
 
 describe('SC1b — /.well-known/farcaster.json manifest schema', () => {
   const prevBase = process.env['NEXT_PUBLIC_OG_BASE_URL'];
+  const AA_VARS = [
+    'FARCASTER_ACCOUNT_ASSOCIATION_HEADER',
+    'FARCASTER_ACCOUNT_ASSOCIATION_PAYLOAD',
+    'FARCASTER_ACCOUNT_ASSOCIATION_SIGNATURE',
+  ] as const;
+  const prevAA = AA_VARS.map((k) => process.env[k]);
 
   afterEach(() => {
     if (prevBase === undefined) delete process.env['NEXT_PUBLIC_OG_BASE_URL'];
     else process.env['NEXT_PUBLIC_OG_BASE_URL'] = prevBase;
+    AA_VARS.forEach((k, i) => {
+      if (prevAA[i] === undefined) delete process.env[k];
+      else process.env[k] = prevAA[i];
+    });
   });
 
-  it('GET returns 200 with absolute-URL miniapp object and NO accountAssociation', async () => {
+  it('GET returns 200 with absolute-URL miniapp object and NO accountAssociation when unsigned', async () => {
     // WR-01: the manifest requires an absolute origin — provide it.
     process.env['NEXT_PUBLIC_OG_BASE_URL'] = OG_BASE;
+    AA_VARS.forEach((k) => delete process.env[k]);
     const route = await import('../app/.well-known/farcaster.json/route.js');
     expect(typeof route.GET).toBe('function');
 
@@ -48,8 +59,32 @@ describe('SC1b — /.well-known/farcaster.json manifest schema', () => {
     expect(miniapp?.['homeUrl']).toBe(OG_BASE);
     expect(miniapp?.['iconUrl']).toBe(`${OG_BASE}/icon.png`);
 
-    // D-05: signed accountAssociation is a Phase-10 (mainnet domain) artifact.
+    // No env-provided association → body-only manifest (original D-05 shape).
     expect(body['accountAssociation']).toBeUndefined();
+  });
+
+  it('emits accountAssociation when all three FARCASTER_ACCOUNT_ASSOCIATION_* vars are set (2026-06-12 domain go-live); partial set degrades to unsigned', async () => {
+    process.env['NEXT_PUBLIC_OG_BASE_URL'] = OG_BASE;
+    process.env['FARCASTER_ACCOUNT_ASSOCIATION_HEADER'] = 'aGVhZGVy';
+    process.env['FARCASTER_ACCOUNT_ASSOCIATION_PAYLOAD'] = 'cGF5bG9hZA';
+    process.env['FARCASTER_ACCOUNT_ASSOCIATION_SIGNATURE'] = 'c2ln';
+    const route = await import('../app/.well-known/farcaster.json/route.js');
+
+    const res = await route.GET();
+    const body = (await res.json()) as Record<string, unknown>;
+    expect(body['accountAssociation']).toEqual({
+      header: 'aGVhZGVy',
+      payload: 'cGF5bG9hZA',
+      signature: 'c2ln',
+    });
+    // miniapp block unchanged alongside the association
+    expect((body['miniapp'] as Record<string, unknown>)['version']).toBe('1');
+
+    // Partial set (missing signature) must NOT emit a broken association.
+    delete process.env['FARCASTER_ACCOUNT_ASSOCIATION_SIGNATURE'];
+    const res2 = await route.GET();
+    const body2 = (await res2.json()) as Record<string, unknown>;
+    expect(body2['accountAssociation']).toBeUndefined();
   });
 
   it('WR-01: GET returns 503 (not a broken 200) when NEXT_PUBLIC_OG_BASE_URL is unset', async () => {
