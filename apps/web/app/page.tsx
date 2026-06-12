@@ -37,6 +37,7 @@ import { useRouter } from 'next/navigation';
 import { useFeed } from '@/hooks/useFeed';
 import { FeedList } from '@/components/FeedList';
 import { FromYourNetworkSections } from '@/app/components/FromYourNetworkSections';
+import { HowItWorksModal } from '@/app/components/HowItWorksModal';
 import { ASSET_CLASS_CHIPS, assetMatchesChip } from '@/lib/asset-class';
 import type { FeedItem } from '@/lib/relayer-client';
 import { fetchDuels, type DuelEntry } from '@/lib/duels-client';
@@ -160,6 +161,8 @@ export default function HomePage() {
   const [activeTab, setActiveTab] = useState<FeedTab>('Live');
   const [activeChip, setActiveChip] = useState<string>('All');
   const [duels, setDuels] = useState<DuelEntry[] | null>(null);
+  // HOW IT WORKS explainer modal (quick-260612-8wk)
+  const [howOpen, setHowOpen] = useState(false);
 
   // One fetch on mount; failure keeps `duels` null (no badge, dashed empty).
   useEffect(() => {
@@ -251,6 +254,15 @@ export default function HomePage() {
         {/* Auth-aware CTA — only shown once Privy is ready */}
         {ready && (
           <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+            {/* HOW IT WORKS explainer trigger — both auth states (quick-260612-8wk) */}
+            <button
+              type="button"
+              className="btn ghost"
+              onClick={() => setHowOpen(true)}
+              style={{ minHeight: 44 }}
+            >
+              HOW IT WORKS
+            </button>
             {authenticated ? (
               <button
                 type="button"
@@ -410,6 +422,16 @@ export default function HomePage() {
 
       {/* Plan 05: Playwright signin.spec.ts hook — preserved per plan dependency */}
       <div data-testid="signed-in" style={{ display: 'none' }} aria-hidden="true" />
+
+      {/* HOW IT WORKS explainer modal — static, D-13 cream (quick-260612-8wk) */}
+      <HowItWorksModal
+        open={howOpen}
+        onClose={() => setHowOpen(false)}
+        onPrimaryCta={() => {
+          setHowOpen(false);
+          handleNewCallClick();
+        }}
+      />
     </div>
   );
 }
