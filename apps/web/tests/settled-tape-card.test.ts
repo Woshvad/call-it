@@ -95,6 +95,22 @@ describe('quick-260611-tbc — Test 3: share-path parity with /call/[id] (D-08 e
   });
 });
 
+describe('quick-260612 — settled cards resolve the on-chain handle tier (AUTH-44)', () => {
+  it('useFeedHandles covers ALL items, not just live ones', () => {
+    expect(feedListSrc).toMatch(/useFeedHandles\(items\.map\(\(i\) => i\.caller\)\)/);
+  });
+
+  it('the settled-card data builder takes the on-chain handle before the truncate fallback', () => {
+    expect(feedListSrc).toMatch(
+      /displayHandle[\s\S]{0,40}\?\?[\s\S]{0,40}handle[\s\S]{0,40}\?\?[\s\S]{0,40}onchainHandle[\s\S]{0,40}\?\?[\s\S]{0,40}truncateAddress/,
+    );
+    // CallCard call site actually passes the looked-up handle (lowercased key).
+    expect(feedListSrc).toMatch(
+      /feedItemToCallCardData\(item,\s*handlesMap\.get\(item\.caller\.toLowerCase\(\)\)\)/,
+    );
+  });
+});
+
 describe('quick-260611-tbc — Test 4: degradation honesty (real builder import)', () => {
   it('an address-only caller never becomes a fake @0x mention', () => {
     const text = buildShareText({

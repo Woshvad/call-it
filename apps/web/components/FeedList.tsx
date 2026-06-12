@@ -47,14 +47,19 @@ function marketLineFor(item: FeedItem): string {
   );
 }
 
-function feedItemToCallCardData(item: FeedItem) {
+function feedItemToCallCardData(item: FeedItem, onchainHandle?: string) {
   // expiry is a unix timestamp (seconds); deadline is Date
   const expirySeconds = typeof item.expiry === 'number' ? item.expiry : parseInt(String(item.expiry), 10);
   const deadline = new Date(expirySeconds * 1000);
 
   const marketLine = marketLineFor(item);
 
-  const handle = item.displayHandle ?? item.handle ?? truncateAddress(item.caller ?? '');
+  // AUTH-44 precedence: feed displayHandle → feed handle → on-chain
+  // ProfileRegistry.displayHandle → truncated address. The deployed relayer
+  // returns no handle fields, so without the on-chain tier every settled card
+  // showed an address even for callers with a registered handle.
+  const handle =
+    item.displayHandle ?? item.handle ?? onchainHandle ?? truncateAddress(item.caller ?? '');
 
   return {
     handle,
@@ -96,9 +101,10 @@ function feedItemToCallCardData(item: FeedItem) {
 // recipe (page.tsx:1867-1882): env-locked OG base origin + the shared pure
 // builders. ogBase unset → undefined → the card renders NO share control
 // (obx precedent, D-08: no dead controls). The handle candidate is passed RAW
-// (item.displayHandle ?? item.handle — NEVER the truncateAddress() display
-// fallback) so buildShareText's internal isRealHandle omits 0x/#N fakes.
-function shareHrefFor(item: FeedItem): string | undefined {
+// (item.displayHandle ?? item.handle ?? on-chain displayHandle — NEVER the
+// truncateAddress() display fallback) so buildShareText's internal
+// isRealHandle omits 0x/#N fakes.
+function shareHrefFor(item: FeedItem, onchainHandle?: string): string | undefined {
   const word = settledOutcomeWord(item.outcome ?? undefined);
   if (item.status !== 'settled' && item.status !== 'disputed') return undefined;
   if (word === null) return undefined;
@@ -108,7 +114,7 @@ function shareHrefFor(item: FeedItem): string | undefined {
     `${ogBase}/call/${item.id}`,
     buildShareText({
       outcomeWord: word,
-      handle: item.displayHandle ?? item.handle,
+      handle: item.displayHandle ?? item.handle ?? onchainHandle,
       statement: marketLineFor(item),
     }),
   );
@@ -129,7 +135,9 @@ export function FeedList({ items, isLoading, onItemClick }: FeedListProps) {
   // Lowercase status comparisons only (D-15 canonical boundary).
   const liveItems = items.filter((i) => i.status !== 'settled' && i.status !== 'disputed');
   const reservesMap = useFeedReserves(liveItems.map((i) => i.id));
-  const handlesMap = useFeedHandles(liveItems.map((i) => i.caller));
+  // Handles resolve for EVERY card (settled included) — the hook dedupes to
+  // one read per unique caller, so this stays within the CU discipline.
+  const handlesMap = useFeedHandles(items.map((i) => i.caller));
 
   // Loading skeleton
   if (isLoading) {
@@ -162,9 +170,9 @@ export function FeedList({ items, isLoading, onItemClick }: FeedListProps) {
         >
           {item.status === 'settled' || item.status === 'disputed' ? (
             <CallCard
-              call={feedItemToCallCardData(item)}
+              call={feedItemToCallCardData(item, handlesMap.get(item.caller.toLowerCase()))}
               onClick={onItemClick ? () => onItemClick(item) : undefined}
-              shareHref={shareHrefFor(item)}
+              shareHref={shareHrefFor(item, handlesMap.get(item.caller.toLowerCase()))}
             />
           ) : (
             <LiveCallCard
