@@ -172,22 +172,10 @@ export default function SignInPage() {
   }, [signinOpen]);
 
   return (
-    <div
-      className={archivo.className}
-      style={{ minHeight: '100vh', background: '#D4F500', padding: '14px' }}
-    >
-      <div
-        style={{
-          position: 'relative',
-          overflow: 'hidden',
-          background: '#0A0A0A',
-          borderRadius: '28px',
-          minHeight: 'calc(100vh - 28px)',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'stretch',
-        }}
-      >
+    // Layout/spacing live in .ci-page/.ci-panel classes (NOT inline) so the
+    // mobile media queries below can override them — inline beats stylesheet.
+    <div className={`${archivo.className} ci-page`}>
+      <div className="ci-panel">
         {/* background atmosphere: vertical glass columns + acid bloom (design-verbatim) */}
         <div
           style={{
@@ -226,59 +214,26 @@ export default function SignInPage() {
           }}
         />
 
-        {/* nav */}
+        {/* nav — ≤640px reflows to two rows: brand + Sign In on top, the
+            How-it-works pill centered below (the glass container chrome
+            collapses; the acid pill keeps its look). */}
         <div className="ci-nav">
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1 }}>
+          <div className="ci-nav-brand">
             {/* Static import (NOT a raw /brand/ URL — see header note (e)) */}
             <Image src={callitMark} alt="CALL IT mark" width={34} height={34} style={{ objectFit: 'contain' }} />
-            <span
-              style={{
-                fontFamily: archivoBlack.style.fontFamily,
-                fontSize: '19px',
-                letterSpacing: '0.02em',
-                color: '#FFFFFF',
-              }}
-            >
+            <span className="ci-brand-word" style={{ fontFamily: archivoBlack.style.fontFamily }}>
               CALL IT
             </span>
           </div>
           {/* Center glass pill container — the design's Market/Leaderboard/Dashboard
               pills are NOT rendered (user removal, quick-260612-a6v); a single
               "How it works" pill (the design's ACTIVE pill recipe) opens the modal. */}
-          <nav
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '4px',
-              padding: '5px',
-              borderRadius: '999px',
-              background: 'rgba(255,255,255,0.05)',
-              border: '1px solid rgba(255,255,255,0.10)',
-              backdropFilter: 'blur(14px)',
-              WebkitBackdropFilter: 'blur(14px)',
-            }}
-          >
-            <button
-              type="button"
-              onClick={() => setHowOpen(true)}
-              style={{
-                display: 'block',
-                padding: '8px 18px',
-                borderRadius: '999px',
-                background: 'rgba(212,245,0,0.14)',
-                border: '1px solid rgba(212,245,0,0.35)',
-                color: '#D4F500',
-                fontFamily: 'inherit',
-                fontSize: '13px',
-                fontWeight: 700,
-                letterSpacing: '0.02em',
-                cursor: 'pointer',
-              }}
-            >
+          <nav className="ci-nav-pill">
+            <button type="button" className="ci-how-btn" onClick={() => setHowOpen(true)}>
               How it works
             </button>
           </nav>
-          <div style={{ display: 'flex', justifyContent: 'flex-end', flex: 1 }}>
+          <div className="ci-nav-right">
             <button type="button" className="ci-signin-btn" onClick={() => setSigninOpen(true)}>
               Sign In →
             </button>
@@ -287,19 +242,7 @@ export default function SignInPage() {
 
         {/* hero body */}
         <div className="ci-hero">
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '9px',
-              padding: '8px 18px',
-              borderRadius: '999px',
-              background: 'rgba(212,245,0,0.07)',
-              border: '1px solid rgba(212,245,0,0.25)',
-              backdropFilter: 'blur(10px)',
-              WebkitBackdropFilter: 'blur(10px)',
-            }}
-          >
+          <div className="ci-badge">
             <span
               style={{
                 width: '7px',
@@ -309,46 +252,19 @@ export default function SignInPage() {
                 animation: 'ci-pulse 2s ease-in-out infinite',
               }}
             />
-            <span
-              style={{
-                fontFamily: 'var(--font-jetbrains-mono)',
-                fontSize: '11px',
-                fontWeight: 500,
-                letterSpacing: '0.14em',
-                color: '#D4F500',
-                textTransform: 'uppercase',
-              }}
-            >
-              Stake smarter · Call it public
-            </span>
+            <span className="ci-badge-text">Stake smarter · Call it public</span>
           </div>
 
-          <h1
-            style={{
-              margin: '30px 0 0',
-              fontFamily: archivoBlack.style.fontFamily,
-              fontSize: 'clamp(64px, 8.6vw, 124px)',
-              lineHeight: 0.92,
-              letterSpacing: '-0.025em',
-              color: '#FFFFFF',
-            }}
-          >
+          {/* Desktop size is the design-verbatim clamp(64px, 8.6vw, 124px) in
+              .ci-h1; ≤640px re-scales to a vw-driven clamp (the 64px floor
+              overflows ≤350px viewports and eats a third of a phone screen). */}
+          <h1 className="ci-h1" style={{ fontFamily: archivoBlack.style.fontFamily }}>
             BE RIGHT
             <br />
             <span style={{ color: '#D4F500' }}>IN PUBLIC.</span>
           </h1>
 
-          <p
-            style={{
-              margin: '28px 0 0',
-              maxWidth: '520px',
-              fontSize: '19px',
-              lineHeight: 1.55,
-              fontWeight: 500,
-              color: '#9A9A90',
-              textWrap: 'pretty',
-            }}
-          >
+          <p className="ci-sub">
             A reputation market for crypto calls. Stake on what you believe. Get a receipt that
             lasts forever.
           </p>
@@ -656,16 +572,7 @@ export default function SignInPage() {
         {/* bottom spacer — the design's bottom microcopy div is EMPTY; keep the spacer
             so the bloom composition matches. The design's block-counter script is
             unused decoration and is NOT ported. */}
-        <div
-          style={{
-            position: 'relative',
-            zIndex: 4,
-            display: 'flex',
-            justifyContent: 'center',
-            padding: '58px 24px 36px',
-            marginTop: 'auto',
-          }}
-        />
+        <div className="ci-bottom-spacer" />
       </div>
 
       {/* How-it-works explainer — its MAKE YOUR FIRST CALL ▸ CTA chains into the
@@ -707,14 +614,16 @@ export default function SignInPage() {
       >
         <div
           data-testid="signin-modal"
+          className="ci-modal-panel"
           onClick={(e) => e.stopPropagation()}
           style={{
             position: 'relative',
             backgroundColor: '#0A0A0A',
             border: '1px solid rgba(255,255,255,0.13)',
             borderRadius: '20px',
-            padding: '32px',
             width: 'min(92vw, 420px)',
+            maxHeight: 'min(86dvh, 680px)',
+            overflowY: 'auto',
             backdropFilter: 'blur(18px)',
             WebkitBackdropFilter: 'blur(18px)',
             boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.14), 0 32px 80px rgba(0,0,0,0.6)',
@@ -795,14 +704,37 @@ export default function SignInPage() {
         </div>
       </div>
 
-      {/* Page-local styles: keyframes, hover recipes, and the ≤860px responsive
-          overrides. Inline style={{}} beats stylesheet selectors, so every element
-          with a :hover or media-query override gets ALL of its overridable
-          properties from a ci-* class here. */}
+      {/* Page-local styles: keyframes, hover recipes, and the responsive layer.
+          Inline style={{}} beats stylesheet selectors, so every element a media
+          query or :hover touches gets ALL of its overridable properties from a
+          ci-* class here (desktop values are design-verbatim).
+
+          Responsive tiers (quick-260612-fast mobile rework):
+          - ≤860px  tablet: cards stack center-first as a subtle ±1.4° deck
+          - ≤640px  phone:  two-row nav, vw-scaled h1, full-width stacked CTAs,
+                            44px tap targets, dvh viewport units
+          - ≤360px  squeeze: brand/CTA type steps down so nothing clips */}
       <style>{`
         @keyframes ci-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.25; } }
         @keyframes ci-bloom { 0%, 100% { opacity: 0.85; } 50% { opacity: 1; } }
 
+        .ci-page {
+          min-height: 100vh;
+          min-height: 100dvh; /* iOS URL-bar-safe; vh line above is the fallback */
+          background: #D4F500;
+          padding: 14px;
+        }
+        .ci-panel {
+          position: relative;
+          overflow: hidden;
+          background: #0A0A0A;
+          border-radius: 28px;
+          min-height: calc(100vh - 28px);
+          min-height: calc(100dvh - 28px);
+          display: flex;
+          flex-direction: column;
+          align-items: stretch;
+        }
         .ci-nav {
           position: relative;
           z-index: 5;
@@ -811,6 +743,51 @@ export default function SignInPage() {
           justify-content: space-between;
           padding: 22px 36px;
           gap: 24px;
+        }
+        .ci-nav-brand {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          flex: 1;
+          min-width: 0;
+        }
+        .ci-brand-word {
+          font-size: 19px;
+          letter-spacing: 0.02em;
+          color: #FFFFFF;
+          white-space: nowrap;
+        }
+        .ci-nav-pill {
+          display: flex;
+          align-items: center;
+          gap: 4px;
+          padding: 5px;
+          border-radius: 999px;
+          background: rgba(255,255,255,0.05);
+          border: 1px solid rgba(255,255,255,0.10);
+          backdrop-filter: blur(14px);
+          -webkit-backdrop-filter: blur(14px);
+        }
+        .ci-how-btn {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          padding: 8px 18px;
+          border-radius: 999px;
+          background: rgba(212,245,0,0.14);
+          border: 1px solid rgba(212,245,0,0.35);
+          color: #D4F500;
+          font-family: inherit;
+          font-size: 13px;
+          font-weight: 700;
+          letter-spacing: 0.02em;
+          cursor: pointer;
+          white-space: nowrap;
+        }
+        .ci-nav-right {
+          display: flex;
+          justify-content: flex-end;
+          flex: 1;
         }
         .ci-signin-btn {
           cursor: pointer;
@@ -824,6 +801,7 @@ export default function SignInPage() {
           font-weight: 800;
           letter-spacing: 0.04em;
           text-transform: uppercase;
+          white-space: nowrap;
           transition: background 0.15s ease, transform 0.15s ease;
         }
         .ci-signin-btn:hover {
@@ -839,6 +817,44 @@ export default function SignInPage() {
           text-align: center;
           padding: 64px 32px 0;
         }
+        .ci-badge {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          flex-wrap: wrap;
+          gap: 4px 9px;
+          max-width: 100%;
+          padding: 8px 18px;
+          border-radius: 999px;
+          background: rgba(212,245,0,0.07);
+          border: 1px solid rgba(212,245,0,0.25);
+          backdrop-filter: blur(10px);
+          -webkit-backdrop-filter: blur(10px);
+        }
+        .ci-badge-text {
+          font-family: var(--font-jetbrains-mono);
+          font-size: 11px;
+          font-weight: 500;
+          letter-spacing: 0.14em;
+          color: #D4F500;
+          text-transform: uppercase;
+        }
+        .ci-h1 {
+          margin: 30px 0 0;
+          font-size: clamp(64px, 8.6vw, 124px);
+          line-height: 0.92;
+          letter-spacing: -0.025em;
+          color: #FFFFFF;
+        }
+        .ci-sub {
+          margin: 28px 0 0;
+          max-width: 520px;
+          font-size: 19px;
+          line-height: 1.55;
+          font-weight: 500;
+          color: #9A9A90;
+          text-wrap: pretty;
+        }
         .ci-cta-row {
           display: flex;
           align-items: center;
@@ -847,6 +863,10 @@ export default function SignInPage() {
         }
         .ci-cta-primary {
           cursor: pointer;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          white-space: nowrap;
           padding: 17px 32px;
           border-radius: 999px;
           background: #F5F0E6;
@@ -865,7 +885,10 @@ export default function SignInPage() {
         }
         .ci-cta-secondary {
           cursor: pointer;
-          display: block;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          white-space: nowrap;
           padding: 16px 30px;
           border-radius: 999px;
           background: rgba(255,255,255,0.03);
@@ -925,17 +948,27 @@ export default function SignInPage() {
         .ci-card-right:hover {
           transform: translateY(16px) rotate(2deg) scale(1.02);
         }
+        .ci-bottom-spacer {
+          position: relative;
+          z-index: 4;
+          display: flex;
+          justify-content: center;
+          padding: 58px 24px 36px;
+          margin-top: auto;
+        }
+        .ci-modal-panel {
+          padding: 32px;
+        }
 
-        /* Phase 9 mandate: clean 375px render — nav wraps, CTAs wrap, cards stack
-           vertically center-card-first with rotations zeroed. */
+        /* ── Tablet (≤860px): cards stack center-card-first as a subtle deck —
+           the ±1.4° tilts keep the design's playful stagger in vertical form. */
         @media (max-width: 860px) {
           .ci-nav {
-            flex-wrap: wrap;
-            padding: 16px 16px;
+            padding: 18px 20px;
             gap: 12px;
           }
           .ci-hero {
-            padding: 48px 16px 0;
+            padding: 52px 20px 0;
           }
           .ci-cta-row {
             flex-wrap: wrap;
@@ -944,25 +977,129 @@ export default function SignInPage() {
           .ci-cards {
             flex-direction: column;
             align-items: center;
-            gap: 18px;
-            margin-top: 48px;
-            padding: 0 16px;
+            gap: 16px;
+            margin-top: 44px;
+            padding: 0 20px;
           }
           .ci-card-left,
           .ci-card-center,
           .ci-card-right {
-            transform: none;
             margin: 0;
             width: 100%;
             max-width: 390px;
           }
-          .ci-card-left:hover,
-          .ci-card-center:hover,
-          .ci-card-right:hover {
-            transform: none;
-          }
           .ci-card-center {
             order: -1;
+            transform: none;
+          }
+          .ci-card-left,
+          .ci-card-left:hover {
+            transform: rotate(-1.4deg);
+          }
+          .ci-card-right,
+          .ci-card-right:hover {
+            transform: rotate(1.4deg);
+          }
+          .ci-card-center:hover {
+            transform: none;
+          }
+        }
+
+        /* ── Phone (≤640px): two-row nav (brand + Sign In, pill centered under),
+           vw-scaled headline (the 64px floor overflows ≤350px viewports),
+           full-width stacked CTAs, 44px tap targets, tightened rhythm. */
+        @media (max-width: 640px) {
+          .ci-page {
+            padding: 10px;
+          }
+          .ci-panel {
+            border-radius: 22px;
+            min-height: calc(100vh - 20px);
+            min-height: calc(100dvh - 20px);
+          }
+          .ci-nav {
+            flex-wrap: wrap;
+            padding: 14px 16px;
+            row-gap: 10px;
+            column-gap: 12px;
+          }
+          .ci-nav-right {
+            flex: 0 0 auto;
+          }
+          .ci-nav-pill {
+            order: 3;
+            flex-basis: 100%;
+            justify-content: center;
+            padding: 0;
+            background: transparent;
+            border: none;
+            backdrop-filter: none;
+            -webkit-backdrop-filter: none;
+          }
+          .ci-how-btn {
+            min-height: 44px;
+            padding: 10px 22px;
+          }
+          .ci-signin-btn {
+            min-height: 44px;
+            padding: 11px 20px;
+          }
+          .ci-hero {
+            padding: 40px 18px 0;
+          }
+          .ci-badge {
+            padding: 8px 14px;
+          }
+          .ci-badge-text {
+            font-size: 10px;
+            letter-spacing: 0.1em;
+          }
+          .ci-h1 {
+            margin-top: 24px;
+            font-size: clamp(40px, 14.8vw, 64px);
+          }
+          .ci-sub {
+            margin-top: 18px;
+            font-size: 16px;
+            line-height: 1.5;
+            max-width: 34ch;
+          }
+          .ci-cta-row {
+            flex-direction: column;
+            width: 100%;
+            max-width: 360px;
+            gap: 12px;
+            margin-top: 28px;
+          }
+          .ci-cta-primary,
+          .ci-cta-secondary {
+            width: 100%;
+          }
+          .ci-cards {
+            margin-top: 36px;
+            gap: 14px;
+            padding: 0 16px;
+          }
+          .ci-bottom-spacer {
+            padding: 40px 16px 24px;
+          }
+          .ci-modal-panel {
+            padding: 24px 20px;
+          }
+        }
+
+        /* ── Narrow phones (≤360px): type steps down so nothing clips. */
+        @media (max-width: 360px) {
+          .ci-brand-word {
+            font-size: 17px;
+          }
+          .ci-cta-primary {
+            font-size: 13px;
+            padding: 16px 22px;
+          }
+          .ci-cta-secondary {
+            font-size: 13px;
+            padding: 15px 22px;
           }
         }
       `}</style>
