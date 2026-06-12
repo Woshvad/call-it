@@ -63,6 +63,18 @@ const PUBLIC_PREFIXES = [
   // fetches /.well-known/farcaster.json UNAUTHENTICATED; without this carve-out the
   // matcher bounces it to /signin and the manifest 302s → the Mini App never renders.
   '/.well-known',
+  // Root-served public/ assets (quick-260612 fix): files in public/ are served at
+  // the ROOT URL (/icon.png), NOT under a /public/ prefix — so the matcher's
+  // `public/` exclusion below never matches them and they hit this middleware.
+  // These exact files are referenced by the Farcaster manifest (farcaster.json
+  // route.ts iconUrl/splashImageUrl) and the cast-embed splash (farcaster-embed.ts),
+  // all fetched unauthenticated — without these entries they 307 to /signin (HTML).
+  // WR-03 discipline: exact filenames + one trailing-slash dir, never a blanket.
+  // (The landing logo avoids this class of bug entirely via a next/image static
+  // import that serves from /_next/static — see app/signin/page.tsx note (e).)
+  '/icon.png', // Mini App manifest iconUrl — 1024x1024
+  '/splash.png', // Mini App manifest + embed splashImageUrl — 200x200
+  '/brand/', // static brand assets dir (public/brand/*); trailing slash so a future /branding PAGE is not auto-published
   // Public read surfaces — receipts/profiles/duels/leaderboard MUST be viewable by
   // unauthenticated users (spec §18.1: "the receipt URL is permanent and works for
   // unauthenticated users"; PITFALLS share-loop check). Action pages (/new, /settings,

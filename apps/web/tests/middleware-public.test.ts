@@ -61,3 +61,34 @@ describe('SC1c — middleware public carve-out for Farcaster surfaces', () => {
     expect(isPublicRoute('/settings', FARCASTER_PUBLIC_PREFIXES)).toBe(false);
   });
 });
+
+/**
+ * Root-served public/ assets (quick-260612 fix): public-folder files serve at the
+ * ROOT URL (/icon.png), not under /public/, so the matcher's `public/` exclusion
+ * never matches them — they MUST be explicit PUBLIC_PREFIXES entries or the
+ * Farcaster crawler's unauthenticated fetches of the manifest's iconUrl /
+ * splashImageUrl 307-bounce to /signin (verified live on Vercel 2026-06-12).
+ */
+const STATIC_ASSET_PREFIXES = ['/icon.png', '/splash.png', '/brand/'];
+
+describe('root-served public assets are explicit public prefixes', () => {
+  it('treats the Farcaster manifest images as public', () => {
+    expect(isPublicRoute('/icon.png', STATIC_ASSET_PREFIXES)).toBe(true);
+    expect(isPublicRoute('/splash.png', STATIC_ASSET_PREFIXES)).toBe(true);
+  });
+
+  it('treats brand-dir assets as public', () => {
+    expect(isPublicRoute('/brand/callit-mark.png', STATIC_ASSET_PREFIXES)).toBe(true);
+  });
+
+  it('the trailing-slash /brand/ entry does NOT auto-publish a future /branding page (WR-03)', () => {
+    expect(isPublicRoute('/branding', STATIC_ASSET_PREFIXES)).toBe(false);
+  });
+
+  it('the middleware source carries the exact entries', () => {
+    const src = readFileSync(join(process.cwd(), 'middleware.ts'), 'utf-8');
+    expect(src).toContain("'/icon.png'");
+    expect(src).toContain("'/splash.png'");
+    expect(src).toContain("'/brand/'");
+  });
+});
