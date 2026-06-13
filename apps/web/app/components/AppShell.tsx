@@ -30,6 +30,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { useIsMobile } from '../hooks/useIsMobile';
 import { NotificationBell } from './NotificationBell';
@@ -37,6 +38,7 @@ import { MobileDrawer } from './MobileDrawer';
 import { Sidebar } from './Sidebar';
 import { Icon } from './Icon';
 import { WalletPill } from './WalletPill';
+import callitMark from '@/public/brand/callit-mark.png';
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname() ?? '';
@@ -76,6 +78,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             className="brand"
             style={{ color: 'inherit', textDecoration: 'none' }}
           >
+            <Image
+              src={callitMark}
+              alt=""
+              width={28}
+              height={28}
+              priority
+              style={{ objectFit: 'contain', alignSelf: 'center' }}
+            />
             <span>CALL IT</span>
             {/* Tagline is desktop-only: on <768px it pushed the wallet pill
                 past the viewport edge (user report 2026-06-11). */}
