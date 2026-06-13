@@ -73,6 +73,7 @@ const PUBLIC_PREFIXES = [
   // (The landing logo avoids this class of bug entirely via a next/image static
   // import that serves from /_next/static — see app/signin/page.tsx note (e).)
   '/icon.png', // Mini App manifest iconUrl — 1024x1024
+  '/apple-icon.png', // App Router apple-touch-icon (app/apple-icon.png) — served at root; without this it 307s to /signin
   '/splash.png', // Mini App manifest + embed splashImageUrl — 200x200
   '/brand/', // static brand assets dir (public/brand/*); trailing slash so a future /branding PAGE is not auto-published
   // Public read surfaces — receipts/profiles/duels/leaderboard MUST be viewable by
