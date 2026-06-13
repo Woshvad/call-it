@@ -102,3 +102,20 @@ describe('wallet popover — handle casing', () => {
     expect(src).not.toMatch(/textTransform:\s*'uppercase'/);
   });
 });
+
+describe('wallet popover — sign out', () => {
+  it('pulls logout from usePrivy and renders a SIGN OUT control that calls logout()', () => {
+    const src = pill();
+    // logout is destructured from the Privy hook (desktop logout, user 2026-06-13)
+    expect(src).toMatch(/const\s*\{[^}]*\blogout\b[^}]*\}\s*=\s*usePrivy\(\)/);
+    // the SIGN OUT control exists and invokes logout()
+    expect(src).toContain('SIGN OUT');
+    expect(src).toContain('data-testid="wallet-signout"');
+    expect(src).toContain('logout()');
+  });
+
+  it('sign out closes the popover (setOpen(false)) like the other footer actions', () => {
+    const src = pill();
+    expect(src).toMatch(/void logout\(\);\s*setOpen\(false\)/);
+  });
+});

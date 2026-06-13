@@ -34,7 +34,7 @@ import { useUsdcBalance } from '@/hooks/useUsdcBalance';
 import { useProfile } from '@/hooks/useProfile';
 
 export function WalletPill() {
-  const { authenticated, ready, user } = usePrivy();
+  const { authenticated, ready, user, logout } = usePrivy();
   const { address } = useAccount();
   const profileAddr =
     address ?? (user?.wallet?.address as `0x${string}` | undefined);
@@ -267,6 +267,34 @@ export function WalletPill() {
           >
             SETTINGS →
           </Link>
+
+          {/* Sign out — desktop logout lived only in MobileDrawer until now
+              (user 2026-06-13). Mirrors MobileDrawer handleSignOut: tear down
+              the Privy session, then close the popover. Loss/red accent so it
+              reads as the terminal action in the footer. */}
+          <button
+            type="button"
+            data-testid="wallet-signout"
+            onClick={() => {
+              void logout();
+              setOpen(false);
+            }}
+            style={{
+              display: 'block',
+              width: '100%',
+              textAlign: 'left',
+              fontFamily: 'var(--font-mono)',
+              fontSize: 11,
+              color: 'var(--accent-loss)',
+              background: 'transparent',
+              border: 'none',
+              borderTop: '1px solid var(--border-active)',
+              padding: '8px 0 0',
+              cursor: 'pointer',
+            }}
+          >
+            SIGN OUT →
+          </button>
         </div>
       )}
     </div>
