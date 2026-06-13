@@ -57,6 +57,7 @@ const PUBLIC_PREFIXES = [
   '/api/frame', // Frame tx wire endpoint — public by design (D-05, T-08-03-*)
   '/api/og', // OG image API — public by design
   '/_next',
+  '/_vercel', // Vercel platform paths (Web Analytics /_vercel/insights/*, Speed Insights) — must never be auth-gated, else the analytics script 307s to /signin
   '/favicon.ico',
   '/fonts',
   // Farcaster Mini App manifest (D-05, Phase 8 Pitfall 2). The Farcaster crawler
