@@ -51,6 +51,7 @@
 import React, { Component, useEffect, useState } from 'react';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
+import type { Route } from 'next';
 import Image from 'next/image';
 import { Archivo, Archivo_Black } from 'next/font/google';
 import { HowItWorksModal } from '../components/HowItWorksModal';
@@ -681,6 +682,13 @@ export default function SignInPage() {
             By signing in, you&apos;re agreeing to our{' '}
             <Link href="/terms" style={{ color: '#D4F500', textDecoration: 'underline' }}>
               Terms &amp; Conditions
+            </Link>{' '}
+            and{' '}
+            <Link
+              href={'/privacy' as Route}
+              style={{ color: '#D4F500', textDecoration: 'underline' }}
+            >
+              Privacy Policy
             </Link>
             .
           </p>

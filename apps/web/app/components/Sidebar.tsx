@@ -156,6 +156,14 @@ export function Sidebar() {
       {/* REAL deploy values only — never the prototype's fake block number (D-05) */}
       <div className="sidebar-meta" style={profile ? undefined : { marginTop: 'auto' }}>
         v{APP_VERSION} · ARBITRUM SEPOLIA
+        <div style={{ display: 'flex', gap: 10, marginTop: 6 }}>
+          <Link href="/terms" style={{ color: 'inherit', textDecoration: 'underline' }}>
+            TERMS
+          </Link>
+          <Link href={'/privacy' as Route} style={{ color: 'inherit', textDecoration: 'underline' }}>
+            PRIVACY
+          </Link>
+        </div>
       </div>
     </aside>
   );

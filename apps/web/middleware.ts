@@ -85,6 +85,7 @@ const PUBLIC_PREFIXES = [
   '/profile',
   '/leaderboard',
   '/terms', // public legal page — linked from the /signin disclaimer (logged-out users must reach it)
+  '/privacy', // public legal page — linked from the sidebar footer + /signin disclaimer (logged-out users must reach it)
   // Dev-only showcase + visual-snapshot target. Gated by NEXT_PUBLIC_DEV_ROUTES=1
   // at the page level — in production (DEV_ROUTES unset) the page returns a
   // disabled-state message, so listing the prefix here doesn't leak anything.
