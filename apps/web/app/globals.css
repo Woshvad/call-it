@@ -724,6 +724,7 @@ button.wallet-pill:hover { border-color: var(--border-strong); }
   border-bottom: 2px solid var(--border-subtle);
   margin-bottom: 24px;
   gap: 0;
+  overflow-x: auto;
 }
 .tab {
   padding: 14px 20px;
