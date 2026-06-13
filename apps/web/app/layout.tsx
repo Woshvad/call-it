@@ -1,6 +1,7 @@
 import './globals.css';
 import type { Metadata } from 'next';
 import { Archivo, Inter, JetBrains_Mono } from 'next/font/google';
+import { Analytics } from '@vercel/analytics/next';
 import { ClientProviders } from './ClientProviders';
 // AppShell is the app chrome (ticker flag + 64px header + 240px sidebar, D-10).
 // It mounts NotificationBell + the wallet pill, so it lives INSIDE
@@ -58,6 +59,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <ClientProviders>
           <AppShell>{children}</AppShell>
         </ClientProviders>
+        <Analytics />
       </body>
     </html>
   );
