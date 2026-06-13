@@ -55,6 +55,11 @@ export interface RelayerEnv {
   PRIVY_APP_SECRET: string;
   ALCHEMY_API_KEY: string;
   RPC_URL_ARBITRUM_SEPOLIA?: string;
+  /** Optional 2nd keyed Arbitrum-Sepolia RPC (quick-260613-r3u) — when set,
+   * makeSepoliaTransport adds it as a fallback rung before the bare public RPC
+   * so one provider's mid-month 429 capacity wall no longer degrades all reads
+   * to throttled public RPC. Operator-optional; never required at startup. */
+  RPC_URL_ARBITRUM_SEPOLIA_2?: string;
   RPC_URL_ARBITRUM_MAINNET?: string;
   PINATA_JWT?: string;
 

@@ -25,8 +25,9 @@
  */
 
 import type { FastifyInstance, FastifyPluginOptions } from 'fastify';
-import { fallback, createPublicClient, http, isAddress } from 'viem';
+import { createPublicClient, isAddress } from 'viem';
 import { arbitrumSepolia } from 'viem/chains';
+import { makeSepoliaTransport } from '../lib/sepolia-transport.js';
 import { getRedis } from '../lib/redis.js';
 import { getCached, setCached } from '../lib/cache.js';
 import { getLogger } from '../lib/logger.js';
@@ -88,15 +89,11 @@ export interface ProfileResponseBody {
 // mid-month — Alchemy capacity 429, live 2026-06-11). The old
 // NEXT_PUBLIC_SUBGRAPH_URL-as-RPC fallthrough is DELETED — a GraphQL endpoint
 // can never answer JSON-RPC and only guaranteed 5s timeouts (9.1 cleanup).
+// quick-260613-r3u: RPC resolution + failover owned by makeSepoliaTransport;
+// the bounded { timeout, retryCount } applies to every rung (keyed + public).
 const arbitrumClient = createPublicClient({
   chain: arbitrumSepolia,
-  transport: fallback([
-    http(
-      process.env.RPC_URL_ARBITRUM_SEPOLIA ?? process.env.ARBITRUM_SEPOLIA_RPC_URL,
-      { timeout: 5_000, retryCount: 1 },
-    ),
-    http(undefined, { timeout: 5_000, retryCount: 1 }),
-  ]),
+  transport: makeSepoliaTransport(undefined, { timeout: 5_000, retryCount: 1 }),
 });
 
 // ProfileRegistry address — canonical shared const (quick-260611-p9a).

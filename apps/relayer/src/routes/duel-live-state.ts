@@ -34,8 +34,9 @@
  */
 
 import type { FastifyInstance, FastifyPluginOptions } from 'fastify';
-import { fallback, createPublicClient, http } from 'viem';
+import { createPublicClient } from 'viem';
 import { arbitrumSepolia } from 'viem/chains';
+import { makeSepoliaTransport } from '../lib/sepolia-transport.js';
 import { getCached, setCached } from '../lib/cache.js';
 import { getLogger } from '../lib/logger.js';
 import {
@@ -216,11 +217,9 @@ export async function duelLiveStateRoute(
       logger.info({ event: 'duel_live_state_cache_miss', challengeId: challengeId.toString() }, 'duel-live-state cache miss — fetching from RPC');
 
       try {
-        const rpcUrl =
-          process.env.RPC_URL_ARBITRUM_SEPOLIA ?? process.env.ARBITRUM_SEPOLIA_RPC_URL;
         const publicClient = createPublicClient({
           chain: arbitrumSepolia,
-          transport: fallback([http(rpcUrl), http()]),
+          transport: makeSepoliaTransport(),
         });
 
         const ceAddress = CHALLENGE_ESCROW_ARBITRUM_SEPOLIA as `0x${string}`;

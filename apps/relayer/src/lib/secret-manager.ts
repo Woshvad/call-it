@@ -162,6 +162,7 @@ export async function loadSecrets(): Promise<RelayerEnv> {
   // Optional secrets
   const [
     rpcUrlSepolia,
+    rpcUrlSepolia2,
     rpcUrlMainnet,
     pinataJwt,
     subgraphUrl,
@@ -174,6 +175,10 @@ export async function loadSecrets(): Promise<RelayerEnv> {
     alchemyPaymasterAddress,
   ] = await Promise.all([
     fetchSecret('RPC_URL_ARBITRUM_SEPOLIA'),
+    // quick-260613-r3u: optional 2nd keyed RPC. fetchSecret tolerates absent
+    // secrets (returns undefined, never throws on NOT_FOUND); getSecret mirrors
+    // any GCP/Fly value into process.env so makeSepoliaTransport's read picks it up.
+    fetchSecret('RPC_URL_ARBITRUM_SEPOLIA_2'),
     fetchSecret('RPC_URL_ARBITRUM_MAINNET'),
     fetchSecret('PINATA_JWT'),
     fetchSecret('NEXT_PUBLIC_SUBGRAPH_URL'),
@@ -261,6 +266,7 @@ export async function loadSecrets(): Promise<RelayerEnv> {
     PRIVY_APP_SECRET: privyAppSecret,
     ALCHEMY_API_KEY: alchemyApiKey,
     RPC_URL_ARBITRUM_SEPOLIA: rpcUrlSepolia,
+    RPC_URL_ARBITRUM_SEPOLIA_2: rpcUrlSepolia2,
     RPC_URL_ARBITRUM_MAINNET: rpcUrlMainnet,
     PINATA_JWT: pinataJwt,
 

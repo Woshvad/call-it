@@ -36,8 +36,9 @@
  */
 
 import type { FastifyInstance, FastifyPluginOptions } from 'fastify';
-import { fallback, createPublicClient, http } from 'viem';
+import { createPublicClient } from 'viem';
 import { arbitrumSepolia } from 'viem/chains';
+import { makeSepoliaTransport } from '../lib/sepolia-transport.js';
 import { getRedis } from '../lib/redis.js';
 import { getCached, setCached } from '../lib/cache.js';
 import { getLogger } from '../lib/logger.js';
@@ -263,13 +264,10 @@ export async function liveStateRoute(
       logger.info({ event: 'live_state_cache_miss', callId: callId.toString() }, 'live-state cache miss — fetching from RPC');
 
       try {
-        // Prod injects RPC_URL_ARBITRUM_SEPOLIA (GCP/Fly secret); local .env.local
-        // uses ARBITRUM_SEPOLIA_RPC_URL. Read both (undefined => viem public RPC).
-        const rpcUrl =
-          process.env.RPC_URL_ARBITRUM_SEPOLIA ?? process.env.ARBITRUM_SEPOLIA_RPC_URL;
+        // RPC resolution + failover owned by makeSepoliaTransport (quick-260613-r3u).
         const publicClient = createPublicClient({
           chain: arbitrumSepolia,
-          transport: fallback([http(rpcUrl), http()]),
+          transport: makeSepoliaTransport(),
         });
 
         const ffmAddress = FOLLOW_FADE_MARKET_ARBITRUM_SEPOLIA as `0x${string}`;

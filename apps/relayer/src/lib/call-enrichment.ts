@@ -30,9 +30,10 @@
  * Requirements: D-05, D-07, RC2 (quick-260611-5mh live investigation)
  */
 
-import { fallback, createPublicClient, http } from 'viem';
+import { createPublicClient } from 'viem';
 import { arbitrumSepolia } from 'viem/chains';
 import { getLogger } from './logger.js';
+import { makeSepoliaTransport } from './sepolia-transport.js';
 import { PYTH_FEED_IDS, CALL_REGISTRY_ARBITRUM_SEPOLIA } from '@call-it/shared';
 
 // ── CallRegistry.getCall ABI slice (mirrors live-state.ts) ────────────────────
@@ -200,18 +201,13 @@ let client: MulticallClient | null = null;
 
 function getClient(): MulticallClient {
   if (client === null) {
-    // Prod injects RPC_URL_ARBITRUM_SEPOLIA (Fly secret); local .env.local uses
-    // ARBITRUM_SEPOLIA_RPC_URL — same convention as live-state.ts / profile.ts.
-    const rpcUrl =
-      process.env.RPC_URL_ARBITRUM_SEPOLIA ?? process.env.ARBITRUM_SEPOLIA_RPC_URL;
     client = createPublicClient({
       chain: arbitrumSepolia,
       // Bounded transport (quick-260610-sr0 lesson): the public-RPC fallback
-      // tarpit-throttles; never let an enrichment read hang the feed.
-      transport: fallback([
-        http(rpcUrl, { timeout: 5_000, retryCount: 1 }),
-        http(undefined, { timeout: 5_000, retryCount: 1 }), // public RPC failover
-      ]),
+      // tarpit-throttles; never let an enrichment read hang the feed. RPC
+      // resolution + failover owned by makeSepoliaTransport (quick-260613-r3u);
+      // the bounded { timeout, retryCount } applies to every rung.
+      transport: makeSepoliaTransport(undefined, { timeout: 5_000, retryCount: 1 }),
     }) as unknown as MulticallClient;
   }
   return client;

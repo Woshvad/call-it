@@ -22,8 +22,6 @@
 
 import {
   createPublicClient,
-  fallback,
-  http,
   encodeFunctionData,
   serializeTransaction,
   keccak256,
@@ -35,6 +33,7 @@ import {
 import { arbitrumSepolia } from 'viem/chains';
 import { gcpKmsAccount, type GcpKmsAccount } from './kms-signer.js';
 import { getLogger } from './logger.js';
+import { makeSepoliaTransport } from './sepolia-transport.js';
 
 export interface WriteContractParams {
   address: Address;
@@ -87,10 +86,11 @@ export function buildOauthProofSubmitter(rpcUrl?: string): OauthProofSubmitter {
     expectedAddress,
   });
 
-  const transport = fallback([
-    http(rpcUrl ?? process.env.RPC_URL_ARBITRUM_SEPOLIA ?? process.env.ARBITRUM_SEPOLIA_RPC_URL),
-    http(), // public RPC failover
-  ]);
+  // RPC resolution + failover owned by makeSepoliaTransport (quick-260613-r3u);
+  // the local `rpcUrl` (when provided) is the override rung, then canonical
+  // RPC_URL_ARBITRUM_SEPOLIA ?? ARBITRUM_SEPOLIA_RPC_URL, optional 2nd keyed
+  // provider, then bare public RPC failover.
+  const transport = makeSepoliaTransport(rpcUrl);
   const publicClient = createPublicClient({ chain: arbitrumSepolia, transport });
 
   async function writeContract(params: WriteContractParams): Promise<Hex> {

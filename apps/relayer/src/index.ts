@@ -24,7 +24,7 @@
 import './lib/load-dev-env.js';
 import Fastify, { type FastifyInstance } from 'fastify';
 import cors from '@fastify/cors';
-import { fallback, createPublicClient, createWalletClient, http, type WalletClient } from 'viem';
+import { createPublicClient, createWalletClient, type WalletClient } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
 import { arbitrumSepolia } from 'viem/chains';
 import { initEnv } from './env.js';
@@ -32,6 +32,7 @@ import { createLogger, setLogger } from './lib/logger.js';
 import { pingWithBullMQCompat } from './lib/redis.js';
 import { getDb } from './db/client.js';
 import { FOLLOW_FADE_MARKET_ARBITRUM_SEPOLIA, PROFILE_REGISTRY_ARBITRUM_SEPOLIA, SETTLEMENT_MANAGER_ARBITRUM_SEPOLIA } from '@call-it/shared';
+import { makeSepoliaTransport } from './lib/sepolia-transport.js';
 import { healthRoute } from './routes/health.js';
 import { internalTestAlertRoute } from './routes/internal-test-alert.js';
 import { paymasterAdminRoute } from './routes/admin-paymaster.js';
@@ -214,13 +215,11 @@ export async function buildApp(): Promise<FastifyInstance> {
   // Set up notification fan-out worker dependencies (created lazily at boot)
   const notificationFanoutClient = createPublicClient({
     chain: arbitrumSepolia,
-    // Production injects RPC_URL_ARBITRUM_SEPOLIA (GCP/Fly secret); local .env.local
-    // uses ARBITRUM_SEPOLIA_RPC_URL (matches foundry/web). Read both so the fan-out
-    // RPC transport is defined in dev AND prod. undefined => viem default public RPC.
-    transport: fallback([
-      http(process.env.RPC_URL_ARBITRUM_SEPOLIA ?? process.env.ARBITRUM_SEPOLIA_RPC_URL),
-      http(), // public RPC failover — configured key can die mid-month (Alchemy 429, live 2026-06-11)
-    ]),
+    // RPC resolution + failover owned by makeSepoliaTransport (quick-260613-r3u):
+    // RPC_URL_ARBITRUM_SEPOLIA ?? ARBITRUM_SEPOLIA_RPC_URL, optional 2nd keyed
+    // provider (RPC_URL_ARBITRUM_SEPOLIA_2), then bare public RPC failover — the
+    // configured key can die mid-month (Alchemy 429, live 2026-06-11).
+    transport: makeSepoliaTransport(),
   });
   const notificationFanoutDb = getDb();
   const notificationSubgraphUrl =
@@ -277,10 +276,7 @@ export async function buildApp(): Promise<FastifyInstance> {
       settlementPollerWalletClient = createWalletClient({
         account: privateKeyToAccount(env.SETTLEMENT_SIGNER_PRIVATE_KEY as `0x${string}`),
         chain: arbitrumSepolia,
-        transport: fallback([
-          http(process.env.RPC_URL_ARBITRUM_SEPOLIA ?? process.env.ARBITRUM_SEPOLIA_RPC_URL),
-          http(), // public RPC failover (mirrors notificationFanoutClient)
-        ]),
+        transport: makeSepoliaTransport(), // mirrors notificationFanoutClient
       });
     } catch {
       // SANITIZED on purpose: a malformed key must never echo any key material.
