@@ -30,6 +30,9 @@ const jbm = JetBrains_Mono({
 export const dynamic = 'force-dynamic';
 
 export const metadata: Metadata = {
+  // Canonical production domain (callitlive.app); override via NEXT_PUBLIC_OG_BASE_URL.
+  // Resolves the relative '/api/og/fallback' image path to an absolute URL.
+  metadataBase: new URL(process.env['NEXT_PUBLIC_OG_BASE_URL'] ?? 'https://callitlive.app'),
   title: 'Call It — Be right in public',
   description:
     'Social prediction for crypto-native users. Stake USDC on calls, build your permanent onchain reputation.',
@@ -37,6 +40,13 @@ export const metadata: Metadata = {
     title: 'Call It',
     description: 'Every call is permanent, public, and tied to identity.',
     type: 'website',
+    images: [{ url: '/api/og/fallback', width: 1200, height: 630, alt: 'Call It' }],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Call It',
+    description: 'Every call is permanent, public, and tied to identity.',
+    images: ['/api/og/fallback'],
   },
 };
 
