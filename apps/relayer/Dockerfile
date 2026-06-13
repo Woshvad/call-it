@@ -56,6 +56,14 @@ COPY packages/config/package.json ./packages/config/
 
 # Install ONLY production dependencies
 ENV NODE_ENV=production
+
+# quick-260613-r3u: bake the deployed git SHA into the runtime image so /health
+# reports it (deployed-vs-master drift visibility). The ARG must be declared in
+# THIS stage (build args are stage-scoped) for the ENV to consume it. Pass it at
+# deploy time: flyctl deploy --build-arg GIT_COMMIT=$(git rev-parse --short HEAD)
+ARG GIT_COMMIT
+ENV GIT_COMMIT=$GIT_COMMIT
+
 RUN pnpm install --frozen-lockfile --prod
 
 # Copy compiled artifacts from builder stage
