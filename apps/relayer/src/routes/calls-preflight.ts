@@ -30,9 +30,10 @@
 
 import type { FastifyInstance, FastifyPluginOptions } from 'fastify';
 import { z } from 'zod';
-import { fallback, createPublicClient, http, keccak256, toBytes } from 'viem';
-import { arbitrum } from 'viem/chains';
+import { createPublicClient, keccak256, toBytes } from 'viem';
+import { arbitrumSepolia } from 'viem/chains';
 import { privySessionPreHandler } from '../lib/privy-auth.js';
+import { makeSepoliaTransport } from '../lib/sepolia-transport.js';
 import { getLogger } from '../lib/logger.js';
 import { getSpotPrice1e8, evaluateTargetGuard } from '../lib/hermes-spot.js';
 import { withTimeout } from '../lib/with-timeout.js';
@@ -46,6 +47,9 @@ import {
   HIGH_CONVICTION_THRESHOLD,
   CONVICTION_AUTOCAP,
   CONVICTION_FLOOR_MIN_CALLS,
+  CALL_REGISTRY_ARBITRUM_SEPOLIA,
+  PROFILE_REGISTRY_ARBITRUM_SEPOLIA,
+  USDC_ARB_SEPOLIA,
 } from '@call-it/shared';
 
 // ─── JSON-safe body schema (strings → bigints for HTTP transport) ─────────────
@@ -292,28 +296,33 @@ export async function callsPreflightRoute(
           : ('0x0000000000000000000000000000000000000000000000000000000000000000' as `0x${string}`);
 
       // ─── 3. On-chain reads (parallel where possible) ──────────────────
+      // quick-260613: Arbitrum Sepolia is where the relayer + contracts live.
+      // RPC resolution + failover owned by makeSepoliaTransport (quick-260613-r3u);
+      // contract + USDC addresses resolved from @call-it/shared (env override
+      // retained for test/local pinning). Previously this read the wrong chain
+      // (Arbitrum One) with never-set RPC env vars and the Arbitrum-One native
+      // USDC — silently wrong TVL/allowance/balance + a no-op duplicate check.
       const callRegistryAddress = (
         process.env['NEXT_PUBLIC_CALL_REGISTRY_ADDRESS'] ??
         process.env['CALL_REGISTRY_ADDRESS'] ??
-        '0x0000000000000000000000000000000000000000'
+        CALL_REGISTRY_ARBITRUM_SEPOLIA
       ) as `0x${string}`;
 
       const profileRegistryAddress = (
         process.env['NEXT_PUBLIC_PROFILE_REGISTRY_ADDRESS'] ??
         process.env['PROFILE_REGISTRY_ADDRESS'] ??
-        '0x0000000000000000000000000000000000000000'
+        PROFILE_REGISTRY_ARBITRUM_SEPOLIA
       ) as `0x${string}`;
 
-      // Native USDC on Arbitrum One
+      // USDC on Arbitrum Sepolia (Circle testnet, 6 decimals — parity with mainnet).
       const usdcAddress = (
         process.env['NEXT_PUBLIC_USDC_ADDRESS'] ??
-        '0xaf88d065e77c8cC2239327C5EDb3A432268e5831'
+        USDC_ARB_SEPOLIA
       ) as `0x${string}`;
 
-      const rpcUrl = process.env['ALCHEMY_RPC_URL'] ?? process.env['ARBITRUM_RPC_URL'];
       const publicClient = createPublicClient({
-        chain: arbitrum,
-        transport: fallback([http(rpcUrl), http()]),
+        chain: arbitrumSepolia,
+        transport: makeSepoliaTransport(),
       });
 
       const contractsDeployed =

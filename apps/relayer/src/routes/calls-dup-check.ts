@@ -23,9 +23,10 @@
 
 import type { FastifyInstance, FastifyPluginOptions } from 'fastify';
 import { z } from 'zod';
-import { fallback, createPublicClient, http } from 'viem';
-import { arbitrum } from 'viem/chains';
+import { createPublicClient } from 'viem';
+import { arbitrumSepolia } from 'viem/chains';
 import { privySessionPreHandler } from '../lib/privy-auth.js';
+import { makeSepoliaTransport } from '../lib/sepolia-transport.js';
 import { getCached, setCached } from '../lib/cache.js';
 import { getLogger } from '../lib/logger.js';
 import {
@@ -35,6 +36,7 @@ import {
   EVENT_SUBTYPES,
   MARKET_TYPE_TO_UINT,
   EVENT_SUBTYPE_TO_UINT,
+  CALL_REGISTRY_ARBITRUM_SEPOLIA,
 } from '@call-it/shared';
 
 // ─── Request/Response types ───────────────────────────────────────────────────
@@ -167,16 +169,20 @@ export async function callsDupCheckRoute(
       }
 
       // ─── 4. On-chain read via viem ────────────────────────────────────
+      // quick-260613: Arbitrum Sepolia is where the relayer + CallRegistry live.
+      // RPC resolution + failover owned by makeSepoliaTransport (quick-260613-r3u);
+      // CallRegistry address resolved from @call-it/shared (env override retained
+      // for test/local pinning). Previously this read the wrong chain (Arbitrum
+      // One) with never-set RPC env vars — a silent no-op dup check.
       const callRegistryAddress = (
         process.env['NEXT_PUBLIC_CALL_REGISTRY_ADDRESS'] ??
         process.env['CALL_REGISTRY_ADDRESS'] ??
-        '0x0000000000000000000000000000000000000000'
+        CALL_REGISTRY_ARBITRUM_SEPOLIA
       ) as `0x${string}`;
 
-      const rpcUrl = process.env['ALCHEMY_RPC_URL'] ?? process.env['ARBITRUM_RPC_URL'];
       const publicClient = createPublicClient({
-        chain: arbitrum,
-        transport: fallback([http(rpcUrl), http()]),
+        chain: arbitrumSepolia,
+        transport: makeSepoliaTransport(),
       });
 
       let response: DupCheckResponse;
