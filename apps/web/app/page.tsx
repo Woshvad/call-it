@@ -246,7 +246,7 @@ export default function HomePage() {
       <div className="page-header">
         <div>
           <h1>The Tape</h1>
-          <div className="sub">
+          <div className="sub tape-tagline">
             <span className="em">Live calls.</span> Real money. Permanent
             receipts.
           </div>

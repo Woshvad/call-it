@@ -1022,4 +1022,11 @@ button.wallet-pill:hover { border-color: var(--border-strong); }
   .brutal-select {
     min-height: 44px;
   }
+
+  /* Hide the Tape hero tagline on phones (user request 2026-06-13) — the
+     "Live calls. Real money. Permanent receipts." subline is desktop-only;
+     scoped to .tape-tagline so other .page-header subtitles are unaffected. */
+  .tape-tagline {
+    display: none;
+  }
 }
