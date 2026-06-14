@@ -12,6 +12,7 @@
 
 import { SUBGRAPH_URL_SEPOLIA } from '@call-it/shared';
 import type { MarketType, EventSubtype, Category } from '@call-it/shared';
+import { resilientSubgraphFetch } from './subgraph-resilience';
 
 const RELAYER_BASE = (process.env['NEXT_PUBLIC_RELAYER_BASE_URL'] ?? '').replace(/\/$/, '');
 
@@ -332,31 +333,16 @@ export async function getSettledFields(callId: string | number): Promise<Settled
   };
   if (!SUBGRAPH_URL) return empty;
 
-  try {
-    const res = await fetch(SUBGRAPH_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        query: SETTLED_FIELDS_QUERY,
-        // call(id:) is ID!, Position.callId is String — pass both forms.
-        variables: { callId: String(callId), callIdStr: String(callId) },
-      }),
-    });
-    if (!res.ok) return empty;
-
-    const json = (await res.json()) as {
-      data?: {
-        call?: { statement?: string | null } | null;
-        settlements?: Array<{ finalPrice?: string | null; priceDelta?: string | null }>;
-        repEvents?: Array<{ delta?: number | null; fallback?: boolean | null }>;
-        positions?: Array<{ side?: string | null; usdcDeposited?: string | null }>;
-        callerExits?: Array<{ penaltyApplied?: string | null }>;
-      };
-      errors?: unknown;
-    };
-    if (json.errors || !json.data) return empty;
-
-    const d = json.data;
+  // Pure transform from json.data → SettledFields. Extracted (quick-260614-1co)
+  // so the shared resilientSubgraphFetch owns retry + last-known-good; the
+  // fadeRealShare BigInt accumulation is preserved byte-for-byte.
+  const parse = (d: {
+    call?: { statement?: string | null } | null;
+    settlements?: Array<{ finalPrice?: string | null; priceDelta?: string | null }>;
+    repEvents?: Array<{ delta?: number | null; fallback?: boolean | null }>;
+    positions?: Array<{ side?: string | null; usdcDeposited?: string | null }>;
+    callerExits?: Array<{ penaltyApplied?: string | null }>;
+  }): SettledFields => {
     const settlement = d.settlements?.[0];
     const repEvent = d.repEvents?.[0];
 
@@ -396,9 +382,19 @@ export async function getSettledFields(callId: string | number): Promise<Settled
           ? d.callerExits[0]!.penaltyApplied
           : null,
     };
-  } catch {
-    return empty;
-  }
+  };
+
+  // fallback:()=>empty preserves the never-throw SHARE-10 contract; the util's
+  // last-known-good cache returns the real fields through a transient blip.
+  return resilientSubgraphFetch<SettledFields>({
+    url: SUBGRAPH_URL,
+    query: SETTLED_FIELDS_QUERY,
+    // call(id:) is ID!, Position.callId is String — pass both forms.
+    variables: { callId: String(callId), callIdStr: String(callId) },
+    cacheKey: `settled:${String(callId)}`,
+    parse,
+    fallback: () => empty,
+  });
 }
 
 // ─── Duel settled-field subgraph read (OG real-data wiring, D-03) ────────────────
@@ -457,43 +453,33 @@ export async function getDuelSettledFields(
   };
   if (!SUBGRAPH_URL) return empty;
 
-  try {
-    const res = await fetch(SUBGRAPH_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        query: DUEL_SETTLED_FIELDS_QUERY,
-        variables: {
-          callId: String(callId),
-          caller: caller.toLowerCase(),
-          challenger: challenger.toLowerCase(),
-        },
-      }),
-    });
-    if (!res.ok) return empty;
+  // Pure transform from json.data → DuelSettledFields (quick-260614-1co).
+  const parse = (d: {
+    call?: { statement?: string | null; asset?: string | null } | null;
+    callerRep?: Array<{ delta?: number | null }>;
+    challengerRep?: Array<{ delta?: number | null }>;
+  }): DuelSettledFields => ({
+    statement: d.call?.statement ?? null,
+    asset: d.call?.asset ?? null,
+    callerRepDelta:
+      typeof d.callerRep?.[0]?.delta === 'number' ? d.callerRep[0]!.delta : null,
+    challengerRepDelta:
+      typeof d.challengerRep?.[0]?.delta === 'number' ? d.challengerRep[0]!.delta : null,
+  });
 
-    const json = (await res.json()) as {
-      data?: {
-        call?: { statement?: string | null; asset?: string | null } | null;
-        callerRep?: Array<{ delta?: number | null }>;
-        challengerRep?: Array<{ delta?: number | null }>;
-      };
-      errors?: unknown;
-    };
-    if (json.errors || !json.data) return empty;
-
-    const d = json.data;
-    return {
-      statement: d.call?.statement ?? null,
-      asset: d.call?.asset ?? null,
-      callerRepDelta:
-        typeof d.callerRep?.[0]?.delta === 'number' ? d.callerRep[0]!.delta : null,
-      challengerRepDelta:
-        typeof d.challengerRep?.[0]?.delta === 'number' ? d.challengerRep[0]!.delta : null,
-    };
-  } catch {
-    return empty;
-  }
+  // fallback:()=>empty preserves the never-throw SHARE-10 contract.
+  return resilientSubgraphFetch<DuelSettledFields>({
+    url: SUBGRAPH_URL,
+    query: DUEL_SETTLED_FIELDS_QUERY,
+    variables: {
+      callId: String(callId),
+      caller: caller.toLowerCase(),
+      challenger: challenger.toLowerCase(),
+    },
+    cacheKey: `duel:${String(callId)}:${caller.toLowerCase()}:${challenger.toLowerCase()}`,
+    parse,
+    fallback: () => empty,
+  });
 }
 
 // ─── Profile ───────────────────────────────────────────────────────────────────
