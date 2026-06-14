@@ -21,36 +21,13 @@
  * Requirements: UI-12, UI-13, D-06, D-27
  */
 
+import { resilientSubgraphFetch } from './subgraph-resilience';
+
 const SUBGRAPH_URL = (
   process.env['SUBGRAPH_URL'] ??
   process.env['NEXT_PUBLIC_SUBGRAPH_URL'] ??
   ''
 ).replace(/\/$/, '');
-
-/**
- * Module-level last-known-good board (quick-260613-we4). Populated on every
- * successful fetch+parse+sort. When all retry attempts fail but a prior good
- * board exists, getLeaderboard returns this (stale, no throw) so the Server
- * Component renders the board instead of the error state. It stays null until
- * the first success, so a true cold outage still throws.
- */
-let lastGood: LeaderboardData | null = null;
-
-/** Max fetch attempts on a transient (429 / 5xx / network) failure. */
-const MAX_ATTEMPTS = 3;
-
-/**
- * Backoff between retry attempts. 0ms under test (vitest sets NODE_ENV='test')
- * so the suite stays fast; ~250ms→500ms in prod to ride out a Cloudflare flap.
- */
-function backoffMs(attempt: number): number {
-  if (process.env['NODE_ENV'] === 'test') return 0;
-  return attempt === 1 ? 250 : 500;
-}
-
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
 
 /** A single ranked caller on the leaderboard (sourced from Profile.globalRep, D-06). */
 export interface LeaderboardRow {
@@ -161,16 +138,18 @@ function buildLeaderboard(profiles: SubgraphProfile[]): LeaderboardData {
  * note. Server-side only (the Leaderboard page is a Server Component); the
  * server-only `SUBGRAPH_URL` env var keeps the gateway key out of the bundle (D-27).
  *
- * Resilience (quick-260613-we4): the fetch is retried up to 3× on a transient
- * failure — a thrown network error, HTTP 429, or any 5xx (covers the observed
- * Cloudflare 521 origin-down flap) — and likewise when the response carries GraphQL
- * `errors` / no `data`. On exhausted retries it returns the module-level
- * last-known-good board (stale, no throw) if a prior fetch ever succeeded, so the
- * Server Component keeps rendering the board through a blip. It throws ONLY on a
- * cold outage — all attempts failed AND no prior good board exists (`lastGood ===
- * null`) — so page.tsx still renders the UI-SPEC error state ("Couldn't load the
- * tape…") in that one unavoidable case. Returns an EMPTY (not throwing) result when
- * the subgraph simply has no ranked callers yet.
+ * Resilience (quick-260614-1co): the fetch is delegated to the shared
+ * `resilientSubgraphFetch` util (apps/web/lib/subgraph-resilience.ts), which
+ * retries up to 3× on a transient failure — a thrown network error, HTTP 429, or
+ * any 5xx (covers the observed Cloudflare 521 origin-down flap) — and likewise when
+ * the response carries GraphQL `errors` / no `data`. On exhausted retries it serves
+ * the util's module-level last-known-good board (stale, no throw) under
+ * `leaderboard:${first}` if a prior fetch ever succeeded, so the Server Component
+ * keeps rendering the board through a blip. NO `fallback` is passed here, so a cold
+ * outage — all attempts failed AND no prior good board cached — still THROWS, and
+ * page.tsx renders the UI-SPEC error state ("Couldn't load the tape…") in that one
+ * unavoidable case. Returns an EMPTY (not throwing) result when the subgraph simply
+ * has no ranked callers yet, and when no subgraph URL is configured.
  */
 export async function getLeaderboard(
   // eslint-disable-next-line @typescript-eslint/no-unused-vars -- accepted for API parity; D-06 backs all windows with All-time data
@@ -182,59 +161,16 @@ export async function getLeaderboard(
     return { rows: [], windowedDataAvailable: false };
   }
 
-  let lastError: Error = new Error('Leaderboard subgraph request failed');
-
-  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
-    try {
-      const res = await fetch(SUBGRAPH_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          query: LEADERBOARD_QUERY,
-          variables: { first },
-        }),
-        // Always fetch fresh — the board reflects live globalRep at read time (D-06).
-        // Freshness across blips is governed by lastGood, not the HTTP cache.
-        cache: 'no-store',
-      });
-
-      // Retryable transport failure: 429 (rate limit) or any 5xx (incl. 521).
-      if (!res.ok) {
-        if (res.status === 429 || res.status >= 500) {
-          lastError = new Error(`Leaderboard subgraph request failed: ${res.status}`);
-          if (attempt < MAX_ATTEMPTS) await sleep(backoffMs(attempt));
-          continue;
-        }
-        // Non-retryable client error (e.g. 4xx other than 429) — fail fast below.
-        throw new Error(`Leaderboard subgraph request failed: ${res.status}`);
-      }
-
-      const json = (await res.json()) as {
-        data?: { profiles?: SubgraphProfile[] };
-        errors?: unknown;
-      };
-
-      // Treat GraphQL errors / missing data as a retryable attempt.
-      if (json.errors || !json.data) {
-        lastError = new Error('Leaderboard subgraph returned errors');
-        if (attempt < MAX_ATTEMPTS) await sleep(backoffMs(attempt));
-        continue;
-      }
-
-      const result = buildLeaderboard(json.data.profiles ?? []);
-      lastGood = result; // prime the stale fallback before returning
-      return result;
-    } catch (err) {
-      // Network error (fetch threw) — retryable.
-      lastError = err instanceof Error ? err : new Error(String(err));
-      if (attempt < MAX_ATTEMPTS) await sleep(backoffMs(attempt));
-      continue;
-    }
-  }
-
-  // All attempts exhausted. Serve the last-known-good board if we have one
-  // (stale, no throw → board renders); otherwise it's a cold outage → throw so
-  // page.tsx renders the error state.
-  if (lastGood !== null) return lastGood;
-  throw lastError;
+  return resilientSubgraphFetch<LeaderboardData>({
+    url: SUBGRAPH_URL,
+    query: LEADERBOARD_QUERY,
+    variables: { first },
+    cacheKey: `leaderboard:${first}`,
+    parse: (d) => buildLeaderboard((d.profiles as SubgraphProfile[]) ?? []),
+    // Always fetch fresh — the board reflects live globalRep at read time (D-06).
+    // Freshness across blips is governed by the util's last-known-good cache.
+    fetchInit: { cache: 'no-store' },
+    // NO fallback: a cold outage with no cached board must still throw so
+    // page.tsx renders the UI-SPEC error state.
+  });
 }
